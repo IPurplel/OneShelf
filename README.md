@@ -1,8 +1,82 @@
-# Manga Downloader
+# OneShelf
 
-A self-hosted manga downloader with a browser-based GUI, built to run headless
-in an LXC container. Paste a series URL, pick chapters, get one lossless CBZ per
-chapter on your NAS.
+Download manga, comics, books, and web novels on your own computer. OneShelf
+runs locally on Windows, macOS, or Linux, with a browser interface for finding
+titles, choosing chapters, and managing your downloads. Your library stays on
+your disk.
+
+## Quick start — one command to set up and run
+
+### 1. Get Python and OneShelf
+
+Install **Python 3.12** from [python.org](https://www.python.org/downloads/)
+or your operating system's package manager. The launcher requires Python 3.11
+or newer; Python 3.12 is the version used for the setup checks.
+
+Download this repository with **Code → Download ZIP**, then extract it to a
+writable folder. If you use Git, you can clone it instead:
+
+```bash
+git clone https://github.com/IPurplel/OneShelf.git
+```
+
+This repository is private, so downloading or cloning requires access through
+your GitHub account.
+
+### 2. Run one command
+
+Open a terminal **inside the extracted or cloned OneShelf folder**, where
+`run.py` is located. Use the command for your operating system:
+
+| Windows — PowerShell or Command Prompt | macOS — Terminal | Linux — Terminal |
+| --- | --- | --- |
+| `py -3.12 run.py` | `python3.12 run.py` | `python3.12 run.py` |
+
+If your Python 3.12 installation is called `python` or `python3`, use that name
+instead. For example, `python3 run.py`. Check its version with `python3 --version`
+(or `python --version`).
+
+The same command handles first-time setup and every later launch. On the first
+run it creates an isolated Python environment, installs the application's
+packages and Chromium, writes local settings if none exist, and starts OneShelf.
+Allow a few minutes and an internet connection for this initial setup. Later
+launches reuse the installed packages; changes to `requirements.txt` trigger
+setup again automatically.
+
+On **Ubuntu/Debian**, Python's `venv` support must be installed (usually the
+matching `python3-venv` or `python3.12-venv` package). The launcher also installs
+Chromium's system libraries and may ask for your **sudo password** on first
+setup. On other Linux distributions, install the required browser system
+libraries through your package manager first; the launcher does not manage
+those distributions' system packages. See
+[Playwright's browser dependency guide](https://playwright.dev/python/docs/browsers#install-system-dependencies).
+
+### 3. Open OneShelf
+
+Open **[http://127.0.0.1:8080](http://127.0.0.1:8080)** in your browser.
+Keep the terminal open while using the app. Press **Ctrl+C** in that terminal
+to stop it; run the same command to start it again.
+
+Fresh desktop installs listen only on your computer. If you already have a
+`config.yaml`, the launcher keeps it unchanged, including its address, port,
+and download location. Use the address shown in the terminal in that case.
+
+### Where your files go
+
+By default, the launcher creates these alongside `run.py`:
+
+| Location | Contents |
+| --- | --- |
+| `downloads/` | Your downloaded manga, books, and novels |
+| `.state/` | Queue database and the app's browser profile |
+| `config.yaml` | Your saved settings |
+| `.venv-oneshelf/` | The app's private Python environment |
+
+Change the download folder in **Settings**. Your choice survives restarts.
+You do not need to activate a virtual environment or install Docker to use
+the desktop launcher.
+
+## Supported sources
 
 It targets **platforms, not domains**, so one adapter covers every site built on
 that platform — including Arabic scanlation sites — and keeps working when any
@@ -32,7 +106,7 @@ Sites are identified from the page itself, so a theme that carries markers of
 two platforms resolves to the more specific one.
 
 ```
-┌─ Manga Downloader ─────────────────────── ⚙ ─┐
+┌─ OneShelf ─────────────────────────────── ⚙ ─┐
 │ URL: https://example.net/manga/series/  [Fetch]│
 ├────────────────────────────────────────────────┤
 │ Example Series                  madara adapter │
@@ -47,90 +121,18 @@ two platforms resolves to the more specific one.
 
 ## Features
 
-- **Web GUI** — works headless; open it from any device on your LAN.
+- **Web GUI** — open it in your usual browser, with warm light and dark themes.
 - **Bulk or selective** — all chapters, a numeric range, or individual ticks.
 - **Lossless CBZ** — images stored byte-for-byte, no re-encoding, with
   `ComicInfo.xml` for Komga, Kavita, YACReader and Mihon/Tachiyomi.
 - **Best quality** — strips CDN resize parameters and unwraps image proxies
   (weserv, Jetpack Photon, statically, Next.js) to reach the originals.
-- **Clears Cloudflare** — a patched browser solves the JS challenge and hands
-  its session to a fast parallel HTTP downloader, escalating to a real Chrome
-  and a headful display on its own. Interactive Turnstile still needs a pasted
-  cookie; see the measurements below.
+- **Browser-assisted downloads** — uses installed Chrome/Edge when available,
+  with bundled Chromium as a fallback. If a site asks for a human check,
+  complete it in the browser window OneShelf opens.
 - **Resumable** — kill it mid-run; it skips finished chapters and cleans up
   partial files on the next start.
 - **Polite** — per-host rate limiting, jitter, and exponential backoff.
-
-## Install
-
-Both paths are supported. Pick based on how your LXC is configured.
-
-### Docker (recommended)
-
-The official Playwright image already contains Chromium and its system
-libraries, which removes the biggest source of install pain.
-
-**Requires nesting on the container:**
-
-```bash
-# On the Proxmox host:
-pct set <ctid> -features nesting=1
-pct reboot <ctid>
-```
-
-Then inside the container:
-
-```bash
-git clone <this-repo> manga-downloader && cd manga-downloader
-# Edit the left side of the /data/manga volume to point at your storage
-docker compose -f deploy/docker-compose.yml up -d --build
-```
-
-### Native systemd
-
-Works in an **unprivileged LXC with no nesting** and uses less RAM. The script
-installs Chromium's system dependencies for you.
-
-```bash
-git clone <this-repo> manga-downloader && cd manga-downloader
-sudo ./deploy/install.sh
-```
-
-Override defaults with environment variables:
-
-```bash
-sudo APP_DIR=/opt/mangadl DATA_DIR=/mnt/nas/manga PORT=9090 ./deploy/install.sh
-```
-
-Then open `http://<container-ip>:8080`.
-
-## Proxmox / LXC notes
-
-**Container sizing** — 2 vCPU, 2 GB RAM, ~3 GB disk beyond the base image.
-Chromium is the memory driver; below ~1.5 GB it gets OOM-killed mid-challenge.
-
-**Unprivileged vs privileged** — the native path runs fine unprivileged. Docker
-needs `nesting=1`. Neither path needs a privileged container.
-
-**Shared memory** — Chromium maps large buffers and dies on a container's tiny
-default `/dev/shm`. Compose sets `shm_size: 1gb`, and the app additionally
-passes `--disable-dev-shm-usage` unconditionally, so both paths are covered.
-
-**Mounting NAS storage** — bind-mount from the host rather than mounting inside
-an unprivileged container:
-
-```bash
-pct set <ctid> -mp0 /mnt/pve/nas/manga,mp=/data/manga
-```
-
-For CIFS/SMB, mount on the host and bind-mount in; unprivileged containers
-cannot mount CIFS themselves. Check **Settings → Browser session → Output
-writable** in the UI if writes fail — that is almost always a UID mapping
-problem on the mount, not the app.
-
-**Firewall** — allow TCP 8080 from your LAN. Do not expose this to the internet;
-there is no authentication. If you need remote access, put it behind your
-existing reverse proxy or VPN.
 
 ## Usage
 
@@ -143,10 +145,10 @@ existing reverse proxy or VPN.
    failed ones.
 4. **Library** — what you have, how many chapters, disk usage.
 
-Output layout, which Komga and Kavita both pick up automatically:
+Default desktop output layout, also suitable for Komga and Kavita:
 
 ```
-/data/manga/
+downloads/
 └── Example Series/
     ├── Example Series - c001.cbz
     ├── Example Series - c002.cbz
@@ -155,7 +157,9 @@ Output layout, which Komga and Kavita both pick up automatically:
 
 ## Cloudflare: what is automatic and what is not
 
-The app escalates on its own, cheapest first, and each step is configurable:
+The desktop launcher uses a visible browser so you can complete checks directly.
+Leave that window open while downloads run. For headless/server setups, the
+app can escalate through the following steps:
 
 | Step | Setting | What it does |
 | --- | --- | --- |
@@ -182,7 +186,7 @@ synthesised over the automation protocol do not. No amount of browser realism
 above that layer changes it. Anything claiming otherwise is either paying a
 solving service or about to break.
 
-### Attach to your own browser (recommended when Turnstile appears)
+### Attach to your own browser (if a check keeps repeating)
 
 Rather than trying to look human to the challenge, use the browser in which a
 human already satisfied it. Nothing has to win a detection arms race.
@@ -337,20 +341,25 @@ unattended in between.
 
 ## Configuration
 
-Copy `config.example.yaml` to your config directory and edit, or use `MD_`
-environment variables (`MD_IMAGE_CONCURRENCY=8`), which take precedence. The
-common knobs are editable live in the Settings view.
+The desktop launcher creates `config.yaml` in the OneShelf folder. Common
+settings are editable live in **Settings** and are saved to that file. For
+advanced options, consult [config.example.yaml](config.example.yaml) and add
+only the settings you need; its storage paths are server defaults.
+
+`MD_` environment variables take precedence over the file. Set `MD_CONFIG_FILE`
+to use a different configuration file. The launcher preserves both existing
+configuration files and environment overrides.
 
 | Setting | Default | Notes |
 | --- | --- | --- |
 | `browser_cdp` | unset | Attach to a browser you already cleared by hand |
-| `headless` | `auto` | `auto` escalates to headful on a stuck challenge |
+| `headless` | `false` on desktop | A visible browser lets you complete checks; server default is `auto` |
 | `stealth` | `true` | Prefer the patched `patchright` driver |
 | `browser_channel` | `auto` | Drive real Chrome/Edge when installed |
 | `challenge_attempts` | `3` | Solve attempts, cookies cleared between each |
 | `desync_enabled` | `false` | Built-in bypass for hostname-based filtering |
 | `proxy` | unset | Route browser + downloader through a proxy |
-| `output_dir` | `/data/manga` | Where CBZ files land |
+| `output_dir` | `downloads/` on desktop | Where your files land; server default is `/data/manga` |
 | `chapter_concurrency` | `2` | Chapters downloaded in parallel |
 | `image_concurrency` | `6` | Images in parallel per chapter |
 | `requests_per_second` | `4.0` | Per-host cap |
@@ -363,14 +372,14 @@ the extra throughput saves.
 
 ## Development
 
-```bash
-python -m venv .venv && . .venv/bin/activate    # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
-playwright install chromium
+Run the desktop launcher once, then stop it. Use its environment to install
+development dependencies and run the offline tests:
 
-pytest                                           # 72 tests, fully offline
-uvicorn app.main:app --reload --port 8080
-```
+| Platform | Install test tools | Run tests |
+| --- | --- | --- |
+| Windows | `.venv-oneshelf\Scripts\python.exe -m pip install -r requirements-dev.txt` | `.venv-oneshelf\Scripts\python.exe -m pytest` |
+| macOS | `.venv-oneshelf/bin/python -m pip install -r requirements-dev.txt` | `.venv-oneshelf/bin/python -m pytest` |
+| Linux | `.venv-oneshelf/bin/python -m pip install -r requirements-dev.txt` | `.venv-oneshelf/bin/python -m pytest` |
 
 The test suite needs no network: adapter tests replay saved Madara markup, and
 the end-to-end queue test runs the real pipeline against a local HTTP server.
@@ -379,6 +388,7 @@ the end-to-end queue test runs the real pipeline against a local HTTP server.
 
 | Path | Role |
 | --- | --- |
+| `run.py` | Desktop setup and startup on Windows, macOS, and Linux |
 | `app/session.py` | Chromium, Cloudflare solving, cookie harvesting |
 | `app/fetcher.py` | HTTP pool, retries, backoff, quality upgrading |
 | `app/adapters/madara.py` | Madara chapter/page extraction |
@@ -402,16 +412,57 @@ scrapers of these sites silently break.
 
 | Symptom | Cause and fix |
 | --- | --- |
+| `py`, `python3.12`, or `python3` is not found | Install Python 3.12 and reopen your terminal. Use the command name supplied by your Python installation. |
+| `can't open file ... run.py` | Open a terminal in the extracted OneShelf folder, or pass the full quoted path to `run.py`. |
+| Setup fails or a download is interrupted | Fix the network or permissions error shown in the terminal, then run the same startup command. Incomplete package/browser setup is retried. |
+| `ensurepip` or `venv` is missing on Linux | Install the matching `python3-venv` / `python3.12-venv` package using your distribution's package manager, then rerun. |
+| Port 8080 is already in use | Stop the other OneShelf instance, or set a different `port` in `config.yaml` and reopen that address. |
 | A browser window appears and stays open | Expected. The app keeps one window open on purpose — closing every page would leave the browser with no windows, and it would quit. The window says so. It is also where a bot check appears for you to complete. |
 | `Target page, context or browser has been closed` | The browser died (closed, crashed, auto-updated). The app relaunches it on the next request; you should see "The browser went away" then "Launching Chromium" in the log. If you are using `browser_cdp`, it will *not* relaunch by design — reopen your own browser instead. |
 | Preview times out | Challenge not clearing. Check `/api/health`; use the manual cookie fallback. |
-| Chromium won't start | Missing `/dev/shm` size or nesting. Verify `shm_size: 1gb` (Docker) or use the native path. |
+| Chromium won't start | On Linux, check the terminal for missing system libraries. For Docker, also verify `shm_size: 1gb`. |
 | Everything 403s mid-run | Clearance expired. The queue re-solves automatically; repeated failures mean the IP is blocked. |
-| Files don't appear | Mount permissions. Check **Output writable** in Settings. |
+| Files don't appear | Check the download folder in Settings and whether your user can write to it. Existing configuration may point somewhere other than `downloads/`. |
 | Pages out of order | Open an issue with the chapter URL — page ordering comes from DOM order. |
 | Wrong reading direction | Set `right_to_left` and re-download, or fix `ComicInfo.xml` in place. |
 
-Logs: `docker compose logs -f` or `journalctl -u manga-downloader -f`.
+Desktop logs appear in the terminal where you launched OneShelf.
+
+## Updating
+
+Stop OneShelf with **Ctrl+C**. If you cloned the repository, run `git pull`
+inside its folder, then use your usual startup command. Changed Python
+requirements are installed automatically. Your config, downloads, and browser
+state are kept.
+
+If you downloaded a ZIP, replace the source files with the new version while
+keeping `config.yaml`, `downloads/`, and `.state/`. Keep the same folder location
+so the saved paths remain valid.
+
+## Advanced: Docker, servers, and Proxmox/LXC
+
+For an always-on server or NAS, use the deployment files in `deploy/`.
+These are optional and are not needed for the desktop workflow above.
+
+**Docker:** edit the storage mapping in
+[deploy/docker-compose.yml](deploy/docker-compose.yml) for your server, then run:
+
+```bash
+docker compose -f deploy/docker-compose.yml up -d --build
+```
+
+**Debian/Ubuntu systemd:** from the cloned repository, run
+`sudo ./deploy/install.sh`. This installs a system service; do not use it as
+the desktop launcher. The service and image retain their existing
+`manga-downloader` names.
+
+See the [Proxmox/LXC deployment guide](deploy/DEPLOY-LXC.md) for container
+nesting, storage mounts, service configuration, and troubleshooting. Server
+logs are available with `docker compose -f deploy/docker-compose.yml logs -f`
+or `journalctl -u manga-downloader -f`.
+
+Server deployments can listen on the LAN. OneShelf has no authentication, so
+keep access to a trusted network or VPN rather than exposing its port publicly.
 
 ## Legal
 
