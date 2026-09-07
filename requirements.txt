@@ -1,0 +1,17 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+playwright==1.49.1
+# Drop-in Playwright build with the CDP automation leaks patched out. This is
+# what lets the interactive Cloudflare challenge clear on its own; without it
+# the app still runs, but falls back to the manual-cookie path more often.
+# Version-matched to playwright above, and shares its browser download.
+patchright==1.49.1
+httpx[http2,socks]==0.28.1
+selectolax==0.3.27
+Pillow==11.1.0
+aiosqlite==0.20.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+PyYAML==6.0.2
+pycryptodome==3.21.0
+python-multipart==0.0.20

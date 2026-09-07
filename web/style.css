@@ -1,0 +1,903 @@
+/* OneShelf UI.
+   Theme-aware: a full light palette on :root, redefined for dark. No build
+   step, no external fonts or assets - everything here ships in the container. */
+
+:root {
+  /* Tells the browser which way to paint what CSS cannot reach: the dropdown
+     list a <select> opens, scrollbars, the date/number spinners, form-control
+     defaults. Without it those stay light while everything around them is dark. */
+  color-scheme: light;
+  --bg: #f4ece3;
+  --surface: #fbf7f0;
+  --surface-2: #ece3d5;
+  --border: #ddd0bb;
+  --text: #2b2118;
+  --text-muted: #6f6152;
+  /* Slightly deeper inks keep small text readable on tinted status pills. */
+  --accent: #805326;
+  --accent-text: #fdfaf5;
+  --ok: #406a3c;
+  --warn: #805516;
+  --err: #a03b32;
+  --shadow: 0 1px 2px rgba(74, 55, 36, 0.07), 0 4px 14px rgba(74, 55, 36, 0.06);
+  --radius: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #1a1512;
+    --surface: #241d18;
+    --surface-2: #2e251f;
+    --border: #3d322a;
+    --text: #ece3d5;
+    --text-muted: #a89684;
+    --accent: #d9a066;
+    --accent-text: #1a1210;
+    --ok: #7bbf72;
+    --warn: #e0ab5c;
+    --err: #ee8077;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 4px 14px rgba(0, 0, 0, 0.35);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1a1512;
+  --surface: #241d18;
+  --surface-2: #2e251f;
+  --border: #3d322a;
+  --text: #ece3d5;
+  --text-muted: #a89684;
+  --accent: #d9a066;
+  --accent-text: #1a1210;
+  --ok: #7bbf72;
+  --warn: #e0ab5c;
+  --err: #ee8077;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+/* The UI hides things by setting the `hidden` property, and the browser's own
+   `[hidden] { display: none }` loses to any author rule that sets `display` —
+   which several of these components do (.search-results is a grid, .loading is
+   a flex row). Without this, "hidden" elements stay on screen: search results
+   survived picking one, and a stale list outlived the query that produced it. */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+code { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 0.9em; }
+
+/* ------------------------------------------------------------- top bar */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand h1 { font-size: 17px; }
+.brand-mark { display: block; width: 28px; height: 28px; flex: none; color: var(--accent); }
+
+.tabs { display: flex; gap: 4px; flex: 1; }
+
+.tab {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.tab:hover { background: var(--surface-2); color: var(--text); }
+/* The :hover half is not redundant. `button:hover:not(:disabled)` scores
+   (0,2,1) against `.tab.is-active`'s (0,2,0), so it wins on specificity no
+   matter what order they appear in — and the cursor is sitting on the tab you
+   just clicked, which turned the active tab grey the instant it became active.
+   The same trap already bit the .kind chips further down; this is the tab. */
+.tab.is-active,
+.tab.is-active:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.badge {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 9px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 12px;
+  text-align: center;
+}
+
+.topbar-end { display: flex; align-items: center; gap: 12px; }
+
+.status { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-muted); }
+.status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+.status.is-live .dot { background: var(--ok); }
+.status.is-down .dot { background: var(--err); }
+/* Only while reconnecting: a permanently pulsing dot is noise, and the steady
+   green one has to read as "nothing to see here". */
+.status.is-down .dot { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.25; } }
+
+.icon-btn {
+  padding: 5px 8px;
+  line-height: 1;
+  font-size: 15px;
+  background: transparent;
+  border-color: transparent;
+}
+.icon-btn:hover:not(:disabled) { background: var(--surface-2); }
+
+/* --------------------------------------------------------------- views */
+
+main { max-width: 1080px; margin: 0 auto; padding: 24px 20px 64px; }
+.view { display: none; }
+.view.is-active { display: block; }
+
+.url-form { display: flex; gap: 8px; }
+
+/* `select` belongs here too. Left out, it kept the platform's own light
+   chrome — a white dropdown with black text sitting in a dark panel, which is
+   how "Prefer original quality" and "Bypass hostname filtering" rendered. */
+input[type="url"], input[type="text"], input[type="number"], input[type="search"],
+select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+  width: 100%;
+}
+select { padding: 9px 10px; cursor: pointer; }
+input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 9px 14px;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+button:hover:not(:disabled) { background: var(--surface-2); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+button.danger { color: var(--err); border-color: var(--err); }
+button.danger:hover:not(:disabled) { background: var(--err); color: var(--accent-text); }
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+/* The background is repeated, not just the filter. `button:hover:not(:disabled)`
+   scores (0,2,1) and `button.primary` only (0,1,1), so hovering replaced the
+   accent fill with --surface-2 while the text stayed --accent-text: white on
+   near-white, i.e. the Fetch button went blank under the cursor that had just
+   clicked it. Third time this specificity trap has bitten in this file — the
+   tabs and the .kind chips were the other two. */
+button.primary:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+
+.hint { color: var(--text-muted); font-size: 13px; margin: 10px 2px 0; }
+.muted { color: var(--text-muted); }
+.empty { color: var(--text-muted); text-align: center; padding: 40px 0; }
+
+.alert { padding: 12px 14px; border-radius: var(--radius); margin-top: 16px; }
+.alert.error {
+  background: color-mix(in srgb, var(--err) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--err) 40%, var(--border));
+  color: var(--err);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.loading { display: flex; align-items: center; gap: 10px; padding: 24px 2px; color: var(--text-muted); }
+
+.spinner {
+  width: 15px; height: 15px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* -------------------------------------------------------- series card */
+
+.series-card {
+  display: flex;
+  gap: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  margin-top: 22px;
+  box-shadow: var(--shadow);
+}
+.series-card img { width: 110px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+.series-meta h2 { font-size: 19px; margin-bottom: 6px; }
+.series-site {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+  padding: 2px 9px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.series-site::before { content: "🌐"; font-size: 11px; }
+.series-site:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 10px 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 20px 0 12px;
+}
+/* space-between is right for the preview toolbar, which has a group at each
+   end. The queue and library ones are a single run of buttons, and spreading
+   three of them across 1080px read as three unrelated controls. */
+.toolbar.is-actions { justify-content: flex-start; gap: 8px; }
+
+/* Under the topbar, which is itself sticky at 0. Without the background and
+   the negative-margin bleed, list rows show through the gaps as they pass. */
+.toolbar.is-sticky {
+  position: sticky;
+  top: 57px;
+  z-index: 5;
+  background: var(--bg);
+  padding: 10px 4px;
+  margin: 20px -4px 12px;
+  border-radius: var(--radius);
+}
+.selection-controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.selection-controls button { padding: 6px 11px; font-size: 13px; }
+
+/* The shared input rule sets width:100%, which is right for the stacked forms
+   and wrong inside a flex toolbar — one filter box would claim the entire row
+   and push every button onto the next line. */
+.filter-input {
+  width: auto;
+  flex: 0 1 190px;
+  min-width: 130px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.sort-by {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.sort-by select { width: auto; padding: 6px 8px; font-size: 13px; }
+.range { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); }
+.range input { width: 74px; padding: 6px 8px; }
+.download-controls { display: flex; align-items: center; gap: 12px; }
+.selection-count { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------- chapter list */
+
+.chapter-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.chapter-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.chapter-list li:last-child { border-bottom: 0; }
+/* Rows are hidden individually by the filter, so an over-narrow filter leaves
+   an empty box with no explanation. ::after rather than a real node: the list
+   is rebuilt from innerHTML and this must not be swept away with it. */
+.chapter-list.is-empty::after {
+  content: "No chapters match that filter.";
+  display: block;
+  padding: 22px 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.chapter-list li:hover { background: var(--surface-2); }
+.chapter-list label { flex: 1; cursor: pointer; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.chapter-list .num { color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 52px; font-size: 13px; }
+.chapter-list .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.pill.done { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+.pill.failed,
+.pill.cancelled { background: color-mix(in srgb, var(--err) 18%, transparent); color: var(--err); }
+.pill.running,
+.pill.queued { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.pill.paused { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+
+/* ---------------------------------------------------------- job cards */
+
+.job {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.job-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.job-head h3 { font-size: 16px; }
+.job-actions { display: flex; gap: 6px; }
+.job-actions button { padding: 6px 11px; font-size: 13px; }
+
+.job-summary {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin: 8px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.job-summary .bad { color: var(--err); }
+
+.bar-row { display: flex; align-items: center; gap: 10px; }
+.bar { flex: 1; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--accent); transition: width 0.25s ease; }
+.bar.done > span { background: var(--ok); }
+.bar.failed > span { background: var(--err); }
+.percent {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+  text-align: right;
+}
+
+.chapter-rows { margin-top: 14px; max-height: 320px; overflow-y: auto; }
+.chapter-row {
+  display: grid;
+  grid-template-columns: 1fr 120px 90px;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+  border-top: 1px solid var(--border);
+}
+.chapter-row .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chapter-row .count { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.chapter-row .err { grid-column: 1 / -1; color: var(--err); font-size: 12px; word-break: break-word; }
+
+/* ------------------------------------------------------ library/panel */
+
+.library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.library-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.library-card:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.library-card h3 { font-size: 15px; margin-bottom: 6px; }
+/* Quieter than the badge on the preview: there it is the answer to "which site
+   am I about to download from", here it is one field among several. */
+.library-card .card-site {
+  margin-bottom: 8px;
+  padding: 1px 7px;
+  font-size: 11px;
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.library-card .card-site:hover { color: var(--accent); background: var(--surface-2); }
+.library-card .stats { color: var(--text-muted); font-size: 13px; }
+.library-card .download-zip {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.library-card .download-zip:hover { text-decoration: underline; }
+.library-card .card-actions { margin-top: 8px; display: flex; gap: 14px; flex-wrap: wrap; }
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+}
+.link-btn:hover:not(:disabled) { text-decoration: underline; }
+.link-btn:disabled { color: var(--text-muted); cursor: default; }
+.link-btn.danger { color: var(--err); }
+
+.chapter-picker { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+.chapter-picker .pick-all { font-size: 13px; display: block; margin-bottom: 6px; }
+.chapter-picker .pick-rows { max-height: 220px; overflow-y: auto; margin-bottom: 10px; }
+.chapter-picker .pick-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 3px 0;
+}
+.chapter-picker .pick-row span:first-of-type { flex: 1; }
+.chapter-picker .pick-row .count { color: var(--text-muted); }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow);
+}
+.panel h2 { font-size: 16px; margin-bottom: 14px; }
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.field-grid label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-muted); }
+
+.session-status { font-size: 13px; margin-bottom: 12px; }
+.session-status table { width: 100%; border-collapse: collapse; }
+.session-status td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.session-status td:first-child { color: var(--text-muted); width: 40%; }
+
+.saved-note { margin-left: 10px; color: var(--ok); font-size: 13px; }
+
+/* ------------------------------------------------------------- toasts */
+
+.toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  /* The container spans the corner; only the notices themselves are clickable,
+     or an invisible strip would eat clicks on whatever is behind it. */
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  max-width: min(380px, calc(100vw - 32px));
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  line-height: 1.45;
+  cursor: pointer;
+  animation: toast-in 0.18s ease-out;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.toast.leaving { opacity: 0; transform: translateY(6px); }
+.toast.ok { border-left: 3px solid var(--ok); }
+.toast.warn { border-left: 3px solid var(--warn); }
+.toast.error { border-left: 3px solid var(--err); color: var(--err); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+
+@media (max-width: 620px) {
+  .topbar { gap: 12px; }
+  .series-card { flex-direction: column; }
+  .series-card img { width: 90px; }
+  .chapter-row { grid-template-columns: 1fr 80px; }
+  .chapter-row .count { display: none; }
+  /* The topbar wraps to two rows on a narrow screen, so a fixed offset would
+     leave the sticky toolbar sitting underneath it. */
+  .toolbar.is-sticky { position: static; }
+  .toasts { left: 16px; align-items: stretch; }
+}
+
+/* Motion here is decoration on top of state that is already legible without
+   it — the spinner keeps turning, since a still spinner reads as a hang. */
+@media (prefers-reduced-motion: reduce) {
+  .toast, .bar > span, .status.is-down .dot { animation: none; transition: none; }
+  .library-card, .search-hit, .job { transition: none; }
+}
+
+/* ------------------------------------------------------------------ search
+   The finder is the busiest part of this app and the part that most needed
+   honesty. Its organising idea: every result came from a site that might have
+   failed, so the sites are shown, not hidden. Layout is a stack — field,
+   category rail, source readout, results — because each line narrows the one
+   below it, and that is the order the eye should read them in. */
+
+.finder { margin: 14px 0 4px; }
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.search-box input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  /* Room on the left for the glyph and on the right for the key hint, so
+     neither ever sits on top of a long query. */
+  padding: 11px 44px 11px 38px;
+  font: inherit;
+  font-size: 15px;
+}
+.search-box input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+.search-icon {
+  position: absolute; inset-inline-start: 12px;
+  width: 17px; height: 17px; pointer-events: none;
+  fill: none; stroke: var(--text-muted); stroke-width: 1.8;
+  stroke-linecap: round;
+}
+/* The shortcut is advertised where it is used, and gets out of the way the
+   moment the field is in use — a hint you no longer need is clutter. */
+.search-key {
+  position: absolute; inset-inline-end: 12px;
+  padding: 1px 6px; border: 1px solid var(--border); border-radius: 5px;
+  background: var(--surface-2); color: var(--text-muted);
+  font: inherit; font-size: 11px; line-height: 1.5;
+  pointer-events: none;
+}
+.search-box:focus-within .search-key { display: none; }
+/* The field is type=search, which draws its own clear button in WebKit — next
+   to ours, so the box ended up with two crosses that did different things. */
+.search-box input::-webkit-search-cancel-button,
+.search-box input::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
+.search-clear {
+  position: absolute; inset-inline-end: 8px;
+  width: 24px; height: 24px; padding: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  background: var(--surface-2); color: var(--text-muted);
+  font-size: 17px; line-height: 1; cursor: pointer;
+}
+.search-clear:hover:not(:disabled) { background: var(--border); color: var(--text); }
+
+/* ---- category rail + tools ---- */
+.finder-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  margin-top: 10px;
+}
+.kinds { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.kind {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface); color: var(--text);
+  font: inherit; font-size: 13px; cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+.kind:hover:not(:disabled) { border-color: var(--accent); background: var(--surface); }
+/* Repeated under :hover deliberately. `button:hover:not(:disabled)` is more
+   specific than `.kind.is-active`, and the cursor is by definition sitting on
+   the chip that was just clicked — which previously rendered the label in
+   accent-on-surface, i.e. white on near-white. */
+.kind.is-active,
+.kind.is-active:hover:not(:disabled) {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-text);
+}
+/* How many sites stand behind this category. A category with none is still
+   shown, but plainly can't answer — better than looking identical to a full
+   one and returning nothing. */
+.kind-count { font-size: 11px; opacity: .65; font-variant-numeric: tabular-nums; }
+.kind[disabled] { opacity: .45; cursor: not-allowed; }
+
+.finder-tools { display: flex; align-items: center; gap: 8px; }
+.tool-btn, .tool-select {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text-muted);
+  font: inherit; font-size: 12px; cursor: pointer;
+}
+.tool-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--surface); }
+.tool-btn[aria-expanded="true"] { border-color: var(--accent); color: var(--text); }
+.tool-count { font-variant-numeric: tabular-nums; opacity: .8; }
+.tool-select { padding-block: 2px; }
+.tool-select-label { white-space: nowrap; }
+.tool-select select {
+  border: 0; background: transparent; color: var(--text);
+  font: inherit; font-size: 12px; padding: 3px 2px; cursor: pointer;
+}
+.tool-select select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---- sources popover ---- */
+.popover-host { position: relative; }
+.popover {
+  position: absolute; inset-inline-end: 0; top: calc(100% + 6px);
+  z-index: 40; width: min(320px, 78vw);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.popover-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px; color: var(--text-muted);
+}
+.popover-body { max-height: 300px; overflow-y: auto; padding: 6px; }
+.source-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 8px; border-radius: 7px;
+  font-size: 13px; cursor: pointer;
+}
+.source-row:hover { background: var(--surface-2); }
+.source-row input { accent-color: var(--accent); flex: none; }
+.source-row-host { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.source-row-kind { font-size: 11px; color: var(--text-muted); flex: none; }
+.popover-empty { padding: 14px 12px; font-size: 13px; color: var(--text-muted); }
+.link-btn {
+  border: 0; background: none; padding: 0;
+  color: var(--accent); font: inherit; font-size: 12px; cursor: pointer;
+}
+.link-btn:hover:not(:disabled) { text-decoration: underline; background: none; }
+
+/* ---- the source readout: this interface's one distinctive element ----
+   A store's search can say "no results" and be done. This one is reading a
+   dozen scraped sites that each answer, stall or break independently, and a
+   silent failure used to be indistinguishable from an honest empty result.
+   Each site gets a pill carrying its own outcome. */
+.source-readout {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  margin-top: 10px;
+}
+.source-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface);
+  font-size: 11.5px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.source-pill .pill-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex: none;
+  background: currentColor;
+}
+/* Colour carries the outcome, and a glyph repeats it — the readout has to work
+   for a red/green-blind reader and in a screenshot pasted into an issue. */
+.source-pill.is-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 35%, var(--border)); }
+.source-pill.is-empty { color: var(--text-muted); }
+.source-pill.is-timeout { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, var(--border)); }
+.source-pill.is-error { color: var(--err); border-color: color-mix(in srgb, var(--err) 35%, var(--border)); }
+.source-pill.is-skipped { color: var(--text-muted); opacity: .65; }
+.pill-host { color: var(--text); opacity: .9; }
+/* The sites that simply had no match are rolled into one pill. They are the
+   majority of any search and the least informative thing in the readout — 18
+   pills pushed the actual results below the fold. The ones that *failed* stay
+   spelled out, because those are the reason the readout exists. */
+.source-pill.is-quiet { border-style: dashed; }
+.source-pill button.pill-more {
+  border: 0; background: none; padding: 0; margin: 0;
+  color: inherit; font: inherit; cursor: pointer; text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.source-pill.is-empty .pill-host,
+.source-pill.is-skipped .pill-host { color: inherit; }
+
+/* ---- recent searches ---- */
+.recents { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.recents-label { font-size: 12px; color: var(--text-muted); }
+.recents-list { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; }
+.recent {
+  padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface-2); color: var(--text);
+  font: inherit; font-size: 12px; cursor: pointer;
+}
+.recent:hover:not(:disabled) { border-color: var(--accent); background: var(--surface-2); }
+
+.search-status {
+  color: var(--text-muted); font-size: 13px;
+  margin: 12px 0 0;
+}
+.search-status strong { color: var(--text); font-weight: 600; }
+
+/* ---- results ---- */
+.search-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+  margin: 12px 0 4px;
+  max-height: 560px;
+  overflow-y: auto;
+  /* Room for the focus ring on the edge cards, which the scroll container
+     would otherwise clip. */
+  padding: 2px;
+}
+/* A group heading spans the grid, so an "All" search reads as three short
+   lists rather than one shuffled pile. */
+.result-group {
+  grid-column: 1 / -1;
+  display: flex; align-items: baseline; gap: 8px;
+  margin: 6px 2px 0;
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+.result-group:first-child { margin-top: 0; }
+.result-group span { font-weight: 400; color: var(--text-muted); font-size: 12px; }
+
+.search-hit {
+  display: flex;
+  gap: 11px;
+  align-items: stretch;
+  text-align: start;
+  padding: 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: normal;
+  transition: border-color .12s ease, background .12s ease;
+}
+.search-hit:hover:not(:disabled) { border-color: var(--accent); background: var(--surface-2); }
+.search-hit:focus-visible,
+.search-hit.is-cursor {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+.search-hit img, .search-hit .no-cover {
+  width: 50px; height: 72px; flex: none;
+  object-fit: cover; border-radius: 5px; background: var(--surface-2);
+}
+/* A missing cover is common here; a faint spine keeps the grid aligned rather
+   than leaving a hole that reads as a broken image. */
+.search-hit .no-cover {
+  display: grid; place-items: center;
+  border: 1px dashed var(--border);
+}
+.search-hit .no-cover::after {
+  content: ""; width: 2px; height: 34px; border-radius: 1px;
+  background: var(--border);
+}
+.hit-text {
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0; flex: 1;
+}
+.hit-title {
+  font-size: 13.5px; font-weight: 550; line-height: 1.35;
+  /* Two lines then ellipsis: titles here run long and a card that grows to
+     fit one breaks the row it sits in. */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.hit-alt { font-size: 12px; color: var(--text); opacity: .8; line-height: 1.3; }
+/* Prefixed rather than labelled: "by" is one word shorter than a heading and
+   reads as part of the name, which is what it is. */
+.hit-author { font-size: 12px; color: var(--text-muted); line-height: 1.3; }
+.hit-author::before { content: "by "; opacity: .7; }
+.hit-foot {
+  margin-top: auto; padding-top: 4px;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 11px; color: var(--text-muted);
+}
+/* Why this hit is in the list. The scores are bands, not a continuum, so each
+   one has an honest short name — and an Arabic query landing on a romanised
+   title stops looking like the search was ignored. */
+/* Other sites carrying the same work. Quiet by default — it is an alternative,
+   not a warning — and the full list is in the title attribute. */
+.hit-also {
+  padding: 0 5px; border-radius: 3px;
+  border: 1px solid var(--border); color: var(--text-muted);
+  cursor: help;
+}
+.hit-why {
+  padding: 0 5px; border-radius: 3px;
+  background: var(--surface-2); color: var(--text-muted);
+}
+.search-hit.is-cursor .hit-why { background: var(--surface); }
+
+/* ---- skeletons ----
+   Shown while the sites are being asked. A count of placeholder cards says
+   "results are coming and will look like this", which a spinner does not. */
+.skeleton { pointer-events: none; border-style: dashed; }
+.skeleton .sk-block { background: var(--surface-2); border-radius: 4px; }
+.skeleton .sk-cover { width: 50px; height: 72px; flex: none; }
+.skeleton .sk-line { height: 9px; margin-bottom: 6px; }
+.skeleton .sk-line.short { width: 55%; }
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton .sk-block { animation: sk-pulse 1.4s ease-in-out infinite; }
+  @keyframes sk-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+}
+
+.search-empty {
+  grid-column: 1 / -1;
+  padding: 22px 16px;
+  border: 1px dashed var(--border); border-radius: var(--radius);
+  color: var(--text-muted); font-size: 13px; text-align: center;
+}
+.search-empty p { margin: 0 0 6px; }
+.search-empty p:last-child { margin-bottom: 0; }
+
+@media (max-width: 560px) {
+  .finder-bar { align-items: flex-start; }
+  .finder-tools { width: 100%; justify-content: space-between; }
+  .search-results { grid-template-columns: 1fr; max-height: none; }
+}
+
+.hit-site { font-size: 11px; color: var(--text-muted); }
+/* A book among comics: the format differs, so say so rather than letting the
+   hostname be the only clue. */
+.hit-kind {
+  display: inline-block; padding: 0 5px;
+  border: 1px solid currentColor; border-radius: 3px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+}

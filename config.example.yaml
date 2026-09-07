@@ -1,0 +1,138 @@
+# Manga Downloader configuration.
+#
+# Every key here can also be set as an environment variable with an MD_ prefix
+# (MD_OUTPUT_DIR, MD_IMAGE_CONCURRENCY, ...). Environment variables win over
+# this file, which is what makes the Docker path configurable without editing
+# anything inside the container.
+#
+# The keys marked "UI-editable" can also be changed from the Settings view at
+# runtime, and are written back to this file.
+
+# --- server -----------------------------------------------------------------
+host: 0.0.0.0
+port: 8080
+
+# --- storage ----------------------------------------------------------------
+# Where .cbz files are written. Layout is <output_dir>/<Series>/<Series> - cNNN.cbz
+output_dir: /data/manga          # UI-editable
+# Database and the persistent Chromium profile live here. Keep it on a volume
+# so a solved Cloudflare clearance survives a restart.
+config_dir: /config
+
+# --- browser / Cloudflare ---------------------------------------------------
+# auto | true | false.
+#
+# "auto" starts headless (cheap, and enough for the plain JS challenge) and
+# escalates to a headful browser under a virtual display if a challenge will
+# not clear. Headless Chromium takes different rendering and input code paths
+# and those differences are readable from JavaScript.
+#
+# Needs xvfb installed for the escalation to be possible in a container; the
+# installer does that for you. Falls back to headless if there is no display.
+headless: auto
+
+# Prefer the patchright driver when installed. Stock Playwright is detectable
+# through the automation protocol itself rather than through anything in the
+# DOM, so patching navigator properties does not help; patchright ships those
+# leaks already removed. Set false to pin stock Playwright when debugging.
+stealth: true
+
+# Which browser to drive: auto | chrome | msedge | chromium.
+# Playwright's bundled Chromium is a developer build - unsigned, missing the
+# proprietary codecs a shipped browser has - and a bot check can tell. "auto"
+# drives real Chrome or Edge when one is installed, and falls back to bundled.
+browser_channel: auto
+
+# Allow starting Xvfb so a headful browser can run with no X server present.
+virtual_display: true
+
+# Solve attempts per host before giving up. Each retry clears that host's
+# cookies first, so it is a fresh challenge rather than a replay of the failed
+# one - without that, every retry fails identically.
+challenge_attempts: 3
+
+# Click the Turnstile checkbox when a challenge presents one. Measured on the
+# live target: with clicking off the challenge never issued clearance at all;
+# with it on, clearance was issued in ~20s. Leave on.
+challenge_click: true
+
+# Attach to a browser YOU are already running, instead of launching one.
+#
+# This is the dependable answer to an interactive Turnstile. Automated solving
+# of it does not work - measured against neutral Cloudflare test sites with a
+# patched driver, a current Chromium, real Chrome, and headful: all fail.
+# Turnstile checks that input events come from the operating system, and events
+# synthesised over the automation protocol do not.
+#
+# So don't fight it. Clear the check by hand, once, in your own browser:
+#
+#   Windows:  chrome.exe --remote-debugging-port=9222 --user-data-dir="C:\cdp-profile"
+#   Linux:    google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/cdp
+#
+# Load the site, pass the check, leave the window open, then set:
+#
+#   browser_cdp: http://127.0.0.1:9222
+#
+# The app drives that browser: its cookies, its TLS fingerprint, its exit IP.
+# Images that a plain HTTP request cannot get are refetched through it
+# automatically. headless, browser_channel and virtual_display are ignored.
+#
+# Leave blank to have the app run its own browser.
+browser_cdp:                     # UI-editable
+
+# How long to wait for an interstitial to clear before giving up.
+challenge_timeout: 60.0
+navigation_timeout: 45.0
+
+# --- network ----------------------------------------------------------------
+# Some networks block sites by reading the hostname out of the plaintext TLS
+# ClientHello and injecting a TCP reset - the connection dies before any HTTP
+# response exists. Such filters are passive and usually do not reassemble TCP,
+# so splitting the handshake across two segments leaves them nothing to match.
+#
+# Enabling this starts a local SOCKS5 proxy that applies that split, and routes
+# both the browser and the downloader through it. No external service needed.
+# Ignored if `proxy` below is set.
+desync_enabled: false            # UI-editable
+desync_split: 1                  # bytes in the first segment; small is what works
+desync_delay: 0.05               # seconds between segments
+desync_port: 8081                # fixed so you can point your own browser at it
+
+
+# Route everything through a proxy. Applies to the browser AND the image
+# downloader together - they must share an exit IP, because a Cloudflare
+# clearance cookie is bound to the address that earned it.
+#
+# Needed when your network filters the target host. Many ISPs block sites by
+# reading the hostname out of the TLS handshake, which resets the connection
+# before any HTTP response exists; a proxy moves that handshake elsewhere.
+# With SOCKS5 the DNS lookup happens at the proxy too.
+#
+#   proxy: socks5://127.0.0.1:1080          # e.g. `ssh -D 1080 -N user@vps`
+#   proxy: http://user:pass@proxy.lan:8080
+#
+# Leave unset (or blank) for a direct connection.
+proxy:                           # UI-editable
+
+# --- download engine --------------------------------------------------------
+# Total in-flight requests is roughly chapter_concurrency x image_concurrency.
+# The defaults are deliberately modest: getting the IP banned costs far more
+# time than the extra throughput ever saves.
+chapter_concurrency: 2           # UI-editable
+image_concurrency: 6             # UI-editable
+requests_per_second: 4.0         # UI-editable, per host
+max_retries: 3                   # UI-editable, per image
+request_timeout: 60.0
+
+# --- output -----------------------------------------------------------------
+# Strip CDN resize parameters and unwrap image proxies to fetch originals.
+# Turn off only if a site serves broken originals; the site-supplied URL is
+# always kept as a fallback either way.
+prefer_original_quality: true    # UI-editable
+
+# ComicInfo.xml LanguageISO. "ar" for Arabic sources, "en" for English.
+language: ar                     # UI-editable
+
+# Manga pages right-to-left. Correct for Japanese and Arabic releases; set
+# false for Western comics or left-to-right webtoons.
+right_to_left: true

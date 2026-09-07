@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OneShelf</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23805326'/%3E%3Cg fill='%23fdfaf5'%3E%3Crect x='5' y='9' width='6' height='13' rx='1.5'/%3E%3Crect x='13' y='5' width='6' height='17' rx='1.5'/%3E%3Crect x='21' y='11' width='6' height='11' rx='1.5'/%3E%3Crect x='3' y='24' width='26' height='3' rx='1.5'/%3E%3C/g%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="28" height="28" fill="currentColor" aria-hidden="true" focusable="false">
+        <rect x="5" y="9" width="6" height="13" rx="1.5"/>
+        <rect x="13" y="5" width="6" height="17" rx="1.5"/>
+        <rect x="21" y="11" width="6" height="11" rx="1.5"/>
+        <rect x="3" y="24" width="26" height="3" rx="1.5"/>
+      </svg>
+      <h1>OneShelf</h1>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab is-active" data-view="add" role="tab" aria-selected="true">Add</button>
+      <button class="tab" data-view="queue" role="tab" aria-selected="false">Queue <span class="badge" id="queue-badge" hidden>0</span></button>
+      <button class="tab" data-view="library" role="tab" aria-selected="false">Library</button>
+      <button class="tab" data-view="settings" role="tab" aria-selected="false">Settings</button>
+    </nav>
+    <div class="topbar-end">
+      <div class="status" id="conn-status" title="Live connection">
+        <span class="dot"></span><span class="label">connecting…</span>
+      </div>
+      <!-- The stylesheet has carried a [data-theme] palette all along; this is
+           what finally lets it be chosen without changing the whole OS. -->
+      <button type="button" id="theme-toggle" class="icon-btn" title="Theme">🖥️</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ------------------------------------------------------------ Add -->
+    <section class="view is-active" id="view-add">
+      <form class="url-form" id="preview-form">
+        <input type="url" id="series-url" required spellcheck="false"
+               placeholder="https://example.com/manga/series-name/"
+               aria-label="Series URL">
+        <button type="submit" class="primary" id="preview-btn">Fetch</button>
+      </form>
+      <p class="hint">
+        Paste a series page URL — or search by name below. The first fetch may
+        take up to a minute while the browser clears the site's bot check.
+      </p>
+
+      <!-- Find. The search field leads and is always usable: the old flow
+           disabled it until one of three chips was clicked, which made the
+           first thing you saw a dead control. "All" is a real answer now, so
+           the category rail narrows rather than unlocks. -->
+      <section class="finder" aria-label="Search all sources">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 20 20" aria-hidden="true">
+            <circle cx="9" cy="9" r="6"></circle>
+            <line x1="13.5" y1="13.5" x2="17.5" y2="17.5"></line>
+          </svg>
+          <input type="search" id="search-input" spellcheck="false"
+                 placeholder="Search by title or author"
+                 autocomplete="off" role="combobox" aria-expanded="false"
+                 aria-controls="search-results" aria-autocomplete="list"
+                 aria-label="Search by title or author">
+          <kbd class="search-key" id="search-key" aria-hidden="true">/</kbd>
+          <button type="button" class="search-clear" id="search-clear"
+                  aria-label="Clear search" hidden>&times;</button>
+        </div>
+
+        <div class="finder-bar">
+          <!-- Counts come from /api/sources, so a category that nothing can
+               answer says so instead of looking identical to a full one. -->
+          <div class="kinds" id="search-kinds" role="tablist"
+               aria-label="Narrow by kind"></div>
+
+          <div class="finder-tools">
+            <div class="popover-host">
+              <button type="button" class="tool-btn" id="sources-btn"
+                      aria-expanded="false" aria-haspopup="true">
+                Sources <span class="tool-count" id="sources-count"></span>
+              </button>
+              <div class="popover" id="sources-popover" hidden role="dialog"
+                   aria-label="Choose which sites to search">
+                <div class="popover-head">
+                  <span>Search these sites</span>
+                  <button type="button" class="link-btn" id="sources-all">All</button>
+                </div>
+                <div class="popover-body" id="sources-list"></div>
+              </div>
+            </div>
+            <label class="tool-select">
+              <span class="tool-select-label">Sort</span>
+              <select id="search-sort" aria-label="Sort results">
+                <option value="relevance">Best match</option>
+                <option value="title">Title</option>
+                <option value="site">Site</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <!-- The one thing this interface knows that a store's search does not:
+             every result came from a site that might have failed. -->
+        <div class="source-readout" id="source-readout" hidden></div>
+
+        <div class="recents" id="recents" hidden>
+          <span class="recents-label">Recent</span>
+          <div class="recents-list" id="recents-list"></div>
+          <button type="button" class="link-btn" id="recents-clear">Clear</button>
+        </div>
+
+        <p class="search-status" id="search-status" hidden></p>
+        <div id="search-results" class="search-results" role="listbox" hidden></div>
+      </section>
+
+      <div id="preview-error" class="alert error" hidden></div>
+      <div id="preview-loading" class="loading" hidden>
+        <span class="spinner"></span> Resolving series…
+      </div>
+
+      <div id="preview" hidden>
+        <div class="series-card">
+          <img id="series-cover" alt="" hidden>
+          <div class="series-meta">
+            <h2 id="series-title"></h2>
+            <!-- The source, directly under the title: this is the one thing a
+                 search result does not otherwise carry over to the preview. -->
+            <a class="series-site" id="series-site" target="_blank"
+               rel="noopener noreferrer" hidden></a>
+            <p class="muted" id="series-sub"></p>
+            <p class="desc" id="series-desc"></p>
+          </div>
+        </div>
+
+        <!-- Sticky: a 400-chapter list scrolls the only button that acts on
+             the selection right off the screen otherwise. -->
+        <div class="toolbar is-sticky">
+          <div class="selection-controls">
+            <!-- A long-running series lists several hundred chapters, and the
+                 only way to reach one was to scroll. The select buttons act on
+                 whatever this leaves showing. -->
+            <input type="search" id="chapter-filter" class="filter-input"
+                   placeholder="Filter chapters…" autocomplete="off"
+                   spellcheck="false" aria-label="Filter chapters">
+            <button type="button" data-select="all">Select all</button>
+            <button type="button" data-select="none">None</button>
+            <button type="button" data-select="missing">Not downloaded</button>
+            <label class="range">
+              from <input type="number" id="range-from" min="1" step="1">
+              to <input type="number" id="range-to" min="1" step="1">
+              <button type="button" data-select="range">Apply</button>
+            </label>
+          </div>
+          <div class="download-controls">
+            <span class="selection-count" id="selection-count"></span>
+            <button class="primary" id="download-btn" disabled>Download 0 chapters</button>
+          </div>
+        </div>
+
+        <ul class="chapter-list" id="chapter-list"></ul>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------- Queue -->
+    <section class="view" id="view-queue">
+      <div class="toolbar is-actions">
+        <button type="button" id="stop-all" class="danger">Stop all</button>
+        <button type="button" id="clear-finished">Clear finished</button>
+        <button type="button" id="clear-all" class="danger">Clear all</button>
+      </div>
+      <div id="jobs"></div>
+      <p class="empty" id="queue-empty">Nothing queued yet.</p>
+    </section>
+
+    <!-- -------------------------------------------------------- Library -->
+    <section class="view" id="view-library">
+      <div class="toolbar is-actions">
+        <button type="button" id="refresh-library">Refresh</button>
+        <!-- Filtering and sorting happen on the copy already in hand, so
+             neither costs a request or re-reads sizes off disk. -->
+        <input type="search" id="library-filter" class="filter-input"
+               placeholder="Filter series…" autocomplete="off"
+               spellcheck="false" aria-label="Filter series">
+        <label class="sort-by">Sort
+          <select id="library-sort">
+            <option value="recent">Recently updated</option>
+            <option value="title">Title</option>
+            <option value="size">Size on disk</option>
+            <option value="downloaded">Chapters downloaded</option>
+          </select>
+        </label>
+        <span class="selection-count" id="library-count"></span>
+      </div>
+      <div id="library"></div>
+      <p class="empty" id="library-empty">No series downloaded yet.</p>
+      <p class="empty" id="library-no-match" hidden>No series match that filter.</p>
+    </section>
+
+    <!-- ------------------------------------------------------- Settings -->
+    <section class="view" id="view-settings">
+      <div class="panel">
+        <h2>Downloads</h2>
+        <div class="field-grid" id="settings-fields"></div>
+        <button class="primary" id="save-settings">Save</button>
+        <span class="saved-note" id="settings-note" hidden>Saved</span>
+      </div>
+
+      <div class="panel">
+        <h2>Browser session</h2>
+        <div id="session-status" class="session-status">Loading…</div>
+        <p class="hint">
+          If the automatic bot-check keeps failing, open the site in your own
+          browser, copy the <code>cf_clearance</code> cookie and your User-Agent
+          from DevTools, and paste them here. The cookie is tied to your IP, so
+          this only works if this container shares your public IP.
+        </p>
+        <div class="field-grid">
+          <label>Site URL
+            <input type="url" id="manual-url" placeholder="https://example.com/">
+          </label>
+          <label>Cookies
+            <input type="text" id="manual-cookies" placeholder="cf_clearance=…; other=…">
+          </label>
+          <label>User-Agent
+            <input type="text" id="manual-ua" placeholder="Mozilla/5.0 …">
+          </label>
+        </div>
+        <button type="button" id="save-session">Install session</button>
+        <span class="saved-note" id="session-note" hidden></span>
+      </div>
+    </section>
+  </main>
+
+  <!-- Transient results land here instead of in alert(), which blocked the
+       whole page — websocket repaints included — until it was dismissed. -->
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

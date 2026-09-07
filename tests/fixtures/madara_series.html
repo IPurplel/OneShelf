@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- Synthetic Madara series page. Reproduces the theme's markup contract
+     (class names, data attributes, lazy-load padding) with placeholder content
+     so the parser can be tested without touching the network. -->
+<html lang="en">
+<head>
+  <meta property="og:title" content="Example Series">
+  <meta property="og:image" content="https://cdn.example.net/covers/example.jpg">
+</head>
+<body class="wp-manga">
+  <div class="profile-manga">
+    <div class="summary_image">
+      <a href="https://example.net/manga/example-series/">
+        <img src="https://cdn.example.net/covers/example-193x278.jpg"
+             data-src="   https://cdn.example.net/covers/example.jpg?resize=193%2C278&#38;quality=70
+             "
+             class="img-responsive" alt="Example Series">
+      </a>
+    </div>
+    <div class="post-title">
+      <h1>  HOT   Example Series  </h1>
+    </div>
+    <div class="post-content">
+      <div class="post-content_item">
+        <div class="summary-heading"><h5>Author(s)</h5></div>
+        <div class="summary-content">Placeholder Author</div>
+      </div>
+      <div class="post-content_item">
+        <div class="summary-heading"><h5>Artist(s)</h5></div>
+        <div class="summary-content">Placeholder Artist</div>
+      </div>
+    </div>
+    <div class="description-summary">
+      <div class="summary__content">
+        A placeholder synopsis used only to exercise the description parser.
+      </div>
+    </div>
+  </div>
+
+  <!-- Newer Madara exposes the post id here and loads chapters over AJAX. -->
+  <div class="c-page__content">
+    <div id="manga-chapters-holder" data-id="4821">
+      <div class="page-content-listing single-page"></div>
+    </div>
+    <div class="wp-manga-action-button" data-post="4821" data-action="bookmark"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,7 @@
+-r requirements.txt
+pytest==8.3.4
+pytest-asyncio==0.25.2
+# Catches undefined names, which the async code paths hide until runtime: a
+# refactor once left `context` referenced but never bound, and every test
+# passed while the live app 502'd on each request.
+pyflakes==3.2.0

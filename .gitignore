@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+# .venv is the Windows venv; .venv-linux was added when the project was built
+# on Linux, and .venv.backup-* are what an in-place rebuild leaves behind.
+# Together they are ~950 MB and none of them belongs in the repo.
+.venv/
+.venv-*/
+.venv.backup-*/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Local runtime state
+config.yaml
+.env
+.env.*
+!.env.example
+.state/
+*.db
+*.db-wal
+*.db-shm
+browser/
+
+# Output
+/data/
+/downloads/
+*.cbz
+
+# Local development artifacts and captured pages
+/.claude/
+/.codex_probe.svg
+/scratchpad/
+/chapter.html
+/series.html
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
