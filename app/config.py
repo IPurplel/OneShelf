@@ -275,9 +275,18 @@ class Settings(BaseSettings):
     # --- output ---
     prefer_original_quality: bool = True
     """Strip CDN resize parameters and unwrap image proxies to reach originals."""
-    language: str = "ar"
-    """ComicInfo LanguageISO. Manga Starz is an Arabic-language source."""
-    right_to_left: bool = True
+    language: str = "en"
+    """ComicInfo LanguageISO, and the translation MangaDex is asked for.
+
+    English is the default because it is the least surprising for a general
+    audience; set `language: ar` for the Arabic sources. Change it in Settings."""
+    right_to_left: bool = False
+    """Fallback page direction, used only when an adapter does not declare one.
+
+    Adapters that know their own direction win here — see queue.py, where
+    `adapter.right_to_left` overrides this whenever it is not None. The Arabic
+    sources (vcomics, sunovels) set it themselves, so they stay right-to-left
+    regardless of this value."""
 
     @field_validator("output_dir", "config_dir", mode="after")
     @classmethod

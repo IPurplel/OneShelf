@@ -3,6 +3,13 @@
 # which removes the single biggest source of install pain in a container.
 FROM mcr.microsoft.com/playwright/python:v1.49.1-jammy
 
+# Links the published GHCR package back to the repository, and lets the registry
+# show a description and licence rather than an anonymous blob.
+LABEL org.opencontainers.image.title="OneShelf" \
+      org.opencontainers.image.description="Self-hosted manga, comic, book and web novel downloader with a browser interface." \
+      org.opencontainers.image.source="https://github.com/IPurplel/OneShelf" \
+      org.opencontainers.image.licenses="MIT"
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -65,8 +72,15 @@ USER pwuser
 
 EXPOSE 8080
 
+# Reads MD_PORT so the check follows the port the app actually bound; with the
+# port hardcoded, setting MD_PORT left the container permanently "unhealthy".
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-    CMD python -c "import urllib.request,sys; \
-sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=4).status==200 else 1)"
+    CMD python -c "import os,urllib.request,sys; \
+port=os.environ.get('MD_PORT','8080'); \
+sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{port}/api/health', timeout=4).status==200 else 1)"
 
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# `python -m app.main` rather than calling uvicorn directly: app.main:run() reads
+# settings.host/settings.port, so MD_HOST/MD_PORT work. Hardcoding the uvicorn
+# flags here silently ignored them. The defaults are 0.0.0.0:8080 either way, so
+# the common case is unchanged.
+CMD ["python", "-m", "app.main"]

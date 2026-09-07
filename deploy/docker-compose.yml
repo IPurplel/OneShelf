@@ -1,27 +1,34 @@
 services:
-  manga-downloader:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile
-      args:
-        # Real Chrome is what lets the image clear a Cloudflare check: the
-        # bundled Chromium in the base image is 131, which never clears one.
-        # Set to 0 only if you accept losing every Cloudflare-fronted source.
-        INSTALL_CHROME: "1"
-    image: manga-downloader:latest
-    container_name: manga-downloader
+  oneshelf:
+    # Prebuilt image, so a fresh clone pulls in seconds instead of spending
+    # minutes building Chromium's base layers.
+    image: ghcr.io/ipurplel/oneshelf:latest
+
+    # Building from source instead: uncomment this block and run
+    # `docker compose -f deploy/docker-compose.yml up -d --build`.
+    # build:
+    #   context: ..
+    #   dockerfile: deploy/Dockerfile
+    #   args:
+    #     # Real Chrome is what lets the image clear a Cloudflare check: the
+    #     # bundled Chromium in the base image is 131, which never clears one.
+    #     # Set to 0 only if you accept losing every Cloudflare-fronted source.
+    #     INSTALL_CHROME: "1"
+
+    container_name: oneshelf
     restart: unless-stopped
 
     ports:
       - "8080:8080"
 
     volumes:
-      # Where the .cbz files land. Point the left side at your NAS mount,
-      # a Proxmox bind mount, or anywhere Komga/Kavita already watches.
-      - /data/manga:/data/manga
-      # Database plus the persistent Chromium profile. Keeping this on a volume
-      # is what lets a solved Cloudflare clearance survive a restart.
-      - manga-config:/config
+      # Relative to this file, so `docker compose up` works anywhere without
+      # first creating a root-owned directory. Point the left side at your NAS
+      # mount, a Proxmox bind mount, or anywhere Komga/Kavita already watches.
+      - ./manga:/data/manga
+      # Database plus the persistent Chromium profile. Keeping this on disk is
+      # what lets a solved Cloudflare clearance survive a restart.
+      - ./config:/config
 
     # Chromium maps large shared-memory buffers for page rendering. Docker's
     # 64 MB default is not enough and it crashes; the app also passes
@@ -40,6 +47,3 @@ services:
     # Chromium needs these to spawn its own sandboxed child processes.
     security_opt:
       - seccomp=unconfined
-
-volumes:
-  manga-config:

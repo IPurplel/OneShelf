@@ -5,7 +5,42 @@ runs locally on Windows, macOS, or Linux, with a browser interface for finding
 titles, choosing chapters, and managing your downloads. Your library stays on
 your disk.
 
-## Quick start — one command to set up and run
+## Quick start — one command
+
+With [Docker](https://docs.docker.com/get-started/get-docker/) installed, paste
+this into a terminal:
+
+```bash
+docker run -d --name oneshelf -p 8080:8080 \
+  -v "$PWD/manga:/data/manga" -v "$PWD/config:/config" \
+  --shm-size=1g ghcr.io/ipurplel/oneshelf:latest
+```
+
+Then open **[http://localhost:8080](http://localhost:8080)**.
+
+That is the whole install. There is nothing else to set up — Python, Chromium,
+and a real Chrome for clearing bot checks are all inside the image. Downloads
+land in a `manga/` folder next to wherever you ran the command, and your
+settings in `config/`.
+
+| Task | Command |
+| --- | --- |
+| Watch the logs | `docker logs -f oneshelf` |
+| Stop it | `docker stop oneshelf` |
+| Start it again | `docker start oneshelf` |
+| Update | `docker pull ghcr.io/ipurplel/oneshelf:latest`, then `docker rm -f oneshelf` and re-run the command above |
+
+If you prefer a compose file,
+[deploy/docker-compose.yml](deploy/docker-compose.yml) does the same thing:
+
+```bash
+docker compose -f deploy/docker-compose.yml up -d
+```
+
+## Alternative: run without Docker
+
+If you would rather not install Docker, OneShelf also runs directly from source
+on Windows, macOS, and Linux.
 
 ### 1. Get Python and OneShelf
 
@@ -19,9 +54,6 @@ writable folder. If you use Git, you can clone it instead:
 ```bash
 git clone https://github.com/IPurplel/OneShelf.git
 ```
-
-This repository is private, so downloading or cloning requires access through
-your GitHub account.
 
 ### 2. Run one command
 
@@ -430,10 +462,22 @@ Desktop logs appear in the terminal where you launched OneShelf.
 
 ## Updating
 
-Stop OneShelf with **Ctrl+C**. If you cloned the repository, run `git pull`
-inside its folder, then use your usual startup command. Changed Python
-requirements are installed automatically. Your config, downloads, and browser
-state are kept.
+**Docker:** pull the new image and recreate the container. Your downloads and
+settings live in the mounted folders, so they survive:
+
+```bash
+docker pull ghcr.io/ipurplel/oneshelf:latest
+docker rm -f oneshelf
+# then re-run the command from Quick start
+```
+
+With compose, `docker compose -f deploy/docker-compose.yml pull` followed by
+`up -d` does the same thing.
+
+**From source:** stop OneShelf with **Ctrl+C**. If you cloned the repository,
+run `git pull` inside its folder, then use your usual startup command. Changed
+Python requirements are installed automatically. Your config, downloads, and
+browser state are kept.
 
 If you downloaded a ZIP, replace the source files with the new version while
 keeping `config.yaml`, `downloads/`, and `.state/`. Keep the same folder location
@@ -442,24 +486,55 @@ so the saved paths remain valid.
 ## Advanced: Docker, servers, and Proxmox/LXC
 
 For an always-on server or NAS, use the deployment files in `deploy/`.
-These are optional and are not needed for the desktop workflow above.
 
-**Docker:** edit the storage mapping in
-[deploy/docker-compose.yml](deploy/docker-compose.yml) for your server, then run:
+**Docker:** the compose file pulls the prebuilt image, so no build step is
+needed. Point the `./manga` mapping in
+[deploy/docker-compose.yml](deploy/docker-compose.yml) at your library
+directory — a NAS mount, or wherever Komga or Kavita already watches — then:
 
 ```bash
-docker compose -f deploy/docker-compose.yml up -d --build
+docker compose -f deploy/docker-compose.yml up -d
 ```
+
+To build from your own source instead, uncomment the `build:` block in that
+file and add `--build`.
+
+The image is published to
+[ghcr.io/ipurplel/oneshelf](https://github.com/IPurplel/OneShelf/pkgs/container/oneshelf)
+on every push to `main`. Use `:latest`, or pin a release tag such as `:1.0.0`.
 
 **Debian/Ubuntu systemd:** from the cloned repository, run
 `sudo ./deploy/install.sh`. This installs a system service; do not use it as
-the desktop launcher. The service and image retain their existing
-`manga-downloader` names.
+the desktop launcher. The service retains its existing `manga-downloader` name.
 
 See the [Proxmox/LXC deployment guide](deploy/DEPLOY-LXC.md) for container
 nesting, storage mounts, service configuration, and troubleshooting. Server
 logs are available with `docker compose -f deploy/docker-compose.yml logs -f`
 or `journalctl -u manga-downloader -f`.
+
+### Bot checks in a container
+
+The image ships real Chrome plus Xvfb, so it clears ordinary JavaScript
+challenges on its own. Interactive Turnstile it cannot — see
+[Cloudflare: what is automatic and what is not](#cloudflare-what-is-automatic-and-what-is-not)
+above, which applies unchanged here.
+
+The fix is the same **Attach to your own browser** flow described there, with
+one container-specific difference: the host is not `127.0.0.1`, because that
+resolves to the container itself. Use
+
+```yaml
+browser_cdp: http://host.docker.internal:9222
+```
+
+and make that name resolvable. On Docker Desktop it already is; on Linux add
+`--add-host=host.docker.internal:host-gateway` to your `docker run`, or to the
+compose service:
+
+```yaml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+```
 
 Server deployments can listen on the LAN. OneShelf has no authentication, so
 keep access to a trusted network or VPN rather than exposing its port publicly.

@@ -331,7 +331,9 @@ async def test_full_download_produces_valid_cbz_files(pipeline):
         assert info.findtext("Series") == "Example Series"
         assert info.findtext("Number") == "001"
         assert info.findtext("PageCount") == str(PAGES_PER_CHAPTER)
-        assert info.findtext("Manga") == "YesAndRightToLeft"
+        # StubAdapter declares no direction of its own, so this is the global
+        # settings fallback, which defaults to left-to-right.
+        assert info.findtext("Manga") == "Yes"
 
 
 async def test_no_partial_artefacts_remain(pipeline):

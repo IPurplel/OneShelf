@@ -130,9 +130,12 @@ request_timeout: 60.0
 # always kept as a fallback either way.
 prefer_original_quality: true    # UI-editable
 
-# ComicInfo.xml LanguageISO. "ar" for Arabic sources, "en" for English.
-language: ar                     # UI-editable
+# ComicInfo.xml LanguageISO, and the translation MangaDex is asked for.
+# "en" for English, "ar" for the Arabic sources.
+language: en                     # UI-editable
 
-# Manga pages right-to-left. Correct for Japanese and Arabic releases; set
-# false for Western comics or left-to-right webtoons.
-right_to_left: true
+# Fallback page direction, used only where an adapter does not declare its own.
+# Adapters that know better override it, so the Arabic sources stay
+# right-to-left whatever this says. Set true if your untagged sources are
+# Japanese or Arabic releases; false suits Western comics and webtoons.
+right_to_left: false
