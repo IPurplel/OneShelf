@@ -1,68 +1,12 @@
-# Build context filter.
-#
-# docker-compose.yml builds with `context: ..`, i.e. the whole project, and
-# every byte of that is tarred and handed to the Docker daemon before the first
-# instruction runs. Unfiltered this measured **3.5 GB** — a downloaded library,
-# a browser profile and three virtualenvs, none of which the image uses. On the
-# 8-12 GB rootfs an LXC gets, that alone can fill the disk.
-#
-# The image needs exactly four things: app/, web/, requirements.txt and
-# config.example.yaml. Everything below is either large, machine-specific, or
-# both.
-
-# --- virtualenvs -------------------------------------------------------------
-# .venv is a Windows venv (259 MB) and .venv-linux a Linux one (379 MB); the
-# image builds its own from requirements.txt either way.
-.venv/
-.venv-*/
-.venv.backup-*/
-venv/
-env/
-
-# --- runtime state and output ------------------------------------------------
-# downloads/ is the CBZ library (1.6 GB) and .state/ the persistent Chromium
-# profile plus the SQLite database (937 MB). Both are volumes at run time.
-downloads/
-.state/
-data/
-*.db
-*.db-wal
-*.db-shm
-
-# --- local configuration -----------------------------------------------------
-# The developer's own config.yaml pins headless:false and desync_enabled:true,
-# which are wrong for a container. The image ships config.example.yaml instead
-# and the compose file supplies the rest through MD_* environment variables.
-config.yaml
-
-# --- development-only ---------------------------------------------------------
-tests/
-scratchpad/
-tools/
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Captured page dumps kept for reference; ~460 KB and not used at run time.
-chapter.html
-series.html
-
-# --- vcs, docs, editors --------------------------------------------------------
-.git/
-.gitignore
-.github/
-*.md
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-.claude/
-.codex_probe.svg
-requirements-dev.txt
-
-# deploy/ is deliberately NOT excluded. It is 36 KB, and compose points at
-# `dockerfile: deploy/Dockerfile` — keeping it in the context avoids any
-# question about how the builder resolves a Dockerfile that the context filter
-# would otherwise have removed.
+# Only application source and its build recipe belong in the build context.
+# Excludes local libraries, browser sessions, secrets, caches, and environments.
+**
+!app/
+!app/**
+!web/
+!web/**
+!requirements.txt
+!deploy/
+!deploy/Dockerfile
+**/__pycache__/
+**/*.py[cod]

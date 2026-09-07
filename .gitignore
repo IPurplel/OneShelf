@@ -1,9 +1,7 @@
 # Python
 __pycache__/
 *.py[cod]
-# .venv is the Windows venv; .venv-linux was added when the project was built
-# on Linux, and .venv.backup-* are what an in-place rebuild leaves behind.
-# Together they are ~950 MB and none of them belongs in the repo.
+# Local development environments and their backups.
 .venv/
 .venv-*/
 .venv.backup-*/
@@ -39,3 +37,9 @@ browser/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Host folders retained from older Docker deployments
+/manga/
+/config/
+/deploy/manga/
+/deploy/config/

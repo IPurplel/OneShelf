@@ -1,3 +1,5 @@
+> Historical development notes. For current deployment, use [README.md](README.md).
+
 # Handoff — manga/comic downloader
 
 Everything a fresh session needs. The "Findings" section is the expensive part:
@@ -619,9 +621,6 @@ archives nobody asked for.
 the queue is lost on restart; preview is silent for ~36s; `/api/cover` takes 4s
 because it needlessly goes through rate limiting and quality upgrading.
 
-**5. Never deployed.** `deploy/DEPLOY-LXC.md` and `install.sh` are written and
-handle Chrome/Xvfb/patchright but have never been run — the original goal.
-Needs `host: 0.0.0.0`; there is **no authentication**, so keep it on the LAN.
 
 ## Notes
 

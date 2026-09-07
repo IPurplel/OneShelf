@@ -1,12 +1,12 @@
 """Configuration layering.
 
 The one rule worth a test: the environment outranks ``config.yaml``. Every
-shipped deployment depends on it — ``deploy/Dockerfile``,
-``deploy/docker-compose.yml`` and ``deploy/manga-downloader.service`` all set
+shipped deployment depends on it — ``deploy/Dockerfile`` and
+``deploy/docker-compose.yml`` set
 ``MD_OUTPUT_DIR``/``MD_CONFIG_DIR``/``MD_PORT`` in the environment while
-pointing ``MD_CONFIG_FILE`` at a copy of ``config.example.yaml``, which sets the
-same three keys itself. Get the ordering wrong and the file wins: the container
-writes to the path the file names and quietly ignores the volume it was mounted.
+pointing ``MD_CONFIG_FILE`` at the persisted YAML settings. Get the ordering
+wrong and the file wins: the container writes to the path the file names and
+quietly ignores the volume it was mounted.
 
 pydantic-settings ranks constructor keyword arguments *highest* by default, and
 ``load_settings`` passes the YAML that way, so this is exactly the direction the

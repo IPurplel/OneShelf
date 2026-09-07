@@ -69,9 +69,9 @@ class Settings(BaseSettings):
         what this file, ``config.example.yaml`` and the README all promise, and
         the opposite of what deployment needs. Every shipped deployment sets
         ``MD_OUTPUT_DIR``/``MD_CONFIG_DIR``/``MD_PORT`` in the environment
-        (Dockerfile, docker-compose, the systemd unit) while pointing
-        ``MD_CONFIG_FILE`` at a copy of ``config.example.yaml`` — which sets all
-        three itself. With the default ordering the YAML silently won, so the
+        (Dockerfile and docker-compose) while pointing
+        ``MD_CONFIG_FILE`` at saved YAML settings, which may also set
+        these values. With the default ordering the YAML silently won, so the
         container wrote to whatever path the file named and ignored the mount
         it was actually given. Env first, YAML behind it.
         """

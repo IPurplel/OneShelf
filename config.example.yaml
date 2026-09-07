@@ -1,4 +1,4 @@
-# Manga Downloader configuration.
+# OneShelf configuration reference (no need to copy this for deployment).
 #
 # Every key here can also be set as an environment variable with an MD_ prefix
 # (MD_OUTPUT_DIR, MD_IMAGE_CONCURRENCY, ...). Environment variables win over
@@ -28,7 +28,7 @@ config_dir: /config
 # and those differences are readable from JavaScript.
 #
 # Needs xvfb installed for the escalation to be possible in a container; the
-# installer does that for you. Falls back to headless if there is no display.
+# Docker image includes it. Falls back to headless if there is no display.
 headless: auto
 
 # Prefer the patchright driver when installed. Stock Playwright is detectable

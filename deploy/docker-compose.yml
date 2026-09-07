@@ -1,49 +1,32 @@
+name: oneshelf
+
 services:
   oneshelf:
-    # Prebuilt image, so a fresh clone pulls in seconds instead of spending
-    # minutes building Chromium's base layers.
-    image: ghcr.io/ipurplel/oneshelf:latest
-
-    # Building from source instead: uncomment this block and run
-    # `docker compose -f deploy/docker-compose.yml up -d --build`.
-    # build:
-    #   context: ..
-    #   dockerfile: deploy/Dockerfile
-    #   args:
-    #     # Real Chrome is what lets the image clear a Cloudflare check: the
-    #     # bundled Chromium in the base image is 131, which never clears one.
-    #     # Set to 0 only if you accept losing every Cloudflare-fronted source.
-    #     INSTALL_CHROME: "1"
-
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    platform: linux/amd64
     container_name: oneshelf
     restart: unless-stopped
-
     ports:
-      - "8080:8080"
-
+      - "0.0.0.0:8080:8080"
     volumes:
-      # Relative to this file, so `docker compose up` works anywhere without
-      # first creating a root-owned directory. Point the left side at your NAS
-      # mount, a Proxmox bind mount, or anywhere Komga/Kavita already watches.
-      - ./manga:/data/manga
-      # Database plus the persistent Chromium profile. Keeping this on disk is
-      # what lets a solved Cloudflare clearance survive a restart.
-      - ./config:/config
-
-    # Chromium maps large shared-memory buffers for page rendering. Docker's
-    # 64 MB default is not enough and it crashes; the app also passes
-    # --disable-dev-shm-usage as a second line of defence.
+      - downloads:/data/manga
+      - config:/config
     shm_size: 1gb
-
     environment:
       TZ: Etc/UTC
+      MD_HOST: 0.0.0.0
+      MD_PORT: "8080"
+      MD_CONFIG_FILE: /config/config.yaml
       MD_OUTPUT_DIR: /data/manga
       MD_CONFIG_DIR: /config
-      # Uncomment to loosen or tighten politeness without editing config.yaml:
-      # MD_CHAPTER_CONCURRENCY: "2"
-      # MD_IMAGE_CONCURRENCY: "6"
-      # MD_REQUESTS_PER_SECOND: "4"
-
-    # Chromium needs these to spawn its own sandboxed child processes.
+    # Allow Chromium's child processes in this trusted-LAN deployment.
     security_opt:
       - seccomp=unconfined
+
+volumes:
+  downloads:
+    name: oneshelf_downloads
+  config:
+    name: oneshelf_config
