@@ -98,11 +98,27 @@ The defaults work out of the box. Open **Settings** in the web interface to chan
 | `max_retries` | `3` | Retry limit for failed fetches |
 | `prefer_original_quality` | `true` | Try to retrieve original images instead of resized copies |
 | `proxy` | Unset | Optional proxy for browser and download requests |
+| `desync_enabled` | `false` | Route downloads through a built-in proxy that fragments the TLS handshake, defeating some hostname-based network filtering; ignored when `proxy` is set |
 | `browser_cdp` | Unset | Attach to an existing browser's debugging endpoint |
 
-The deployment fixes the web port at **8080** and the download folder at **`/data/manga`**. Keep that output path so files stay in persistent storage.
+`proxy` and `desync_enabled` are the two answers to a source your network cannot reach — see [unreachable sources and proxies](docs/troubleshooting.md#unreachable-sources-and-proxies) for which one to try.
 
-See the [configuration reference](config.example.yaml) for advanced options and the [troubleshooting guide](docs/troubleshooting.md) for browser and network setup.
+The deployment fixes the web port at **8080**. The download folder defaults to **`/data/manga`** and can be changed in Settings, but a path outside `/data/manga` writes files outside the persistent volume, where a rebuild loses them.
+
+### Advanced (config file only)
+
+These are not in the Settings interface:
+
+| Setting | Default | Description |
+|---|---|---|
+| `search_timeout` | `20.0` | Seconds a single site gets before it is dropped from the search results |
+| `headless` | `auto` | Start headless, escalating to a headful browser on the virtual display when a check will not clear |
+| `right_to_left` | `false` | Fallback page direction, used only when an adapter does not declare its own |
+| `host_requests_per_second` | `noor-book.com: 0.5` | Extra per-host rate ceilings, below the global limit |
+
+Set these by editing `/config/config.yaml`, or as `MD_`-prefixed environment variables in `deploy/docker-compose.yml` — the environment ranks above the file, so `MD_SEARCH_TIMEOUT` wins over `search_timeout:`.
+
+See the [configuration reference](config.example.yaml) for the full list of options and the [troubleshooting guide](docs/troubleshooting.md) for browser and network setup.
 
 ---
 
@@ -202,17 +218,45 @@ Upgrading from an older deployment? Read [Existing installation](docs/troublesho
 
 The interface uses the same API available to scripts and integrations. Open **[API documentation](http://localhost:8080/docs)** on the host while OneShelf is running for request and response details.
 
+### Finding and previewing
+
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/health` | Application status and download-folder write access |
 | `GET` | `/api/sources` | Available source information |
 | `GET` | `/api/search` | Search for titles |
 | `POST` | `/api/preview` | Read series details and its chapter list |
+| `POST` | `/api/connectivity` | Why a URL is unreachable: `ok`, `challenge`, `connection_reset`, `connect_error`, or `proxy_error` |
+| `GET` | `/api/cover` | Fetch cover art through the app's own fetcher, session, and referer |
+
+### Queue
+
+| Method | Path | Description |
+|---|---|---|
 | `POST` | `/api/download` | Queue a series and selected chapters |
 | `GET` | `/api/jobs` | List download jobs |
+| `GET` | `/api/jobs/{job_id}` | One job in detail |
+| `POST` | `/api/jobs/{job_id}/{action}` | `pause`, `resume`, `cancel`, `retry`, or `remove` |
+| `POST` | `/api/jobs/stop` | Stop everything in flight; finished chapters are kept |
+| `POST` | `/api/jobs/clear` | Clear finished jobs from the list; `?all=true` stops running ones first. Archives are never touched |
+
+### Library
+
+| Method | Path | Description |
+|---|---|---|
 | `GET` | `/api/library` | List saved series |
 | `GET` | `/api/library/archive` | Download a series as ZIP |
+| `GET` | `/api/library/chapters` | Downloaded chapters of one series, with their sizes on disk |
+| `POST` | `/api/library/delete` | Delete downloaded archives, keeping the series in the library |
+| `DELETE` | `/api/library` | Forget a series; files on disk are left untouched |
+
+### Settings and sessions
+
+| Method | Path | Description |
+|---|---|---|
 | `GET` / `PUT` | `/api/settings` | Read or update settings |
+| `POST` | `/api/session/manual` | Install clearance cookies copied from your own browser |
+| `POST` | `/api/session/refresh` | Re-establish a host's browser session |
 
 Live progress is available over WebSocket at `/ws`.
 
