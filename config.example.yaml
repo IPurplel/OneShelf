@@ -114,6 +114,39 @@ desync_port: 8081                # fixed so you can point your own browser at it
 # Leave unset (or blank) for a direct connection.
 proxy:                           # UI-editable
 
+# --- search -----------------------------------------------------------------
+# The sites the search box queries, in order. Listing this key replaces the
+# built-in list entirely rather than adding to it, so include every site you
+# want searched.
+#
+# The default is the 21 sites that have each produced a real, inspected file on
+# disk - the entry requirement, because a site that only *searches* looks
+# supported and is not. SOURCES.md carries the artifact, its byte size and its
+# page or chapter count for each; app/config.py holds the list itself, with the
+# reason beside every site that was left out.
+#
+# Notably absent are sunovels.com and arabic-book.net, whose downloads work
+# fine: neither can answer a query truthfully - one ignores search parameters
+# and returns its catalogue, the other renders a "latest posts" widget in the
+# same markup as results - so both are paste-by-URL only.
+#
+# Add any site the app supports. The adapter is chosen by fingerprinting the
+# page, not by hostname, so nothing else needs to change. A site that fails or
+# times out is skipped, never fatal.
+#
+#   search_sites:
+#     - https://mangadex.org
+#     - https://www.gutenberg.org
+#
+# As an environment variable this one takes a JSON array, not a comma-separated
+# string: MD_SEARCH_SITES='["https://mangadex.org","https://www.gutenberg.org"]'
+
+# Seconds any single site gets to answer before it is dropped from the results.
+# Every site is queried in parallel, so this is the ceiling on a whole search,
+# not a per-site cost added up. Raising it makes a slow source reachable at the
+# price of every search waiting on it.
+search_timeout: 20.0
+
 # --- download engine --------------------------------------------------------
 # Total in-flight requests is roughly chapter_concurrency x image_concurrency.
 # The defaults are deliberately modest: getting the IP banned costs far more
