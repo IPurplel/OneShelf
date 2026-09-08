@@ -1,0 +1,79 @@
+3asq.online                fingerprint: generic -> madara
+3asq.online                positive  4 hits
+3asq.online                sentinel  0 hits
+arabtoons.net              fingerprint: generic -> madara
+arabtoons.net              positive  2 hits
+arabtoons.net              sentinel  0 hits
+azoramoon.com              positive  3 hits
+azoramoon.com              sentinel  0 hits
+kolnovel.com               fingerprint: generic -> mangathemesia
+Cannot run a headful browser: no DISPLAY and Xvfb is not installed. Install it with: apt-get install -y xvfb
+Falling back to headless: no display available
+The browser went away; it will be relaunched on the next request
+kolnovel.com               positive  8 hits
+kolnovel.com               sentinel  0 hits
+cenele.com                 fingerprint: generic -> madara
+cenele.com                 positive  5 hits
+cenele.com                 sentinel  0 hits
+rewayat.club               positive  12 hits
+rewayat.club               sentinel  0 hits
+riwayatarab.com            positive  11 hits
+Selector "a[href^='/novel/']" did not appear within 4s on https://riwayatarab.com/search?q=zzqvoneshelfnonexistent987654321
+riwayatarab.com            sentinel  0 hits
+8ghrb.com                  positive  1 hits
+8ghrb.com                  sentinel  0 hits
+www.noor-book.com          positive  4 hits
+www.noor-book.com          sentinel  0 hits
+kitaboka.com               positive  12 hits
+kitaboka.com               sentinel  0 hits
+www.planetebook.com        positive  1 hits
+www.planetebook.com        sentinel  0 hits
+bettergutenberg.org        positive  1 hits
+bettergutenberg.org        sentinel  0 hits
+www.gutenberg.org          positive  10 hits
+www.gutenberg.org          sentinel  0 hits
+aco.dlib.nyu.edu           positive  10 hits
+aco.dlib.nyu.edu           sentinel  0 hits
+www.royalroad.com          positive  5 hits
+www.royalroad.com          sentinel  0 hits
+archiveofourown.org        positive  12 hits
+archiveofourown.org        sentinel  0 hits
+www.webtoons.com           positive  3 hits
+www.webtoons.com           sentinel  0 hits
+azorafly.com               positive  3 hits
+azorafly.com               sentinel  0 hits
+mangadex.org               positive  12 hits
+mangadex.org               sentinel  0 hits
+mangaread.org              fingerprint: generic -> madara
+mangaread.org              positive  12 hits
+mangaread.org              sentinel  0 hits
+manhuaplus.com             fingerprint: generic -> madara
+manhuaplus.com             positive  12 hits
+manhuaplus.com             sentinel  0 hits
+The browser went away; it will be relaunched on the next request
+
+run directory: /workspace/manga downloader/.state/source-program/wp2-search/run-erx3x_m5
+report: docs/evidence/health/search-audit.json
+
+== R3 verdict ==
+3asq.online                T2 ok (4 hits, sentinel 0)
+arabtoons.net              T2 ok (2 hits, sentinel 0)
+azoramoon.com              T2 ok (3 hits, sentinel 0)
+kolnovel.com               T2 ok (8 hits, sentinel 0)
+cenele.com                 T2 ok (5 hits, sentinel 0)
+rewayat.club               T2 ok (12 hits, sentinel 0)
+riwayatarab.com            T2 ok (11 hits, sentinel 0)
+8ghrb.com                  T2 ok (1 hits, sentinel 0)
+www.noor-book.com          T2 ok (4 hits, sentinel 0)
+kitaboka.com               T2 ok (12 hits, sentinel 0)
+www.planetebook.com        T2 ok (1 hits, sentinel 0)
+bettergutenberg.org        T2 ok (1 hits, sentinel 0)
+www.gutenberg.org          T2 ok (10 hits, sentinel 0)
+aco.dlib.nyu.edu           T2 ok (10 hits, sentinel 0)
+www.royalroad.com          T2 ok (5 hits, sentinel 0)
+archiveofourown.org        T2 ok (12 hits, sentinel 0)
+www.webtoons.com           T2 ok (3 hits, sentinel 0)
+azorafly.com               T2 ok (3 hits, sentinel 0)
+mangadex.org               T2 ok (12 hits, sentinel 0)
+mangaread.org              T2 ok (12 hits, sentinel 0)
+manhuaplus.com             T2 ok (12 hits, sentinel 0)

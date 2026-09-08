@@ -1,0 +1,85 @@
+
+=== 3asq.online (madara)
+  alef forms (hamza written)       'الأمير'             raw   8  +0 from variants
+  alef forms (hamza omitted)       'الامير'             raw   0  +0 from variants
+  teh marbuta                      'رواية'              raw   7  +0 from variants
+  teh marbuta spelled as heh       'روايه'              raw   0  +7 from variants
+  alef maqsura                     'ليلى'               raw   0  +6 from variants
+  alef maqsura spelled as yeh      'ليلي'               raw   6  +0 from variants
+  harakat present                  'رِوايَة'            raw   0  +7 from variants
+  tatweel                          'روايـــة'           raw   0  +7 from variants
+  arabic-indic digits              'الجزء ٢'            raw   1  +0 from variants
+  persian keheh and farsi yeh      'کتاب'               raw   0  +6 from variants
+  definite article present         'الغريب'             raw  10  +0 from variants
+  copy-paste carrying RLM          '\u200fالغريب\u200e' raw  10  +0 from variants
+
+=== arabtoons.net (madara)
+  alef forms (hamza written)       'الأمير'             raw   0  +0 from variants
+  alef forms (hamza omitted)       'الامير'             raw   0  +0 from variants
+  teh marbuta                      'رواية'              raw   6  +0 from variants
+  teh marbuta spelled as heh       'روايه'              raw   0  +6 from variants
+  alef maqsura                     'ليلى'               raw   0  +3 from variants
+  alef maqsura spelled as yeh      'ليلي'               raw   3  +0 from variants
+  harakat present                  'رِوايَة'            raw   0  +6 from variants
+  tatweel                          'روايـــة'           raw   0  +6 from variants
+  arabic-indic digits              'الجزء ٢'            raw   0  +0 from variants
+  persian keheh and farsi yeh      'کتاب'               raw   0  +1 from variants
+  definite article present         'الغريب'             raw   1  +0 from variants
+  copy-paste carrying RLM          '\u200fالغريب\u200e' raw   1  +0 from variants
+
+=== 8ghrb.com (books)
+  alef forms (hamza written)       'الأمير'             raw  12  +4 from variants
+  alef forms (hamza omitted)       'الامير'             raw   4  +0 from variants
+  teh marbuta                      'رواية'              raw   1  +12 from variants
+  teh marbuta spelled as heh       'روايه'              raw  12  +1 from variants
+  alef maqsura                     'ليلى'               raw  12  +12 from variants
+  alef maqsura spelled as yeh      'ليلي'               raw  12  +12 from variants
+  harakat present                  'رِوايَة'            raw   0  +13 from variants
+  tatweel                          'روايـــة'           raw   1  +13 from variants
+  arabic-indic digits              'الجزء ٢'            raw  12  +0 from variants
+  persian keheh and farsi yeh      'کتاب'               raw   7  +7 from variants
+  definite article present         'الغريب'             raw  12  +0 from variants
+  copy-paste carrying RLM          '\u200fالغريب\u200e' raw  12  +0 from variants
+
+=== kitaboka.com (books)
+Cannot run a headful browser: no DISPLAY and Xvfb is not installed. Install it with: apt-get install -y xvfb
+Falling back to headless: no display available
+The browser went away; it will be relaunched on the next request
+  alef forms (hamza written)       'الأمير'             raw   0  +0 from variants
+  alef forms (hamza omitted)       'الامير'             raw   0  +0 from variants
+  teh marbuta                      'رواية'              raw  12  +8 from variants
+  teh marbuta spelled as heh       'روايه'              raw  12  +8 from variants
+  alef maqsura                     'ليلى'               raw   1  +1 from variants
+  alef maqsura spelled as yeh      'ليلي'               raw   1  +1 from variants
+  harakat present                  'رِوايَة'            raw  12  +8 from variants
+  tatweel                          'روايـــة'           raw  12  +8 from variants
+  arabic-indic digits              'الجزء ٢'            raw   2  +0 from variants
+  persian keheh and farsi yeh      'کتاب'               raw   1  +8 from variants
+  definite article present         'الغريب'             raw   2  +0 from variants
+  copy-paste carrying RLM          '\u200fالغريب\u200e' raw   2  +0 from variants
+
+=== www.noor-book.com (books)
+  alef forms (hamza written)       'الأمير'             raw   6  +0 from variants
+  alef forms (hamza omitted)       'الامير'             raw   6  +0 from variants
+  teh marbuta                      'رواية'              raw   0  +0 from variants
+  teh marbuta spelled as heh       'روايه'              raw   0  +0 from variants
+  alef maqsura                     'ليلى'               raw  12  +0 from variants
+  alef maqsura spelled as yeh      'ليلي'               raw  12  +0 from variants
+  harakat present                  'رِوايَة'            raw   0  +0 from variants
+  tatweel                          'روايـــة'           raw   0  +0 from variants
+  arabic-indic digits              'الجزء ٢'            raw   9  +0 from variants
+  persian keheh and farsi yeh      'کتاب'               raw   0  +0 from variants
+  definite article present         'الغريب'             raw  12  +0 from variants
+  copy-paste carrying RLM          '\u200fالغريب\u200e' raw  12  +0 from variants
+The browser went away; it will be relaunched on the next request
+
+run directory: /workspace/manga downloader/.state/source-program/wp3-arabic/run-zumi3ta1
+report: docs/evidence/wp3/arabic-search.json
+
+== before/after, per site ==
+site                    raw hits  after variants
+3asq.online                   42              75
+arabtoons.net                 11              33
+8ghrb.com                     97             171
+kitaboka.com                  57              99
+www.noor-book.com             69              69

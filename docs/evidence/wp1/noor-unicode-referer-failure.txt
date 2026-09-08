@@ -1,0 +1,38 @@
+Isolated run: /workspace/manga downloader/.state/verification/run-uesw7ebu
+2026-09-08 08:15:00,670 INFO    app.desync: DPI-bypass proxy listening on socks5://127.0.0.1:43213 (split at 1 byte(s), 50 ms delay)
+2026-09-08 08:15:00,708 INFO    app.fetcher: HTTP egress via proxy socks5://127.0.0.1:43213
+2026-09-08 08:15:00,732 INFO    app.adapters.registry: Using adapter books for https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf (by host)
+2026-09-08 08:15:01,268 INFO    httpx: HTTP Request: GET https://www.noor-book.com/en/ebook-%D8%A7%D9%84%D9%84%D9%8A%D8%A7%D9%84%D9%8A-%D8%A7%D9%84%D8%A8%D9%8A%D8%B6%D8%A7%D8%A1-%D8%AF%D9%88%D8%B3%D8%AA%D9%88%D9%8A%D9%81%D8%B3%D9%83%D9%8A-pdf "HTTP/1.1 200 OK"
+2026-09-08 08:15:01,434 INFO    httpx: HTTP Request: POST https://www.noor-book.com/en/Verification/check_user?o=1788855301.2966588 "HTTP/1.1 200 OK"
+2026-09-08 08:15:01,634 INFO    httpx: HTTP Request: POST https://www.noor-book.com/en/book/read_book?o=1788855301.4353776 "HTTP/1.1 200 OK"
+2026-09-08 08:15:01,638 INFO    app.adapters.books: Noor reader has 111 page(s) for https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf
+2026-09-08 08:15:01,665 INFO    app.adapters.registry: Using adapter books for https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf (by host)
+2026-09-08 08:15:02,189 INFO    httpx: HTTP Request: GET https://www.noor-book.com/en/ebook-%D8%A7%D9%84%D9%84%D9%8A%D8%A7%D9%84%D9%8A-%D8%A7%D9%84%D8%A8%D9%8A%D8%B6%D8%A7%D8%A1-%D8%AF%D9%88%D8%B3%D8%AA%D9%88%D9%8A%D9%81%D8%B3%D9%83%D9%8A-pdf "HTTP/1.1 200 OK"
+2026-09-08 08:15:02,330 INFO    httpx: HTTP Request: POST https://www.noor-book.com/en/Verification/check_user?o=1788855302.2076497 "HTTP/1.1 200 OK"
+2026-09-08 08:15:02,487 INFO    httpx: HTTP Request: POST https://www.noor-book.com/en/book/read_book?o=1788855302.331225 "HTTP/1.1 200 OK"
+Traceback (most recent call last):
+  File "/usr/lib64/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/workspace/manga downloader/scratchpad/verify_dl.py", line 215, in run
+    await asyncio.sleep(0.5)
+  File "/usr/lib64/python3.12/asyncio/tasks.py", line 665, in sleep
+    return await future
+           ^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/workspace/manga downloader/scratchpad/verify_dl.py", line 240, in <module>
+    raise SystemExit(asyncio.run(run(parse_args())))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib64/python3.12/asyncio/runners.py", line 123, in run
+    raise KeyboardInterrupt()
+KeyboardInterrupt

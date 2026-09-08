@@ -1,0 +1,25 @@
+{
+  "source_url": "https://riwayatarab.com/novel/demonic-emperor",
+  "checked": "2026-09-08T20:33:01.409426+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-_2nh2c7w",
+  "passed": true,
+  "adapter": "riwayatarab",
+  "title": "الإمبراطور الشيطاني",
+  "listed_chapters": 1344,
+  "chapter_url": "https://riwayatarab.com/novel/demonic-emperor/chapter/1",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-_2nh2c7w/downloads/الإمبراطور الشيطاني/الإمبراطور الشيطاني - c001.epub",
+    "passed": true,
+    "count": 1,
+    "unit": "spine items",
+    "bytes": 6607,
+    "sha256": "7880a65740bb98c4f41b14d2b0028f268867fe924026debc2e1abbc21a30ebbf",
+    "spine": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "rendered_pages": 7
+  }
+}

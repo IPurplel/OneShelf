@@ -832,3 +832,33 @@ async def test_a_reader_book_joins_the_library(reader_pipeline):
     rows = await db.list_series()
     assert [row["url"] for row in rows] == [series.url]
     assert rows[0]["downloaded_count"] == 1
+
+
+async def test_packaging_may_be_decided_asynchronously():
+    """A platform's theme cannot say whether a chapter is pictures or prose.
+
+    Several web-novel sites run a manga platform's markup, so for those
+    adapters the honest answer requires opening the chapter. The queue awaits
+    a hook that answers asynchronously and calls a plain one plainly, so every
+    existing adapter keeps its synchronous one-liner.
+    """
+    chapter = Chapter(url="https://example.net/c/1/", title="1", number="1", index=1)
+
+    class Sync:
+        packaging = "cbz"
+
+        def packaging_for(self, chapter):
+            return "pdf"
+
+    class Async:
+        packaging = "cbz"
+
+        async def packaging_for(self, chapter):
+            return "text"
+
+    class Neither:
+        packaging = "file"
+
+    assert await JobQueue._packaging_for(Sync(), chapter) == "pdf"
+    assert await JobQueue._packaging_for(Async(), chapter) == "text"
+    assert await JobQueue._packaging_for(Neither(), chapter) == "file"

@@ -1,0 +1,452 @@
+--- a/HANDOFF.md
++++ b/HANDOFF.md
+@@ -1,4 +1,7 @@
+ > Historical development notes. For current deployment, use [README.md](README.md).
++> **Latest continuation: [CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md),
++> 2026-09-08.** Read it first for Codex's changes, fresh verification, and the
++> ranked remaining work. Dated findings below preserve earlier observations.
+ 
+ # Handoff — manga/comic downloader
+ 
+@@ -22,7 +25,8 @@
+ ```
+ 
+ Run: `./.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8080`
+-Test: `python -m pytest -q` → **765 pass** (2026-09-08)
++Test on Linux: `.venv-linux/bin/python -m pytest -q` → **859 passed**
++(2026-09-08, after Codex's continuation; baseline was 853).
+ Lint: `./.venv/Scripts/python.exe -m pyflakes app/ tests/` → clean
+ 
+ **The UI has no test runner.** `web/` is three static files with no build step,
+@@ -49,7 +53,7 @@
+ | Adapter | Status |
+ | --- | --- |
+ | `madara` | **T4** on four sites: 3asq, mangaread, manhuaplus, arabtoons |
+-| `mangathemesia` | **Never produced a file.** Its one configured site is blocked by its own CDN (526); no other live TS site found. See SOURCES.md |
++| `mangathemesia` | **T4 for prose** on kolnovel. Its image path remains unproven: rizzfables' CDN fails. See SOURCES.md |
+ | `vcomics` | **T4.** azoramoon/azorafly, 46 pp. Search + locked-chapter handling live-checked |
+ | `mangadex` | **T4.** 37 pp, full-size originals, no browser |
+ | `comix` | **T4** — 12 pp, but only after `scroll_for`; it read 3 before |
+@@ -57,6 +61,8 @@
+ | `books` | **T4** on planetebook, 8ghrb, bettergutenberg, kitaboka, noor. `ktobati` excluded (account) |
+ | `gutenberg` | **T4.** 77k books; search + one-per-format downloads |
+ | `royalroad` / `ao3` / `webtoons` / `sunovels` | **T4**, one artifact each |
++| `aco` | **T4**, 524-page PDF from the IIIF manifest's rendering link |
++| `wuxiabox` / `rewayat` / `riwayatarab` | **T4**, one EPUB chapter each; full listing counts recorded in SOURCES.md |
+ | `scribblehub` | **TB** — Turnstile this container cannot clear |
+ | `generic` | Heuristic fallback; no source of its own to verify |
+ 
+@@ -67,10 +73,10 @@
+ `comics` for comix/blogger, `book` for books — and a test fails if a new adapter
+ forgets, because a missing type makes it unreachable from search.
+ 
+-Configured as of 2026-09-08: **16 sites, every one of them T4** — 6 manga
+-(3asq, arabtoons, azoramoon, azorafly, mangaread, manhuaplus, mangadex),
+-9 book/novel (8ghrb, noor-book, kitaboka, planetebook, bettergutenberg,
+-gutenberg, royalroad, archiveofourown) and webtoons for comics.
++Default configuration as of 2026-09-08: **21 search URLs, all with T4 evidence**
++— **7 Manga, 13 Books, 1 Comics**. User configuration can override this list.
++The reconciled ledger contains 26 T4 hostnames including redirect aliases;
++10 match the supplied inventory exactly after removing `www.`.
+ `manga-starz` (SNI-filtered here) and `rizzfables` (its CDN answers 526 to
+ everything) were removed by WP-2. comix and blogger still have no search, so
+ they remain paste-by-URL — but both now download.
+@@ -83,8 +89,8 @@
+ series shown under a romanised name and text can settle nothing. See Findings.
+ 
+ `comix` and `blogger` have since produced real CBZs (WP-2, 2026-09-08).
+-`mangathemesia` has not, and is the one adapter here still unproven at the step
+-that matters.
++`mangathemesia` later produced a prose EPUB from kolnovel; its image download
++path still needs an artifact from a working site.
+ 
+ ## Findings — do not re-derive
+ 
+@@ -581,7 +587,11 @@
+ ISP-level SNI filtering this file documents; `desync_enabled` is the remedy and
+ could not be exercised in this session.
+ 
+-## Open work, in priority order
++## Historical open work (superseded)
++
++**Do not use this list as the current task queue.** WP-5 and several source
++additions below were completed later in this file. The current queue is in
++[CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md#remaining-work-in-order).
+ 
+ **1. ~~Download one file from every unproven adapter.~~ Done 2026-09-08 (WP-2).**
+ `noor-book`, `kitaboka`, `comix` and `blogger` all produced files; `ktobati` is
+@@ -1238,3 +1248,40 @@
+ **Pagination shapes seen so far, all different:** sunovels zero-based;
+ wuxiabox zero-based *and* overlapping by ten; riwayatarab one-based and clean.
+ There is no house style. Measure the first row of the second page.
++
++
++## Findings — 2026-09-08, Codex continuation
++
++**A failed listing request is not an end-of-list marker.** RiwayatArab and
++WuxiaBox caught exceptions on subsequent listing pages, logged them, and
++returned whatever chapters had already been collected. Thus a timeout after
++one page became a successful, incomplete preview. RiwayatArab also replaced a
++first-page transport failure with misleading advice to find a different novel
++URL. Both now raise `AdapterError` with the failed page URL and collected count,
++retain the exception cause, and ask the user to retry. The existing preview
++endpoint maps the error to HTTP 502; chapter rows are written only after the
++listing succeeds. Six regression cases failed before the fix and pass after it,
++including retrying the same adapter after the connection recovers.
++
++**Missing test fixtures were accidentally simulating successful pagination.**
++The fake session raises when a page is unregistered. Existing tests relied on
++the adapters swallowing that exception to stop their shortened catalogues.
++They now explicitly replay their last captured page as an end-of-list response.
++This is a controlled test condition, not a claim about the live site's last
++page. Actual timeout/connection failures are injected separately. Successful
++empty/repeated responses and listing safety caps still need their own future
++completeness policy; this fix addresses raised request failures only.
++
++**Count fixture links inside the reader list.** WuxiaBox's provenance said its
++first page contained chapters 1–100 plus ten padded duplicates. The captured
++`ul.chapter-list` actually holds 100 links total and 90 distinct chapters
++(1–90); the second fixture holds 91–190. The prose and a new test expectation
++were corrected after counting the saved markup. Whole-page links also include
++recommendations and do not establish the listing's count.
++
++Both adapters were re-verified through preview → queue → EPUB inspection after
++the fix. RiwayatArab: 1,344 listed chapters; chapter 1 is 6,607 bytes, one spine
++item, seven rendered pages. WuxiaBox: 1,216 listed chapters; chapter 1 is 9,390
++bytes, one spine item, fifteen rendered pages. Exact paths, hashes, transcripts,
++the 859-test result, and ranked next steps are in
++[CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md).
+--- a/README.md
++++ b/README.md
+@@ -120,7 +120,7 @@
+ | AzoraMoon / AzoraFly | Manga and manhwa | CBZ |
+ | Comix.to | Manga, manhwa and manhua | CBZ |
+ | Webtoons | Free episodes | CBZ |
+-| Blogger / Blogspot comic blogs | Scanned comic issues | CBZ |
++| Arcomixverse (Blogger / Blogspot) | Scanned comic issues | CBZ |
+ | Royal Road | Web novels | EPUB per chapter |
+ | Sunovels · KolNovel · Cenele · Rewayat Club · RiwayatArab | Arabic web novels | EPUB per chapter |
+ | WuxiaBox | English web novels | EPUB per chapter |
+--- a/SOURCES.md
++++ b/SOURCES.md
+@@ -1,10 +1,14 @@
+ # Source evidence ledger
+ 
+-Updated 2026-09-08 UTC after **WP-2** (audit every existing source), **WP-3**
+-(Arabic search) and **WP-4** (search-again repair). This ledger covers the
+-sources the app actually ships with; the full 183-URL candidate list is
+-[docs/source-inventory.md](docs/source-inventory.md) and is triaged in WP-5,
+-which has not run yet.
++Reconciled 2026-09-08 UTC after Claude's WP-0–WP-5 work and initial
++WP-6–WP-8 additions. Codex's changes and remaining tasks are recorded in
++[CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md). The full 183-URL candidate
++list is [docs/source-inventory.md](docs/source-inventory.md); its reachability
++triage has run, but most candidates have not passed a reader/download audit.
++
++The shipped defaults contain **21 search URLs: 13 Books, 7 Manga, 1 Comics**.
++The table records **26 T4 hostnames, including aliases**, not 26 independent
++platforms. User configuration can override the default search list.
+ 
+ **T0** excluded (account/purchase gate or shadow library); **T1** reachable;
+ **T2** positive *and* negative search proven; **T3** anonymous content
+@@ -22,7 +26,12 @@
+ every CBZ page and rejects anything under 600px, renders PDF pages, and follows
+ an EPUB's own spine. Run directories are retained under `.state/verification/`;
+ the full paths and SHA-256 of each are in
+-[docs/evidence/wp2/](docs/evidence/wp2/). Search verdicts come from
++[docs/evidence/wp2/](docs/evidence/wp2/) for that wave. Later retained reports,
++including the novel adapters and ACO, are consolidated with absolute artifact
++paths, sizes and hashes in
++[source-reconciliation.json](docs/evidence/codex-2026-09-08/source-reconciliation.json).
++The files were checked for existence and recorded byte size during this
++reconciliation; that is not a fresh download of every source. Search verdicts come from
+ `scratchpad/audit_search.py`, which asks every configured site one query it can
+ answer and one it cannot — [search-audit.json](docs/evidence/wp2/search-audit.json).
+ 
+@@ -187,25 +196,28 @@
+ | rizzfables.com | mangathemesia | T3 | Parses, lists chapters and enumerates page URLs correctly — then **every image 404s**: `cdn.rizzfables.com` answers **HTTP 526** (Cloudflare, invalid origin certificate) to every request *including its own root*, under plain `curl` with and without a Referer. The site's own infrastructure, not a bot check and not this network. Removed from `search_sites`; returns the moment its CDN does | 2026-09-08 |
+ | ktobati.com | — | T0 | Reaching readable content requires an account. The adapter's own error told the user to "sign in to Ktobati in the app's persistent browser profile and make sure your account is allowed to download this book" — instructing someone to authenticate is not a download path. Removed from `KNOWN_HOSTS`, from the browser-session hosts, and from the tree's claims | 2026-09-08 |
+ 
+-### The `mangathemesia` adapter is unproven end-to-end
+-
+-It has never produced a file. Its one configured site is blocked by its own
+-CDN (above), and a spot check of the MangaThemesia candidates in the meta
+-prompt's Group D found none still carrying the theme's fingerprint:
++### MangaThemesia: prose verified; image downloads remain unproven
++
++The adapter has produced a verified EPUB from **kolnovel.com** using its
++chapter-specific prose routing. Its image path still lacks a successful live
++artifact: rizzfables is blocked by its own CDN (above). A spot check of the
++MangaThemesia candidates in the meta prompt's Group D found none still carrying
++the theme's fingerprint:
+ `asuracomic.net` now redirects to `asurascans.com` and is a different stack
+ entirely, `flamecomics.com` and `rawkuma.com` carry no TS markers, and
+ `gate-manga.com`, `golden-manga.com` and `areamanga.com` did not resolve.
+-Group D is a **hypothesis list, not a verdict list** — WP-5 has to check each
+-one live before WP-6 can assume zero-code coverage.
++Group D was a **hypothesis list, not a verdict list**; the completed WP-5
++reachability triage supersedes it.
+ 
+ ### The `generic` adapter
+ 
+ A heuristic fallback for pages no adapter claims, not a source. It has no site
+ of its own to verify and makes no support claim.
+ 
+-## What this run changed
+-
+-- `search_sites` now holds **16 sites, every one of them T4**. Two came out:
++## Historical WP-2 changes
++
++- At the end of WP-2, `search_sites` held **16 sites, every one of them T4**.
++  Later additions brought it to 21. Two came out during WP-2:
+   `manga-starz.net` (TB) and `rizzfables.com` (T3).
+ - `ktobati.com` is excluded outright under the no-account rule.
+ - `kitaboka.com` moved from *never produced a file* to T4 — its search was
+@@ -217,12 +229,15 @@
+ 
+ ## Coverage against the supplied inventory
+ 
+-The user supplied 183 candidate URLs and asked for a majority verified. Of the
+-sources the app ships with, **19 hostnames are now T4**. Only four of them
+-(`noor-book.com`, `gutenberg.org`, `royalroad.com`, `mangadex.org`) appear in
+-that 183-URL list; the rest of the inventory is untouched until WP-5 triages
+-it. Nothing here should be read as progress against the 92-site target beyond
+-those four.
++The user supplied 183 candidate URLs and asked for a majority verified.
++**10 supplied hostnames** match T4 rows after removing only `www.`:
++`3asq.org`, `cenele.com`, `gutenberg.org`, `kolnovel.com`, `mangadex.org`,
++`noor-book.com`, `rewayat.club`, `riwayatarab.com`, `royalroad.com`, and
++`wuxiabox.com`. Arabic Collections Online is additionally verified at
++`aco.dlib.nyu.edu`; the inventory lists its parent `dlib.nyu.edu`, so this is
++related collection coverage, not an exact-host match. The 92-site target is
++still unmet. Counts and the exact comparison are retained in the reconciliation
++JSON above.
+ 
+ ## WP-5 — the 183 supplied sites, triaged 2026-09-08
+ 
+@@ -243,19 +258,24 @@
+   existing adapter to claim outright, exactly **one** does (`kolnovel.com`, and
+   as MangaThemesia rather than the Madara it was listed under). WP-6 is worth
+   about four sites, not thirty-two.
+-- **The Arabic and English novel sites run manga platforms' themes.**
+-  `kolnovel.com` listed 13,406 chapters correctly and then failed on "no page
+-  images": its chapters are **180 `<p>` and 0 `<img>`**. The theme matched, the
+-  content type did not. That is one fix — deciding a chapter's kind from the
+-  chapter — across roughly 35 sites in the inventory.
+-
+-**The 92-site target is not reachable from this list**: at most 74 are live and
+-not excluded, and each costs adapter work rather than a configuration line.
++- **Some novel sites run manga platforms' themes.** `kolnovel.com` initially
++  listed 13,406 links and then failed on "no page images": its chapters are
++  **180 `<p>` and 0 `<img>`**. Subsequent work removed duplicate PDF links,
++  yielding **6,703 chapters**, and added prose routing for KolNovel and Cenele.
++  This is proven on those two sites; the other novel sites need individual
++  markup checks.
++
++**This snapshot does not establish a path to 92 verified sites**: only 74
++were classified as live and not excluded in that run. Unavailable sources may
++recover; homepage reachability alone does not establish anonymous reader access.
+ 
+ ## Next evidence gates
+ 
+-WP-5 triages the 183 supplied URLs — auth check first, then reachability, then
+-fingerprint, then platform cluster. WP-6 adds only sites an existing adapter
+-already fingerprints, each taken to T4 before it is claimed. WP-7 writes
+-platform adapters ranked by how many sites each unlocks. WP-8 generalises the
+-reader-to-file recipe that Noor and now comix.to both depend on.
++Finish the remaining WP-6 candidates (`www.rwayat.online`, Hindawi and the
++Blogspot series-page investigation) with an anonymous reader check and either
++a verified artifact or a recorded reason for stopping. Continue WP-7 by reader
++markup rather than framework labels; TeamX and The Wandering Inn remain leads.
++The WP-8 extraction recipe is already in `docs/development.md`; reconcile its
++five-reader evidence requirement explicitly. WP-9 still needs a complete
++inventory-to-evidence table and preservation of the ignored audit scripts.
++Use the ranked checklist in [CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md).
+--- a/app/adapters/riwayatarab.py
++++ b/app/adapters/riwayatarab.py
+@@ -125,9 +125,13 @@
+             try:
+                 tree = self.parse(await self._get(url, referer=series.url))
+             except Exception as exc:
+-                log.info("RiwayatArab listing page %d failed (%s); keeping the "
+-                         "%d chapters already found", page, exc, len(found))
+-                break
++                # A transport failure is not an end-of-list marker. Returning
++                # here makes an incomplete catalogue look like a good preview.
++                raise AdapterError(
++                    f"Could not read RiwayatArab chapter-list page {page} "
++                    f"({url}) after collecting {len(found)} chapters. "
++                    "The chapter list may be incomplete; retry the preview."
++                ) from exc
+             before = len(found)
+             self._harvest(tree, found, series.url, slug)
+             if len(found) == before:
+--- a/app/adapters/wuxiabox.py
++++ b/app/adapters/wuxiabox.py
+@@ -9,13 +9,13 @@
+ **The chapter list is behind a tab, and the tab is a different page.** The
+ novel page shows a description; the chapters live at ``?tab=chapters``.
+ 
+-**The listing is paged, the page number is zero-based, and the pages
+-overlap.** Measured on ``/novel/absolute-resonance.html``: the tab itself lists
+-chapters **1-100**, and ``page=1`` lists **91-190** — 100 rows at a stride of
+-90. So consecutive pages share ten chapters, and reading the numbering as
+-"page N starts at 100N" both skips and duplicates. The walk therefore
+-de-duplicates on the chapter URL rather than trusting arithmetic, and the last
+-page comes from the paginator's own ``>>`` link instead of being guessed.
++**The listing is paged, the page number is zero-based, and duplicate links
++consume rows.** On ``/novel/absolute-resonance.html``, the saved tab has 100
++links representing **90 distinct chapters (1-90)**; ``page=1`` lists **91-190**.
++Later pagination was observed at a stride of 90 against 100 rows. Neither row
++count nor URL uniqueness establishes chapter count: padded and unpadded URLs
++can name the same chapter. The walk de-duplicates on the chapter number, and
++the last page comes from the paginator's own ``>>`` link instead of a guess.
+ 
+ **A chapter is one paragraph and 234 line breaks.** ``div.chapter-content``
+ holds a single ``<p>`` whose lines are separated by ``<br>``; reading
+@@ -122,10 +122,11 @@
+             try:
+                 more = self.parse(await self._get(url, referer=series.url))
+             except Exception as exc:
+-                log.info("WuxiaBox listing page %d failed (%s); "
+-                         "keeping the %d chapters already found",
+-                         page, exc, len(collected))
+-                break
++                raise AdapterError(
++                    f"Could not read WuxiaBox chapter-list page {page} "
++                    f"({url}) after collecting {len(collected)} chapters. "
++                    "The chapter list may be incomplete; retry the preview."
++                ) from exc
+             before = len(collected)
+             self._harvest(more, collected, series.url, slug)
+             if len(collected) == before:
+--- a/app/config.py
++++ b/app/config.py
+@@ -183,7 +183,7 @@
+         # better than any of the manga sites do.
+         "https://8ghrb.com",
+         "https://www.noor-book.com",
+-        # Kitaboka is a masked alias; use its active Norkitab backend.
++        # Kitaboka serves the books; Norkitab is only a frameset wrapper.
+         "https://kitaboka.com",
+         # arabic-book.net is deliberately absent: it downloads fine by URL, but
+         # its search page renders a "latest posts" widget in the same <article>
+--- a/tests/fixtures/wuxiabox/PROVENANCE.md
++++ b/tests/fixtures/wuxiabox/PROVENANCE.md
+@@ -6,14 +6,18 @@
+ 
+ - `chapters-tab.html`: GET
+   `https://wuxiabox.com/novel/absolute-resonance.html?tab=chapters`; 47,553
+-  bytes. The first listing page: 100 rows for chapters 1-100, **plus ten
+-  zero-padded duplicates** (`…_0046.html` … `…_0055.html`) of chapters already
+-  listed unpadded. That is the case the adapter's number-keyed de-duplication
++  bytes. Recounted from the saved `ul.chapter-list` on 2026-09-08: **100 links
++  total, representing 90 distinct chapters (1-90)**. Ten links are zero-padded
++  duplicates (`…_0046.html` … `…_0055.html`) of chapters already listed
++  unpadded. The previous description incorrectly said 100 distinct chapters
++  plus duplicates. That is the case the adapter's number-keyed de-duplication
+   exists for.
+ - `chapters-page1.html`: GET
+   `https://wuxiabox.com/e/extend/fy.php?page=1&wjm=absolute-resonance`; 31,487
+   bytes, chapters **91-190** — the page number is zero-based *and* the stride
+-  is 90 against a page size of 100, so consecutive pages overlap by ten.
++  is 90 against a page size of 100 in the recorded later pagination. These
++  first two saved pages contribute **190 distinct chapters together**; the
++  first page's duplicates mean they do not themselves overlap in chapter number.
+ - `chapter.html`: GET `https://wuxiabox.com/novel/absolute-resonance_1.html`;
+   36,208 bytes. `div.chapter-content` holds **one `<p>` and 234 `<br>`**,
+   19,478 characters of prose.
+--- a/tests/test_riwayatarab.py
++++ b/tests/test_riwayatarab.py
+@@ -33,6 +33,9 @@
+     pages = {
+         NOVEL: _fixture("novel.html"),
+         CHAPTERS: _fixture("chapters-page1.html"),
++        # Explicit end of this shortened fixture catalogue. A missing fixture
++        # raises a transport error and must not stand in for end-of-list.
++        f"{CHAPTERS}?page=2": _fixture("chapters-page1.html"),
+         CHAPTER1: _fixture("chapter1.html"),
+         SEARCH: _fixture("search.html"),
+         SENTINEL_URL: _fixture("search-empty.html"),
+@@ -179,3 +182,35 @@
+     # against an advertised 1344 — and says so.
+     assert len(chapters) == 50
+     assert any("advertises" in record.message for record in caplog.records)
++
++
++@pytest.mark.parametrize("failed_page, collected", [(1, 0), (2, 50)])
++@pytest.mark.parametrize("error_type", [TimeoutError, ConnectionError])
++async def test_a_failed_listing_request_is_not_a_successful_partial_preview(
++    monkeypatch, failed_page, collected, error_type,
++):
++    manager = sessions()
++    fetch = manager.fetch_text_direct
++    failed_url = CHAPTERS + (f"?page={failed_page}" if failed_page > 1 else "")
++    cause = error_type("connection interrupted")
++
++    async def interrupted(url, *, referer=None):
++        if url == failed_url:
++            raise cause
++        return await fetch(url, referer=referer)
++
++    monkeypatch.setattr(manager, "fetch_text_direct", interrupted)
++    series = Series(url=NOVEL, title="x", source="riwayatarab")
++    adapter = RiwayatArabAdapter(manager)
++
++    with pytest.raises(AdapterError) as caught:
++        await adapter.fetch_chapters(series)
++
++    assert failed_url in str(caught.value)
++    assert f"{collected} chapters" in str(caught.value)
++    assert caught.value.__cause__ is cause
++
++    # Retrying the same adapter after the connection recovers can finish.
++    monkeypatch.setattr(manager, "fetch_text_direct", fetch)
++    chapters = await adapter.fetch_chapters(series)
++    assert len(chapters) == 50
+--- a/tests/test_wuxiabox.py
++++ b/tests/test_wuxiabox.py
+@@ -31,6 +31,9 @@
+         NOVEL: _fixture("chapters-tab.html"),
+         TAB: _fixture("chapters-tab.html"),
+         PAGE1: _fixture("chapters-page1.html"),
++        # Repeat the last saved page to end this shortened fixture catalogue;
++        # an unregistered URL is a transport failure, not an empty last page.
++        PAGE1.replace("page=1", "page=2"): _fixture("chapters-page1.html"),
+         CHAPTER1: _fixture("chapter.html"),
+     }
+     pages.update(extra)
+@@ -159,3 +162,33 @@
+     chapter = Chapter(url=CHAPTER1, title="Chapter 1", number="1", index=1)
+     with pytest.raises(AdapterError, match="serves prose"):
+         await WuxiaBoxAdapter(sessions()).fetch_pages(chapter)
++
++
++@pytest.mark.parametrize("error_type", [TimeoutError, ConnectionError])
++async def test_a_failed_listing_request_is_not_a_successful_partial_preview(
++    monkeypatch, error_type,
++):
++    manager = sessions()
++    fetch = manager.fetch_text_direct
++    cause = error_type("connection interrupted")
++
++    async def interrupted(url, *, referer=None):
++        if url == PAGE1:
++            raise cause
++        return await fetch(url, referer=referer)
++
++    monkeypatch.setattr(manager, "fetch_text_direct", interrupted)
++    series = Series(url=NOVEL, title="Absolute Resonance", source="wuxiabox")
++    adapter = WuxiaBoxAdapter(manager)
++
++    with pytest.raises(AdapterError) as caught:
++        await adapter.fetch_chapters(series)
++
++    assert PAGE1 in str(caught.value)
++    # The first 100 links contain ten padded duplicates: 90 chapters.
++    assert "90 chapters" in str(caught.value)
++    assert caught.value.__cause__ is cause
++
++    monkeypatch.setattr(manager, "fetch_text_direct", fetch)
++    chapters = await adapter.fetch_chapters(series)
++    assert len(chapters) == 190

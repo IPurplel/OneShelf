@@ -1,0 +1,951 @@
+================================================================================
+ONESHELF — SOURCE COVERAGE, ARABIC SEARCH, AND DOWNLOAD-VERIFICATION PROGRAM
+Meta prompt. Paste this entire file as the first message of a fresh session.
+Repo: the OneShelf self-hosted manga / comic / novel / book downloader.
+================================================================================
+
+
+--------------------------------------------------------------------------------
+SECTION 0 — YOUR ROLE
+--------------------------------------------------------------------------------
+
+You are a senior engineer taking ownership of OneShelf: ~25,800 tracked lines of
+Python and vanilla JS, 552 passing tests, no CI, and an unusually good
+engineering log at HANDOFF.md.
+
+This codebase is mature and the log is honest. Nearly every problem in this
+prompt already has a recorded root cause, a half-built mechanism, or a measured
+failure sitting in HANDOFF.md. Your job is mostly to FINISH work that was
+correctly diagnosed and never closed — not to rediscover it.
+
+The single standard that governs everything below:
+
+    A SOURCE IS NOT SUPPORTED BECAUSE SEARCH RETURNS RESULTS.
+    A SOURCE IS SUPPORTED WHEN A REAL FILE IS ON DISK AND OPENS.
+
+Every serious bug this project has shipped — scrambled page order, thumbnails
+downloaded instead of pages, an interstitial packed as a comic page, an empty
+EPUB built from a login wall — passed preview and died at download. Preview
+proves a list parses. It proves nothing else.
+
+Work in the order given. Report evidence, never impressions.
+
+
+--------------------------------------------------------------------------------
+SECTION 1 — GROUND TRUTH (VERIFIED; DO NOT RE-DERIVE)
+--------------------------------------------------------------------------------
+
+1.1 COMMANDS
+
+    Run      bash startup.sh                  (Docker; the only supported path)
+             python -m app.main               (direct; uvicorn on :8080)
+    Test     python -m pytest -q              (552 tests, expect all pass)
+    Lint     python -m pyflakes app tests
+    Shell    bash -n startup.sh
+    Verify   python scratchpad/verify_dl.py <url> [--chapter N]
+             ^ preview -> real queue -> artifact inspection, throwaway output dir.
+               THIS IS YOUR PRIMARY INSTRUMENT. It already exists. Use it.
+
+    Console output needs PYTHONIOENCODING=utf-8 or Arabic titles crash cp1252.
+
+1.2 LAYOUT
+
+    app/adapters/   base.py registry.py textmatch.py prose.py + 14 adapters
+    app/            main.py session.py fetcher.py queue.py packager.py
+                    config.py db.py models.py desync.py proxy.py searchcache.py
+    web/            index.html app.js style.css   (no framework, no build step)
+    tests/          21 modules, 552 tests, no vcr/responses/msw
+    HANDOFF.md      the engineering log. READ IT IN FULL BEFORE TOUCHING ANYTHING.
+    docs/           development.md troubleshooting.md
+
+1.3 THE ADAPTER CONTRACT (app/adapters/base.py)
+
+    class Adapter(ABC):
+        id / name / priority / owns_its_host / right_to_left
+        content_type: "manga" | "comics" | "book"     <- REQUIRED, a test enforces
+        packaging:    "cbz" | "file" | "pdf" | "text"
+        matches(url, html) -> bool                    <- classmethod, abstract
+        fetch_series(url) -> Series                   <- abstract
+        fetch_chapters(series) -> list[Chapter]       <- abstract
+        fetch_pages(chapter) -> list[Page]            <- abstract
+        fetch_text(chapter) -> TextChapter            <- for packaging == "text"
+        search(site, query, limit) -> list[SearchResult]   <- default returns []
+        packaging_for(chapter) -> str                 <- per-chapter override
+        transform_page(bytes) -> bytes                <- unwrap before validation
+        pages_expire / refresh_pages(chapter)         <- for expiring page URLs
+
+    Adapters are chosen by DOM FINGERPRINT, not hostname (registry.resolve).
+    This is why 3asq, arabtoons and rizzfables needed zero lines of code.
+    REMEMBER THIS. It is the cheapest coverage in the whole program.
+
+1.4 ADAPTER STATE — WHAT IS ACTUALLY PROVEN
+
+    VERIFIED END-TO-END (a real file landed):
+      madara, vcomics, mangadex, books (planetebook/8ghrb/bettergutenberg/
+      arabic-book), gutenberg
+    PREVIEW ONLY — NEVER PRODUCED A FILE:
+      mangathemesia, comix, blogger, generic, ktobati, noor-book, kitaboka
+    ADDED ON HAND-WRITTEN FIXTURES (HANDOFF.md:347):
+      ktobati, noor-book, kitaboka/norkitab  -- treat as unproven
+
+    Sources are enabled by presence in Settings.search_sites (app/config.py:150).
+    There is no per-adapter on/off switch. search_sites is deploy-time only
+    (not in RUNTIME_EDITABLE).
+
+1.5 ROOT CAUSE — noor-book.com "cannot be reached". FIVE LINKS. VERIFIED.
+
+    (1) HANDOFF.md:566 — noor-book.com is one of EIGHT hosts unreachable from
+        this network entirely: ERR_CONNECTION_RESET before any HTTP response,
+        in curl AND a real browser. ISP-level SNI filtering. The other seven
+        include 3asq.org, which is ALSO in search_sites.
+    (2) The documented remedy is desync_enabled — a local SOCKS5 proxy that
+        fragments the TLS ClientHello (app/desync.py) so a passive SNI filter
+        has nothing to match. It ships FALSE (config.example.yaml:96).
+    (3) Noor is in _BROWSER_SESSION_HOSTS (app/adapters/books.py:85), so EVERY
+        Noor request — search, reader open, page fetch — takes the BROWSER path.
+    (4) The browser path is DELIBERATELY excluded from the desync bypass
+        (app/session.py): routing the browser through a fragmented handshake
+        makes Cloudflare re-challenge forever, an unescapable verify loop.
+    (5) config.yaml sets `desync_browser: false`, but desync_browser IS NOT A
+        DECLARED FIELD on Settings and pydantic-settings is extra="ignore".
+        The key is silently discarded. No implementation of it exists anywhere.
+
+    => Noor is unreachable REGARDLESS of desync_enabled, because its only path
+       is the one path that never gets the bypass. Turning desync on does
+       nothing for it. Start WP-1 here, not in the adapter.
+
+    Secondary Noor failures, all measured, all real:
+      - repeated "HTTP 403 on www.noor-book.com - refreshing session"
+      - a Google vignette ad swallows the Read click (#google_vignette appended,
+        no reader in the DOM) -> _NOOR_READER_ATTEMPTS = 3 exists for this
+      - throttling: a 124-page book stops at 90, then 108 after a retry was
+        added. Page 91 answers 114 bytes of text/html; the SAME URL fetched by
+        hand seconds later returns the real 142 KB SVG. Not a paywall, not a
+        read quota. The reader token is stable across processes, so
+        refresh_pages cannot rescue it.
+
+1.6 ROOT CAUSE — Arabic search. FOUNDATION IS GOOD; THREE GAPS.
+
+    app/adapters/textmatch.py ALREADY implements Lucene ArabicNormalizer rules
+    (textmatch.py:44) and it is wired into base._normalise -> _score ->
+    relevance / query_matches, and into main._identity_key:
+
+        NFKD -> drop combining marks (harakat + Latin accents)
+        alef forms   A/'A/'I/madda/wasla -> bare alef
+        alef maqsura -> yeh          teh marbuta -> heh
+        tatweel U+0640 stripped      Arabic-Indic digits -> ASCII
+        apostrophes deleted, casefold, \W+ -> single space
+
+    CODEPOINT REFERENCE. Work from this, not from prose descriptions — several
+    of these letters are visually near-identical and a paste can carry either.
+
+      ALREADY FOLDED (in _ARABIC_FOLD or via the NFKD + combining-mark strip):
+        U+0622 alef madda      U+0623 alef hamza above   U+0625 alef hamza below
+        U+0671 alef wasla        ... all four -> U+0627 bare alef
+        U+0649 alef maksura   -> U+064A yeh
+        U+0629 teh marbuta    -> U+0647 heh
+        U+0640 tatweel        -> deleted
+        U+0660-U+0669 and U+06F0-U+06F9 digits -> ASCII 0-9
+        U+064B-U+0652 harakat (tanween, fatha, damma, kasra, shadda, sukun)
+        U+0670 superscript alef      ... removed by the combining-mark strip
+        Presentation forms U+FB50-U+FDFF and U+FE70-U+FEFF are handled by the
+        NFKD pass. Do not add them by hand.
+
+      GAP C — NOT FOLDED TODAY, AND SHOULD BE (verify against live titles):
+        U+06A9 keheh          -> U+0643 kaf     (Persian/Urdu keyboards)
+        U+06CC farsi yeh      -> U+064A yeh     (very common in scraped titles)
+        U+06C0 heh with yeh   -> U+0647 heh
+        U+06D5 ae             -> U+0647 heh
+
+      DELIBERATELY NOT FOLDED — leave alone without measured evidence:
+        U+0624 waw with hamza        U+0626 yeh with hamza
+        Lucene does not fold these either; folding them conflates more
+        aggressively than the measured evidence justifies.
+
+      GAP B — STRIP THESE FROM THE QUERY BEFORE FOLDING:
+        U+200B ZWSP    U+200C ZWNJ   U+200D ZWJ    U+FEFF ZWNBSP/BOM
+        U+200E LRM     U+200F RLM    U+061C ALM    <- U+061C is easy to miss
+        U+202A-U+202E  embedding and override controls
+        U+2066-U+2069  isolate controls
+      Today these hit the \W+ rule inside fold() and become SPACES, splitting
+      one word into two tokens. Copy-pasting a title from a browser or a PDF
+      routinely carries them, and the user never sees them.
+
+    Do NOT rewrite this module. Extend it. The gaps are:
+
+    GAP A — THE QUERY SENT TO EACH SITE IS NEVER NORMALIZED.
+        app/main.py:525 is `query = q.strip()` and nothing else. Folding runs
+        only on results COMING BACK. A site whose own index is un-normalized
+        still misses, and we never see the hit at all — nothing to re-rank.
+        This is the most likely cause of the reported Arabic failure and the
+        most valuable thing in WP-3.
+
+    GAP B — NO BIDI / ZERO-WIDTH HANDLING ON THE QUERY.
+        U+200E/200F (LRM/RLM), U+202A-202E (embedding/override), U+200C/200D
+        (ZWNJ/ZWJ) survive .trim(). Inside fold() they hit the \W+ rule and
+        become SPACES, splitting one word into two tokens. Copy-pasting an
+        Arabic title from a browser routinely carries these.
+        (prose.py:63 handles ZWNJ/ZWJ for chapter TEXT only, not for queries.)
+
+    GAP C — MISSING LETTER FORMS AND THE DEFINITE ARTICLE.
+        _ARABIC_FOLD omits Persian/Urdu forms that Arabic sites commonly serve:
+        keheh U+06A9, farsi yeh U+06CC, heh-with-yeh-above U+06C0. There is
+        also no handling of the definite article, which matters for a query
+        that is one word of a longer title.
+        Note the module deliberately does NOT fold hamza-on-waw or hamza-on-yeh;
+        Lucene does not either. Only change that with measured evidence.
+
+    UI GAP — no dir="auto" or lang on #search-input or .hit-title, so Arabic
+    renders in an LTR context. EPUB output DOES handle RTL (packager.py).
+
+1.7 ROOT CAUSE — "cannot search again after clicking a result". FOUR CAUSES.
+
+    The UI has NO ROUTER. grep for pushState|popstate|hashchange|location.hash
+    in web/app.js returns zero hits. Clicking a hit does not open a detail view;
+    it mutates the Add view in place (app.js:704).
+
+    (a) PRIMARY — TWO CONFLICTING '/' SHORTCUT HANDLERS.
+        Handler A (app.js:359) focuses #search-input.
+        Handler B (app.js:1558) is registered LATER so it runs second and wins;
+        when #preview is visible it re-targets #chapter-filter, yanking focus
+        straight back out of the box A just focused. The keyboard route to
+        search is dead from the first click until a page reload.
+        The comment at app.js:1560 ("the search input stays disabled until a
+        kind is chosen") is STALE — that behaviour was removed.
+
+    (b) clearResults() (app.js:441) LEAVES input.value INTACT.
+        Search fires ONLY on the 'input' event (app.js:332). So:
+          - retyping the identical query fires nothing, because the value
+            never changes;
+          - Enter does nothing: the input is in no <form>, and the Enter branch
+            needs cursor >= 0, which clearResults just set to -1;
+          - renderRecents() no-ops, because its idle guard needs value < 2 chars.
+        The box still reads "berserk", the clear X is still showing, the results
+        are gone, and nothing the user types brings them back.
+
+    (c) NO WAY BACK. lastSearch is nulled, there is no Escape handler, no "back
+        to results" control, and #preview is a sibling BELOW .finder in the DOM
+        — so a 400-chapter list scrolls the search box off screen, while '/',
+        the intended remedy, is broken by (a).
+
+    (d) THE CLICK HANDLER SKIPS THE RESET TRIO.
+        The kind-chip handler (app.js:315) and the clear button (app.js:351)
+        both run: clearTimeout(searchTimer); searchToken++; abandonSearch();
+        The result-click handler runs none of them, so a pending debounce or an
+        in-flight fetch survives and its late render re-opens #search-results
+        on top of the freshly-loaded preview.
+
+    ALREADY RULED OUT — do not spend time here: event listeners are delegated to
+    persistent containers so innerHTML='' does not lose them; there is no
+    z-index or overlay trap (.toasts is pointer-events:none); #search-input is
+    never disabled anywhere.
+
+1.8 THE REQ-8 MECHANISM ALREADY EXISTS — YOU ARE GENERALIZING, NOT INVENTING.
+
+    "Read it on the site but you cannot download it" was already solved once,
+    for Noor. Its Download control is account-gated and produced no PDF anchor
+    at all; its READER is not gated. The reader serves each page as an SVG
+    wrapping a base64 PNG at 2144x3024:
+
+        POST /en/book/read_book?o=<token>                   opens the reader
+        GET  /book/read_book_image/0/<book>/<n>/<token>.svg  page n
+
+    curr_reading_pages, book_hash and the token are all in the DOM once the
+    reader is open, so pages are minted and handed to the ORDINARY fetcher —
+    rate limiting, retries and resume come free. Three hooks carry it:
+
+        Adapter.packaging_for(chapter)   packaging varies per URL, not per class
+        Adapter.transform_page(bytes)    unwrap before validate_image()
+        packager.write_pdf               a book belongs in a document, not a CBZ
+
+    prose.py + packager.write_epub do the same job for prose novels.
+    WP-8 turns this one-off into a documented, reusable recipe.
+
+1.9 THE HIGHEST-LEVERAGE FACT IN THIS ENTIRE PROMPT
+
+    MadaraAdapter and MangaThemesiaAdapter match by DOM fingerprint. A large
+    share of the site list in Section 5 is very likely an existing platform
+    wearing a new hostname. For those sites the entire change is:
+
+        add the host to search_sites  ->  run verify_dl.py  ->  record the tier
+
+    Zero adapter code. Do WP-6 (that sweep) BEFORE writing any new adapter.
+    Likewise cluster the rest by PLATFORM, not by site: teamx.net is the same
+    platform as olympustaff.com (HANDOFF.md open item 2), so one adapter closes
+    both and probably several more.
+
+
+--------------------------------------------------------------------------------
+SECTION 2 — RULES OF ENGAGEMENT (NON-NEGOTIABLE)
+--------------------------------------------------------------------------------
+
+R1.  Read HANDOFF.md in full before touching anything. Each line in its
+     "Findings" sections cost a debugging cycle. Re-deriving them is the single
+     largest risk to this program.
+
+R2.  FIXTURES MUST BE CAPTURED FROM REAL PAGES. Never hand-write markup and call
+     it a fixture. HANDOFF.md records the Madara adapter passing self-written
+     fixtures while silently mis-ordering chapters and downloading thumbnails,
+     and records three sources (ktobati, noor-book, kitaboka) that were shipped
+     into search_sites on fixtures invented to satisfy the code under test.
+
+R3.  EVERY new or newly-enabled search source ships a NEGATIVE TEST: a query the
+     site cannot answer must yield []. Five sites so far have answered an
+     unanswerable query with something that merely LOOKS like results —
+     rizzfables' front-page grid, azoramoon's whole catalogue newest-first,
+     arabic-book's latest-posts widget, sunovels' /library, and books.e3raf.
+     Nothing structural separates any of them from a real hit. Assume the next
+     site does it too. base.query_matches() is the gate.
+
+R4.  Never claim a site works without naming the artifact: absolute path, byte
+     size, and page or chapter count. "Search works" is not a claim about
+     support. "Preview returned 146 chapters" is not a claim about support.
+
+R5.  NEVER supply site credentials and never solve a login. A site that requires
+     an account, subscription, or purchase to reach readable content is
+     EXCLUDED — not worked around. The codebase already enforces this well;
+     copy those patterns rather than inventing new ones:
+        app/adapters/ao3.py         _guard() refuses restricted works outright
+        app/adapters/webtoons.py    _LOCK_MARKERS; locked rows dropped from the
+                                    listing, not queued to fail
+        app/adapters/vcomics.py     lockedChapter island detected and skipped
+        app/adapters/royalroad.py   isUnlocked / visible honoured
+     Distinguish carefully: anti-bot CLEARANCE (a cf_clearance cookie) is not
+     account authentication and is fine. An account is not.
+
+R6.  Normalizing is for matching, NEVER for display. Every caller keeps the
+     original string and shows that. Folding is lossy on purpose, and a folded
+     match is evidence of relevance, never proof of identity — two genuinely
+     different Arabic words can fold together, so nothing in textmatch may be
+     used to decide two records are the same work.
+
+R7.  Any relevance change that resurrects catalogue noise is a REGRESSION, even
+     if it raises hit counts. The noise tests are the gate, not the enemy.
+     Loosening the matcher to "fix Arabic search" is the most likely way to
+     break this project. Fix it at the QUERY end (Gap A) first.
+
+R8.  tests/test_search_api.py::test_the_known_adapters_are_filed_correctly is an
+     exhaustive id -> content_type dict. Adding an adapter BREAKS it until you
+     update the dict. That is the intended tripwire — do not weaken the test.
+
+R9.  Before any completion claim, run and quote:
+         python -m pytest -q
+         python -m pyflakes app tests
+         bash -n startup.sh
+     If tests fail, say so with the output. Never report a green run you did not
+     see.
+
+R10. Anything that costs you a debugging cycle goes into HANDOFF.md "Findings"
+     in the same style as what is already there: what broke, what the evidence
+     was, and what the rule is now. That file is why this program is tractable.
+
+R11. Prefer extending an Adapter hook over special-casing a host. If a second
+     host needs the same hack, it belongs in base.py. Per-host exceptions are
+     legitimate only where the site genuinely is the exception (see
+     _MIN_PATH_DEPTH and the Hindawi h1 case) — and then they are per-host maps,
+     not branches.
+
+R12. DISTINGUISH "BROKEN" FROM "BROKEN HERE". This network SNI-filters eight
+     known hosts, and this container has never cleared an interactive Turnstile
+     (bundled Chromium 131 never passes; attaching Chromium 151 over browser_cdp
+     did not either, headless). A site failing for those reasons is NOT a
+     broken adapter and must not be silently dropped. Label it, keep it, say so.
+
+
+--------------------------------------------------------------------------------
+SECTION 3 — DEFINITION OF DONE: THE SUPPORT LADDER
+--------------------------------------------------------------------------------
+
+Maintain SOURCES.md at the repo root. Every site carries EXACTLY ONE tier, with
+the evidence that earned it. Only T4 may be advertised in README.md.
+
+  T0  EXCLUDED       Requires an account, subscription, or purchase to reach
+                     readable content; or is a shadow library. Record the reason
+                     and the date checked. Never added to search_sites.
+
+  T1  REACHABLE      Answers from this network. Use POST /api/connectivity,
+                     which already classifies ok / challenge / connection_reset
+                     / connect_error / proxy_error.
+
+  T2  SEARCHABLE     Returns real hits for a real query AND returns [] for an
+                     unanswerable one. BOTH halves required (see R3).
+
+  T3  READABLE       Content opens anonymously and pages or text are
+                     enumerable. No account, no purchase, no unlock.
+
+  T4  VERIFIED       *** THE ONLY TIER THAT COUNTS ***
+                     A real artifact is on disk and passes its verifier:
+                         verify_cbz / verify_pdf / verify_epub / verify_file
+                     (all in app/packager.py). Record: absolute path, byte size,
+                     page or chapter count, and the date.
+                     For a CBZ, verify_dl.py also decodes every page and flags
+                     anything under 600px — a thumbnail rip passes zip integrity
+                     and fails a reader.
+
+  TB  BLOCKED HERE   Code believed correct, unverifiable in THIS environment.
+                     Only two legitimate reasons, and you must name which:
+                       - the host is SNI-filtered from this network
+                       - the site needs an interactive Turnstile this container
+                         cannot clear
+                     Kept in the tree, labelled in SOURCES.md, NOT advertised in
+                     README.md, and re-testable on a machine with a real browser.
+
+A site that reaches T2 and stops is a site that LOOKS supported and is not.
+That is precisely the failure this program exists to end.
+
+
+--------------------------------------------------------------------------------
+SECTION 4 — WORK PACKAGES
+--------------------------------------------------------------------------------
+
+Execute in order. WP-0 through WP-4 fix what is broken; WP-5 through WP-8 grow
+coverage. Do not start WP-6 before WP-5 — the triage is what makes the sweep
+cheap. Each package lists what "done" means; nothing is done on assertion.
+
+................................................................................
+WP-0  BASELINE AND INSTRUMENTATION
+................................................................................
+Objective: know the true starting state before changing anything.
+
+  - Run the three checks (R9). Record exact pass counts.
+  - Run POST /api/connectivity against every host currently in search_sites
+    (app/config.py:150) and record the verdict for each.
+  - Create SOURCES.md with every currently-configured site at its HONEST tier
+    per Section 3 — not the tier README.md implies.
+  - Confirm scratchpad/verify_dl.py runs. It is untracked; if it is missing,
+    rebuild it first: preview -> real queue -> artifact inspection against a
+    throwaway MD_OUTPUT_DIR. Everything downstream depends on it.
+
+DONE WHEN: baseline numbers recorded, SOURCES.md exists, verify_dl.py runs.
+
+................................................................................
+WP-1  FIX noor-book.com                                        (requirement 1)
+................................................................................
+Objective: the user's headline complaint. Walk the chain in 1.5 in order; do not
+start in the adapter.
+
+  1. Resolve desync_browser. It is set in config.yaml, is not a Settings field,
+     and is silently discarded. Either implement it as a real setting or delete
+     the key — but do not leave a config option that does nothing.
+  2. Decide how an SNI-filtered host reaches the network at all. The browser is
+     excluded from the desync bypass for a REASON (Cloudflare re-challenges
+     forever through a fragmented handshake), so the answer is probably NOT
+     "route the browser through desync globally". Consider instead: a per-host
+     opt-in; or moving Noor off the browser-only path, since HANDOFF.md records
+     that Noor's reader pages are minted and fetched by the ORDINARY fetcher,
+     which already honours the bypass. Measure whichever you choose.
+  3. Separate 403 from unreachable from catalog-only in the adapter's error
+     reporting. A user told "this book is not licensed for distribution" when
+     the site actually returned 403 is being lied to; that exact message was
+     already removed once for exactly this reason. Say only what is known.
+  4. Finish the throttle. 90/124 then 108/124 is not done. Try a per-host rate
+     limit for noor-book.com (requests_per_second is currently global), more
+     PAGE_REFRESH_ROUNDS, or lower image_concurrency for this host. The
+     mechanism is proven; a complete book is not.
+  5. Do the same for 3asq.org, which is in search_sites and equally blocked.
+
+DONE WHEN: one COMPLETE Noor book is on disk as a PDF that passes verify_pdf,
+with page count equal to curr_reading_pages — or Noor is honestly filed TB with
+the exact blocking link named, AND the misleading error message is gone either
+way. If it lands TB, propose the concrete change a user on an unfiltered network
+would need (likely: turn desync_enabled on, or set browser_cdp).
+
+................................................................................
+WP-2  AUDIT EVERY EXISTING SOURCE                              (requirement 2)
+................................................................................
+Objective: stop advertising what has never been proven.
+
+  - Run verify_dl.py against EVERY adapter. Priority order is the seven that
+    have never produced a file (1.4): mangathemesia, comix, blogger, generic,
+    ktobati, noor-book, kitaboka.
+  - ktobati is the clean req-7 case: books.py:~510 already tells the user to
+    sign in to their own account. Under R5 that makes it T0. Cut it.
+  - For each source record the tier and its evidence in SOURCES.md.
+  - Any source that cannot reach T4 and is not honestly TB comes OUT of
+    search_sites. A source that returns noise is worse than a missing source.
+
+DONE WHEN: every adapter has a tier backed by evidence, search_sites contains
+only T4 and TB entries, and README.md no longer claims otherwise.
+
+................................................................................
+WP-3  ARABIC SEARCH: NORMALIZE AND OPTIMIZE                (requirements 3, 4)
+................................................................................
+Objective: Arabic spelling variation must stop costing the user results.
+Read 1.6 first. textmatch.py is good work — extend it, do not replace it.
+
+  GAP A is the important one. Normalize the query BEFORE it leaves for the site,
+  and where a site matches literally, send VARIANT FORMS as well. Our folding
+  currently only rescues hits the site already returned; it cannot rescue a hit
+  the site never returned. Concretely:
+     - fold/clean the query in app/main.py before fan-out (currently main.py:525
+       is a bare .strip());
+     - for literal-matching sites, issue the raw query AND its folded form,
+       merge and de-duplicate by _identity_key;
+     - budget it: search already fans out per site under search_timeout (20s)
+       and a shared rate limiter, and HANDOFF.md records that abandoned searches
+       used to eat that budget. Do not double every query blindly — measure, and
+       only expand where the raw query returned nothing.
+
+  GAP B: strip bidi and zero-width controls from the query before folding —
+  U+200E, U+200F, U+202A-202E, U+2066-2069, U+200C, U+200D, and U+FEFF. Today
+  they become spaces inside fold() and split one word into two tokens.
+
+  GAP C: add the Persian/Urdu letter forms Arabic sites serve (keheh U+06A9,
+  farsi yeh U+06CC, heh-with-yeh U+06C0) to _ARABIC_FOLD. Then handle the
+  definite article as a MATCHING concern, not a folding one — an article-
+  stripped token should match, but must not silently rewrite the display string,
+  and must not fold two genuinely different words together (R6).
+
+  UI: dir="auto" and a lang attribute on #search-input and .hit-title so Arabic
+  renders RTL. Alt titles already surface via SearchResult.alt_title — keep that
+  visible, it is what makes a correct cross-script hit look correct.
+
+  MEASUREMENT IS THE DELIVERABLE. For a fixed set of at least ten real Arabic
+  queries covering every variation class (alef forms, teh marbuta vs heh, alef
+  maqsura vs yeh, harakat present and absent, tatweel, Arabic-Indic digits,
+  Persian forms, definite article, a copy-pasted string carrying RLM), record
+  hits BEFORE and AFTER, per site. Add each to tests/test_textmatch.py.
+
+DONE WHEN: the before/after table exists with real numbers, every new rule has a
+test, and the existing noise tests still pass unchanged (R7).
+
+................................................................................
+WP-4  FIX "CANNOT SEARCH AGAIN AFTER CLICKING A RESULT"        (requirement 5)
+................................................................................
+Objective: the user must always be able to get back to search, run another one,
+and move between results — with no reload. Read 1.7; the diagnosis is done.
+
+  (a) Remove the conflict between the two '/' handlers (app.js:359 and
+      app.js:1558). One handler, one rule. Delete the stale comment at
+      app.js:1560 while you are there.
+  (b) Make the search box recoverable after a click. Either clear input.value in
+      clearResults() so retyping works, or — better — keep the query and add an
+      explicit re-run path (Enter, and a visible control), since a user who
+      clicked a result usually wants the SAME result list back, not to retype.
+  (c) Add a real "Back to results" affordance that restores lastSearch without
+      re-querying the network, plus Escape to leave the preview. Consider
+      scrolling the finder back into view when the preview closes — #preview
+      sits below .finder, and a long chapter list buries the search box.
+  (d) Make the result-click handler run the same reset trio as the kind-chip and
+      clear-button handlers: clearTimeout(searchTimer); searchToken++;
+      abandonSearch(). A late response must never paint over a loaded preview.
+
+  There is no test runner for web/ — it is three static files with no build step.
+  Verify by driving a real browser with patchright against a server on an
+  isolated MD_CONFIG_DIR / MD_OUTPUT_DIR with MD_DESYNC_PORT=0, and keep the
+  script in scratchpad/. Prefer a real download over a stubbed /api/* route
+  wherever the assertion is about what the SERVER did.
+
+DONE WHEN: a scripted browser run proves this exact sequence with no reload:
+search -> click result -> back to results -> click a DIFFERENT result ->
+new search -> click a result. Attach the transcript.
+
+................................................................................
+WP-5  TRIAGE THE SITE LIST                            (requirements 6, 7, 9)
+................................................................................
+Objective: turn Section 5's list into an ordered, evidence-backed work queue.
+This is cheap and it decides everything after it — do not skip it.
+
+For every site, in this order, and STOP at the first that applies:
+  1. AUTH CHECK FIRST (requirement 7, and it saves the most time). Open a
+     content page logged out. If readable content requires an account,
+     subscription, purchase, coin, unlock, or "fast pass" -> T0, reason
+     recorded, move on. Do not investigate further.
+  2. REACHABILITY. /api/connectivity. connection_reset -> candidate TB.
+  3. FINGERPRINT. Does an existing adapter's matches() already claim it? Check
+     Madara markers (wp-manga, reading-content, manga-chapters-holder),
+     MangaThemesia/TS markers (eplister, readerarea, ts_reader, bixbox), Blogger,
+     and the Astro/vcomics markers. A hit here means ZERO code -> WP-6.
+  4. PLATFORM CLUSTER. If it is not a known platform, name the platform it IS,
+     and count how many other sites on the list share it. That count is the
+     priority order for WP-7.
+  5. DEAD. Record the status code and the date.
+
+Record every verdict in SOURCES.md with the date. Section 5 gives you a starting
+hypothesis per site — it is a hypothesis. A live check overrides it, always.
+
+DONE WHEN: every site in Section 5 has a verdict and a date, and WP-6 and WP-7
+have ordered queues.
+
+................................................................................
+WP-6  WAVE 1 — ZERO-CODE COVERAGE
+................................................................................
+Objective: the cheapest coverage in the program. Do this BEFORE writing any
+adapter.
+
+For every site WP-5 marked "already fingerprinted": add the host to
+search_sites, then take it up the ladder to T4 with verify_dl.py. Expect some to
+fail despite the fingerprint matching — a site can wear Madara's markup and wire
+its search box elsewhere (rizzfables serves its HOMEPAGE from ?s= and needs
+POST /Index/live_search instead). That is a real finding; record it.
+
+DONE WHEN: every candidate is at T4 or has a recorded reason it is not.
+
+................................................................................
+WP-7  WAVE 2 — PLATFORM ADAPTERS
+................................................................................
+Objective: one adapter per PLATFORM, ranked by how many sites it unlocks.
+
+Known first candidate: TeamX (teamx.net, olympustaff.com and relatives) —
+HANDOFF.md open item 2 already establishes it is its own platform, NOT
+azoramoon's. Beyond that, follow WP-5's cluster counts.
+
+For each: capture real fixtures (R2), implement matches() as a DOM fingerprint
+(not a hostname list), add the adapter to registry.ADAPTERS, update the
+exhaustive dict in test_search_api.py (R8), add a negative search test (R3), and
+take at least two sites on that platform to T4.
+
+DONE WHEN: each new adapter has two T4 sites and a full test file.
+
+................................................................................
+WP-8  READER-TO-FILE EXTRACTION      (requirement 8 — SPEND THE MOST TIME HERE)
+................................................................................
+Objective: the user's most important requirement. If content can be READ in a
+browser without an account, our tool must be able to SAVE it — regardless of
+whether the site offers a download button, and without ever using one that
+requires an account.
+
+Read 1.8. The pattern is proven on Noor. Generalize it into a written recipe in
+docs/development.md, then apply it:
+
+  STEP 1  Find where the readable content actually lives. In order of cost:
+          server-rendered HTML; a hydration payload (Astro islands, __NEXT_DATA__,
+          Nuxt state, inline JSON); an XHR/fetch the reader makes (read it from
+          the Network tab or by capturing requests); the rendered DOM last.
+          HANDOFF.md records azoramoon server-rendering its ENTIRE 165-chapter
+          list into an astro-island props attribute on a page showing 21 anchors.
+          Look in the payload before you conclude something is not there.
+  STEP 2  Mint stable page/section URLs and hand them to the ordinary fetcher,
+          so rate limiting, retries, resume and quality upgrading come free.
+          Do not build a private download loop.
+  STEP 3  Unwrap in transform_page() if the payload is not a bare image — SVG
+          wrappers, base64 data URIs, canvas blobs, XOR/offset-obfuscated bytes.
+          Unwrap BEFORE validate_image().
+  STEP 4  Choose the container with packaging_for(chapter): cbz for comics,
+          pdf for scanned books, epub for prose, file for a real linked document.
+  STEP 5  Verify the artifact opens. A CBZ of 1x1 spacers validates perfectly —
+          WEBTOON's src is a shared transparent spacer and the real page is in
+          data-url. Decode pages and check dimensions.
+
+  Cases already documented that you will meet again:
+    - image host 403s without the chapter page as Referer (WEBTOON: 200 with it)
+    - a file host answers 200 WITH HTML instead of the file (looks_like_document
+      rejects it rather than storing an unreadable "book")
+    - 403 over HTTP/2 and 200 over HTTP/1.1, same URL, same headers, same IP
+      (downloads.hindawi.org; Fetcher._retry_over_http1 handles it)
+    - page URLs that expire and need pages_expire + refresh_pages
+    - a base64 file URL hidden in a data- attribute with no anchor anywhere
+    - zero-based chapter pagination (sunovels page=1 is the SECOND fifty)
+    - css("h2, p") NOT returning document order in selectolax; use traverse()
+
+DONE WHEN: the recipe is in docs/development.md, and at least five sites that
+offer NO usable download button have been taken to T4 through their readers.
+
+................................................................................
+WP-9  DOCUMENTATION AND HONESTY PASS
+................................................................................
+  - README.md "Supported Sources" lists T4 only. No aspirational entries.
+  - SOURCES.md published with every site, tier, evidence, and date.
+  - HANDOFF.md Findings updated with everything that cost a cycle (R10).
+  - config.example.yaml corrected wherever this program changed a default
+    (desync in particular).
+
+DONE WHEN: a stranger reading README.md would not be surprised by anything.
+
+
+--------------------------------------------------------------------------------
+SECTION 5 — SITE LIST AND STARTING TRIAGE
+--------------------------------------------------------------------------------
+
+Roughly 183 sites, about 86 Arabic and 97 English. Reconcile this against the
+source list you were given before starting WP-5, and note any site listed there
+that is missing below. Each entry carries a STARTING HYPOTHESIS. It is a
+hypothesis, not a verdict — a live check per WP-5 overrides it every time, and
+a hypothesis that turns out wrong is itself a finding worth recording.
+
+Groups A and B are exclusions; everything else is work. Work groups D and H
+before F and G: D is nearly free and H is the most durable.
+
+................................................................................
+GROUP A — T0, EXCLUDE: ACCOUNT / SUBSCRIPTION / PURCHASE REQUIRED  (req 7)
+................................................................................
+Confirm each logged out, then file T0 with the date and move on. Do not build
+adapters for these, and do not add them to search_sites.
+
+  comixology.com          viz.com                 crunchyroll.com/manga
+  global.bookwalker.jp    j-novel.club            mangaplanet.com
+  renta.papy.co.jp        toomics.com             tappytoon.com
+  azuki.co                coolmic.me              comico.io
+  cycomi.com              comicwalker.com         bilibilicomics.com
+  webnovel.com            wattpad.com             webfic.com
+  mangaarabia.com         abjjad.com              ktobati.com
+  free-ebooks.net         shonenjumpplus.com      mangaplus.shueisha.co.jp
+
+  Notes: ktobati.com is already in KNOWN_HOSTS and app/adapters/books.py:~510
+  already tells the user to sign in — under R5 that is a clean T0. Cut it in
+  WP-2. mangaplus and shonenjumpplus are free-to-read but account- and
+  region-gated through an app API; check, and exclude if the gate is real.
+  tapas.io, openlibrary.org and bookboon.com are MIXED — a free tier plus gated
+  content. Do not exclude them wholesale; support ONLY the anonymous tier and
+  drop gated items from listings the way webtoons.py and vcomics.py already do.
+
+................................................................................
+GROUP B — T0, EXCLUDE: SHADOW LIBRARIES
+................................................................................
+  z-lib.org    booksee.org    bookcc.com    oceanofpdf.com    pdfcoffee.com
+
+  These distribute commercial books wholesale. They are also the least stable
+  domains on the list, the most aggressive against automated clients, and the
+  highest legal exposure attached to this tool. Excluded on those grounds.
+  bookcc.com is a Z-Library mirror; check before spending time on it.
+  pdfroom.com and epubpub.com sit near this line — check what they actually
+  host before investing.
+
+................................................................................
+GROUP C — ALREADY SUPPORTED: VERIFY ONLY, NO NEW CODE
+................................................................................
+  mangadex.org            -> mangadex adapter, T4 already
+  royalroad.com           -> royalroad adapter, T4
+  scribblehub.com         -> scribblehub adapter (confirmed anonymous; never
+                             produced an EPUB here — Turnstile. Likely TB)
+  gutenberg.org           -> gutenberg adapter, T4
+  hindawi.org             -> books adapter, in KNOWN_HOSTS. NOTE the per-host
+                             trap: its <h1> is "Books" on EVERY book page, so
+                             titles collide. Handled; do not undo it.
+  infinity896.blogspot.com-> BloggerAdapter should already fingerprint it.
+                             blogger has NEVER produced a CBZ — this is your
+                             chance to close that gap (WP-2).
+  3asq.org                -> madara adapter; config uses 3asq.online. BLOCKED
+                             here by SNI (HANDOFF.md:566). Candidate TB.
+  azoramanga.com          -> check against the vcomics/Astro fingerprint before
+                             assuming it is new; azoramoon.com is already T4.
+
+................................................................................
+GROUP D — LIKELY ZERO-CODE (fingerprint expected to match)  -> WP-6
+................................................................................
+Verify the fingerprint, add to search_sites, take to T4. No adapter expected.
+
+  Likely Madara (wp-manga / reading-content / manga-chapters-holder):
+    toonily.com          aquamanga.com        coffeemanga.io      1stkissmanga.io
+    mangakomi.io         boxnovel.com         daonovel.com        1stkissnovel.love
+    foxaholic.com        kolnovel.com         lekmanga.net        mangaae.com
+    mangaat.com          arabic-manga.com     mangarose.com       mangapro.com
+    manga-on.com         mngaar.com           mangak.com          swatmanga.net
+
+  Likely MangaThemesia / TS (eplister / readerarea / ts_reader / bixbox):
+    asuracomic.net       flamecomics.com      rawkuma.com         ozulscans.com
+    gate-manga.com       golden-manga.com     areamanga.com       as-gate.com
+    manga-land.com       shqawemanga.com      arabcomics.net      mangaslayers.com
+
+  WARNING, measured: a site can wear the markup and wire its search elsewhere.
+  rizzfables keeps TS markup but serves its HOMEPAGE from ?s= and needs
+  POST /Index/live_search. Its grid parsed perfectly and returned the same seven
+  front-page series for every query. R3's negative test is what catches this.
+
+................................................................................
+GROUP E — KNOWN BLOCKED HERE, OR DEAD: CHECK BEFORE INVESTING
+................................................................................
+  SNI-filtered from this network (HANDOFF.md:566) — candidate TB, not broken:
+    3asq.org    noor-book.com    toomics.com    healteer.com (MangaSwat)
+
+  Reported dead or gone; confirm and record the status code and date:
+    mangasee123.com    mangazuki.co    manganelo.com    mangapanda.com
+    (the manganelo/mangakakalot/chapmanganato family has moved repeatedly —
+     find the live host before writing anything)
+
+  Intermittent (HANDOFF.md): standardebooks.org works, then refuses for minutes.
+  It needs a retry story before it can join search_sites — but it is high value
+  (Group H), so give it one.
+
+................................................................................
+GROUP F — ARABIC, NEW WORK  -> WP-5 then WP-7
+................................................................................
+  Manga / comics platforms (cluster these before writing anything):
+    teamx.net           <- START HERE. Same platform as olympustaff.com,
+                           already HANDOFF.md open item 2. One adapter, several
+                           sites. Highest sites-unlocked-per-adapter on the list.
+    gmanga.org          <- check the auth gate FIRST; then look for its JSON API
+    mangatales.com      mangatuk.com        on-manga.me        mangaf.co
+    dilar.tube          stellarsaber.pro    prochan.net        eshadow.net
+    ar-manga.com        mnga.cc             arabshentai.com
+
+  Books / digital libraries:
+    kotobna.net         kutub-pdf.net       al-mostafa.com     pdfiles.net
+    alarabimag.com      slawat.net          foulabook.com      raffy.me
+    iqraalibrary.com    maktbapdf.com       ablibrary.net      alnaqeeb.me
+    books-library.net   114quran.com        ketabpedia.com     arab-books.com
+    books-era.com       kutub.info          maktabet.com       kotob.com
+    maktabti.com        aladdinlibrary.org  itwadi.com         mawteni48.com
+    free.ireadarabic.com
+
+  Novels:
+    cenele.com          rwaiaty.com         rwayat.online      arnovel.me
+    rewayat.club        riwayat.com         arabic-novel.com   riwayatclub.com
+    rewayat-ar.com      rewayat20.com       ruya.com           novel-ar.com
+    riwayatarab.com     anakatib.com        aseeralkotb.com
+
+  Arabic novel sites are the natural home for the prose path: prose.py +
+  packager.write_epub, packaging = "text". sunovels is the working reference.
+  RTL matters — set right_to_left on the adapter; write_epub already handles
+  ar/he/fa/ur/ps/sd/ug/yi.
+
+................................................................................
+GROUP G — ENGLISH, NEW WORK  -> WP-5 then WP-7
+................................................................................
+  Manga aggregators (cluster by platform; several share engines):
+    mangakakalot.com    mangakatana.com     mangareader.to     bato.to
+    fanfox.net          mangafreak.eu       mangahere.cc       mangapark.net
+    readmng.com         readm.org           readmanhua.net     mangahub.io
+    klmanga.com         reaperscans.com     readcomiconline.li chapmanganato.com
+
+  Web novels (mostly prose -> EPUB; expect 2-4 platforms to cover most):
+    wuxiaworld.com      novelbin.com        noveldrama.org     novelfire.net
+    novelfull.com       wuxiabox.com        readnovelfull.com  ranobes.net
+    novelbuddy.com      justlightnovels.com lightnovelworld.com freewebnovel.com
+    creativenovels.com  mtlnovel.com        wtr-lab.com        readlightnovel.me
+    wnmtl.org           allnovelfull.com    lightnovelpub.com  chrysanthemumgarden.com
+    wanderinginn.com    <- single-author site, simple, good first prose target
+
+  Books:
+    bookfrom.net        pdfroom.com         epubpub.com        feedbooks.com
+    pdfbooksworld.com
+
+................................................................................
+GROUP H — HIGH-VALUE, PUBLIC DOMAIN OR OPENLY LICENSED: PRIORITIZE
+................................................................................
+These are stable, permissive, unlikely to disappear, and no account is needed.
+They are the best return on effort in the whole program — do them early.
+
+  Arabic:
+    al-maktaba.org        Shamela — a large Islamic heritage corpus
+    waqfeya.net           public-domain Arabic library
+    dlib.nyu.edu/aco      Arabic Collections Online (NYU) — open access, stable
+                          institutional host, likely a clean IIIF or METS API.
+                          Look for the API before scraping HTML.
+    hindawi.org           already supported; make sure it is genuinely T4
+
+  English:
+    gutenberg.org         already T4
+    wikibooks.org         MediaWiki API — no scraping needed at all
+    standardebooks.org    excellent EPUBs; needs the retry story (Group E)
+    globalgreyebooks.com  manybooks.net    loyalbooks.com
+    theanarchistlibrary.org   baka-tsuki.org    openlibrary.org (anonymous tier)
+
+................................................................................
+ADDITIONAL SITES
+................................................................................
+Paste any further sites below and run them through WP-5 unchanged.
+
+  <<<PASTE ADDITIONAL SITES HERE>>>
+
+
+--------------------------------------------------------------------------------
+SECTION 6 — REPORT CONTRACT
+--------------------------------------------------------------------------------
+
+6.1 SOURCES.md — create and keep current. One row per site:
+
+    | Site | Adapter | Tier | Evidence | Checked |
+    |------|---------|------|----------|---------|
+    | example.com | madara | T4 | Example - c001.cbz, 4.2 MB, 29 pp | 2026-09-14 |
+    | blocked.com | books  | TB | SNI reset; desync does not cover browser | 2026-09-14 |
+    | gated.com   | —      | T0 | reader requires an account | 2026-09-14 |
+
+    Evidence for T4 is a FILE, a SIZE and a COUNT. Nothing else is evidence.
+
+6.2 Per work package, report:
+      - what you changed, by file
+      - the command output that proves it (R9), quoted, not summarized
+      - what you could NOT verify, and precisely why
+      - anything that cost a cycle -> also into HANDOFF.md (R10)
+
+6.3 Final summary, in this order:
+      1. Sites moved to T4 this run: count and names.
+      2. Sites at TB: count, names, and the ONE blocking reason each.
+      3. Sites excluded T0: count, and the reason class.
+      4. Arabic search: the before/after hit table from WP-3.
+      5. The WP-4 browser transcript.
+      6. Test counts before and after.
+      7. What you would do next, ranked.
+
+6.4 STOP AND ASK if any of these is true:
+      - a requirement can only be met by supplying credentials or defeating a
+        paywall (that is R5; the answer is exclusion, but say so explicitly);
+      - a fix requires loosening the relevance gate in a way that reintroduces
+        catalogue noise (R7);
+      - the environment blocks so many sites that the program cannot be
+        evaluated here at all — report that as the finding rather than shipping
+        unverified adapters.
+
+    Never report a site as supported to close a work package. An honest TB is
+    worth more than a false T4, because a false T4 costs a user a download they
+    were told would work.
+
+
+--------------------------------------------------------------------------------
+SECTION 7 — KNOWN TRAPS (EACH ONE ALREADY COST A DEBUGGING CYCLE)
+--------------------------------------------------------------------------------
+
+SEARCH AND MATCHING
+  - Five sites answer an unanswerable query with something that LOOKS like
+    results: a front-page grid, a latest-posts widget, the whole catalogue
+    newest-first. Structure cannot tell them apart from real hits. The text can.
+  - A 200 from ?s= is not proof a search happened.
+  - Relevance must NEVER judge across scripts. These sites index names in
+    several writing systems and display one, so an Arabic query legitimately
+    lands on a series shown under a romanised name. Such a hit is kept and
+    ranked last (SCORE_UNJUDGEABLE), never dropped.
+  - Search by author needs an author FIELD, not a cleverer matcher.
+  - /api/search?limit= is clamped to MAX_SEARCH_RESULTS for a reason: the number
+    goes straight to every adapter, several of which page to reach it.
+
+NETWORK AND BOT CHECKS
+  - A 403 or 503 is NOT by itself a bot check. Image CDNs use both routinely.
+    Decide on evidence (a Cloudflare marker, or cookies we only hold because the
+    host challenged us). Treating status alone as a challenge sent a browser to
+    solve Cloudflare against an image node, ten times a chapter.
+  - Never solve a challenge just to BUILD a request. Use the passive
+    peek_session; get_session solves when nothing is cached.
+  - Never synthesise a click for Turnstile when a person could make one.
+    Programmatic clicks are marked untrusted and loop that session permanently.
+  - patchright's requirement is "Chrome without fingerprint injection". Passing
+    viewport, locale, user_agent or ignore_https_errors to
+    launch_persistent_context applies detectable CDP overrides. Use
+    no_viewport=True and nothing else. Tests assert their absence — do not
+    "tidy" them back.
+  - cf_clearance is bound to IP AND exact User-Agent. Browser and downloader
+    must share an exit path and a UA.
+  - An HTTP/2 handshake can be the entire problem: 403 over h2, 200 over h1,
+    same URL, same headers, same IP.
+
+CONTENT EXTRACTION
+  - A CBZ of 1x1 transparent spacers validates perfectly. Check dimensions.
+  - Percent-encoded slugs must be decoded before reading chapter numbers, or
+    hex escapes get read as numbers (chapter 372 became chapter 1).
+  - urlparse().path truncates a filename at ';' (RFC 2396 params). Use urlsplit.
+  - selectolax css("h2, p") groups by selector, NOT document order. Use
+    traverse(). Never key a seen-set on id() of a selectolax node.
+  - Match a downloadable file on the PATH'S EXTENSION, never on the word
+    "download" (which matched a help page in a footer).
+  - The file host is often not the site; send the content page as Referer.
+  - A hostile file host answers 200 WITH HTML. looks_like_document rejects it.
+  - An empty EPUB is what a login wall parses into. write_epub raises instead.
+
+UI
+  - [hidden] loses to any author rule that sets display. This UI needs
+    [hidden] { display: none !important } — it is already there; do not remove.
+  - button:hover:not(:disabled) is (0,2,1) and outscores .tab.is-active (0,2,0),
+    and the cursor sits on the control that was just clicked. Repeat the
+    background under :hover or the active state appears not to work.
+  - Rebuilding a list from innerHTML several times a second destroys scroll
+    position. Capture and restore it.
+
+PROCESS
+  - grep -c exits 1 on zero matches and will silently truncate an && chain in a
+    verification pipeline. It once made a failing test look clean.
+  - Fixtures written by hand pass while the adapter is silently wrong. R2.
+
+================================================================================
+END OF META PROMPT.
+Begin with WP-0. Read HANDOFF.md in full first.
+================================================================================

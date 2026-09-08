@@ -1,0 +1,11 @@
+Read-only reviewer: review_continuation, 2026-09-08 UTC
+
+Compared app/adapters/{riwayatarab,wuxiabox}.py and their test files
+against .state/codex-2026-09-08/before/, not Git HEAD.
+
+Verdict: Ready for the bounded fix. No critical, important, or minor findings.
+Both loops raise contextual AdapterError, preserve the original cause, and
+permit retry. preview_series awaits chapter listing before database writes;
+the preview API returns HTTP 502 on failure.
+Independent verification: 39 adapter tests passed.
+Successful empty/repeated responses and safety caps were outside review scope.

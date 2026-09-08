@@ -1,0 +1,64 @@
+HEAD: 8df6a07ee3b59549ff31b1d54de4dbb246804692
+
+ M .gitignore
+ M HANDOFF.md
+ M README.md
+ M app/adapters/base.py
+ M app/adapters/books.py
+ M app/adapters/comix.py
+ M app/adapters/madara.py
+ M app/adapters/mangathemesia.py
+ M app/adapters/prose.py
+ M app/adapters/registry.py
+ M app/adapters/textmatch.py
+ M app/config.py
+ M app/fetcher.py
+ M app/main.py
+ M app/queue.py
+ M app/session.py
+ M config.example.yaml
+ M docs/development.md
+ M requirements-dev.txt
+ M tests/conftest.py
+ M tests/test_books.py
+ M tests/test_fetcher.py
+ M tests/test_madara.py
+ M tests/test_mangathemesia.py
+ M tests/test_new_adapters.py
+ M tests/test_prose.py
+ M tests/test_queue.py
+ M tests/test_search_api.py
+ M tests/test_textmatch.py
+ M web/app.js
+ M web/index.html
+ M web/style.css
+?? META_PROMPT.txt
+?? SOURCES.md
+?? app/adapters/aco.py
+?? app/adapters/rewayat.py
+?? app/adapters/riwayatarab.py
+?? app/adapters/wuxiabox.py
+?? docs/evidence/
+?? docs/source-inventory.md
+?? scratchpad/
+?? tests/fixtures/aco/
+?? tests/fixtures/asq/
+?? tests/fixtures/books/gutenberg_frankenstein.epub
+?? tests/fixtures/kitaboka/
+?? tests/fixtures/noor/
+?? tests/fixtures/rewayat/
+?? tests/fixtures/riwayatarab/
+?? tests/fixtures/wuxiabox/
+?? tests/test_aco.py
+?? tests/test_connectivity_audit.py
+?? tests/test_madara_http.py
+?? tests/test_noor_http.py
+?? tests/test_rewayat.py
+?? tests/test_riwayatarab.py
+?? tests/test_verify_download.py
+?? tests/test_wuxiabox.py
+
+Baseline: .venv-linux/bin/python -m pytest -q
+853 passed in 38.26s
+Baseline: .venv-linux/bin/python -m pyflakes app tests; bash -n startup.sh
+Both exit 0, no output.

@@ -211,6 +211,25 @@ button.primary:hover:not(:disabled) {
   filter: brightness(1.08);
 }
 
+/* The way back out of a preview. Quiet by default — it is a route, not an
+   action — but it repeats its own background under :hover, because
+   `button:hover:not(:disabled)` scores (0,2,1) and this rule only (0,1,0), and
+   the cursor is by definition on the control that was just clicked. Fourth
+   instance of that trap in this file. */
+.back-to-results {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 4px 6px;
+  margin: 0 0 10px -6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.back-to-results:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
 .hint { color: var(--text-muted); font-size: 13px; margin: 10px 2px 0; }
 .muted { color: var(--text-muted); }
 .empty { color: var(--text-muted); text-align: center; padding: 40px 0; }

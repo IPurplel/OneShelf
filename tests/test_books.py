@@ -13,7 +13,8 @@ import pytest
 
 from app.adapters import registry
 from app.adapters.base import AdapterError
-from app.adapters.books import BooksAdapter, _clean_title, _file_links
+from app.adapters.books import (
+    BooksAdapter, _canonical_kitaboka_url, _clean_title, _file_links)
 from app.adapters.madara import MadaraAdapter
 from app.models import Chapter, Series
 from app.packager import (
@@ -546,53 +547,19 @@ async def test_8ghrb_search_limit_applies_after_unavailable_posts_are_filtered()
 
 
 KTOBATI_BOOK_URL = "https://www.ktobati.com/book/example"
-KTOBATI_SECTION_URL = "https://www.ktobati.com/section/novels"
 
 
-def test_ktobati_is_recognised_as_a_book_source():
-    assert BooksAdapter.matches(KTOBATI_BOOK_URL)
+def test_ktobati_is_not_claimed_as_a_book_source():
+    """Excluded, not broken: reaching a Ktobati book requires an account.
 
-
-async def test_ktobati_uses_the_persistent_browser_session_for_entitled_files():
-    html = """
-    <html><head><title>Example Book | Ktobati</title></head><body>
-      <h1>Example Book</h1>
-      <a href="/sites/default/files/books/example.pdf">تحميل PDF</a>
-    </body></html>
+    The adapter used to own this host and, when no file turned up, told the
+    user to sign in to Ktobati in the app's browser profile. Instructing
+    someone to authenticate is not a download path, so the host is no longer
+    claimed by hostname at all. A page that genuinely links a file is still
+    matched on that evidence, like any unknown site.
     """
-    sessions = FakeSessionManager(pages={KTOBATI_BOOK_URL: html})
-    adapter = BooksAdapter(sessions)
-
-    chapters = await adapter.fetch_chapters(
-        await adapter.fetch_series(KTOBATI_BOOK_URL))
-
-    assert [chapter.title for chapter in chapters] == ["Example Book.pdf"]
-    assert sessions.requested == [KTOBATI_BOOK_URL]
-    assert sessions.direct == []
-
-
-async def test_ktobati_category_url_explains_that_an_individual_book_is_required():
-    sessions = FakeSessionManager(
-        pages={KTOBATI_SECTION_URL: "<html><h1>Novels</h1></html>"})
-    adapter = BooksAdapter(sessions)
-
-    with pytest.raises(AdapterError, match="category links list many books"):
-        await adapter.fetch_chapters(
-            await adapter.fetch_series(KTOBATI_SECTION_URL))
-
-
-async def test_ktobati_login_or_subscription_wall_is_reported_clearly():
-    html = """
-    <html><h1>Example Book</h1>
-      <p>التحميل متاح فقط للمشتركين</p>
-    </html>
-    """
-    sessions = FakeSessionManager(pages={KTOBATI_BOOK_URL: html})
-    adapter = BooksAdapter(sessions)
-
-    with pytest.raises(AdapterError, match="current browser session"):
-        await adapter.fetch_chapters(
-            await adapter.fetch_series(KTOBATI_BOOK_URL))
+    assert not BooksAdapter.matches(KTOBATI_BOOK_URL)
+    assert not BooksAdapter.matches(KTOBATI_BOOK_URL, "<html><h1>Book</h1></html>")
 
 
 NOOR_ROOT = "https://www.noor-book.com"
@@ -640,8 +607,8 @@ async def test_noor_search_hides_catalog_only_books_and_keeps_covers():
     assert results[0].cover_url == (
         "https://www.noor-book.com/covers/white-nights.jpg"
     )
-    assert sessions.requested == [NOOR_SEARCH_URL]
-    assert sessions.direct == []
+    assert sessions.direct == [NOOR_SEARCH_URL]
+    assert sessions.requested == []
 
 
 async def test_noor_search_limit_applies_after_unavailable_results_are_filtered():
@@ -847,116 +814,125 @@ def test_base64_split_across_lines_still_decodes():
     assert _noor_unwrap(svg) == png
 
 
+class _AnyBookPage(dict):
+    """The captured pages, plus one stand-in for every book page requested.
+
+    Kitaboka's search opens each candidate to confirm it links a real file.
+    Registering all 37 by hand would be fixture-writing by another name, so
+    the one page actually captured answers for each of them.
+    """
+
+    def __init__(self, known: dict, book_html: str):
+        super().__init__(known)
+        self._book = book_html
+
+    def __contains__(self, url: object) -> bool:
+        return super().__contains__(url) or self._is_book(url)
+
+    def __getitem__(self, url):
+        if super().__contains__(url):
+            return super().__getitem__(url)
+        if self._is_book(url):
+            return self._book
+        raise KeyError(url)
+
+    @staticmethod
+    def _is_book(url: object) -> bool:
+        return isinstance(url, str) and "kitaboka.com/books/" in url
+
+
+# Real markup, captured from kitaboka.com 2026-09-08. The previous fixtures
+# here were written by hand and encoded the alias backwards -- see
+# tests/fixtures/kitaboka/PROVENANCE.md.
+KITABOKA_FIXTURES = Path(__file__).parent / "fixtures/kitaboka"
 KITABOKA_ROOT = "https://kitaboka.com"
-KITABOKA_MASKED_URL = (
-    "https://www.kitaboka.com/books/books/ktab-almtmrd"
-)
-NORKITAB_BOOK_URL = "https://norkitab.com/books/ktab-almtmrd"
-NORKITAB_SECOND_URL = "https://norkitab.com/books/roay-almtmrd"
-NORKITAB_NO_FILE_URL = "https://norkitab.com/books/review-almtmrd"
-NORKITAB_PDF_URL = (
-    "https://norkitab.com/storage/book_files/example.pdf"
-)
-KITABOKA_SEARCH_URL = (
-    "https://norkitab.com/books?search="
-    "%D8%A7%D9%84%D9%85%D8%AA%D9%85%D8%B1%D8%AF"
-)
-
-KITABOKA_SEARCH_HTML = """
-<html><body>
-  <div class="book-card">
-    <a href="/books/review-almtmrd">
-      <img src="/storage/covers/review.webp" alt="كتاب المتمرد مراجعة">
-    </a>
-    <h3><a href="/books/review-almtmrd">كتاب المتمرد مراجعة</a></h3>
-  </div>
-  <div class="book-card">
-    <a href="/books/ktab-almtmrd">
-      <img src="/storage/covers/almtmrd.webp" alt="كتاب المتمرد">
-    </a>
-    <h3><a href="/books/ktab-almtmrd">كتاب المتمرد</a></h3>
-  </div>
-  <div class="book-card">
-    <a href="/books/roay-almtmrd">رواية المتمرد</a>
-  </div>
-  <a href="/books/read/ktab-almtmrd">قراءة كتاب المتمرد</a>
-  <a href="/books/unrelated">كتاب مختلف</a>
-</body></html>
-"""
+KITABOKA_QUERY = "\u0631\u0648\u0627\u064a\u0629"  # رواية
+KITABOKA_SEARCH_URL = f"{KITABOKA_ROOT}/books?search=%D8%B1%D9%88%D8%A7%D9%8A%D8%A9"
+KITABOKA_SENTINEL = "zzqvoneshelfnonexistent987654321"
+KITABOKA_SENTINEL_URL = f"{KITABOKA_ROOT}/books?search={KITABOKA_SENTINEL}"
+KITABOKA_BOOK_URL = f"{KITABOKA_ROOT}/books/hky-zhr"
+NORKITAB_BOOK_URL = "https://norkitab.com/books/hky-zhr"
+KITABOKA_MASKED_URL = "https://www.kitaboka.com/books/books/hky-zhr"
 
 
-def test_kitaboka_and_its_active_backend_are_recognised():
-    assert BooksAdapter.matches(KITABOKA_MASKED_URL)
+def _kitaboka(name: str) -> str:
+    return (KITABOKA_FIXTURES / name).read_text(encoding="utf-8")
+
+
+def test_kitaboka_and_its_mask_are_recognised():
+    assert BooksAdapter.matches(KITABOKA_BOOK_URL)
     assert BooksAdapter.matches(NORKITAB_BOOK_URL)
 
 
-async def test_kitaboka_masked_url_downloads_from_the_active_backend():
-    html = f"""
-    <html><head>
-      <meta property="og:image" content="/storage/covers/almtmrd.webp">
-    </head><body>
-      <h1>تحميل كتاب المتمرد PDF</h1>
-      <a href="{NORKITAB_PDF_URL}">تحميل</a>
-    </body></html>
+def test_norkitab_is_the_mask_and_kitaboka_is_where_the_books_are():
+    """The alias resolves towards the host that actually serves content.
+
+    norkitab.com answers a 976-byte HTML 4 frameset whose only content is a
+    frame pointing back at kitaboka.com/books. Resolving the other way -- what
+    this adapter did until 2026-09-08 -- meant every search fetched an empty
+    document and every query returned nothing.
     """
-    sessions = FakeSessionManager(pages={NORKITAB_BOOK_URL: html})
+    assert _canonical_kitaboka_url(NORKITAB_BOOK_URL) == KITABOKA_BOOK_URL
+    assert _canonical_kitaboka_url(KITABOKA_MASKED_URL) == KITABOKA_BOOK_URL
+    # The mask doubles its own prefix on storage links too.
+    assert _canonical_kitaboka_url(
+        "https://norkitab.com/books/storage/book_files/x.pdf"
+    ) == f"{KITABOKA_ROOT}/storage/book_files/x.pdf"
+    # Any other host is left exactly as it was.
+    assert _canonical_kitaboka_url("https://example.net/books/x") == (
+        "https://example.net/books/x")
+
+
+async def test_kitaboka_book_page_yields_its_pdf():
+    sessions = FakeSessionManager(pages={KITABOKA_BOOK_URL: _kitaboka("book.html")})
     adapter = BooksAdapter(sessions)
 
-    series = await adapter.fetch_series(KITABOKA_MASKED_URL)
+    series = await adapter.fetch_series(KITABOKA_BOOK_URL)
     chapters = await adapter.fetch_chapters(series)
     pages = await adapter.fetch_pages(chapters[0])
 
-    assert series.url == NORKITAB_BOOK_URL
-    assert [chapter.title for chapter in chapters] == [
-        "تحميل كتاب المتمرد PDF.pdf"
-    ]
-    assert sessions.direct == [NORKITAB_BOOK_URL]
-    assert pages[0].url == NORKITAB_PDF_URL
-    assert pages[0].referer == NORKITAB_BOOK_URL
+    assert len(chapters) == 1
+    assert chapters[0].title.endswith(".pdf")
+    assert pages[0].url == (
+        f"{KITABOKA_ROOT}/storage/book_files/"
+        "01M00NDG35TDV35A6BTSMBYJH0.pdf")
+    assert pages[0].referer == KITABOKA_BOOK_URL
 
 
-async def test_kitaboka_search_hides_books_without_a_file_and_keeps_covers():
-    pages = {
-        KITABOKA_SEARCH_URL: KITABOKA_SEARCH_HTML,
-        NORKITAB_NO_FILE_URL: "<html><h1>كتاب المتمرد مراجعة</h1></html>",
-        NORKITAB_BOOK_URL:
-            '<a href="/storage/book_files/almtmrd.pdf">تحميل</a>',
-        NORKITAB_SECOND_URL:
-            '<a href="/storage/book_files/second.pdf">تحميل</a>',
-    }
-    sessions = FakeSessionManager(pages=pages)
+async def test_kitaboka_search_returns_books_that_match_the_query():
+    sessions = FakeSessionManager(pages={
+        KITABOKA_SEARCH_URL: _kitaboka("search.html"),
+    })
 
-    results = await BooksAdapter(sessions).search(
-        KITABOKA_ROOT, "المتمرد"
-    )
+    # Every candidate page is fetched to confirm it links a real file; serve
+    # the one captured book page for all of them.
+    sessions.pages = _AnyBookPage(sessions.pages, _kitaboka("book.html"))
+    results = await BooksAdapter(sessions).search(KITABOKA_ROOT, KITABOKA_QUERY)
 
-    assert [result.url for result in results] == [
-        NORKITAB_BOOK_URL,
-        NORKITAB_SECOND_URL,
-    ]
-    assert results[0].cover_url == (
-        "https://norkitab.com/storage/covers/almtmrd.webp"
-    )
+    assert results, "the live listing holds 37 books whose titles carry رواية"
+    assert all(KITABOKA_QUERY in result.title for result in results)
     assert all(result.site == "kitaboka.com" for result in results)
+    assert all(result.url.startswith(f"{KITABOKA_ROOT}/books/")
+               for result in results)
 
 
-async def test_kitaboka_search_limit_applies_after_missing_files_are_filtered():
-    pages = {
-        KITABOKA_SEARCH_URL: KITABOKA_SEARCH_HTML,
-        NORKITAB_NO_FILE_URL: "<html><h1>كتاب المتمرد مراجعة</h1></html>",
-        NORKITAB_BOOK_URL:
-            '<a href="/storage/book_files/almtmrd.pdf">تحميل</a>',
-        NORKITAB_SECOND_URL:
-            '<a href="/storage/book_files/second.pdf">تحميل</a>',
-    }
-    sessions = FakeSessionManager(pages=pages)
+async def test_kitaboka_answers_an_unanswerable_query_with_its_catalogue():
+    """The sixth site to do this, and the reason query_matches exists.
 
-    results = await BooksAdapter(sessions).search(
-        KITABOKA_ROOT, "المتمرد", limit=1
-    )
+    Measured 2026-09-08: the sentinel below returns 27 real book links,
+    overlapping the ones a genuine query returns. Nothing structural separates
+    them from a hit -- only the text can, so the gate is what keeps this site
+    out of every unrelated search.
+    """
+    raw = _kitaboka("negative.html")
+    assert 'href="https://kitaboka.com/books/' in raw
 
-    assert [result.url for result in results] == [NORKITAB_BOOK_URL]
+    sessions = FakeSessionManager(pages={KITABOKA_SENTINEL_URL: raw})
+    sessions.pages = _AnyBookPage(sessions.pages, _kitaboka("book.html"))
 
+    results = await BooksAdapter(sessions).search(KITABOKA_ROOT, KITABOKA_SENTINEL)
+
+    assert results == []
 
 
 async def test_a_dead_reader_token_is_replaced_not_reused():

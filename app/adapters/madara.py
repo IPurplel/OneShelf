@@ -25,10 +25,11 @@ import json
 import logging
 import re
 from hashlib import md5
-from urllib.parse import quote_plus, urlparse, urlunparse
+from urllib.parse import parse_qs, quote_plus, urlparse, urlunparse
 
-from ..models import Chapter, Page, SearchResult, Series
+from ..models import Chapter, Page, SearchResult, Series, TextChapter
 from .base import Adapter, AdapterError, extract_number as _extract_number, first_attr
+from .prose import blocks_from, looks_like_prose, strip_noise
 
 log = logging.getLogger(__name__)
 
@@ -50,6 +51,14 @@ class MadaraAdapter(Adapter):
     name = "Madara (WordPress)"
     priority = 100
     content_type = "manga"
+    http_first = True
+
+    def static_html_complete(self, url: str, html: str) -> bool:
+        tree = self.parse(html)
+        if "s" in parse_qs(urlparse(url).query):
+            return self.matches(url, html)
+        return bool(_looks_like_series(tree) or self._images_from_dom(tree, url)
+                    or (_PROTECTOR_RE.search(html) and _PROTECTOR_PASS_RE.search(html)))
 
     # -------------------------------------------------------- identification
 
@@ -106,6 +115,15 @@ class MadaraAdapter(Adapter):
         url = _normalise_series_url(url)
         html = await self.get_html(url)
         tree = self.parse(html)
+
+        # A redirected GET keeps working at the old hostname, but a 301 on the
+        # subsequent AJAX POST changes it to GET and loses the chapter list.
+        # The series' canonical URL names the current origin for that POST.
+        canonical = first_attr(tree.css_first('link[rel="canonical"]'), "href")
+        if canonical and _looks_like_series(tree):
+            canonical = self.absolute(url, canonical)
+            if urlparse(canonical).scheme in {"http", "https"}:
+                url = _normalise_series_url(canonical)
 
         # URL shape alone cannot cover every install, so confirm what actually
         # loaded. Without this, a reader page yields a "series" whose title is
@@ -195,7 +213,7 @@ class MadaraAdapter(Adapter):
     async def _chapters_via_ajax_path(self, series: Series) -> list[Chapter]:
         """Madara >= 1.6: POST to ``<series-url>ajax/chapters/``."""
         endpoint = series.url.rstrip("/") + "/ajax/chapters/"
-        html = await self.sessions.post_form(endpoint, {}, referer=series.url)
+        html = await self.post_form(endpoint, {}, referer=series.url)
         return self._parse_chapter_nodes(html, series.url)
 
     async def _chapters_via_admin_ajax(self, series: Series) -> list[Chapter]:
@@ -209,7 +227,7 @@ class MadaraAdapter(Adapter):
 
         parsed = urlparse(series.url)
         endpoint = f"{parsed.scheme}://{parsed.netloc}/wp-admin/admin-ajax.php"
-        html = await self.sessions.post_form(
+        html = await self.post_form(
             endpoint,
             {"action": "manga_get_chapters", "manga": str(post_id)},
             referer=series.url,
@@ -232,6 +250,9 @@ class MadaraAdapter(Adapter):
     def _parse_chapter_nodes(self, html: str, base_url: str) -> list[Chapter]:
         tree = self.parse(html)
         nodes = tree.css("li.wp-manga-chapter") or tree.css("div.wp-manga-chapter")
+        # Whether the site *told* us these are chapters, or we are guessing.
+        # It decides how suspicious to be of each link below.
+        marked = bool(nodes)
         if not nodes:
             # Some skins drop the wrapper class and expose bare links.
             nodes = [n for n in tree.css("li") if n.css_first("a")]
@@ -244,8 +265,18 @@ class MadaraAdapter(Adapter):
             href = self.absolute(base_url, first_attr(link, "href"))
             if not href or href in seen:
                 continue
-            # Guard against picking up navigation links in the fallback path.
-            if "/manga/" not in urlparse(href).path:
+            # Only in the fallback path, where "every <li> holding a link" is a
+            # guess and the list is full of navigation. A link inside
+            # `li.wp-manga-chapter` needs no such guard: the site has already
+            # said what it is.
+            #
+            # Applying it unconditionally assumed every install serves chapters
+            # under `/manga/`, and Madara's post-type slug is configurable.
+            # Measured 2026-09-08: cenele.com serves
+            # `/cont/<series>/<chapter>/`, so all eight marked chapters were
+            # discarded and the series reported "could not read the chapter
+            # list" against a page whose chapter list had parsed perfectly.
+            if not marked and "/manga/" not in urlparse(href).path:
                 continue
             # A "chapter" that is the series itself, or an ancestor of it such
             # as the site index, is never real — that link is breadcrumb or nav
@@ -282,8 +313,72 @@ class MadaraAdapter(Adapter):
 
     # ----------------------------------------------------------------- pages
 
+    #: The reader, whichever shape it holds. Shared by the image path, the
+    #: prose path and the question of which one applies.
+    READER_SELECTORS = ("div.reading-content", "div.read-container",
+                        "div.text-left", "div.entry-content")
+
+    def _reader(self, tree):
+        for selector in self.READER_SELECTORS:
+            node = tree.css_first(selector)
+            if node is not None:
+                return node
+        return None
+
+    async def _chapter_page(self, chapter: Chapter) -> str:
+        cached = getattr(self, "_chapter_html", None)
+        if cached is None:
+            cached = self._chapter_html = {}
+        html = cached.get(chapter.url)
+        if html is None:
+            html = await self.get_html(chapter.url, referer=chapter.url)
+            cached[chapter.url] = html
+        return html
+
+    async def packaging_for(self, chapter: Chapter) -> str:
+        """Ask the chapter what it is, because the theme cannot say.
+
+        Madara is a WordPress theme and web-novel sites run it too. Measured
+        2026-09-08: cenele.com serves Arabic novels through it, and its
+        chapters are paragraphs, not pages. Read as a comic such a chapter
+        fails outright; read as prose it is an ordinary EPUB.
+
+        The chapter page is cached, so this costs the fetch that
+        ``fetch_pages`` or ``fetch_text`` was going to make anyway.
+        """
+        try:
+            html = await self._chapter_page(chapter)
+        except Exception as exc:
+            log.debug("Could not classify %s: %s", chapter.url, exc)
+            return self.packaging
+
+        tree = self.parse(html)
+        images = self._images_from_dom(tree, chapter.url) or \
+            self._images_from_protector(html, chapter.url)
+        if looks_like_prose(self._reader(tree), len(images)):
+            log.info("%s is prose, not pages; packaging as text", chapter.url)
+            return "text"
+        return self.packaging
+
+    async def fetch_text(self, chapter: Chapter) -> TextChapter:
+        tree = self.parse(await self._chapter_page(chapter))
+        container = self._reader(tree)
+        if container is None:
+            raise AdapterError(
+                f"No reader content on {chapter.url}. The chapter may be "
+                "empty, or the URL may not be a chapter page."
+            )
+        strip_noise(container)
+        blocks = blocks_from(container)
+        if not blocks:
+            raise AdapterError(
+                f"The reader on {chapter.url} held no readable text."
+            )
+        return TextChapter(title=chapter.title or f"Chapter {chapter.number}",
+                           blocks=blocks)
+
     async def fetch_pages(self, chapter: Chapter) -> list[Page]:
-        html = await self.get_html(chapter.url, referer=chapter.url)
+        html = await self._chapter_page(chapter)
         tree = self.parse(html)
 
         urls = self._images_from_dom(tree, chapter.url)
@@ -302,11 +397,7 @@ class MadaraAdapter(Adapter):
         ]
 
     def _images_from_dom(self, tree, base_url: str) -> list[str]:
-        container = (
-            tree.css_first("div.reading-content")
-            or tree.css_first("div.read-container")
-            or tree.css_first("div.entry-content")
-        )
+        container = self._reader(tree)
         if container is None:
             return []
 

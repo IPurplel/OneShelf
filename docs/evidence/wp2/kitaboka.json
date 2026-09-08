@@ -1,0 +1,22 @@
+{
+  "source_url": "https://kitaboka.com/books/hky-zhr",
+  "checked": "2026-09-08T11:48:46.542829+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-d849hgcz",
+  "passed": true,
+  "adapter": "books",
+  "title": "تحميل رواية حكاية زهرة PDF",
+  "listed_chapters": 1,
+  "chapter_url": "https://kitaboka.com/books/hky-zhr#1",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-d849hgcz/downloads/تحميل رواية حكاية زهرة PDF/تحميل رواية حكاية زهرة PDF.pdf",
+    "passed": true,
+    "count": 246,
+    "unit": "pages",
+    "bytes": 4777827,
+    "sha256": "10b7eb4f7cf3f89bf0c75748ef6f1240305fef7f3db3b4ebc953e7ad39424c0b",
+    "rendered_pages": 246
+  }
+}

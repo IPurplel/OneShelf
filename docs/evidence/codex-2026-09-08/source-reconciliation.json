@@ -1,0 +1,2475 @@
+{
+  "checked": "2026-09-08",
+  "method": "Local reconciliation of shipped defaults, SOURCES.md T4 rows, and retained verification reports; not a new live audit.",
+  "default_search_sites": [
+    "https://3asq.online",
+    "https://arabtoons.net",
+    "https://azoramoon.com",
+    "https://kolnovel.com",
+    "https://cenele.com",
+    "https://rewayat.club",
+    "https://riwayatarab.com",
+    "https://8ghrb.com",
+    "https://www.noor-book.com",
+    "https://kitaboka.com",
+    "https://www.planetebook.com",
+    "https://bettergutenberg.org",
+    "https://www.gutenberg.org",
+    "https://aco.dlib.nyu.edu",
+    "https://www.royalroad.com",
+    "https://archiveofourown.org",
+    "https://www.webtoons.com",
+    "https://azorafly.com",
+    "https://mangadex.org",
+    "https://mangaread.org",
+    "https://manhuaplus.com"
+  ],
+  "default_content_types": {
+    "manga": 7,
+    "book": 13,
+    "comics": 1
+  },
+  "t4_hostnames": [
+    "3asq.online",
+    "3asq.org",
+    "arabtoons.net",
+    "azoramoon.com",
+    "azorafly.com",
+    "8ghrb.com",
+    "www.noor-book.com",
+    "kitaboka.com",
+    "www.planetebook.com",
+    "bettergutenberg.org",
+    "www.gutenberg.org",
+    "www.royalroad.com",
+    "archiveofourown.org",
+    "www.webtoons.com",
+    "mangadex.org",
+    "www.mangaread.org",
+    "manhuaplus.com",
+    "comix.to",
+    "arcomixverse.blogspot.com",
+    "aco.dlib.nyu.edu",
+    "kolnovel.com",
+    "cenele.com",
+    "riwayatarab.com",
+    "rewayat.club",
+    "wuxiabox.com",
+    "sunovels.com"
+  ],
+  "inventory_exact_overlap": [
+    "3asq.org",
+    "cenele.com",
+    "gutenberg.org",
+    "kolnovel.com",
+    "mangadex.org",
+    "noor-book.com",
+    "rewayat.club",
+    "riwayatarab.com",
+    "royalroad.com",
+    "wuxiabox.com"
+  ],
+  "artifacts": {
+    "gutenberg.org": {
+      "report": ".state/verification/run-arxyf3k8/evidence.json",
+      "source_url": "https://www.gutenberg.org/ebooks/84",
+      "checked": "2026-09-07T23:37:14.564258+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-arxyf3k8",
+      "passed": true,
+      "adapter": "gutenberg",
+      "title": "Frankenstein; or, the modern prometheus",
+      "listed_chapters": 2,
+      "chapter_url": "https://www.gutenberg.org/ebooks/84#1",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-arxyf3k8/downloads/Frankenstein; or, the modern prometheus/Frankenstein; or, the modern prometheus.epub",
+        "passed": true,
+        "count": 32,
+        "unit": "spine items",
+        "bytes": 474161,
+        "sha256": "2c29669a2cc1a726d6264178a2e8e86529208fd61ef92ca627b1612b2d98b2bd",
+        "spine": [
+          "OEBPS/wrap0000.xhtml",
+          "OEBPS/3217704234512228407_84-h-0.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-1.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-2.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-3.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-4.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-5.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-6.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-7.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-8.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-9.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-10.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-11.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-12.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-13.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-14.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-15.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-16.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-17.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-18.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-19.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-20.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-21.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-22.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-23.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-24.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-25.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-26.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-27.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-28.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-29.htm.xhtml",
+          "OEBPS/3217704234512228407_84-h-30.htm.xhtml"
+        ],
+        "rendered_pages": 239
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "noor-book.com": {
+      "report": ".state/verification/run-xrfm1lrn/evidence.json",
+      "source_url": "https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf",
+      "checked": "2026-09-08T08:16:52.669009+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-xrfm1lrn",
+      "passed": true,
+      "adapter": "books",
+      "title": "Download Book White Nights Pdf",
+      "listed_chapters": 1,
+      "chapter_url": "https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf#read",
+      "job_status": "done",
+      "pages_expected": 111,
+      "pages_downloaded": 111,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-xrfm1lrn/downloads/Download Book White Nights Pdf/Download Book White Nights Pdf.pdf",
+        "passed": true,
+        "count": 111,
+        "unit": "pages",
+        "bytes": 33679155,
+        "sha256": "a630995f08c6aeb575716058d1d5362262842f0b45e3d03dc09a8dd80007ff64",
+        "rendered_pages": 111
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "3asq.org": {
+      "report": ".state/verification/run-u6hp8vj9/evidence.json",
+      "source_url": "https://3asq.org/manga/hunter-x-hunter/",
+      "checked": "2026-09-08T15:45:02.208824+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-u6hp8vj9",
+      "passed": true,
+      "adapter": "madara",
+      "title": "Hunter X Hunter",
+      "listed_chapters": 93,
+      "chapter_url": "https://3asq.online/manga/hunter-x-hunter/420/",
+      "job_status": "done",
+      "pages_expected": 16,
+      "pages_downloaded": 16,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-u6hp8vj9/downloads/Hunter X Hunter/Hunter X Hunter - c420.cbz",
+        "passed": true,
+        "count": 16,
+        "unit": "pages",
+        "bytes": 47861046,
+        "sha256": "94c6e5a660e12932396d3b968b9a38de0f6b01485a70424bff15b2c773d03d4f",
+        "dimensions": [
+          [
+            "001.jpg",
+            2000,
+            2919
+          ],
+          [
+            "002.jpg",
+            4000,
+            2919
+          ],
+          [
+            "003.jpg",
+            2000,
+            2919
+          ],
+          [
+            "004.jpg",
+            2000,
+            2919
+          ],
+          [
+            "005.jpg",
+            4000,
+            2919
+          ],
+          [
+            "006.jpg",
+            2000,
+            2919
+          ],
+          [
+            "007.jpg",
+            2000,
+            2919
+          ],
+          [
+            "008.jpg",
+            2000,
+            2919
+          ],
+          [
+            "009.jpg",
+            2000,
+            2919
+          ],
+          [
+            "010.jpg",
+            2000,
+            2919
+          ],
+          [
+            "011.jpg",
+            2000,
+            2919
+          ],
+          [
+            "012.jpg",
+            2000,
+            2919
+          ],
+          [
+            "013.jpg",
+            2000,
+            2919
+          ],
+          [
+            "014.jpg",
+            2000,
+            2919
+          ],
+          [
+            "015.jpg",
+            2000,
+            2919
+          ],
+          [
+            "016.jpg",
+            4000,
+            2919
+          ]
+        ]
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "kitaboka.com": {
+      "report": ".state/verification/run-d849hgcz/evidence.json",
+      "source_url": "https://kitaboka.com/books/hky-zhr",
+      "checked": "2026-09-08T11:48:46.542829+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-d849hgcz",
+      "passed": true,
+      "adapter": "books",
+      "title": "تحميل رواية حكاية زهرة PDF",
+      "listed_chapters": 1,
+      "chapter_url": "https://kitaboka.com/books/hky-zhr#1",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-d849hgcz/downloads/تحميل رواية حكاية زهرة PDF/تحميل رواية حكاية زهرة PDF.pdf",
+        "passed": true,
+        "count": 246,
+        "unit": "pages",
+        "bytes": 4777827,
+        "sha256": "10b7eb4f7cf3f89bf0c75748ef6f1240305fef7f3db3b4ebc953e7ad39424c0b",
+        "rendered_pages": 246
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "mangaread.org": {
+      "report": ".state/verification/run-ip3ig8x7/evidence.json",
+      "source_url": "https://www.mangaread.org/manga/emperor-of-solo-play/",
+      "checked": "2026-09-08T15:45:20.193071+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-ip3ig8x7",
+      "passed": true,
+      "adapter": "madara",
+      "title": "Emperor of Solo Play",
+      "listed_chapters": 83,
+      "chapter_url": "https://www.mangaread.org/manga/emperor-of-solo-play/chapter-1/",
+      "job_status": "done",
+      "pages_expected": 22,
+      "pages_downloaded": 22,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-ip3ig8x7/downloads/Emperor of Solo Play/Emperor of Solo Play - c001.cbz",
+        "passed": true,
+        "count": 22,
+        "unit": "pages",
+        "bytes": 13572089,
+        "sha256": "13e431cd70384861f35bc55c5a24d71a5ce42114d47d1c15c0a5a41863577a37",
+        "dimensions": [
+          [
+            "001.jpg",
+            800,
+            10742
+          ],
+          [
+            "002.jpg",
+            800,
+            12591
+          ],
+          [
+            "003.jpg",
+            800,
+            13913
+          ],
+          [
+            "004.jpg",
+            800,
+            13913
+          ],
+          [
+            "005.jpg",
+            800,
+            13878
+          ],
+          [
+            "006.jpg",
+            800,
+            12550
+          ],
+          [
+            "007.jpg",
+            800,
+            13530
+          ],
+          [
+            "008.jpg",
+            800,
+            12179
+          ],
+          [
+            "009.jpg",
+            800,
+            12394
+          ],
+          [
+            "010.jpg",
+            800,
+            13472
+          ],
+          [
+            "011.jpg",
+            800,
+            12915
+          ],
+          [
+            "012.jpg",
+            800,
+            13913
+          ],
+          [
+            "013.jpg",
+            800,
+            13628
+          ],
+          [
+            "014.jpg",
+            800,
+            11628
+          ],
+          [
+            "015.jpg",
+            800,
+            13826
+          ],
+          [
+            "016.jpg",
+            800,
+            13913
+          ],
+          [
+            "017.jpg",
+            800,
+            13211
+          ],
+          [
+            "018.jpg",
+            800,
+            12863
+          ],
+          [
+            "019.jpg",
+            800,
+            11049
+          ],
+          [
+            "020.jpg",
+            800,
+            13460
+          ],
+          [
+            "021.jpg",
+            800,
+            12550
+          ],
+          [
+            "022.jpg",
+            800,
+            9703
+          ]
+        ]
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "manhuaplus.com": {
+      "report": ".state/verification/run-emfvsnge/evidence.json",
+      "source_url": "https://manhuaplus.com/manga/martial-god-chat-group/",
+      "checked": "2026-09-08T15:45:38.071416+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-emfvsnge",
+      "passed": true,
+      "adapter": "madara",
+      "title": "Martial God Chat Group",
+      "listed_chapters": 27,
+      "chapter_url": "https://manhuaplus.com/manga/martial-god-chat-group/chapter-1/",
+      "job_status": "done",
+      "pages_expected": 15,
+      "pages_downloaded": 15,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-emfvsnge/downloads/Martial God Chat Group/Martial God Chat Group - c001.cbz",
+        "passed": true,
+        "count": 15,
+        "unit": "pages",
+        "bytes": 10168699,
+        "sha256": "2e832c259d9ea36fb56cda11883138dd542d45633ad6a01c4d1c13e0371f4067",
+        "dimensions": [
+          [
+            "001.jpg",
+            1000,
+            4893
+          ],
+          [
+            "002.jpg",
+            1000,
+            4928
+          ],
+          [
+            "003.jpg",
+            1000,
+            6560
+          ],
+          [
+            "004.jpg",
+            1000,
+            6397
+          ],
+          [
+            "005.jpg",
+            1000,
+            6476
+          ],
+          [
+            "006.jpg",
+            1000,
+            8040
+          ],
+          [
+            "007.jpg",
+            1000,
+            9168
+          ],
+          [
+            "008.jpg",
+            1000,
+            4536
+          ],
+          [
+            "009.jpg",
+            1000,
+            5664
+          ],
+          [
+            "010.jpg",
+            1000,
+            8544
+          ],
+          [
+            "011.jpg",
+            1000,
+            7392
+          ],
+          [
+            "012.jpg",
+            1000,
+            7272
+          ],
+          [
+            "013.jpg",
+            1000,
+            7272
+          ],
+          [
+            "014.jpg",
+            1000,
+            4745
+          ],
+          [
+            "015.jpg",
+            1000,
+            1582
+          ]
+        ]
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "arabtoons.net": {
+      "report": ".state/verification/run-38k2wusk/evidence.json",
+      "source_url": "https://arabtoons.net/manga/%d8%aa%d8%b3%d9%88%d9%86%d8%a7%d8%af%d9%8a-%d9%88%d9%86%d8%a7%d8%b1%d9%88%d8%aa%d9%88-%d9%81%d9%8a-%d8%a7%d9%84%d9%8a%d9%86%d8%a7%d8%a8%d9%8a%d8%b9-%d8%a7%d9%84%d8%ad%d8%a7%d8%b1%d8%a9",
+      "checked": "2026-09-08T11:50:37.139054+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-38k2wusk",
+      "passed": true,
+      "adapter": "madara",
+      "title": "تسونادي وناروتو في الينابيع الحارة",
+      "listed_chapters": 1,
+      "chapter_url": "https://arabtoons.net/manga/%d8%aa%d8%b3%d9%88%d9%86%d8%a7%d8%af%d9%8a-%d9%88%d9%86%d8%a7%d8%b1%d9%88%d8%aa%d9%88-%d9%81%d9%8a-%d8%a7%d9%84%d9%8a%d9%86%d8%a7%d8%a8%d9%8a%d8%b9-%d8%a7%d9%84%d8%ad%d8%a7%d8%b1%d8%a9/%d9%88%d9%86-%d8%b4%d9%88%d8%aa/",
+      "job_status": "done",
+      "pages_expected": 14,
+      "pages_downloaded": 14,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-38k2wusk/downloads/تسونادي وناروتو في الينابيع الحارة/تسونادي وناروتو في الينابيع الحارة - c001.cbz",
+        "passed": true,
+        "count": 14,
+        "unit": "pages",
+        "bytes": 13682367,
+        "sha256": "346026cfffef0fea3dcd1ddff268863018440424f177445174b80be3c074e5ee",
+        "dimensions": [
+          [
+            "001.jpg",
+            1080,
+            1528
+          ],
+          [
+            "002.jpg",
+            1080,
+            1526
+          ],
+          [
+            "003.jpg",
+            1080,
+            1528
+          ],
+          [
+            "004.jpg",
+            1080,
+            1523
+          ],
+          [
+            "005.jpg",
+            1080,
+            1524
+          ],
+          [
+            "006.jpg",
+            1080,
+            1510
+          ],
+          [
+            "007.jpg",
+            1080,
+            1529
+          ],
+          [
+            "008.jpg",
+            1080,
+            1531
+          ],
+          [
+            "009.jpg",
+            1080,
+            1524
+          ],
+          [
+            "010.jpg",
+            1080,
+            1528
+          ],
+          [
+            "011.jpg",
+            1080,
+            1510
+          ],
+          [
+            "012.jpg",
+            1080,
+            1524
+          ],
+          [
+            "013.jpg",
+            1080,
+            1531
+          ],
+          [
+            "014.jpg",
+            1080,
+            1515
+          ]
+        ]
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "azoramoon.com": {
+      "report": ".state/verification/run-fx6799zy/evidence.json",
+      "source_url": "https://azoramoon.com/series/solo-leveling-ragnarok",
+      "checked": "2026-09-08T11:50:49.392243+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-fx6799zy",
+      "passed": true,
+      "adapter": "vcomics",
+      "title": "Solo Leveling: Ragnarok",
+      "listed_chapters": 68,
+      "chapter_url": "https://azoramoon.com/series/solo-leveling-ragnarok/chapter-1",
+      "job_status": "done",
+      "pages_expected": 46,
+      "pages_downloaded": 46,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-fx6799zy/downloads/Solo Leveling_ Ragnarok/Solo Leveling_ Ragnarok - c001.cbz",
+        "passed": true,
+        "count": 46,
+        "unit": "pages",
+        "bytes": 54702501,
+        "sha256": "dea27c994297d7c55749fbecabf15985aa18004ed037c29a6dfc9ce82c8859ec",
+        "dimensions": [
+          [
+            "001.jpg",
+            720,
+            4883
+          ],
+          [
+            "002.jpg",
+            720,
+            4883
+          ],
+          [
+            "003.jpg",
+            720,
+            4883
+          ],
+          [
+            "004.jpg",
+            720,
+            4883
+          ],
+          [
+            "005.jpg",
+            720,
+            4883
+          ],
+          [
+            "006.jpg",
+            720,
+            4884
+          ],
+          [
+            "007.jpg",
+            720,
+            4883
+          ],
+          [
+            "008.jpg",
+            720,
+            4883
+          ],
+          [
+            "009.jpg",
+            720,
+            4883
+          ],
+          [
+            "010.jpg",
+            720,
+            4883
+          ],
+          [
+            "011.jpg",
+            720,
+            4884
+          ],
+          [
+            "012.jpg",
+            720,
+            4945
+          ],
+          [
+            "013.jpg",
+            720,
+            4945
+          ],
+          [
+            "014.jpg",
+            720,
+            4946
+          ],
+          [
+            "015.jpg",
+            720,
+            4945
+          ],
+          [
+            "016.jpg",
+            720,
+            4946
+          ],
+          [
+            "017.jpg",
+            720,
+            4945
+          ],
+          [
+            "018.jpg",
+            720,
+            4946
+          ],
+          [
+            "019.jpg",
+            720,
+            4945
+          ],
+          [
+            "020.jpg",
+            720,
+            4946
+          ],
+          [
+            "021.jpg",
+            720,
+            4945
+          ],
+          [
+            "022.jpg",
+            720,
+            4946
+          ],
+          [
+            "023.jpg",
+            720,
+            5000
+          ],
+          [
+            "024.jpg",
+            720,
+            5000
+          ],
+          [
+            "025.jpg",
+            720,
+            5000
+          ],
+          [
+            "026.jpg",
+            720,
+            5000
+          ],
+          [
+            "027.jpg",
+            720,
+            5000
+          ],
+          [
+            "028.jpg",
+            720,
+            5000
+          ],
+          [
+            "029.jpg",
+            720,
+            5000
+          ],
+          [
+            "030.jpg",
+            720,
+            5000
+          ],
+          [
+            "031.jpg",
+            720,
+            5000
+          ],
+          [
+            "032.jpg",
+            720,
+            5000
+          ],
+          [
+            "033.jpg",
+            720,
+            5000
+          ],
+          [
+            "034.jpg",
+            720,
+            5000
+          ],
+          [
+            "035.jpg",
+            720,
+            5000
+          ],
+          [
+            "036.jpg",
+            720,
+            5000
+          ],
+          [
+            "037.jpg",
+            720,
+            5000
+          ],
+          [
+            "038.jpg",
+            720,
+            5000
+          ],
+          [
+            "039.jpg",
+            720,
+            5000
+          ],
+          [
+            "040.jpg",
+            720,
+            5000
+          ],
+          [
+            "041.jpg",
+            720,
+            5000
+          ],
+          [
+            "042.jpg",
+            720,
+            5000
+          ],
+          [
+            "043.jpg",
+            720,
+            5000
+          ],
+          [
+            "044.jpg",
+            720,
+            5000
+          ],
+          [
+            "045.jpg",
+            720,
+            2913
+          ],
+          [
+            "046.jpg",
+            720,
+            2913
+          ]
+        ]
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "planetebook.com": {
+      "report": ".state/verification/run-dncb7_x6/evidence.json",
+      "source_url": "https://www.planetebook.com/frankenstein/",
+      "checked": "2026-09-08T11:51:22.233691+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-dncb7_x6",
+      "passed": true,
+      "adapter": "books",
+      "title": "Frankenstein",
+      "listed_chapters": 3,
+      "chapter_url": "https://www.planetebook.com/frankenstein/#1",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-dncb7_x6/downloads/Frankenstein/Frankenstein.epub",
+        "passed": true,
+        "count": 2,
+        "unit": "spine items",
+        "bytes": 489464,
+        "sha256": "5d3f8e8b2423b7f5d5e18e6943700a46aac98e2006a69d579355fa55d34e8369",
+        "spine": [
+          "OEBPS/cover.xhtml",
+          "OEBPS/Frankenstein.xhtml"
+        ],
+        "rendered_pages": 110
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "8ghrb.com": {
+      "report": ".state/verification/run-3wxz4f6h/evidence.json",
+      "source_url": "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%84%d8%ae%d8%aa%d9%85-%d8%a7%d9%84%d9%83%d8%b1%d8%b2%d9%8a-%d9%86%d9%8a%d9%81%d9%8a%d9%86-%d8%a7%d9%84%d9%85%d9%88%d8%b5%d9%84%d9%8a/",
+      "checked": "2026-09-08T11:51:26.821753+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-3wxz4f6h",
+      "passed": true,
+      "adapter": "books",
+      "title": "رواية الختم الكرزي",
+      "listed_chapters": 1,
+      "chapter_url": "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%84%d8%ae%d8%aa%d9%85-%d8%a7%d9%84%d9%83%d8%b1%d8%b2%d9%8a-%d9%86%d9%8a%d9%81%d9%8a%d9%86-%d8%a7%d9%84%d9%85%d9%88%d8%b5%d9%84%d9%8a/#1",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-3wxz4f6h/downloads/رواية الختم الكرزي/رواية الختم الكرزي.pdf",
+        "passed": true,
+        "count": 188,
+        "unit": "pages",
+        "bytes": 2281142,
+        "sha256": "0faa035c305e0fb6f0fb61baf1250d16346e2c45bcd9d1d18a2ba37030f44099",
+        "rendered_pages": 188
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "royalroad.com": {
+      "report": ".state/verification/run-0x2ciieu/evidence.json",
+      "source_url": "https://www.royalroad.com/fiction/21220/mother-of-learning",
+      "checked": "2026-09-08T11:51:31.261809+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-0x2ciieu",
+      "passed": true,
+      "adapter": "royalroad",
+      "title": "Mother of Learning",
+      "listed_chapters": 109,
+      "chapter_url": "https://www.royalroad.com/fiction/21220/mother-of-learning/chapter/301778/1-good-morning-brother",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-0x2ciieu/downloads/Mother of Learning/Mother of Learning - c001.epub",
+        "passed": true,
+        "count": 1,
+        "unit": "spine items",
+        "bytes": 19054,
+        "sha256": "97342e8da857adb90d819ec9cc0f4e101fede9e2644e9510ed8771c4c9b2f4ec",
+        "spine": [
+          "OEBPS/chapter.xhtml"
+        ],
+        "rendered_pages": 29
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "archiveofourown.org": {
+      "report": ".state/verification/run-xckujkhn/evidence.json",
+      "source_url": "https://archiveofourown.org/works/22368973",
+      "checked": "2026-09-08T11:51:33.334549+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-xckujkhn",
+      "passed": true,
+      "adapter": "ao3",
+      "title": "Good Omens",
+      "listed_chapters": 4,
+      "chapter_url": "https://archiveofourown.org/works/22368973#epub",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-xckujkhn/downloads/Good Omens/Good Omens.epub",
+        "passed": true,
+        "count": 4,
+        "unit": "spine items",
+        "bytes": 8450,
+        "sha256": "7fa34785b640b93e7dd77c0fcb579de6cdb9d3343a673bfb57dd60adcfb3737a",
+        "spine": [
+          "Good_Omens_split_000.xhtml",
+          "Good_Omens_split_001.xhtml",
+          "Good_Omens_split_002.xhtml",
+          "Good_Omens_split_003.xhtml"
+        ],
+        "rendered_pages": 7
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "webtoons.com": {
+      "report": ".state/verification/run-cg67xlgt/evidence.json",
+      "source_url": "https://www.webtoons.com/en/romance/lore-olympus/list?title_no=1320",
+      "checked": "2026-09-08T11:51:36.916998+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-cg67xlgt",
+      "passed": true,
+      "adapter": "webtoons",
+      "title": "Lore Olympus",
+      "listed_chapters": 9,
+      "chapter_url": "https://www.webtoons.com/en/romance/lore-olympus/episode-1/viewer?title_no=1320&episode_no=1",
+      "job_status": "done",
+      "pages_expected": 84,
+      "pages_downloaded": 84,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-cg67xlgt/downloads/Lore Olympus/Lore Olympus - c001.cbz",
+        "passed": true,
+        "count": 84,
+        "unit": "pages",
+        "bytes": 16623099,
+        "sha256": "d4d5deb88dbdbab5fc3e4de3c3d6acffb248a7dd01274bce7847ed320b3f5131",
+        "dimensions": [
+          [
+            "001.png",
+            800,
+            980
+          ],
+          [
+            "002.png",
+            800,
+            980
+          ],
+          [
+            "003.png",
+            800,
+            980
+          ],
+          [
+            "004.png",
+            800,
+            980
+          ],
+          [
+            "005.png",
+            800,
+            980
+          ],
+          [
+            "006.png",
+            800,
+            980
+          ],
+          [
+            "007.png",
+            800,
+            980
+          ],
+          [
+            "008.png",
+            800,
+            980
+          ],
+          [
+            "009.png",
+            800,
+            170
+          ],
+          [
+            "010.png",
+            800,
+            980
+          ],
+          [
+            "011.jpg",
+            800,
+            980
+          ],
+          [
+            "012.jpg",
+            800,
+            980
+          ],
+          [
+            "013.png",
+            800,
+            980
+          ],
+          [
+            "014.png",
+            800,
+            980
+          ],
+          [
+            "015.png",
+            800,
+            980
+          ],
+          [
+            "016.png",
+            800,
+            980
+          ],
+          [
+            "017.png",
+            800,
+            550
+          ],
+          [
+            "018.png",
+            800,
+            980
+          ],
+          [
+            "019.png",
+            800,
+            980
+          ],
+          [
+            "020.png",
+            800,
+            980
+          ],
+          [
+            "021.png",
+            800,
+            980
+          ],
+          [
+            "022.png",
+            800,
+            980
+          ],
+          [
+            "023.png",
+            800,
+            980
+          ],
+          [
+            "024.png",
+            800,
+            980
+          ],
+          [
+            "025.png",
+            800,
+            980
+          ],
+          [
+            "026.png",
+            800,
+            127
+          ],
+          [
+            "027.png",
+            800,
+            980
+          ],
+          [
+            "028.png",
+            800,
+            980
+          ],
+          [
+            "029.png",
+            800,
+            980
+          ],
+          [
+            "030.png",
+            800,
+            980
+          ],
+          [
+            "031.png",
+            800,
+            980
+          ],
+          [
+            "032.png",
+            800,
+            980
+          ],
+          [
+            "033.png",
+            800,
+            399
+          ],
+          [
+            "034.png",
+            800,
+            980
+          ],
+          [
+            "035.png",
+            800,
+            980
+          ],
+          [
+            "036.png",
+            800,
+            980
+          ],
+          [
+            "037.png",
+            800,
+            980
+          ],
+          [
+            "038.png",
+            800,
+            980
+          ],
+          [
+            "039.png",
+            800,
+            980
+          ],
+          [
+            "040.png",
+            800,
+            980
+          ],
+          [
+            "041.png",
+            800,
+            980
+          ],
+          [
+            "042.png",
+            800,
+            222
+          ],
+          [
+            "043.png",
+            800,
+            980
+          ],
+          [
+            "044.png",
+            800,
+            980
+          ],
+          [
+            "045.png",
+            800,
+            980
+          ],
+          [
+            "046.png",
+            800,
+            980
+          ],
+          [
+            "047.png",
+            800,
+            980
+          ],
+          [
+            "048.png",
+            800,
+            980
+          ],
+          [
+            "049.png",
+            800,
+            980
+          ],
+          [
+            "050.png",
+            800,
+            980
+          ],
+          [
+            "051.png",
+            800,
+            134
+          ],
+          [
+            "052.png",
+            800,
+            980
+          ],
+          [
+            "053.png",
+            800,
+            980
+          ],
+          [
+            "054.png",
+            800,
+            980
+          ],
+          [
+            "055.png",
+            800,
+            980
+          ],
+          [
+            "056.png",
+            800,
+            980
+          ],
+          [
+            "057.png",
+            800,
+            980
+          ],
+          [
+            "058.png",
+            800,
+            980
+          ],
+          [
+            "059.png",
+            800,
+            980
+          ],
+          [
+            "060.png",
+            800,
+            56
+          ],
+          [
+            "061.png",
+            800,
+            980
+          ],
+          [
+            "062.png",
+            800,
+            980
+          ],
+          [
+            "063.png",
+            800,
+            980
+          ],
+          [
+            "064.png",
+            800,
+            980
+          ],
+          [
+            "065.png",
+            800,
+            980
+          ],
+          [
+            "066.png",
+            800,
+            980
+          ],
+          [
+            "067.png",
+            800,
+            980
+          ],
+          [
+            "068.png",
+            800,
+            738
+          ],
+          [
+            "069.png",
+            800,
+            980
+          ],
+          [
+            "070.png",
+            800,
+            980
+          ],
+          [
+            "071.png",
+            800,
+            980
+          ],
+          [
+            "072.png",
+            800,
+            980
+          ],
+          [
+            "073.png",
+            800,
+            980
+          ],
+          [
+            "074.png",
+            800,
+            980
+          ],
+          [
+            "075.png",
+            800,
+            980
+          ],
+          [
+            "076.png",
+            800,
+            980
+          ],
+          [
+            "077.png",
+            800,
+            291
+          ],
+          [
+            "078.png",
+            800,
+            980
+          ],
+          [
+            "079.png",
+            800,
+            980
+          ],
+          [
+            "080.png",
+            800,
+            980
+          ],
+          [
+            "081.png",
+            800,
+            980
+          ],
+          [
+            "082.png",
+            800,
+            980
+          ],
+          [
+            "083.png",
+            800,
+            980
+          ],
+          [
+            "084.png",
+            800,
+            562
+          ]
+        ]
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "mangadex.org": {
+      "report": ".state/verification/run-xi5xiu6s/evidence.json",
+      "source_url": "https://mangadex.org/title/dc332d04-d3b0-413c-a767-70f5e451b031",
+      "checked": "2026-09-08T12:04:50.558062+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-xi5xiu6s",
+      "passed": true,
+      "adapter": "mangadex",
+      "title": "Kuro no Shoukanshi",
+      "listed_chapters": 198,
+      "chapter_url": "https://mangadex.org/chapter/c7649b69-6d7a-466c-a428-ab9b086ebe35",
+      "job_status": "done",
+      "pages_expected": 37,
+      "pages_downloaded": 37,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-xi5xiu6s/downloads/Kuro no Shoukanshi/Kuro no Shoukanshi - c001.cbz",
+        "passed": true,
+        "count": 37,
+        "unit": "pages",
+        "bytes": 28793525,
+        "sha256": "5d3813da2e6c0b0988ac8c3b8a71d65efee50fa5e267b7c331454e290a000130",
+        "dimensions": [
+          [
+            "001.jpg",
+            1000,
+            1400
+          ],
+          [
+            "002.jpg",
+            800,
+            800
+          ],
+          [
+            "003.jpg",
+            950,
+            1350
+          ],
+          [
+            "004.jpg",
+            1894,
+            1350
+          ],
+          [
+            "005.jpg",
+            950,
+            1350
+          ],
+          [
+            "006.jpg",
+            950,
+            1350
+          ],
+          [
+            "007.jpg",
+            950,
+            1350
+          ],
+          [
+            "008.jpg",
+            950,
+            1350
+          ],
+          [
+            "009.jpg",
+            950,
+            1350
+          ],
+          [
+            "010.jpg",
+            950,
+            1350
+          ],
+          [
+            "011.jpg",
+            950,
+            1350
+          ],
+          [
+            "012.jpg",
+            950,
+            1350
+          ],
+          [
+            "013.jpg",
+            950,
+            1350
+          ],
+          [
+            "014.jpg",
+            950,
+            1350
+          ],
+          [
+            "015.jpg",
+            950,
+            1350
+          ],
+          [
+            "016.jpg",
+            950,
+            1350
+          ],
+          [
+            "017.jpg",
+            950,
+            1350
+          ],
+          [
+            "018.jpg",
+            950,
+            1350
+          ],
+          [
+            "019.jpg",
+            950,
+            1350
+          ],
+          [
+            "020.jpg",
+            950,
+            1350
+          ],
+          [
+            "021.jpg",
+            950,
+            1350
+          ],
+          [
+            "022.jpg",
+            950,
+            1350
+          ],
+          [
+            "023.jpg",
+            950,
+            1350
+          ],
+          [
+            "024.jpg",
+            950,
+            1350
+          ],
+          [
+            "025.jpg",
+            950,
+            1350
+          ],
+          [
+            "026.jpg",
+            950,
+            1350
+          ],
+          [
+            "027.jpg",
+            950,
+            1350
+          ],
+          [
+            "028.jpg",
+            950,
+            1350
+          ],
+          [
+            "029.jpg",
+            1900,
+            1350
+          ],
+          [
+            "030.jpg",
+            1900,
+            1350
+          ],
+          [
+            "031.jpg",
+            950,
+            1350
+          ],
+          [
+            "032.jpg",
+            950,
+            1350
+          ],
+          [
+            "033.jpg",
+            1900,
+            1350
+          ],
+          [
+            "034.jpg",
+            950,
+            1350
+          ],
+          [
+            "035.jpg",
+            950,
+            1350
+          ],
+          [
+            "036.jpg",
+            950,
+            1350
+          ],
+          [
+            "037.jpg",
+            600,
+            600
+          ]
+        ]
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "bettergutenberg.org": {
+      "report": ".state/verification/run-v1nkdnk9/evidence.json",
+      "source_url": "https://bettergutenberg.org/history-early-modern/brief-lives-vol-1/",
+      "checked": "2026-09-08T12:05:15.614567+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-v1nkdnk9",
+      "passed": true,
+      "adapter": "books",
+      "title": "Brief Lives, Vol. 1",
+      "listed_chapters": 1,
+      "chapter_url": "https://bettergutenberg.org/history-early-modern/brief-lives-vol-1/#1",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-v1nkdnk9/downloads/Brief Lives, Vol. 1/Brief Lives, Vol. 1.epub",
+        "passed": true,
+        "count": 231,
+        "unit": "spine items",
+        "bytes": 532260,
+        "sha256": "c6527a8414ed831024b130db18b97fa3a66aeed7bcc8b0b3711d220441cbde00",
+        "spine": [
+          "OEBPS/cover.xhtml",
+          "OEBPS/ch001.xhtml",
+          "OEBPS/ch002.xhtml",
+          "OEBPS/ch003.xhtml",
+          "OEBPS/ch004.xhtml",
+          "OEBPS/ch005.xhtml",
+          "OEBPS/ch006.xhtml",
+          "OEBPS/ch007.xhtml",
+          "OEBPS/ch008.xhtml",
+          "OEBPS/ch009.xhtml",
+          "OEBPS/ch010.xhtml",
+          "OEBPS/ch011.xhtml",
+          "OEBPS/ch012.xhtml",
+          "OEBPS/ch013.xhtml",
+          "OEBPS/ch014.xhtml",
+          "OEBPS/ch015.xhtml",
+          "OEBPS/ch016.xhtml",
+          "OEBPS/ch017.xhtml",
+          "OEBPS/ch018.xhtml",
+          "OEBPS/ch019.xhtml",
+          "OEBPS/ch020.xhtml",
+          "OEBPS/ch021.xhtml",
+          "OEBPS/ch022.xhtml",
+          "OEBPS/ch023.xhtml",
+          "OEBPS/ch024.xhtml",
+          "OEBPS/ch025.xhtml",
+          "OEBPS/ch026.xhtml",
+          "OEBPS/ch027.xhtml",
+          "OEBPS/ch028.xhtml",
+          "OEBPS/ch029.xhtml",
+          "OEBPS/ch030.xhtml",
+          "OEBPS/ch031.xhtml",
+          "OEBPS/ch032.xhtml",
+          "OEBPS/ch033.xhtml",
+          "OEBPS/ch034.xhtml",
+          "OEBPS/ch035.xhtml",
+          "OEBPS/ch036.xhtml",
+          "OEBPS/ch037.xhtml",
+          "OEBPS/ch038.xhtml",
+          "OEBPS/ch039.xhtml",
+          "OEBPS/ch040.xhtml",
+          "OEBPS/ch041.xhtml",
+          "OEBPS/ch042.xhtml",
+          "OEBPS/ch043.xhtml",
+          "OEBPS/ch044.xhtml",
+          "OEBPS/ch045.xhtml",
+          "OEBPS/ch046.xhtml",
+          "OEBPS/ch047.xhtml",
+          "OEBPS/ch048.xhtml",
+          "OEBPS/ch049.xhtml",
+          "OEBPS/ch050.xhtml",
+          "OEBPS/ch051.xhtml",
+          "OEBPS/ch052.xhtml",
+          "OEBPS/ch053.xhtml",
+          "OEBPS/ch054.xhtml",
+          "OEBPS/ch055.xhtml",
+          "OEBPS/ch056.xhtml",
+          "OEBPS/ch057.xhtml",
+          "OEBPS/ch058.xhtml",
+          "OEBPS/ch059.xhtml",
+          "OEBPS/ch060.xhtml",
+          "OEBPS/ch061.xhtml",
+          "OEBPS/ch062.xhtml",
+          "OEBPS/ch063.xhtml",
+          "OEBPS/ch064.xhtml",
+          "OEBPS/ch065.xhtml",
+          "OEBPS/ch066.xhtml",
+          "OEBPS/ch067.xhtml",
+          "OEBPS/ch068.xhtml",
+          "OEBPS/ch069.xhtml",
+          "OEBPS/ch070.xhtml",
+          "OEBPS/ch071.xhtml",
+          "OEBPS/ch072.xhtml",
+          "OEBPS/ch073.xhtml",
+          "OEBPS/ch074.xhtml",
+          "OEBPS/ch075.xhtml",
+          "OEBPS/ch076.xhtml",
+          "OEBPS/ch077.xhtml",
+          "OEBPS/ch078.xhtml",
+          "OEBPS/ch079.xhtml",
+          "OEBPS/ch080.xhtml",
+          "OEBPS/ch081.xhtml",
+          "OEBPS/ch082.xhtml",
+          "OEBPS/ch083.xhtml",
+          "OEBPS/ch084.xhtml",
+          "OEBPS/ch085.xhtml",
+          "OEBPS/ch086.xhtml",
+          "OEBPS/ch087.xhtml",
+          "OEBPS/ch088.xhtml",
+          "OEBPS/ch089.xhtml",
+          "OEBPS/ch090.xhtml",
+          "OEBPS/ch091.xhtml",
+          "OEBPS/ch092.xhtml",
+          "OEBPS/ch093.xhtml",
+          "OEBPS/ch094.xhtml",
+          "OEBPS/ch095.xhtml",
+          "OEBPS/ch096.xhtml",
+          "OEBPS/ch097.xhtml",
+          "OEBPS/ch098.xhtml",
+          "OEBPS/ch099.xhtml",
+          "OEBPS/ch100.xhtml",
+          "OEBPS/ch101.xhtml",
+          "OEBPS/ch102.xhtml",
+          "OEBPS/ch103.xhtml",
+          "OEBPS/ch104.xhtml",
+          "OEBPS/ch105.xhtml",
+          "OEBPS/ch106.xhtml",
+          "OEBPS/ch107.xhtml",
+          "OEBPS/ch108.xhtml",
+          "OEBPS/ch109.xhtml",
+          "OEBPS/ch110.xhtml",
+          "OEBPS/ch111.xhtml",
+          "OEBPS/ch112.xhtml",
+          "OEBPS/ch113.xhtml",
+          "OEBPS/ch114.xhtml",
+          "OEBPS/ch115.xhtml",
+          "OEBPS/ch116.xhtml",
+          "OEBPS/ch117.xhtml",
+          "OEBPS/ch118.xhtml",
+          "OEBPS/ch119.xhtml",
+          "OEBPS/ch120.xhtml",
+          "OEBPS/ch121.xhtml",
+          "OEBPS/ch122.xhtml",
+          "OEBPS/ch123.xhtml",
+          "OEBPS/ch124.xhtml",
+          "OEBPS/ch125.xhtml",
+          "OEBPS/ch126.xhtml",
+          "OEBPS/ch127.xhtml",
+          "OEBPS/ch128.xhtml",
+          "OEBPS/ch129.xhtml",
+          "OEBPS/ch130.xhtml",
+          "OEBPS/ch131.xhtml",
+          "OEBPS/ch132.xhtml",
+          "OEBPS/ch133.xhtml",
+          "OEBPS/ch134.xhtml",
+          "OEBPS/ch135.xhtml",
+          "OEBPS/ch136.xhtml",
+          "OEBPS/ch137.xhtml",
+          "OEBPS/ch138.xhtml",
+          "OEBPS/ch139.xhtml",
+          "OEBPS/ch140.xhtml",
+          "OEBPS/ch141.xhtml",
+          "OEBPS/ch142.xhtml",
+          "OEBPS/ch143.xhtml",
+          "OEBPS/ch144.xhtml",
+          "OEBPS/ch145.xhtml",
+          "OEBPS/ch146.xhtml",
+          "OEBPS/ch147.xhtml",
+          "OEBPS/ch148.xhtml",
+          "OEBPS/ch149.xhtml",
+          "OEBPS/ch150.xhtml",
+          "OEBPS/ch151.xhtml",
+          "OEBPS/ch152.xhtml",
+          "OEBPS/ch153.xhtml",
+          "OEBPS/ch154.xhtml",
+          "OEBPS/ch155.xhtml",
+          "OEBPS/ch156.xhtml",
+          "OEBPS/ch157.xhtml",
+          "OEBPS/ch158.xhtml",
+          "OEBPS/ch159.xhtml",
+          "OEBPS/ch160.xhtml",
+          "OEBPS/ch161.xhtml",
+          "OEBPS/ch162.xhtml",
+          "OEBPS/ch163.xhtml",
+          "OEBPS/ch164.xhtml",
+          "OEBPS/ch165.xhtml",
+          "OEBPS/ch166.xhtml",
+          "OEBPS/ch167.xhtml",
+          "OEBPS/ch168.xhtml",
+          "OEBPS/ch169.xhtml",
+          "OEBPS/ch170.xhtml",
+          "OEBPS/ch171.xhtml",
+          "OEBPS/ch172.xhtml",
+          "OEBPS/ch173.xhtml",
+          "OEBPS/ch174.xhtml",
+          "OEBPS/ch175.xhtml",
+          "OEBPS/ch176.xhtml",
+          "OEBPS/ch177.xhtml",
+          "OEBPS/ch178.xhtml",
+          "OEBPS/ch179.xhtml",
+          "OEBPS/ch180.xhtml",
+          "OEBPS/ch181.xhtml",
+          "OEBPS/ch182.xhtml",
+          "OEBPS/ch183.xhtml",
+          "OEBPS/ch184.xhtml",
+          "OEBPS/ch185.xhtml",
+          "OEBPS/ch186.xhtml",
+          "OEBPS/ch187.xhtml",
+          "OEBPS/ch188.xhtml",
+          "OEBPS/ch189.xhtml",
+          "OEBPS/ch190.xhtml",
+          "OEBPS/ch191.xhtml",
+          "OEBPS/ch192.xhtml",
+          "OEBPS/ch193.xhtml",
+          "OEBPS/ch194.xhtml",
+          "OEBPS/ch195.xhtml",
+          "OEBPS/ch196.xhtml",
+          "OEBPS/ch197.xhtml",
+          "OEBPS/ch198.xhtml",
+          "OEBPS/ch199.xhtml",
+          "OEBPS/ch200.xhtml",
+          "OEBPS/ch201.xhtml",
+          "OEBPS/ch202.xhtml",
+          "OEBPS/ch203.xhtml",
+          "OEBPS/ch204.xhtml",
+          "OEBPS/ch205.xhtml",
+          "OEBPS/ch206.xhtml",
+          "OEBPS/ch207.xhtml",
+          "OEBPS/ch208.xhtml",
+          "OEBPS/ch209.xhtml",
+          "OEBPS/ch210.xhtml",
+          "OEBPS/ch211.xhtml",
+          "OEBPS/ch212.xhtml",
+          "OEBPS/ch213.xhtml",
+          "OEBPS/ch214.xhtml",
+          "OEBPS/ch215.xhtml",
+          "OEBPS/ch216.xhtml",
+          "OEBPS/ch217.xhtml",
+          "OEBPS/ch218.xhtml",
+          "OEBPS/ch219.xhtml",
+          "OEBPS/ch220.xhtml",
+          "OEBPS/ch221.xhtml",
+          "OEBPS/ch222.xhtml",
+          "OEBPS/ch223.xhtml",
+          "OEBPS/ch224.xhtml",
+          "OEBPS/ch225.xhtml",
+          "OEBPS/ch226.xhtml",
+          "OEBPS/ch227.xhtml",
+          "OEBPS/ch228.xhtml",
+          "OEBPS/ch229.xhtml",
+          "OEBPS/ch230.xhtml"
+        ],
+        "rendered_pages": 885
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "comix.to": {
+      "report": ".state/verification/run-2v10_n7p/evidence.json",
+      "source_url": "https://comix.to/title/13dn-attack-on-titan",
+      "checked": "2026-09-08T12:25:49.751753+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-2v10_n7p",
+      "passed": true,
+      "adapter": "comix",
+      "title": "Attack on Titan",
+      "listed_chapters": 722,
+      "chapter_url": "https://comix.to/title/13dn-attack-on-titan/9792547-chapter-1",
+      "job_status": "done",
+      "pages_expected": 12,
+      "pages_downloaded": 12,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-2v10_n7p/downloads/Attack on Titan/Attack on Titan - c001.cbz",
+        "passed": true,
+        "count": 12,
+        "unit": "pages",
+        "bytes": 4766673,
+        "sha256": "aaf73fd0b2180f8177eb594c0912069d1bb4a2ff99a684b83fdfb3e654a9dc85",
+        "dimensions": [
+          [
+            "001.webp",
+            850,
+            1275
+          ],
+          [
+            "002.webp",
+            850,
+            1275
+          ],
+          [
+            "003.webp",
+            850,
+            1275
+          ],
+          [
+            "004.webp",
+            850,
+            1275
+          ],
+          [
+            "005.webp",
+            850,
+            1275
+          ],
+          [
+            "006.webp",
+            850,
+            1275
+          ],
+          [
+            "007.webp",
+            850,
+            1275
+          ],
+          [
+            "008.webp",
+            850,
+            1275
+          ],
+          [
+            "009.webp",
+            850,
+            1275
+          ],
+          [
+            "010.webp",
+            850,
+            1275
+          ],
+          [
+            "011.webp",
+            850,
+            1275
+          ],
+          [
+            "012.webp",
+            850,
+            1275
+          ]
+        ]
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "sunovels.com": {
+      "report": ".state/verification/run-8gcomwml/evidence.json",
+      "source_url": "https://sunovels.com/novel/cultivation-online",
+      "checked": "2026-09-08T12:05:52.453633+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-8gcomwml",
+      "passed": true,
+      "adapter": "sunovels",
+      "title": "Cultivation Online",
+      "listed_chapters": 2399,
+      "chapter_url": "https://sunovels.com/novel/cultivation-online/1",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-8gcomwml/downloads/Cultivation Online/Cultivation Online - c001.epub",
+        "passed": true,
+        "count": 1,
+        "unit": "spine items",
+        "bytes": 13980,
+        "sha256": "6ca7788c321c9cd9f34741bd0261f243a100c89f71ccc0f4dca6f80bc605f282",
+        "spine": [
+          "OEBPS/chapter.xhtml"
+        ],
+        "rendered_pages": 21
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "arcomixverse.blogspot.com": {
+      "report": ".state/verification/run-jbslmgv5/evidence.json",
+      "source_url": "https://arcomixverse.blogspot.com/2024/10/absolute-batman.html",
+      "checked": "2026-09-08T12:14:04.019266+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-jbslmgv5",
+      "passed": true,
+      "adapter": "blogger",
+      "title": "ABSOLUTE BATMAN - Comicverse",
+      "listed_chapters": 24,
+      "chapter_url": "https://arcomixverse.blogspot.com/2024/10/1_94.html",
+      "job_status": "done",
+      "pages_expected": 52,
+      "pages_downloaded": 52,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-jbslmgv5/downloads/ABSOLUTE BATMAN - Comicverse/ABSOLUTE BATMAN - Comicverse - c001.cbz",
+        "passed": true,
+        "count": 52,
+        "unit": "pages",
+        "bytes": 21073521,
+        "sha256": "b042638af8e38af611f7aaff9cb41b2b6f5b933ff790a4a77075e18a2ea891b3",
+        "dimensions": [
+          [
+            "001.png",
+            8448,
+            4608
+          ],
+          [
+            "002.jpg",
+            980,
+            1507
+          ],
+          [
+            "003.jpg",
+            980,
+            1507
+          ],
+          [
+            "004.jpg",
+            1507,
+            1159
+          ],
+          [
+            "005.jpg",
+            980,
+            1507
+          ],
+          [
+            "006.jpg",
+            980,
+            1507
+          ],
+          [
+            "007.jpg",
+            980,
+            1507
+          ],
+          [
+            "008.jpg",
+            980,
+            1507
+          ],
+          [
+            "009.jpg",
+            980,
+            1507
+          ],
+          [
+            "010.jpg",
+            980,
+            1507
+          ],
+          [
+            "011.jpg",
+            980,
+            1507
+          ],
+          [
+            "012.jpg",
+            980,
+            1507
+          ],
+          [
+            "013.jpg",
+            980,
+            1507
+          ],
+          [
+            "014.jpg",
+            980,
+            1507
+          ],
+          [
+            "015.jpg",
+            980,
+            1507
+          ],
+          [
+            "016.jpg",
+            980,
+            1507
+          ],
+          [
+            "017.jpg",
+            980,
+            1507
+          ],
+          [
+            "018.jpg",
+            980,
+            1507
+          ],
+          [
+            "019.jpg",
+            980,
+            1507
+          ],
+          [
+            "020.jpg",
+            980,
+            1507
+          ],
+          [
+            "021.jpg",
+            980,
+            1507
+          ],
+          [
+            "022.jpg",
+            980,
+            1507
+          ],
+          [
+            "023.jpg",
+            980,
+            1507
+          ],
+          [
+            "024.jpg",
+            980,
+            1507
+          ],
+          [
+            "025.jpg",
+            980,
+            1507
+          ],
+          [
+            "026.jpg",
+            980,
+            1507
+          ],
+          [
+            "027.jpg",
+            980,
+            1507
+          ],
+          [
+            "028.jpg",
+            980,
+            1507
+          ],
+          [
+            "029.jpg",
+            980,
+            1507
+          ],
+          [
+            "030.jpg",
+            980,
+            1507
+          ],
+          [
+            "031.jpg",
+            980,
+            1507
+          ],
+          [
+            "032.jpg",
+            980,
+            1507
+          ],
+          [
+            "033.jpg",
+            980,
+            1507
+          ],
+          [
+            "034.jpg",
+            980,
+            1507
+          ],
+          [
+            "035.jpg",
+            980,
+            1507
+          ],
+          [
+            "036.jpg",
+            980,
+            1507
+          ],
+          [
+            "037.jpg",
+            980,
+            1507
+          ],
+          [
+            "038.jpg",
+            980,
+            1507
+          ],
+          [
+            "039.jpg",
+            980,
+            1507
+          ],
+          [
+            "040.jpg",
+            980,
+            1507
+          ],
+          [
+            "041.jpg",
+            1507,
+            1159
+          ],
+          [
+            "042.jpg",
+            980,
+            1507
+          ],
+          [
+            "043.jpg",
+            980,
+            1507
+          ],
+          [
+            "044.jpg",
+            980,
+            1507
+          ],
+          [
+            "045.jpg",
+            980,
+            1507
+          ],
+          [
+            "046.jpg",
+            980,
+            1507
+          ],
+          [
+            "047.jpg",
+            1961,
+            3014
+          ],
+          [
+            "048.jpg",
+            980,
+            1507
+          ],
+          [
+            "049.jpg",
+            980,
+            1507
+          ],
+          [
+            "050.jpg",
+            980,
+            1507
+          ],
+          [
+            "051.jpg",
+            980,
+            1507
+          ],
+          [
+            "052.jpg",
+            1988,
+            3056
+          ]
+        ]
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "kolnovel.com": {
+      "report": ".state/verification/run-f67kq7ls/evidence.json",
+      "source_url": "https://kolnovel.com/series/emperors-domination/",
+      "checked": "2026-09-08T15:41:45.748611+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-f67kq7ls",
+      "passed": true,
+      "adapter": "mangathemesia",
+      "title": "هيمنة الإمبراطور",
+      "listed_chapters": 6703,
+      "chapter_url": "https://kolnovel.com/shaag24emperors-dominationz435ggye-27961/",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-f67kq7ls/downloads/هيمنة الإمبراطور/هيمنة الإمبراطور - c001.epub",
+        "passed": true,
+        "count": 1,
+        "unit": "spine items",
+        "bytes": 8869,
+        "sha256": "044b5a666c0af2c769cc5e65ec061a2beb981f833da3c93048aefd62a80744c7",
+        "spine": [
+          "OEBPS/chapter.xhtml"
+        ],
+        "rendered_pages": 17
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "cenele.com": {
+      "report": ".state/verification/run-mtvyw8rk/evidence.json",
+      "source_url": "https://cenele.com/cont/cultivation-online/",
+      "checked": "2026-09-08T15:44:36.152924+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-mtvyw8rk",
+      "passed": true,
+      "adapter": "madara",
+      "title": "Cultivation Online",
+      "listed_chapters": 1120,
+      "chapter_url": "https://cenele.com/cont/cultivation-online/%d8%a7%d9%84%d9%81%d8%b5%d9%84-1-%d8%a7%d9%84%d8%b2%d8%b1%d8%a7%d8%b9%d8%a9-%d8%a7%d9%88%d9%86-%d9%84%d8%a7%d9%8a%d9%86/",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-mtvyw8rk/downloads/Cultivation Online/Cultivation Online - c001.epub",
+        "passed": true,
+        "count": 1,
+        "unit": "spine items",
+        "bytes": 9395,
+        "sha256": "6e765913195ce6784c9d5f11398c33eb5bbbd4a9a47d0183d31ef1a8d5886968",
+        "spine": [
+          "OEBPS/chapter.xhtml"
+        ],
+        "rendered_pages": 11
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "aco.dlib.nyu.edu": {
+      "report": ".state/verification/run-w3pu5hd2/evidence.json",
+      "source_url": "https://aco.dlib.nyu.edu/book/aub_aco000056/1",
+      "checked": "2026-09-08T18:27:46.468065+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-w3pu5hd2",
+      "passed": true,
+      "adapter": "aco",
+      "title": "Sharḥ dīwān al-Mutanabbī v.3",
+      "listed_chapters": 2,
+      "chapter_url": "https://aco.dlib.nyu.edu/book/aub_aco000056/1#1",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-w3pu5hd2/downloads/Sharḥ dīwān al-Mutanabbī v.3/Sharḥ dīwān al-Mutanabbī v.3 (high resolution).pdf",
+        "passed": true,
+        "count": 524,
+        "unit": "pages",
+        "bytes": 262256337,
+        "sha256": "a19c22b0a69f8660334523c875c566b70bb8d6adfa8d42c1a2f491b0032b8aad",
+        "rendered_pages": 524
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "wuxiabox.com": {
+      "report": ".state/verification/run-v9dd41zq/evidence.json",
+      "source_url": "https://wuxiabox.com/novel/absolute-resonance.html",
+      "checked": "2026-09-08T20:33:56.492025+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-v9dd41zq",
+      "passed": true,
+      "adapter": "wuxiabox",
+      "title": "Absolute Resonance",
+      "listed_chapters": 1216,
+      "chapter_url": "https://wuxiabox.com/novel/absolute-resonance_1.html",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-v9dd41zq/downloads/Absolute Resonance/Absolute Resonance - c001.epub",
+        "passed": true,
+        "count": 1,
+        "unit": "spine items",
+        "bytes": 9390,
+        "sha256": "f1875b67d6f36d4f2d7f87ceec001f5de7bfb761d3b265f0840c59d925c5340b",
+        "spine": [
+          "OEBPS/chapter.xhtml"
+        ],
+        "rendered_pages": 15
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "rewayat.club": {
+      "report": ".state/verification/run-te81nh92/evidence.json",
+      "source_url": "https://rewayat.club/novel/cleaver-of-sin",
+      "checked": "2026-09-08T19:55:24.915958+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-te81nh92",
+      "passed": true,
+      "adapter": "rewayat",
+      "title": "رواية ساطور الخطيئة",
+      "listed_chapters": 955,
+      "chapter_url": "https://rewayat.club/novel/cleaver-of-sin/1",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-te81nh92/downloads/رواية ساطور الخطيئة/رواية ساطور الخطيئة - c001.epub",
+        "passed": true,
+        "count": 1,
+        "unit": "spine items",
+        "bytes": 6257,
+        "sha256": "67e5fc8c699825e972b5ace27fec59deda6dc6130a42c01bf8ee6c2a3ff8dfe7",
+        "spine": [
+          "OEBPS/chapter.xhtml"
+        ],
+        "rendered_pages": 5
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    },
+    "riwayatarab.com": {
+      "report": ".state/verification/run-_2nh2c7w/evidence.json",
+      "source_url": "https://riwayatarab.com/novel/demonic-emperor",
+      "checked": "2026-09-08T20:33:01.409426+00:00",
+      "run_dir": "/workspace/manga downloader/.state/verification/run-_2nh2c7w",
+      "passed": true,
+      "adapter": "riwayatarab",
+      "title": "الإمبراطور الشيطاني",
+      "listed_chapters": 1344,
+      "chapter_url": "https://riwayatarab.com/novel/demonic-emperor/chapter/1",
+      "job_status": "done",
+      "pages_expected": 1,
+      "pages_downloaded": 1,
+      "artifact": {
+        "path": "/workspace/manga downloader/.state/verification/run-_2nh2c7w/downloads/الإمبراطور الشيطاني/الإمبراطور الشيطاني - c001.epub",
+        "passed": true,
+        "count": 1,
+        "unit": "spine items",
+        "bytes": 6607,
+        "sha256": "7880a65740bb98c4f41b14d2b0028f268867fe924026debc2e1abbc21a30ebbf",
+        "spine": [
+          "OEBPS/chapter.xhtml"
+        ],
+        "rendered_pages": 7
+      },
+      "local_file_exists": true,
+      "local_size_matches": true
+    }
+  },
+  "aliases": {
+    "3asq.online": "3asq.org",
+    "azorafly.com": "azoramoon.com"
+  }
+}

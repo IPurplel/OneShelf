@@ -1,0 +1,848 @@
+=================================================================
+== 3asq.org  https://3asq.org/manga/hunter-x-hunter/
+== started 2026-09-08T21:15:48Z
+        2000,
+        2919
+      ],
+      [
+        "012.jpg",
+        2000,
+        2919
+      ],
+      [
+        "013.jpg",
+        2000,
+        2919
+      ],
+      [
+        "014.jpg",
+        2000,
+        2919
+      ],
+      [
+        "015.jpg",
+        2000,
+        2919
+      ],
+      [
+        "016.jpg",
+        4000,
+        2919
+      ]
+    ]
+  }
+}
+PASS
+== exit 0 for 3asq.org
+=================================================================
+== 8ghrb.com  https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%84%d8%ae%d8%aa%d9%85-%d8%a7%d9%84%d9%83%d8%b1%d8%b2%d9%8a-%d9%86%d9%8a%d9%81%d9%8a%d9%86-%d8%a7%d9%84%d9%85%d9%88%d8%b5%d9%84%d9%8a/
+== started 2026-09-08T21:16:06Z
+2026-09-08 21:16:07,057 INFO    app.desync: DPI-bypass proxy listening on socks5://127.0.0.1:34027 (split at 1 byte(s), 50 ms delay)
+2026-09-08 21:16:07,099 INFO    app.fetcher: HTTP egress via proxy socks5://127.0.0.1:34027
+2026-09-08 21:16:07,127 INFO    app.adapters.registry: Using adapter books for https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%84%d8%ae%d8%aa%d9%85-%d8%a7%d9%84%d9%83%d8%b1%d8%b2%d9%8a-%d9%86%d9%8a%d9%81%d9%8a%d9%86-%d8%a7%d9%84%d9%85%d9%88%d8%b5%d9%84%d9%8a/ (by host)
+2026-09-08 21:16:08,107 INFO    httpx: HTTP Request: GET https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%84%d8%ae%d8%aa%d9%85-%d8%a7%d9%84%d9%83%d8%b1%d8%b2%d9%8a-%d9%86%d9%8a%d9%81%d9%8a%d9%86-%d8%a7%d9%84%d9%85%d9%88%d8%b5%d9%84%d9%8a/ "HTTP/1.1 200 OK"
+2026-09-08 21:16:08,150 INFO    app.adapters.books: Found 1 book file(s) on https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%84%d8%ae%d8%aa%d9%85-%d8%a7%d9%84%d9%83%d8%b1%d8%b2%d9%8a-%d9%86%d9%8a%d9%81%d9%8a%d9%86-%d8%a7%d9%84%d9%85%d9%88%d8%b5%d9%84%d9%8a/
+2026-09-08 21:16:08,178 INFO    app.adapters.registry: Using adapter books for https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%84%d8%ae%d8%aa%d9%85-%d8%a7%d9%84%d9%83%d8%b1%d8%b2%d9%8a-%d9%86%d9%8a%d9%81%d9%8a%d9%86-%d8%a7%d9%84%d9%85%d9%88%d8%b5%d9%84%d9%8a/ (by host)
+2026-09-08 21:16:08,894 INFO    httpx: HTTP Request: GET https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%84%d8%ae%d8%aa%d9%85-%d8%a7%d9%84%d9%83%d8%b1%d8%b2%d9%8a-%d9%86%d9%8a%d9%81%d9%8a%d9%86-%d8%a7%d9%84%d9%85%d9%88%d8%b5%d9%84%d9%8a/ "HTTP/1.1 200 OK"
+2026-09-08 21:16:09,669 INFO    httpx: HTTP Request: GET https://book-shadow.com/files/fhrst16/123.pdf "HTTP/2 200 OK"
+2026-09-08 21:16:11,179 INFO    app.queue: Wrote رواية الختم الكرزي.pdf (2.2 MB)
+{
+  "source_url": "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%84%d8%ae%d8%aa%d9%85-%d8%a7%d9%84%d9%83%d8%b1%d8%b2%d9%8a-%d9%86%d9%8a%d9%81%d9%8a%d9%86-%d8%a7%d9%84%d9%85%d9%88%d8%b5%d9%84%d9%8a/",
+  "checked": "2026-09-08T21:16:07.057678+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-d850t6w8",
+  "passed": true,
+  "adapter": "books",
+  "title": "رواية الختم الكرزي",
+  "listed_chapters": 1,
+  "chapter_url": "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%84%d8%ae%d8%aa%d9%85-%d8%a7%d9%84%d9%83%d8%b1%d8%b2%d9%8a-%d9%86%d9%8a%d9%81%d9%8a%d9%86-%d8%a7%d9%84%d9%85%d9%88%d8%b5%d9%84%d9%8a/#1",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-d850t6w8/downloads/رواية الختم الكرزي/رواية الختم الكرزي.pdf",
+    "passed": true,
+    "count": 188,
+    "unit": "pages",
+    "bytes": 2281142,
+    "sha256": "0faa035c305e0fb6f0fb61baf1250d16346e2c45bcd9d1d18a2ba37030f44099",
+    "rendered_pages": 188
+  }
+}
+PASS
+== exit 0 for 8ghrb.com
+=================================================================
+== aco.dlib.nyu.edu  https://aco.dlib.nyu.edu/book/aub_aco000056/1
+== started 2026-09-08T21:16:12Z
+Isolated run: /workspace/manga downloader/.state/verification/run-dp31jica
+2026-09-08 21:16:12,253 INFO    app.desync: DPI-bypass proxy listening on socks5://127.0.0.1:43961 (split at 1 byte(s), 50 ms delay)
+2026-09-08 21:16:12,296 INFO    app.fetcher: HTTP egress via proxy socks5://127.0.0.1:43961
+2026-09-08 21:16:12,325 INFO    app.adapters.registry: Using adapter aco for https://aco.dlib.nyu.edu/book/aub_aco000056/1 (by host)
+2026-09-08 21:16:13,519 INFO    httpx: HTTP Request: GET https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/manifest.json "HTTP/1.1 200 OK"
+{
+  "source_url": "https://aco.dlib.nyu.edu/book/aub_aco000056/1",
+  "checked": "2026-09-08T21:16:12.253174+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-dp31jica",
+  "passed": false,
+  "adapter": "aco",
+  "title": "Sharḥ dīwān al-Mutanabbī v.3",
+  "listed_chapters": 2,
+  "error": "ValueError: No selectable chapter matches the requested number/format"
+}
+FAIL
+== exit 0 for aco.dlib.nyu.edu
+=================================================================
+== arabtoons.net  https://arabtoons.net/manga/%d8%aa%d8%b3%d9%88%d9%86%d8%a7%d8%af%d9%8a-%d9%88%d9%86%d8%a7%d8%b1%d9%88%d8%aa%d9%88-%d9%81%d9%8a-%d8%a7%d9%84%d9%8a%d9%86%d8%a7%d8%a8%d9%8a%d8%b9-%d8%a7%d9%84%d8%ad%d8%a7%d8%b1%d8%a9
+== started 2026-09-08T21:16:14Z
+        1080,
+        1524
+      ],
+      [
+        "010.jpg",
+        1080,
+        1528
+      ],
+      [
+        "011.jpg",
+        1080,
+        1510
+      ],
+      [
+        "012.jpg",
+        1080,
+        1524
+      ],
+      [
+        "013.jpg",
+        1080,
+        1531
+      ],
+      [
+        "014.jpg",
+        1080,
+        1515
+      ]
+    ]
+  }
+}
+PASS
+== exit 0 for arabtoons.net
+=================================================================
+== archiveofourown.org  https://archiveofourown.org/works/22368973
+== started 2026-09-08T21:16:29Z
+2026-09-08 21:16:33,452 INFO    httpx: HTTP Request: GET https://archiveofourown.org/downloads/22368973/Good_Omens.epub?updated_at=1579748142 "HTTP/2 301 Moved Permanently"
+2026-09-08 21:16:34,494 INFO    httpx: HTTP Request: GET https://download.archiveofourown.org/downloads/22368973/Good_Omens.epub?updated_at=1579748142 "HTTP/2 200 OK"
+2026-09-08 21:16:34,513 INFO    app.queue: Wrote Good Omens.epub (0.0 MB)
+{
+  "source_url": "https://archiveofourown.org/works/22368973",
+  "checked": "2026-09-08T21:16:29.565445+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-s5j8etfg",
+  "passed": true,
+  "adapter": "ao3",
+  "title": "Good Omens",
+  "listed_chapters": 4,
+  "chapter_url": "https://archiveofourown.org/works/22368973#epub",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-s5j8etfg/downloads/Good Omens/Good Omens.epub",
+    "passed": true,
+    "count": 4,
+    "unit": "spine items",
+    "bytes": 8450,
+    "sha256": "7fa34785b640b93e7dd77c0fcb579de6cdb9d3343a673bfb57dd60adcfb3737a",
+    "spine": [
+      "Good_Omens_split_000.xhtml",
+      "Good_Omens_split_001.xhtml",
+      "Good_Omens_split_002.xhtml",
+      "Good_Omens_split_003.xhtml"
+    ],
+    "rendered_pages": 7
+  }
+}
+PASS
+== exit 0 for archiveofourown.org
+=================================================================
+== arcomixverse.blogspot.com  https://arcomixverse.blogspot.com/2024/10/absolute-batman.html
+== started 2026-09-08T21:16:35Z
+        980,
+        1507
+      ],
+      [
+        "038.jpg",
+        980,
+        1507
+      ],
+      [
+        "039.jpg",
+        980,
+        1507
+      ],
+      [
+        "040.jpg",
+        980,
+        1507
+      ],
+      [
+        "041.jpg",
+        1507,
+        1159
+      ],
+      [
+        "042.jpg",
+        980,
+        1507
+      ]
+    ]
+  }
+}
+PASS
+== exit 0 for arcomixverse.blogspot.com
+=================================================================
+== azoramoon.com  https://azoramoon.com/series/solo-leveling-ragnarok
+== started 2026-09-08T21:17:40Z
+        720,
+        5000
+      ],
+      [
+        "042.jpg",
+        720,
+        5000
+      ],
+      [
+        "043.jpg",
+        720,
+        5000
+      ],
+      [
+        "044.jpg",
+        720,
+        5000
+      ],
+      [
+        "045.jpg",
+        720,
+        2913
+      ],
+      [
+        "046.jpg",
+        720,
+        2913
+      ]
+    ]
+  }
+}
+PASS
+== exit 0 for azoramoon.com
+=================================================================
+== bettergutenberg.org  https://bettergutenberg.org/history-early-modern/brief-lives-vol-1/
+== started 2026-09-08T21:18:17Z
+      "OEBPS/ch204.xhtml",
+      "OEBPS/ch205.xhtml",
+      "OEBPS/ch206.xhtml",
+      "OEBPS/ch207.xhtml",
+      "OEBPS/ch208.xhtml",
+      "OEBPS/ch209.xhtml",
+      "OEBPS/ch210.xhtml",
+      "OEBPS/ch211.xhtml",
+      "OEBPS/ch212.xhtml",
+      "OEBPS/ch213.xhtml",
+      "OEBPS/ch214.xhtml",
+      "OEBPS/ch215.xhtml",
+      "OEBPS/ch216.xhtml",
+      "OEBPS/ch217.xhtml",
+      "OEBPS/ch218.xhtml",
+      "OEBPS/ch219.xhtml",
+      "OEBPS/ch220.xhtml",
+      "OEBPS/ch221.xhtml",
+      "OEBPS/ch222.xhtml",
+      "OEBPS/ch223.xhtml",
+      "OEBPS/ch224.xhtml",
+      "OEBPS/ch225.xhtml",
+      "OEBPS/ch226.xhtml",
+      "OEBPS/ch227.xhtml",
+      "OEBPS/ch228.xhtml",
+      "OEBPS/ch229.xhtml",
+      "OEBPS/ch230.xhtml"
+    ],
+    "rendered_pages": 885
+  }
+}
+PASS
+== exit 0 for bettergutenberg.org
+=================================================================
+== cenele.com  https://cenele.com/cont/cultivation-online/
+== started 2026-09-08T21:18:27Z
+2026-09-08 21:18:39,946 INFO    app.session: Browser user agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.33 Safari/537.36
+2026-09-08 21:18:48,935 INFO    app.adapters.madara: https://cenele.com/cont/cultivation-online/%d8%a7%d9%84%d9%81%d8%b5%d9%84-1-%d8%a7%d9%84%d8%b2%d8%b1%d8%a7%d8%b9%d8%a9-%d8%a7%d9%88%d9%86-%d9%84%d8%a7%d9%8a%d9%86/ is prose, not pages; packaging as text
+2026-09-08 21:18:48,976 INFO    app.queue: Wrote Cultivation Online - c001.epub (17476 characters)
+2026-09-08 21:18:51,243 INFO    httpx: HTTP Request: GET https://cenele.com/cont/cultivation-online/%d8%a7%d9%84%d9%81%d8%b5%d9%84-1-%d8%a7%d9%84%d8%b2%d8%b1%d8%a7%d8%b9%d8%a9-%d8%a7%d9%88%d9%86-%d9%84%d8%a7%d9%8a%d9%86/ "HTTP/1.1 200 OK"
+2026-09-08 21:18:53,674 INFO    app.adapters.madara: https://cenele.com/cont/cultivation-online/%d8%a7%d9%84%d9%81%d8%b5%d9%84-1-%d8%a7%d9%84%d8%b2%d8%b1%d8%a7%d8%b9%d8%a9-%d8%a7%d9%88%d9%86-%d9%84%d8%a7%d9%8a%d9%86/ is prose, not pages; packaging as text
+2026-09-08 21:18:53,762 WARNING app.session: The browser went away; it will be relaunched on the next request
+{
+  "source_url": "https://cenele.com/cont/cultivation-online/",
+  "checked": "2026-09-08T21:18:28.095943+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-pjxxpaze",
+  "passed": true,
+  "adapter": "madara",
+  "title": "Cultivation Online",
+  "listed_chapters": 1120,
+  "chapter_url": "https://cenele.com/cont/cultivation-online/%d8%a7%d9%84%d9%81%d8%b5%d9%84-1-%d8%a7%d9%84%d8%b2%d8%b1%d8%a7%d8%b9%d8%a9-%d8%a7%d9%88%d9%86-%d9%84%d8%a7%d9%8a%d9%86/",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-pjxxpaze/downloads/Cultivation Online/Cultivation Online - c001.epub",
+    "passed": true,
+    "count": 1,
+    "unit": "spine items",
+    "bytes": 10145,
+    "sha256": "f67aee23fba1c3ab269572d798e665233e663ca75dfa90cb74025a29e6d30eac",
+    "spine": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "rendered_pages": 13
+  }
+}
+PASS
+== exit 0 for cenele.com
+=================================================================
+== comix.to  https://comix.to/title/13dn-attack-on-titan
+== started 2026-09-08T21:18:54Z
+        1591,
+        1200
+      ],
+      [
+        "012.webp",
+        780,
+        1200
+      ],
+      [
+        "013.webp",
+        772,
+        1200
+      ],
+      [
+        "014.webp",
+        769,
+        1200
+      ],
+      [
+        "015.webp",
+        747,
+        1200
+      ],
+      [
+        "016.webp",
+        999,
+        750
+      ]
+    ]
+  }
+}
+PASS
+== exit 0 for comix.to
+=================================================================
+== kitaboka.com  https://kitaboka.com/books/hky-zhr
+== started 2026-09-08T21:19:58Z
+2026-09-08 21:19:59,035 INFO    app.desync: DPI-bypass proxy listening on socks5://127.0.0.1:35933 (split at 1 byte(s), 50 ms delay)
+2026-09-08 21:19:59,077 INFO    app.fetcher: HTTP egress via proxy socks5://127.0.0.1:35933
+2026-09-08 21:19:59,108 INFO    app.adapters.registry: Using adapter books for https://kitaboka.com/books/hky-zhr (by host)
+2026-09-08 21:20:00,908 INFO    httpx: HTTP Request: GET https://kitaboka.com/books/hky-zhr "HTTP/1.1 200 OK"
+2026-09-08 21:20:01,215 INFO    app.adapters.books: Found 1 book file(s) on https://kitaboka.com/books/hky-zhr
+2026-09-08 21:20:01,242 INFO    app.adapters.registry: Using adapter books for https://kitaboka.com/books/hky-zhr (by host)
+2026-09-08 21:20:03,132 INFO    httpx: HTTP Request: GET https://kitaboka.com/books/hky-zhr "HTTP/1.1 200 OK"
+2026-09-08 21:20:05,714 INFO    httpx: HTTP Request: GET https://kitaboka.com/storage/book_files/01M00NDG35TDV35A6BTSMBYJH0.pdf "HTTP/2 200 OK"
+2026-09-08 21:20:11,767 INFO    app.queue: Wrote تحميل رواية حكاية زهرة PDF.pdf (4.6 MB)
+{
+  "source_url": "https://kitaboka.com/books/hky-zhr",
+  "checked": "2026-09-08T21:19:59.034910+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-80kffgn6",
+  "passed": true,
+  "adapter": "books",
+  "title": "تحميل رواية حكاية زهرة PDF",
+  "listed_chapters": 1,
+  "chapter_url": "https://kitaboka.com/books/hky-zhr#1",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-80kffgn6/downloads/تحميل رواية حكاية زهرة PDF/تحميل رواية حكاية زهرة PDF.pdf",
+    "passed": true,
+    "count": 246,
+    "unit": "pages",
+    "bytes": 4777827,
+    "sha256": "10b7eb4f7cf3f89bf0c75748ef6f1240305fef7f3db3b4ebc953e7ad39424c0b",
+    "rendered_pages": 246
+  }
+}
+PASS
+== exit 0 for kitaboka.com
+=================================================================
+== kolnovel.com  https://kolnovel.com/series/emperors-domination/
+== started 2026-09-08T21:20:13Z
+2026-09-08 21:21:16,152 INFO    httpx: HTTP Request: GET https://kolnovel.com/series/emperors-domination/ "HTTP/1.1 200 OK"
+2026-09-08 21:21:17,407 INFO    app.adapters.registry: Using adapter mangathemesia for https://kolnovel.com/series/emperors-domination/
+2026-09-08 21:21:21,488 INFO    app.adapters.mangathemesia: https://kolnovel.com/shaag24emperors-dominationz435ggye-27961/ is prose, not pages; packaging as text
+2026-09-08 21:21:21,504 INFO    app.queue: Wrote هيمنة الإمبراطور - c001.epub (25024 characters)
+2026-09-08 21:21:23,709 INFO    app.adapters.mangathemesia: https://kolnovel.com/shaag24emperors-dominationz435ggye-27961/ is prose, not pages; packaging as text
+2026-09-08 21:21:23,792 WARNING app.session: The browser went away; it will be relaunched on the next request
+{
+  "source_url": "https://kolnovel.com/series/emperors-domination/",
+  "checked": "2026-09-08T21:20:14.006580+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-upfa83f_",
+  "passed": true,
+  "adapter": "mangathemesia",
+  "title": "هيمنة الإمبراطور",
+  "listed_chapters": 6703,
+  "chapter_url": "https://kolnovel.com/shaag24emperors-dominationz435ggye-27961/",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-upfa83f_/downloads/هيمنة الإمبراطور/هيمنة الإمبراطور - c001.epub",
+    "passed": true,
+    "count": 1,
+    "unit": "spine items",
+    "bytes": 9235,
+    "sha256": "82ca2facf0431864d1067fe079149263b07c99575e5cbae1453e04113200f449",
+    "spine": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "rendered_pages": 16
+  }
+}
+PASS
+== exit 0 for kolnovel.com
+=================================================================
+== mangadex.org  https://mangadex.org/title/dc332d04-d3b0-413c-a767-70f5e451b031
+== started 2026-09-08T21:21:24Z
+        950,
+        1350
+      ],
+      [
+        "033.jpg",
+        1900,
+        1350
+      ],
+      [
+        "034.jpg",
+        950,
+        1350
+      ],
+      [
+        "035.jpg",
+        950,
+        1350
+      ],
+      [
+        "036.jpg",
+        950,
+        1350
+      ],
+      [
+        "037.jpg",
+        600,
+        600
+      ]
+    ]
+  }
+}
+PASS
+== exit 0 for mangadex.org
+=================================================================
+== manhuaplus.com  https://manhuaplus.com/manga/martial-god-chat-group/
+== started 2026-09-08T21:22:03Z
+        1000,
+        8544
+      ],
+      [
+        "011.jpg",
+        1000,
+        7392
+      ],
+      [
+        "012.jpg",
+        1000,
+        7272
+      ],
+      [
+        "013.jpg",
+        1000,
+        7272
+      ],
+      [
+        "014.jpg",
+        1000,
+        4745
+      ],
+      [
+        "015.jpg",
+        1000,
+        1582
+      ]
+    ]
+  }
+}
+PASS
+== exit 0 for manhuaplus.com
+=================================================================
+== rewayat.club  https://rewayat.club/novel/cleaver-of-sin
+== started 2026-09-08T21:22:25Z
+2026-09-08 21:22:27,821 INFO    httpx: HTTP Request: GET https://rewayat.club/novel/cleaver-of-sin "HTTP/1.1 200 OK"
+2026-09-08 21:22:29,648 INFO    httpx: HTTP Request: GET https://rewayat.club/novel/cleaver-of-sin/955 "HTTP/1.1 200 OK"
+2026-09-08 21:22:29,667 INFO    app.adapters.rewayat: Resolved 955 chapters from https://rewayat.club/novel/cleaver-of-sin
+2026-09-08 21:22:29,713 INFO    app.adapters.registry: Using adapter rewayat for https://rewayat.club/novel/cleaver-of-sin (by host)
+2026-09-08 21:22:31,796 INFO    httpx: HTTP Request: GET https://rewayat.club/novel/cleaver-of-sin/1 "HTTP/1.1 200 OK"
+2026-09-08 21:22:31,835 INFO    app.queue: Wrote رواية ساطور الخطيئة - c001.epub (6576 characters)
+{
+  "source_url": "https://rewayat.club/novel/cleaver-of-sin",
+  "checked": "2026-09-08T21:22:26.181069+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-ibbbiifb",
+  "passed": true,
+  "adapter": "rewayat",
+  "title": "رواية ساطور الخطيئة",
+  "listed_chapters": 955,
+  "chapter_url": "https://rewayat.club/novel/cleaver-of-sin/1",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-ibbbiifb/downloads/رواية ساطور الخطيئة/رواية ساطور الخطيئة - c001.epub",
+    "passed": true,
+    "count": 1,
+    "unit": "spine items",
+    "bytes": 6257,
+    "sha256": "f03bbf30c8f7d33359ec7591fa2a1a75f3048fd846c80b08e9c1cd7e6e892d7e",
+    "spine": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "rendered_pages": 5
+  }
+}
+PASS
+== exit 0 for rewayat.club
+=================================================================
+== riwayatarab.com  https://riwayatarab.com/novel/demonic-emperor
+== started 2026-09-08T21:22:32Z
+2026-09-08 21:23:35,036 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=27 "HTTP/1.1 200 OK"
+2026-09-08 21:23:37,192 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=28 "HTTP/1.1 200 OK"
+2026-09-08 21:23:37,507 INFO    app.adapters.riwayatarab: Resolved 1344 chapters from https://riwayatarab.com/novel/demonic-emperor
+2026-09-08 21:23:37,532 INFO    app.adapters.registry: Using adapter riwayatarab for https://riwayatarab.com/novel/demonic-emperor (by host)
+2026-09-08 21:23:38,953 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapter/1 "HTTP/1.1 200 OK"
+2026-09-08 21:23:39,281 INFO    app.queue: Wrote الإمبراطور الشيطاني - c001.epub (8003 characters)
+{
+  "source_url": "https://riwayatarab.com/novel/demonic-emperor",
+  "checked": "2026-09-08T21:22:32.567902+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-ytkjnc70",
+  "passed": true,
+  "adapter": "riwayatarab",
+  "title": "الإمبراطور الشيطاني",
+  "listed_chapters": 1344,
+  "chapter_url": "https://riwayatarab.com/novel/demonic-emperor/chapter/1",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-ytkjnc70/downloads/الإمبراطور الشيطاني/الإمبراطور الشيطاني - c001.epub",
+    "passed": true,
+    "count": 1,
+    "unit": "spine items",
+    "bytes": 6604,
+    "sha256": "c37f7897faa6d8a5115ca9eaad11f930cdcc9bf29de78b619fe419641fe6fa72",
+    "spine": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "rendered_pages": 7
+  }
+}
+PASS
+== exit 0 for riwayatarab.com
+=================================================================
+== sunovels.com  https://sunovels.com/novel/cultivation-online
+== started 2026-09-08T21:23:39Z
+2026-09-08 21:25:23,047 INFO    httpx: HTTP Request: GET https://sunovels.com/novel/cultivation-online?activeTab=chapters&page=45 "HTTP/1.1 200 OK"
+2026-09-08 21:25:24,932 INFO    httpx: HTTP Request: GET https://sunovels.com/novel/cultivation-online?activeTab=chapters&page=46 "HTTP/1.1 200 OK"
+2026-09-08 21:25:25,757 INFO    httpx: HTTP Request: GET https://sunovels.com/novel/cultivation-online?activeTab=chapters&page=47 "HTTP/1.1 200 OK"
+2026-09-08 21:25:25,827 INFO    app.adapters.registry: Using adapter sunovels for https://sunovels.com/novel/cultivation-online (by host)
+2026-09-08 21:25:26,707 INFO    httpx: HTTP Request: GET https://sunovels.com/novel/cultivation-online/1 "HTTP/1.1 200 OK"
+2026-09-08 21:25:26,849 INFO    app.queue: Wrote Cultivation Online - c001.epub (19575 characters)
+{
+  "source_url": "https://sunovels.com/novel/cultivation-online",
+  "checked": "2026-09-08T21:23:39.901978+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-qr3bbh2v",
+  "passed": true,
+  "adapter": "sunovels",
+  "title": "Cultivation Online",
+  "listed_chapters": 2399,
+  "chapter_url": "https://sunovels.com/novel/cultivation-online/1",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-qr3bbh2v/downloads/Cultivation Online/Cultivation Online - c001.epub",
+    "passed": true,
+    "count": 1,
+    "unit": "spine items",
+    "bytes": 13985,
+    "sha256": "c7e4eee0913adcef5472692c60e03749cf4d4f930321f1f51f11d318e3885eae",
+    "spine": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "rendered_pages": 21
+  }
+}
+PASS
+== exit 0 for sunovels.com
+=================================================================
+== wuxiabox.com  https://wuxiabox.com/novel/absolute-resonance.html
+== started 2026-09-08T21:25:27Z
+2026-09-08 21:25:44,777 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=13&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 21:25:44,781 INFO    app.adapters.wuxiabox: Resolved 1216 chapters from https://wuxiabox.com/novel/absolute-resonance.html
+2026-09-08 21:25:44,816 INFO    app.adapters.registry: Using adapter wuxiabox for https://wuxiabox.com/novel/absolute-resonance.html (by host)
+2026-09-08 21:25:45,415 INFO    httpx: HTTP Request: GET https://wuxiabox.com/novel/absolute-resonance_1.html "HTTP/1.1 301 Moved Permanently"
+2026-09-08 21:25:45,911 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/novel/absolute-resonance_1.html "HTTP/1.1 200 OK"
+2026-09-08 21:25:45,936 INFO    app.queue: Wrote Absolute Resonance - c001.epub (19478 characters)
+{
+  "source_url": "https://wuxiabox.com/novel/absolute-resonance.html",
+  "checked": "2026-09-08T21:25:27.668637+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-9_b_h_zs",
+  "passed": true,
+  "adapter": "wuxiabox",
+  "title": "Absolute Resonance",
+  "listed_chapters": 1216,
+  "chapter_url": "https://wuxiabox.com/novel/absolute-resonance_1.html",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-9_b_h_zs/downloads/Absolute Resonance/Absolute Resonance - c001.epub",
+    "passed": true,
+    "count": 1,
+    "unit": "spine items",
+    "bytes": 9390,
+    "sha256": "536cf5b4104d13f483186c49e6516857627c0731097490714c4688a655a26a50",
+    "spine": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "rendered_pages": 15
+  }
+}
+PASS
+== exit 0 for wuxiabox.com
+=================================================================
+== www.gutenberg.org  https://www.gutenberg.org/ebooks/84
+== started 2026-09-08T21:25:46Z
+      "OEBPS/3217704234512228407_84-h-4.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-5.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-6.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-7.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-8.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-9.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-10.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-11.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-12.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-13.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-14.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-15.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-16.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-17.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-18.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-19.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-20.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-21.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-22.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-23.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-24.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-25.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-26.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-27.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-28.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-29.htm.xhtml",
+      "OEBPS/3217704234512228407_84-h-30.htm.xhtml"
+    ],
+    "rendered_pages": 239
+  }
+}
+PASS
+== exit 0 for www.gutenberg.org
+=================================================================
+== www.mangaread.org  https://www.mangaread.org/manga/emperor-of-solo-play/
+== started 2026-09-08T21:25:52Z
+        800,
+        13211
+      ],
+      [
+        "018.jpg",
+        800,
+        12863
+      ],
+      [
+        "019.jpg",
+        800,
+        11049
+      ],
+      [
+        "020.jpg",
+        800,
+        13460
+      ],
+      [
+        "021.jpg",
+        800,
+        12550
+      ],
+      [
+        "022.jpg",
+        800,
+        9703
+      ]
+    ]
+  }
+}
+PASS
+== exit 0 for www.mangaread.org
+=================================================================
+== www.noor-book.com  https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf
+== started 2026-09-08T21:26:10Z
+2026-09-08 21:31:29,428 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/111/853b77f80265c78e8f7420b47bd8c071.svg "HTTP/2 200 OK"
+2026-09-08 21:31:29,600 INFO    app.queue: 3 page(s) failed for Download Book White Nights Pdf.pdf; re-listing (round 2/2)
+2026-09-08 21:31:30,703 INFO    httpx: HTTP Request: GET https://www.noor-book.com/en/ebook-%D8%A7%D9%84%D9%84%D9%8A%D8%A7%D9%84%D9%8A-%D8%A7%D9%84%D8%A8%D9%8A%D8%B6%D8%A7%D8%A1-%D8%AF%D9%88%D8%B3%D8%AA%D9%88%D9%8A%D9%81%D8%B3%D9%83%D9%8A-pdf "HTTP/1.1 200 OK"
+2026-09-08 21:31:31,108 INFO    httpx: HTTP Request: POST https://www.noor-book.com/en/Verification/check_user?o=1788903090.7754922 "HTTP/1.1 200 OK"
+2026-09-08 21:31:31,680 INFO    httpx: HTTP Request: POST https://www.noor-book.com/en/book/read_book?o=1788903091.1091712 "HTTP/1.1 200 OK"
+2026-09-08 21:31:32,242 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/101/e3f452679efb00570bea2f120c4fd115.svg "HTTP/2 200 OK"
+2026-09-08 21:31:34,148 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/102/e3f452679efb00570bea2f120c4fd115.svg "HTTP/2 200 OK"
+2026-09-08 21:31:36,156 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/103/e3f452679efb00570bea2f120c4fd115.svg "HTTP/2 200 OK"
+2026-09-08 21:31:38,880 INFO    app.queue: Wrote Download Book White Nights Pdf.pdf (111 pages)
+{
+  "source_url": "https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf",
+  "checked": "2026-09-08T21:26:10.390689+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-xo21fib4",
+  "passed": true,
+  "adapter": "books",
+  "title": "Download Book White Nights Pdf",
+  "listed_chapters": 1,
+  "chapter_url": "https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf#read",
+  "job_status": "done",
+  "pages_expected": 111,
+  "pages_downloaded": 111,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-xo21fib4/downloads/Download Book White Nights Pdf/Download Book White Nights Pdf.pdf",
+    "passed": true,
+    "count": 111,
+    "unit": "pages",
+    "bytes": 33679155,
+    "sha256": "eba24635164b6fc99cf52d091c7707cf7cfc9ca624ad912620cbf04b6af38c77",
+    "rendered_pages": 111
+  }
+}
+PASS
+== exit 0 for www.noor-book.com
+=================================================================
+== www.planetebook.com  https://www.planetebook.com/frankenstein/
+== started 2026-09-08T21:31:40Z
+
+MuPDF error: format error: cannot find entry OEBPS/css/../font/MinionPro-MediumDisp.otf
+
+MuPDF error: format error: cannot find entry OEBPS/css/../font/MinionPro-Regular.otf
+
+{
+  "source_url": "https://www.planetebook.com/frankenstein/",
+  "checked": "2026-09-08T21:31:40.453464+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-6pcdi5wr",
+  "passed": true,
+  "adapter": "books",
+  "title": "Frankenstein",
+  "listed_chapters": 3,
+  "chapter_url": "https://www.planetebook.com/frankenstein/#1",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-6pcdi5wr/downloads/Frankenstein/Frankenstein.epub",
+    "passed": true,
+    "count": 2,
+    "unit": "spine items",
+    "bytes": 489464,
+    "sha256": "5d3f8e8b2423b7f5d5e18e6943700a46aac98e2006a69d579355fa55d34e8369",
+    "spine": [
+      "OEBPS/cover.xhtml",
+      "OEBPS/Frankenstein.xhtml"
+    ],
+    "rendered_pages": 110
+  }
+}
+PASS
+== exit 0 for www.planetebook.com
+=================================================================
+== www.royalroad.com  https://www.royalroad.com/fiction/21220/mother-of-learning
+== started 2026-09-08T21:31:48Z
+2026-09-08 21:31:48,487 INFO    app.fetcher: HTTP egress via proxy socks5://127.0.0.1:42309
+2026-09-08 21:31:48,516 INFO    app.adapters.registry: Using adapter royalroad for https://www.royalroad.com/fiction/21220/mother-of-learning (by host)
+2026-09-08 21:31:49,139 INFO    httpx: HTTP Request: GET https://www.royalroad.com/fiction/21220/mother-of-learning "HTTP/1.1 200 OK"
+2026-09-08 21:31:49,215 INFO    app.adapters.registry: Using adapter royalroad for https://www.royalroad.com/fiction/21220/mother-of-learning (by host)
+2026-09-08 21:31:50,108 INFO    httpx: HTTP Request: GET https://www.royalroad.com/fiction/21220/mother-of-learning/chapter/301778/1-good-morning-brother "HTTP/1.1 200 OK"
+2026-09-08 21:31:50,194 INFO    app.queue: Wrote Mother of Learning - c001.epub (42958 characters)
+{
+  "source_url": "https://www.royalroad.com/fiction/21220/mother-of-learning",
+  "checked": "2026-09-08T21:31:48.444482+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-zv_sfwmc",
+  "passed": true,
+  "adapter": "royalroad",
+  "title": "Mother of Learning",
+  "listed_chapters": 109,
+  "chapter_url": "https://www.royalroad.com/fiction/21220/mother-of-learning/chapter/301778/1-good-morning-brother",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-zv_sfwmc/downloads/Mother of Learning/Mother of Learning - c001.epub",
+    "passed": true,
+    "count": 1,
+    "unit": "spine items",
+    "bytes": 19054,
+    "sha256": "d7b7218f08d086240f763f133d3dd4ea72a1b49b329095fdf5b18d5c3e6ab1a5",
+    "spine": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "rendered_pages": 29
+  }
+}
+PASS
+== exit 0 for www.royalroad.com
+=================================================================
+== www.webtoons.com  https://www.webtoons.com/en/romance/lore-olympus/list?title_no=1320
+== started 2026-09-08T21:31:50Z
+        800,
+        980
+      ],
+      [
+        "080.png",
+        800,
+        980
+      ],
+      [
+        "081.png",
+        800,
+        980
+      ],
+      [
+        "082.png",
+        800,
+        980
+      ],
+      [
+        "083.png",
+        800,
+        980
+      ],
+      [
+        "084.png",
+        800,
+        562
+      ]
+    ]
+  }
+}
+PASS
+== exit 0 for www.webtoons.com

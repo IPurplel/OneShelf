@@ -251,3 +251,67 @@ async def test_comix_takes_the_cover_from_the_hydration_payload():
     adapter = ComixAdapter(FakeSessionManager(pages={TITLE: html}, posts={}))
     series = await adapter.fetch_series(TITLE)
     assert series.cover_url == "https://comix.to/images/covers/abc.webp"
+
+
+# ------------------------------------------------- fingerprinting vs stylesheets
+
+
+def test_a_pasted_stylesheet_does_not_decide_the_adapter():
+    """Measured on a real Blogger comics blog, 2026-09-08.
+
+    Its template has a MangaThemesia theme's CSS pasted into it, so the raw
+    markup carries the marker `bixbox` twice -- inside an @media block, styling
+    a class the page never uses. MangaThemesia outranks Blogger, so it claimed
+    every blogspot series and failed with "No chapter list ... open the series
+    page on the site" against a URL that *was* the series page.
+
+    A stylesheet says how a page looks, never which platform serves it.
+    """
+    from app.adapters.mangathemesia import MangaThemesiaAdapter
+    from app.adapters.registry import fingerprint_html, select
+
+    html = (
+        "<html><head><style>"
+        "@media only screen and (max-width:800px){.bixbox{border-radius:0}}"
+        "</style></head>"
+        f'<body><a href="{BLOG}/2024/10/absolute-batman.html">Absolute Batman</a>'
+        "</body></html>"
+    )
+
+    assert MangaThemesiaAdapter.matches(BLOG, html), (
+        "the raw markup really does carry the marker")
+    assert select(f"{BLOG}/2024/10/absolute-batman.html", html) is BloggerAdapter
+    assert "bixbox" not in fingerprint_html(html)
+
+
+def test_a_marker_in_a_script_still_counts():
+    """`ts_reader` is a real MangaThemesia marker and lives in a <script>.
+
+    Only stylesheets are removed; stripping scripts as well would throw the
+    reader fingerprint away with the noise.
+    """
+    from app.adapters.registry import fingerprint_html
+
+    html = '<html><script>ts_reader.run({"sources":[]});</script></html>'
+    assert "ts_reader" in fingerprint_html(html)
+
+
+async def test_comix_scrolls_the_reader_before_reading_its_pages():
+    """A lazily-mounted reader hands back only what is on screen.
+
+    Measured on comix.to 2026-09-08: Attack on Titan chapter 1 answered 3
+    images after the settle delay and 12 after scrolling to the end. The short
+    read parsed cleanly, every page validated as a real 785x1200 image, and it
+    packed into a perfectly good CBZ holding a quarter of the chapter. Nothing
+    downstream can catch that, so the scroll is the thing that has to be right.
+    """
+    from app.adapters.comix import READER_SELECTOR
+
+    chapter = Chapter(url=f"{COMIX}/title/13dn-attack-on-titan/1-chapter-1",
+                      title="Chapter 1", number="1", index=1)
+    sessions = FakeSessionManager(pages={chapter.url: COMIX_READER_HTML})
+
+    await ComixAdapter(sessions).fetch_pages(chapter)
+
+    assert sessions.scrolled == [READER_SELECTOR], (
+        "the reader must be scrolled to the end, not merely waited on")

@@ -1,0 +1,20 @@
+    console[error] WebSocket connection to 'ws://127.0.0.1:54501/ws' failed: Error during WebSocket handshake: Unexpected response code: 403
+  [ok ] search returns results  -- 3 hits
+  [ok ] clicking a result opens its preview  -- 'Preview of berserk' from 'Berserk'
+  [ok ] the result list is closed
+  [ok ] a way back is offered
+  [ok ] back to results restores the list  -- 3 hits, no reload
+  [ok ] the preview is closed
+  [ok ] a different result opens a different preview  -- 'Preview of berserk-guidebook' from 'Berserk: The Guidebook'
+    console[error] WebSocket connection to 'ws://127.0.0.1:54501/ws' failed: Error during WebSocket handshake: Unexpected response code: 403
+  [ok ] a new search runs after all of that
+  [ok ] and its result opens too
+  [ok ] Escape leaves the preview
+  [ok ] '/' focuses the search box, not the chapter filter  -- focus went to 'search-input'
+  [ok ] the query is still in the box after opening a result  -- 'الغريب'
+  [ok ] Enter brings the same list back
+  [ok ] no page reload happened at any point  -- 1 load event(s)
+
+14/14 checks passed
+
+RESULT: PASS

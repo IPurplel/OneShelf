@@ -1,0 +1,536 @@
+[
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "query": "hunter",
+    "adapter": "madara",
+    "checked": "2026-09-08",
+    "count": 4,
+    "titles": [
+      "Hunter X Hunter – colored",
+      "Hunter x Hunter: Kurapika Tsuioku-hen",
+      "Hunter X Hunter",
+      "Shangri-La Frontier"
+    ],
+    "urls": [
+      "https://3asq.online/manga/hunter-x-hunter-colored/",
+      "https://3asq.online/manga/hunter-x-hunter-kurapika-tsuioku-hen/",
+      "https://3asq.online/manga/hunter-x-hunter/",
+      "https://3asq.online/manga/shangri-la-frontier/"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "madara",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "query": "ناروتو",
+    "adapter": "madara",
+    "checked": "2026-09-08",
+    "count": 2,
+    "titles": [
+      "تسونادي وناروتو في الينابيع الحارة",
+      "كوسبلاي هيناتا بلباس الكونويتشي الجديد"
+    ],
+    "urls": [
+      "https://arabtoons.net/manga/%d8%aa%d8%b3%d9%88%d9%86%d8%a7%d8%af%d9%8a-%d9%88%d9%86%d8%a7%d8%b1%d9%88%d8%aa%d9%88-%d9%81%d9%8a-%d8%a7%d9%84%d9%8a%d9%86%d8%a7%d8%a8%d9%8a%d8%b9-%d8%a7%d9%84%d8%ad%d8%a7%d8%b1%d8%a9",
+      "https://arabtoons.net/manga/%d9%83%d9%88%d8%b3%d8%a8%d9%84%d8%a7%d9%8a-%d9%87%d9%8a%d9%86%d8%a7%d8%aa%d8%a7-%d8%a8%d9%84%d8%a8%d8%a7%d8%b3-%d8%a7%d9%84%d9%83%d9%88%d9%86%d9%88%d9%8a%d8%aa%d8%b4%d9%8a-%d8%a7%d9%84%d8%ac%d8%af"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "madara",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://azoramoon.com",
+    "host": "azoramoon.com",
+    "query": "solo",
+    "adapter": "vcomics",
+    "checked": "2026-09-08",
+    "count": 3,
+    "titles": [
+      "Solo Leveling: Ragnarok",
+      "Solo Spell Caster",
+      "Solo Leveling"
+    ],
+    "urls": [
+      "https://azoramoon.com/series/solo-leveling-ragnarok",
+      "https://azoramoon.com/series/solo-spell-caster",
+      "https://azoramoon.com/series/solo-leveling-s"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://azoramoon.com",
+    "host": "azoramoon.com",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "vcomics",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "query": "رواية",
+    "adapter": "books",
+    "checked": "2026-09-08",
+    "count": 1,
+    "titles": [
+      "رواية الختم الكرزي – نيفين الموصلي"
+    ],
+    "urls": [
+      "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%84%d8%ae%d8%aa%d9%85-%d8%a7%d9%84%d9%83%d8%b1%d8%b2%d9%8a-%d9%86%d9%8a%d9%81%d9%8a%d9%86-%d8%a7%d9%84%d9%85%d9%88%d8%b5%d9%84%d9%8a/"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "books",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "query": "White Nights",
+    "adapter": "books",
+    "checked": "2026-09-08",
+    "count": 4,
+    "titles": [
+      "White Nights",
+      "White Nights",
+      "White Nights And Other Stories The Novels Of Fyodor Dostoevsky, Volume X",
+      "Ashes Of White Nights"
+    ],
+    "urls": [
+      "https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf",
+      "https://www.noor-book.com/en/ebook-الليالي-البيضاء-pdf",
+      "https://www.noor-book.com/en/ebook-White-Nights-and-Other-Stories-The-Novels-of-Fyodor-Dostoevsky-Volume-X-pdf",
+      "https://www.noor-book.com/en/ebook-رماد-الليالي-البيضاء-pdf"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "books",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "query": "رواية",
+    "adapter": "books",
+    "checked": "2026-09-08",
+    "count": 12,
+    "titles": [
+      "رواية الليالي البيضاء",
+      "رواية ماجدولين",
+      "رواية نساء صغيرات (1)",
+      "رواية نساء صغيرات (2)",
+      "رواية ساعتين وداع",
+      "رواية شهرزاد اون فاير",
+      "رواية نادر فوده 7 الأعوان",
+      "رواية نادر فوده"
+    ],
+    "urls": [
+      "https://kitaboka.com/books/roay-allyaly-albydaaa",
+      "https://kitaboka.com/books/roay-magdolyn",
+      "https://kitaboka.com/books/thmyl-nsaaa-sghyrat-1-roay-loyza-alkot-pdf",
+      "https://kitaboka.com/books/thmyl-nsaaa-sghyrat-2-roay-loyza-alkot-pdf",
+      "https://kitaboka.com/books/roay-saaatyn-odaaa",
+      "https://kitaboka.com/books/roay-shhrzad-aon-fayr",
+      "https://kitaboka.com/books/roay-nadr-fodh-7-alaaaoan",
+      "https://kitaboka.com/books/roay-nadr-fodh"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "books",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://www.planetebook.com",
+    "host": "www.planetebook.com",
+    "query": "Frankenstein",
+    "adapter": "books",
+    "checked": "2026-09-08",
+    "count": 1,
+    "titles": [
+      "Frankenstein"
+    ],
+    "urls": [
+      "https://www.planetebook.com/frankenstein/"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://www.planetebook.com",
+    "host": "www.planetebook.com",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "books",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://bettergutenberg.org",
+    "host": "bettergutenberg.org",
+    "query": "Brief Lives",
+    "adapter": "books",
+    "checked": "2026-09-08",
+    "count": 1,
+    "titles": [
+      "Brief Lives, Vol. 1"
+    ],
+    "urls": [
+      "https://bettergutenberg.org/history-early-modern/brief-lives-vol-1/"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://bettergutenberg.org",
+    "host": "bettergutenberg.org",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "books",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://www.gutenberg.org",
+    "host": "www.gutenberg.org",
+    "query": "Frankenstein",
+    "adapter": "gutenberg",
+    "checked": "2026-09-08",
+    "count": 10,
+    "titles": [
+      "Frankenstein; or, the modern prometheus",
+      "Frankenstein; Or, The Modern Prometheus",
+      "Frankenstein; Or, The Modern Prometheus",
+      "Frankenstein; Or, The Modern Prometheus",
+      "Frankenstein",
+      "The World's Greatest Books — Volume 08 — Fiction",
+      "Frankenstein, ou le Prométhée moderne Volume 1 (of 3) (French)",
+      "Frankenstein, ou le Prométhée moderne Volume 2 (of 3) (French)"
+    ],
+    "urls": [
+      "https://www.gutenberg.org/ebooks/84",
+      "https://www.gutenberg.org/ebooks/41445",
+      "https://www.gutenberg.org/ebooks/42324",
+      "https://www.gutenberg.org/ebooks/20038",
+      "https://www.gutenberg.org/ebooks/6542",
+      "https://www.gutenberg.org/ebooks/11659",
+      "https://www.gutenberg.org/ebooks/62404",
+      "https://www.gutenberg.org/ebooks/62405"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://www.gutenberg.org",
+    "host": "www.gutenberg.org",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "gutenberg",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://www.royalroad.com",
+    "host": "www.royalroad.com",
+    "query": "mother of learning",
+    "adapter": "royalroad",
+    "checked": "2026-09-08",
+    "count": 5,
+    "titles": [
+      "Mother of Learning",
+      "Mother of Learning: The AU Chapters",
+      "Mother of Learning: Abyss of Time, a Fanfiction Continuation.",
+      "Mother of Learning: Fanfic Sequel - \"Tangled Web\"",
+      "Mother of learning - The Great Unification War - A fanfiction sequel"
+    ],
+    "urls": [
+      "https://www.royalroad.com/fiction/21220/mother-of-learning",
+      "https://www.royalroad.com/fiction/49033/mother-of-learning-the-au-chapters",
+      "https://www.royalroad.com/fiction/53888/mother-of-learning-abyss-of-time-a-fanfiction",
+      "https://www.royalroad.com/fiction/135826/mother-of-learning-fanfic-sequel-tangled-web",
+      "https://www.royalroad.com/fiction/126872/mother-of-learning-the-great-unification-war-a"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://www.royalroad.com",
+    "host": "www.royalroad.com",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "royalroad",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://archiveofourown.org",
+    "host": "archiveofourown.org",
+    "query": "Good Omens",
+    "adapter": "ao3",
+    "checked": "2026-09-08",
+    "count": 12,
+    "titles": [
+      "Good Omens",
+      "Good Omens?",
+      "Good Omens",
+      "Good Omens",
+      "Good Omens",
+      "Good Omens",
+      "Good Omens",
+      "Good Omens"
+    ],
+    "urls": [
+      "https://archiveofourown.org/works/22368973",
+      "https://archiveofourown.org/works/20316427",
+      "https://archiveofourown.org/works/77224891",
+      "https://archiveofourown.org/works/19127971",
+      "https://archiveofourown.org/works/5426231",
+      "https://archiveofourown.org/works/29011254",
+      "https://archiveofourown.org/works/21900433",
+      "https://archiveofourown.org/works/49526587"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://archiveofourown.org",
+    "host": "archiveofourown.org",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "ao3",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://www.webtoons.com",
+    "host": "www.webtoons.com",
+    "query": "Lore Olympus",
+    "adapter": "webtoons",
+    "checked": "2026-09-08",
+    "count": 3,
+    "titles": [
+      "Lore Olympus",
+      "Lore Olympus",
+      "Lore Olympus fan club!"
+    ],
+    "urls": [
+      "https://www.webtoons.com/en/romance/lore-olympus/list?title_no=1320",
+      "https://www.webtoons.com/en/canvas/lore-olympus-/list?title_no=77162",
+      "https://www.webtoons.com/en/canvas/lore-olympus-fan-club/list?title_no=872540"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://www.webtoons.com",
+    "host": "www.webtoons.com",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "webtoons",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://azorafly.com",
+    "host": "azorafly.com",
+    "query": "solo",
+    "adapter": "vcomics",
+    "checked": "2026-09-08",
+    "count": 3,
+    "titles": [
+      "Solo Leveling: Ragnarok",
+      "Solo Spell Caster",
+      "Solo Leveling"
+    ],
+    "urls": [
+      "https://azorafly.com/series/solo-leveling-ragnarok",
+      "https://azorafly.com/series/solo-spell-caster",
+      "https://azorafly.com/series/solo-leveling-s"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://azorafly.com",
+    "host": "azorafly.com",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "vcomics",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://mangadex.org",
+    "host": "mangadex.org",
+    "query": "berserk",
+    "adapter": "mangadex",
+    "checked": "2026-09-08",
+    "count": 12,
+    "titles": [
+      "Kuro no Shoukanshi",
+      "Berserk",
+      "Boushoku no Berserk: Ore dake Level to Iu Gainen o Toppa Suru",
+      "Kyou Senshina Mob, Mujikaku ni Honpen wo Hakai Suru",
+      "Berserk Gaiden",
+      "Kentaro Miura Memorial Manga",
+      "Peerless Battle Spirit",
+      "My Husband is Out of Control Again"
+    ],
+    "urls": [
+      "https://mangadex.org/title/dc332d04-d3b0-413c-a767-70f5e451b031",
+      "https://mangadex.org/title/801513ba-a712-498c-8f57-cae55b38cc92",
+      "https://mangadex.org/title/30196491-8fc2-4961-8886-a58f898b1b3e",
+      "https://mangadex.org/title/ddc62ddc-0c8a-4e68-aeb2-a9abc4be3660",
+      "https://mangadex.org/title/5a143603-d575-4062-9528-12c2ddb83af3",
+      "https://mangadex.org/title/e939aa14-37e7-4fd1-9923-ddad014c5c1e",
+      "https://mangadex.org/title/06d22615-4713-43dd-985d-377301758d69",
+      "https://mangadex.org/title/c87726d4-4b81-4fd2-9031-d12c8b383c42"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://mangadex.org",
+    "host": "mangadex.org",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "mangadex",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://mangaread.org",
+    "host": "mangaread.org",
+    "query": "solo",
+    "adapter": "madara",
+    "checked": "2026-09-08",
+    "count": 12,
+    "titles": [
+      "Emperor of Solo Play",
+      "Solo Resurrection",
+      "Solo Leveling: Ragnarok",
+      "SOLO LEVELING: HUNTER ORIGIN",
+      "Solo Eating To Overpowered",
+      "The Solo Necromancer Leading an Immortal Army Transfers to become an SSS-Rank Adventurer",
+      "VRMMO Chronicles of a Solo Cleric ~Surprise! I’m Actually a Berserker!~",
+      "Solo Farming In The Tower"
+    ],
+    "urls": [
+      "https://www.mangaread.org/manga/emperor-of-solo-play/",
+      "https://www.mangaread.org/manga/solo-resurrection/",
+      "https://www.mangaread.org/manga/solo-leveling-ragnarok/",
+      "https://www.mangaread.org/manga/solo-leveling-hunter-origin/",
+      "https://www.mangaread.org/manga/solo-eating-to-overpowered/",
+      "https://www.mangaread.org/manga/the-solo-necromancer-leading-an-immortal-army-transfers-to-become-an-sss-rank-adventurer/",
+      "https://www.mangaread.org/manga/vrmmo-chronicles-of-a-solo-cleric-surprise-im-actually-a-berserker/",
+      "https://www.mangaread.org/manga/solo-farming-in-the-tower/"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://mangaread.org",
+    "host": "mangaread.org",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "madara",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  },
+  {
+    "site": "https://manhuaplus.com",
+    "host": "manhuaplus.com",
+    "query": "martial",
+    "adapter": "madara",
+    "checked": "2026-09-08",
+    "count": 12,
+    "titles": [
+      "Martial God Chat Group",
+      "True Martial World",
+      "Global Martial Arts",
+      "Medical Martial Arts",
+      "Martial Peak",
+      "World Defying Dan God",
+      "Ultimate Devouring System",
+      "Indestructible master of the fortress"
+    ],
+    "urls": [
+      "https://manhuaplus.com/manga/martial-god-chat-group/",
+      "https://manhuaplus.com/manga/true-martial-world/",
+      "https://manhuaplus.com/manga/global-martial-arts/",
+      "https://manhuaplus.com/manga/medical-martial-arts/",
+      "https://manhuaplus.com/manga/martial-peak/",
+      "https://manhuaplus.com/manga/world-defying-dan-god/",
+      "https://manhuaplus.com/manga/ultimate-devouring-system/",
+      "https://manhuaplus.com/manga/indestructible-master-of-the-fortress/"
+    ],
+    "kind": "positive"
+  },
+  {
+    "site": "https://manhuaplus.com",
+    "host": "manhuaplus.com",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "adapter": "madara",
+    "checked": "2026-09-08",
+    "count": 0,
+    "titles": [],
+    "urls": [],
+    "kind": "sentinel"
+  }
+]

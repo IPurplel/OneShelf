@@ -1,0 +1,25 @@
+{
+  "source_url": "https://wuxiabox.com/novel/absolute-resonance.html",
+  "checked": "2026-09-08T20:33:56.492025+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-v9dd41zq",
+  "passed": true,
+  "adapter": "wuxiabox",
+  "title": "Absolute Resonance",
+  "listed_chapters": 1216,
+  "chapter_url": "https://wuxiabox.com/novel/absolute-resonance_1.html",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-v9dd41zq/downloads/Absolute Resonance/Absolute Resonance - c001.epub",
+    "passed": true,
+    "count": 1,
+    "unit": "spine items",
+    "bytes": 9390,
+    "sha256": "f1875b67d6f36d4f2d7f87ceec001f5de7bfb761d3b265f0840c59d925c5340b",
+    "spine": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "rendered_pages": 15
+  }
+}

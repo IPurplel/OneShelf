@@ -1,0 +1,100 @@
+[
+  {
+    "site": "https://www.noor-book.com",
+    "query": "White Nights",
+    "count": 4,
+    "results": [
+      {
+        "title": "White Nights",
+        "url": "https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf",
+        "source": "books",
+        "site": "www.noor-book.com",
+        "cover_url": "https://www.noor-book.com/publice/covers_cache_jpg/9/9/5/a/857b3068b995a1f3abd18552397f2051.png.jpg",
+        "alt_title": null,
+        "author": null
+      },
+      {
+        "title": "White Nights",
+        "url": "https://www.noor-book.com/en/ebook-الليالي-البيضاء-pdf",
+        "source": "books",
+        "site": "www.noor-book.com",
+        "cover_url": "https://www.noor-book.com/publice/covers_cache_jpg/13/6/3/8/2d8d5425f76381d4da99c8007e07c8d3.png.jpg",
+        "alt_title": null,
+        "author": null
+      },
+      {
+        "title": "White Nights And Other Stories The Novels Of Fyodor Dostoevsky, Volume X",
+        "url": "https://www.noor-book.com/en/ebook-White-Nights-and-Other-Stories-The-Novels-of-Fyodor-Dostoevsky-Volume-X-pdf",
+        "source": "books",
+        "site": "www.noor-book.com",
+        "cover_url": "https://www.noor-book.com/publice/images/public_domain.svg",
+        "alt_title": null,
+        "author": null
+      },
+      {
+        "title": "Ashes Of White Nights",
+        "url": "https://www.noor-book.com/en/ebook-رماد-الليالي-البيضاء-pdf",
+        "source": "books",
+        "site": "www.noor-book.com",
+        "cover_url": "https://www.noor-book.com/publice/images/male.svg",
+        "alt_title": null,
+        "author": null
+      }
+    ]
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "count": 0,
+    "results": []
+  },
+  {
+    "site": "https://3asq.online",
+    "query": "hunter",
+    "count": 4,
+    "results": [
+      {
+        "title": "Hunter X Hunter – colored",
+        "url": "https://3asq.online/manga/hunter-x-hunter-colored/",
+        "source": "madara",
+        "site": "3asq.online",
+        "cover_url": "https://3asq.online/wp-content/uploads/2019/08/01-02-1-193x278.png",
+        "alt_title": null,
+        "author": null
+      },
+      {
+        "title": "Hunter x Hunter: Kurapika Tsuioku-hen",
+        "url": "https://3asq.online/manga/hunter-x-hunter-kurapika-tsuioku-hen/",
+        "source": "madara",
+        "site": "3asq.online",
+        "cover_url": "https://3asq.online/wp-content/uploads/2019/07/01-1-193x278.jpg",
+        "alt_title": null,
+        "author": null
+      },
+      {
+        "title": "Hunter X Hunter",
+        "url": "https://3asq.online/manga/hunter-x-hunter/",
+        "source": "madara",
+        "site": "3asq.online",
+        "cover_url": "https://3asq.online/wp-content/uploads/2019/03/cover_250x350-193x278.jpg",
+        "alt_title": null,
+        "author": null
+      },
+      {
+        "title": "Shangri-La Frontier",
+        "url": "https://3asq.online/manga/shangri-la-frontier/",
+        "source": "madara",
+        "site": "3asq.online",
+        "cover_url": "https://3asq.online/wp-content/uploads/2025/07/1000132867-768x1103.jpg",
+        "alt_title": null,
+        "author": null
+      }
+    ]
+  },
+  {
+    "site": "https://3asq.online",
+    "query": "zzqvoneshelfnonexistent987654321",
+    "count": 0,
+    "results": []
+  }
+]

@@ -159,3 +159,47 @@ def test_no_lan_detection_prints_instructions_not_localhost_as_lan(startup):
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'LAN IP' in result.stdout
     assert result.stdout.count('http://localhost:8080') == 1
+
+
+def test_the_cited_evidence_tools_travel_with_a_commit():
+    """`SOURCES.md`, `HANDOFF.md` and `docs/development.md` cite these by name
+    as how to reproduce a result.
+
+    `.gitignore` excludes `scratchpad/*` wholesale, so for a long while the
+    documentation pointed at files that would not exist in a fresh clone —
+    naming a reproduction step nobody else could run.
+    """
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    cited = [
+        "verify_dl.py", "audit_connectivity.py", "audit_search.py",
+        "triage_sites.py", "triage_pass2.py", "measure_arabic.py",
+        "probe_novels.py", "novel_seeds.json", "probe_network.py",
+        "probe_via_app.py", "wp4_search_again.py", "fix_endings.py",
+    ]
+    for name in cited:
+        path = root / "scratchpad" / name
+        assert path.exists(), f"scratchpad/{name} is cited but missing"
+        ignored = subprocess.run(
+            ["git", "check-ignore", "-q", str(path)], cwd=root).returncode == 0
+        assert not ignored, f"scratchpad/{name} is cited but git-ignored"
+
+
+def test_one_off_probes_stay_untracked():
+    """The allowlist is a curated set, not an invitation to commit every probe.
+
+    Several carry hard-coded paths or a single session's URLs.
+    """
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    for name in ("probe_asq.py", "probe_noor.py", "capture_asq.py"):
+        path = root / "scratchpad" / name
+        if not path.exists():
+            continue
+        ignored = subprocess.run(
+            ["git", "check-ignore", "-q", str(path)], cwd=root).returncode == 0
+        assert ignored, f"scratchpad/{name} is a one-off probe and should stay ignored"

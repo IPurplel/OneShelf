@@ -1,0 +1,533 @@
+<style id="read_img_style">
+    #readModal .modal-dialog .modal-body .page_img img{
+        width: 100%;
+    }
+    #readModal #tab1{
+        overflow-x: auto!important;
+        white-space: nowrap;
+        padding-bottom: 10px;
+    }
+</style>
+<div class="the_modal_nav">
+    <div class="modal_nav_header_items">
+        <div class="row">
+            <div class="col-xs-2">
+                <div style="height: 100%;"  class="dropdown">
+                    <button style="height: 100%;" class="btn btn-default  dropdown-toggle btn-block" type="button" data-toggle="dropdown">
+                        <i class="fa fa-navicon"></i></button>
+                    <ul class="dropdown-menu">
+                        <li><a class="add_quote_from_read" href="#"><i class="fa fa-quote-right"></i>&nbsp;Add Quote</a></li>
+                        <li><a class="add_review_from_read" href="#"><i class="fa fa-star"></i>&nbsp;Add Review</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="col-xs-3">
+                <div class="form-group  select_page_number">
+                    <select  class="form-control input-lg  kufi-r select_page">
+                        <option value="">Page</option>
+                        <option  value=1>1</option><option  value=2>2</option><option  value=3>3</option><option  value=4>4</option><option  value=5>5</option><option  value=6>6</option><option  value=7>7</option><option  value=8>8</option><option  value=9>9</option><option  value=10>10</option><option  value=11>11</option><option  value=12>12</option><option  value=13>13</option><option  value=14>14</option><option  value=15>15</option><option  value=16>16</option><option  value=17>17</option><option  value=18>18</option><option  value=19>19</option><option  value=20>20</option><option  value=21>21</option><option  value=22>22</option><option  value=23>23</option><option  value=24>24</option><option  value=25>25</option><option  value=26>26</option><option  value=27>27</option><option  value=28>28</option><option  value=29>29</option><option  value=30>30</option><option  value=31>31</option><option  value=32>32</option><option  value=33>33</option><option  value=34>34</option><option  value=35>35</option><option  value=36>36</option><option  value=37>37</option><option  value=38>38</option><option  value=39>39</option><option  value=40>40</option><option  value=41>41</option><option  value=42>42</option><option  value=43>43</option><option  value=44>44</option><option  value=45>45</option><option  value=46>46</option><option  value=47>47</option><option  value=48>48</option><option  value=49>49</option><option  value=50>50</option><option  value=51>51</option><option  value=52>52</option><option  value=53>53</option><option  value=54>54</option><option  value=55>55</option><option  value=56>56</option><option  value=57>57</option><option  value=58>58</option><option  value=59>59</option><option  value=60>60</option><option  value=61>61</option><option  value=62>62</option><option  value=63>63</option><option  value=64>64</option><option  value=65>65</option><option  value=66>66</option><option  value=67>67</option><option  value=68>68</option><option  value=69>69</option><option  value=70>70</option><option  value=71>71</option><option  value=72>72</option><option  value=73>73</option><option  value=74>74</option><option  value=75>75</option><option  value=76>76</option><option  value=77>77</option><option  value=78>78</option><option  value=79>79</option><option  value=80>80</option><option  value=81>81</option><option  value=82>82</option><option  value=83>83</option><option  value=84>84</option><option  value=85>85</option><option  value=86>86</option><option  value=87>87</option><option  value=88>88</option><option  value=89>89</option><option  value=90>90</option><option  value=91>91</option><option  value=92>92</option><option  value=93>93</option><option  value=94>94</option><option  value=95>95</option><option  value=96>96</option><option  value=97>97</option><option  value=98>98</option><option  value=99>99</option><option  value=100>100</option>                    </select>
+                </div>
+            </div>
+            <div  class="col-xs-3">
+                <div class="form-group  select_page_number">
+                    <select  class="form-control input-lg kufi-r select_margin">
+                        <option value="0">Zoom</option>
+                        <option value="0">0%</option>
+                        <option  value="5">5 %</option><option  value="10">10 %</option><option  value="15">15 %</option><option  value="20">20 %</option><option  value="25">25 %</option><option  value="30">30 %</option><option  value="35">35 %</option><option  value="40">40 %</option><option  value="45">45 %</option><option  value="50">50 %</option><option  value="55">55 %</option><option  value="60">60 %</option><option  value="65">65 %</option><option  value="70">70 %</option><option  value="75">75 %</option><option  value="80">80 %</option><option  value="85">85 %</option><option  value="90">90 %</option><option  value="95">95 %</option><option  value="100">100 %</option>                    </select>
+                </div>
+            </div>
+            <div class="col-xs-4">
+                <a data-dismiss="modal" class="btn btn-md btn-default noor-btn read-back-btn btn-block" href="#">
+                    <span>Back </span><i class="fa fa-chevron-right"></i>                </a>
+            </div>
+        </div>
+    </div>
+    <div id="read_progress"><div class="inside" id="inside_prog"></div></div>
+</div>
+<div class="modal-body">
+                    <div class="text-center">
+            <div style="margin-bottom: 0px;padding-top: 30px;" id="go_sub" class="panel donation_panel">
+                                    <div class="text-center">
+                        <img loading="lazy" src="/publice/images/quality2.svg" width="90px" height="90px;" />
+                        <h4 style="font-size: 15px;margin-bottom: 5px;font-weight: bold">Account upgrade</h4>
+                        <p style="font-size: 16px;" class="red-color">
+                            Reading Books is free, but we offer some paid services. Support us by subscribing
+                        </p>
+                    </div>
+                    <div style="max-width: 435px; margin: auto;" class="text-right m-b-20 m-t-5">
+                        <p style="font-weight: bold" class="m-b-5"><i class="fa fa-check green-color"></i>&nbsp;&nbsp;Delete ads and speed up browsing the library.</p>
+                        <p style="font-weight: bold" class="m-b-5"><i class="fa fa-check green-color"></i>&nbsp;&nbsp;The download starts with the click of a button without waiting for the book to be ready.</p>
+                        <p style="font-weight: bold" class="m-b-5"><i class="fa fa-check green-color"></i>&nbsp;&nbsp;No limits for download times.</p>
+                        <p class="m-b-5"><i class="fa fa-check green-color"></i>&nbsp;&nbsp;You can upload unlimited books in the library.</p>
+                        <p class="m-b-5"><i class="fa fa-check green-color"></i>&nbsp;&nbsp;Enable readers to download your books without waiting.</p>
+                        <p class="m-b-5"><i class="fa fa-check green-color"></i>&nbsp;&nbsp;Delete ads on the books that you publish.</p>
+                        <p class="m-b-5"><i class="fa fa-check green-color"></i>&nbsp;&nbsp;No problems with download links for your uploaded books.</p>
+                    </div>
+                    <div class="row m-b-30">
+                        <a class="donate_now_btn" target="_blank" href="/en/subscriptions">Upgrade account now</a>
+                    </div>
+                            </div>
+        </div>
+        <h4 id="top_page" class="read_book_modal_title m-b-5">Book الليالي البيضاء</h4>
+            <div class="book_copies_section m-b-20">
+            <div class="panel with-nav-tabs panel-default">
+                                <div class="panel-body">
+                    <div class="tab-content">
+                                                    <div class="tab-pane fade in active" id="tab1">
+                                                                                                                                                <div start="1" end="100" file_num="1" class="pages_from_to" style="background: #ceece7;" >Pages<br>1 - 100</div>
+                                                                                                                                                                                                                    <div start="101" end="111" file_num="1" class="pages_from_to">Pages<br>101 - 111</div>
+                                                            </div>
+                                            </div>
+                </div>
+            </div>
+        </div>
+        <h5 class="text-center read_book_num_pages">Pages <span class="start_val">1</span> - <span class="end_val">100</span></h5>
+    <div class="pages_container" >
+                    <div id="1"  has_image="1" page_number="1" class='page_img'>
+                <span class='read_page_num'>Page 1</span>
+                                    <img src="/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/1/772d37a0a1dd5d66861cf9dbf7f78ec6.svg">
+                 
+            </div>
+                                <div id="2"  has_image="1" page_number="2" class='page_img'>
+                <span class='read_page_num'>Page 2</span>
+                                    <img src="/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/2/772d37a0a1dd5d66861cf9dbf7f78ec6.svg">
+                 
+            </div>
+                                <div id="3"  has_image="1" page_number="3" class='page_img'>
+                <span class='read_page_num'>Page 3</span>
+                                    <img src="/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/3/772d37a0a1dd5d66861cf9dbf7f78ec6.svg">
+                 
+            </div>
+                                <div id="4"  has_image="1" page_number="4" class='page_img'>
+                <span class='read_page_num'>Page 4</span>
+                                    <img src="/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/4/772d37a0a1dd5d66861cf9dbf7f78ec6.svg">
+                 
+            </div>
+                                <div id="5"  has_image="1" page_number="5" class='page_img'>
+                <span class='read_page_num'>Page 5</span>
+                                    <img src="/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/5/772d37a0a1dd5d66861cf9dbf7f78ec6.svg">
+                 
+            </div>
+                                <div id="6" style="height: 1000px;" has_image="0" page_number="6" class='page_img'>
+                <span class='read_page_num'>Page 6</span>
+                 
+            </div>
+                                <div id="7" style="height: 1000px;" has_image="0" page_number="7" class='page_img'>
+                <span class='read_page_num'>Page 7</span>
+                 
+            </div>
+                                <div id="8" style="height: 1000px;" has_image="0" page_number="8" class='page_img'>
+                <span class='read_page_num'>Page 8</span>
+                 
+            </div>
+                                <div id="9" style="height: 1000px;" has_image="0" page_number="9" class='page_img'>
+                <span class='read_page_num'>Page 9</span>
+                 
+            </div>
+                                <div id="10" style="height: 1000px;" has_image="0" page_number="10" class='page_img'>
+                <span class='read_page_num'>Page 10</span>
+                 
+            </div>
+                                <div id="11" style="height: 1000px;" has_image="0" page_number="11" class='page_img'>
+                <span class='read_page_num'>Page 11</span>
+                 
+            </div>
+                                <div id="12" style="height: 1000px;" has_image="0" page_number="12" class='page_img'>
+                <span class='read_page_num'>Page 12</span>
+                 
+            </div>
+                                <div id="13" style="height: 1000px;" has_image="0" page_number="13" class='page_img'>
+                <span class='read_page_num'>Page 13</span>
+                 
+            </div>
+                                <div id="14" style="height: 1000px;" has_image="0" page_number="14" class='page_img'>
+                <span class='read_page_num'>Page 14</span>
+                 
+            </div>
+                                <div id="15" style="height: 1000px;" has_image="0" page_number="15" class='page_img'>
+                <span class='read_page_num'>Page 15</span>
+                 
+            </div>
+                                <div id="16" style="height: 1000px;" has_image="0" page_number="16" class='page_img'>
+                <span class='read_page_num'>Page 16</span>
+                 
+            </div>
+                                <div id="17" style="height: 1000px;" has_image="0" page_number="17" class='page_img'>
+                <span class='read_page_num'>Page 17</span>
+                 
+            </div>
+                                <div id="18" style="height: 1000px;" has_image="0" page_number="18" class='page_img'>
+                <span class='read_page_num'>Page 18</span>
+                 
+            </div>
+                                <div id="19" style="height: 1000px;" has_image="0" page_number="19" class='page_img'>
+                <span class='read_page_num'>Page 19</span>
+                 
+            </div>
+                                <div id="20" style="height: 1000px;" has_image="0" page_number="20" class='page_img'>
+                <span class='read_page_num'>Page 20</span>
+                 
+            </div>
+                                <div id="21" style="height: 1000px;" has_image="0" page_number="21" class='page_img'>
+                <span class='read_page_num'>Page 21</span>
+                 
+            </div>
+                                <div id="22" style="height: 1000px;" has_image="0" page_number="22" class='page_img'>
+                <span class='read_page_num'>Page 22</span>
+                 
+            </div>
+                                <div id="23" style="height: 1000px;" has_image="0" page_number="23" class='page_img'>
+                <span class='read_page_num'>Page 23</span>
+                 
+            </div>
+                                <div id="24" style="height: 1000px;" has_image="0" page_number="24" class='page_img'>
+                <span class='read_page_num'>Page 24</span>
+                 
+            </div>
+                                <div id="25" style="height: 1000px;" has_image="0" page_number="25" class='page_img'>
+                <span class='read_page_num'>Page 25</span>
+                 
+            </div>
+                                <div id="26" style="height: 1000px;" has_image="0" page_number="26" class='page_img'>
+                <span class='read_page_num'>Page 26</span>
+                 
+            </div>
+                                <div id="27" style="height: 1000px;" has_image="0" page_number="27" class='page_img'>
+                <span class='read_page_num'>Page 27</span>
+                 
+            </div>
+                                <div id="28" style="height: 1000px;" has_image="0" page_number="28" class='page_img'>
+                <span class='read_page_num'>Page 28</span>
+                 
+            </div>
+                                <div id="29" style="height: 1000px;" has_image="0" page_number="29" class='page_img'>
+                <span class='read_page_num'>Page 29</span>
+                 
+            </div>
+                                <div id="30" style="height: 1000px;" has_image="0" page_number="30" class='page_img'>
+                <span class='read_page_num'>Page 30</span>
+                 
+            </div>
+                                <div id="31" style="height: 1000px;" has_image="0" page_number="31" class='page_img'>
+                <span class='read_page_num'>Page 31</span>
+                 
+            </div>
+                                <div id="32" style="height: 1000px;" has_image="0" page_number="32" class='page_img'>
+                <span class='read_page_num'>Page 32</span>
+                 
+            </div>
+                                <div id="33" style="height: 1000px;" has_image="0" page_number="33" class='page_img'>
+                <span class='read_page_num'>Page 33</span>
+                 
+            </div>
+                                <div id="34" style="height: 1000px;" has_image="0" page_number="34" class='page_img'>
+                <span class='read_page_num'>Page 34</span>
+                 
+            </div>
+                                <div id="35" style="height: 1000px;" has_image="0" page_number="35" class='page_img'>
+                <span class='read_page_num'>Page 35</span>
+                 
+            </div>
+                                <div id="36" style="height: 1000px;" has_image="0" page_number="36" class='page_img'>
+                <span class='read_page_num'>Page 36</span>
+                 
+            </div>
+                                <div id="37" style="height: 1000px;" has_image="0" page_number="37" class='page_img'>
+                <span class='read_page_num'>Page 37</span>
+                 
+            </div>
+                                <div id="38" style="height: 1000px;" has_image="0" page_number="38" class='page_img'>
+                <span class='read_page_num'>Page 38</span>
+                 
+            </div>
+                                <div id="39" style="height: 1000px;" has_image="0" page_number="39" class='page_img'>
+                <span class='read_page_num'>Page 39</span>
+                 
+            </div>
+                                <div id="40" style="height: 1000px;" has_image="0" page_number="40" class='page_img'>
+                <span class='read_page_num'>Page 40</span>
+                 
+            </div>
+                                <div id="41" style="height: 1000px;" has_image="0" page_number="41" class='page_img'>
+                <span class='read_page_num'>Page 41</span>
+                 
+            </div>
+                                <div id="42" style="height: 1000px;" has_image="0" page_number="42" class='page_img'>
+                <span class='read_page_num'>Page 42</span>
+                 
+            </div>
+                                <div id="43" style="height: 1000px;" has_image="0" page_number="43" class='page_img'>
+                <span class='read_page_num'>Page 43</span>
+                 
+            </div>
+                                <div id="44" style="height: 1000px;" has_image="0" page_number="44" class='page_img'>
+                <span class='read_page_num'>Page 44</span>
+                 
+            </div>
+                                <div id="45" style="height: 1000px;" has_image="0" page_number="45" class='page_img'>
+                <span class='read_page_num'>Page 45</span>
+                 
+            </div>
+                                <div id="46" style="height: 1000px;" has_image="0" page_number="46" class='page_img'>
+                <span class='read_page_num'>Page 46</span>
+                 
+            </div>
+                                <div id="47" style="height: 1000px;" has_image="0" page_number="47" class='page_img'>
+                <span class='read_page_num'>Page 47</span>
+                 
+            </div>
+                                <div id="48" style="height: 1000px;" has_image="0" page_number="48" class='page_img'>
+                <span class='read_page_num'>Page 48</span>
+                 
+            </div>
+                                <div id="49" style="height: 1000px;" has_image="0" page_number="49" class='page_img'>
+                <span class='read_page_num'>Page 49</span>
+                 
+            </div>
+                                <div id="50" style="height: 1000px;" has_image="0" page_number="50" class='page_img'>
+                <span class='read_page_num'>Page 50</span>
+                 
+            </div>
+                                <div id="51" style="height: 1000px;" has_image="0" page_number="51" class='page_img'>
+                <span class='read_page_num'>Page 51</span>
+                 
+            </div>
+                                <div id="52" style="height: 1000px;" has_image="0" page_number="52" class='page_img'>
+                <span class='read_page_num'>Page 52</span>
+                 
+            </div>
+                                <div id="53" style="height: 1000px;" has_image="0" page_number="53" class='page_img'>
+                <span class='read_page_num'>Page 53</span>
+                 
+            </div>
+                                <div id="54" style="height: 1000px;" has_image="0" page_number="54" class='page_img'>
+                <span class='read_page_num'>Page 54</span>
+                 
+            </div>
+                                <div id="55" style="height: 1000px;" has_image="0" page_number="55" class='page_img'>
+                <span class='read_page_num'>Page 55</span>
+                 
+            </div>
+                                <div id="56" style="height: 1000px;" has_image="0" page_number="56" class='page_img'>
+                <span class='read_page_num'>Page 56</span>
+                 
+            </div>
+                                <div id="57" style="height: 1000px;" has_image="0" page_number="57" class='page_img'>
+                <span class='read_page_num'>Page 57</span>
+                 
+            </div>
+                                <div id="58" style="height: 1000px;" has_image="0" page_number="58" class='page_img'>
+                <span class='read_page_num'>Page 58</span>
+                 
+            </div>
+                                <div id="59" style="height: 1000px;" has_image="0" page_number="59" class='page_img'>
+                <span class='read_page_num'>Page 59</span>
+                 
+            </div>
+                                <div id="60" style="height: 1000px;" has_image="0" page_number="60" class='page_img'>
+                <span class='read_page_num'>Page 60</span>
+                 
+            </div>
+                                <div id="61" style="height: 1000px;" has_image="0" page_number="61" class='page_img'>
+                <span class='read_page_num'>Page 61</span>
+                 
+            </div>
+                                <div id="62" style="height: 1000px;" has_image="0" page_number="62" class='page_img'>
+                <span class='read_page_num'>Page 62</span>
+                 
+            </div>
+                                <div id="63" style="height: 1000px;" has_image="0" page_number="63" class='page_img'>
+                <span class='read_page_num'>Page 63</span>
+                 
+            </div>
+                                <div id="64" style="height: 1000px;" has_image="0" page_number="64" class='page_img'>
+                <span class='read_page_num'>Page 64</span>
+                 
+            </div>
+                                <div id="65" style="height: 1000px;" has_image="0" page_number="65" class='page_img'>
+                <span class='read_page_num'>Page 65</span>
+                 
+            </div>
+                                <div id="66" style="height: 1000px;" has_image="0" page_number="66" class='page_img'>
+                <span class='read_page_num'>Page 66</span>
+                 
+            </div>
+                                <div id="67" style="height: 1000px;" has_image="0" page_number="67" class='page_img'>
+                <span class='read_page_num'>Page 67</span>
+                 
+            </div>
+                                <div id="68" style="height: 1000px;" has_image="0" page_number="68" class='page_img'>
+                <span class='read_page_num'>Page 68</span>
+                 
+            </div>
+                                <div id="69" style="height: 1000px;" has_image="0" page_number="69" class='page_img'>
+                <span class='read_page_num'>Page 69</span>
+                 
+            </div>
+                                <div id="70" style="height: 1000px;" has_image="0" page_number="70" class='page_img'>
+                <span class='read_page_num'>Page 70</span>
+                 
+            </div>
+                                <div id="71" style="height: 1000px;" has_image="0" page_number="71" class='page_img'>
+                <span class='read_page_num'>Page 71</span>
+                 
+            </div>
+                                <div id="72" style="height: 1000px;" has_image="0" page_number="72" class='page_img'>
+                <span class='read_page_num'>Page 72</span>
+                 
+            </div>
+                                <div id="73" style="height: 1000px;" has_image="0" page_number="73" class='page_img'>
+                <span class='read_page_num'>Page 73</span>
+                 
+            </div>
+                                <div id="74" style="height: 1000px;" has_image="0" page_number="74" class='page_img'>
+                <span class='read_page_num'>Page 74</span>
+                 
+            </div>
+                                <div id="75" style="height: 1000px;" has_image="0" page_number="75" class='page_img'>
+                <span class='read_page_num'>Page 75</span>
+                 
+            </div>
+                                <div id="76" style="height: 1000px;" has_image="0" page_number="76" class='page_img'>
+                <span class='read_page_num'>Page 76</span>
+                 
+            </div>
+                                <div id="77" style="height: 1000px;" has_image="0" page_number="77" class='page_img'>
+                <span class='read_page_num'>Page 77</span>
+                 
+            </div>
+                                <div id="78" style="height: 1000px;" has_image="0" page_number="78" class='page_img'>
+                <span class='read_page_num'>Page 78</span>
+                 
+            </div>
+                                <div id="79" style="height: 1000px;" has_image="0" page_number="79" class='page_img'>
+                <span class='read_page_num'>Page 79</span>
+                 
+            </div>
+                                <div id="80" style="height: 1000px;" has_image="0" page_number="80" class='page_img'>
+                <span class='read_page_num'>Page 80</span>
+                 
+            </div>
+                                <div id="81" style="height: 1000px;" has_image="0" page_number="81" class='page_img'>
+                <span class='read_page_num'>Page 81</span>
+                 
+            </div>
+                                <div id="82" style="height: 1000px;" has_image="0" page_number="82" class='page_img'>
+                <span class='read_page_num'>Page 82</span>
+                 
+            </div>
+                                <div id="83" style="height: 1000px;" has_image="0" page_number="83" class='page_img'>
+                <span class='read_page_num'>Page 83</span>
+                 
+            </div>
+                                <div id="84" style="height: 1000px;" has_image="0" page_number="84" class='page_img'>
+                <span class='read_page_num'>Page 84</span>
+                 
+            </div>
+                                <div id="85" style="height: 1000px;" has_image="0" page_number="85" class='page_img'>
+                <span class='read_page_num'>Page 85</span>
+                 
+            </div>
+                                <div id="86" style="height: 1000px;" has_image="0" page_number="86" class='page_img'>
+                <span class='read_page_num'>Page 86</span>
+                 
+            </div>
+                                <div id="87" style="height: 1000px;" has_image="0" page_number="87" class='page_img'>
+                <span class='read_page_num'>Page 87</span>
+                 
+            </div>
+                                <div id="88" style="height: 1000px;" has_image="0" page_number="88" class='page_img'>
+                <span class='read_page_num'>Page 88</span>
+                 
+            </div>
+                                <div id="89" style="height: 1000px;" has_image="0" page_number="89" class='page_img'>
+                <span class='read_page_num'>Page 89</span>
+                 
+            </div>
+                                <div id="90" style="height: 1000px;" has_image="0" page_number="90" class='page_img'>
+                <span class='read_page_num'>Page 90</span>
+                 
+            </div>
+                                <div id="91" style="height: 1000px;" has_image="0" page_number="91" class='page_img'>
+                <span class='read_page_num'>Page 91</span>
+                 
+            </div>
+                                <div id="92" style="height: 1000px;" has_image="0" page_number="92" class='page_img'>
+                <span class='read_page_num'>Page 92</span>
+                 
+            </div>
+                                <div id="93" style="height: 1000px;" has_image="0" page_number="93" class='page_img'>
+                <span class='read_page_num'>Page 93</span>
+                 
+            </div>
+                                <div id="94" style="height: 1000px;" has_image="0" page_number="94" class='page_img'>
+                <span class='read_page_num'>Page 94</span>
+                 
+            </div>
+                                <div id="95" style="height: 1000px;" has_image="0" page_number="95" class='page_img'>
+                <span class='read_page_num'>Page 95</span>
+                 
+            </div>
+                                <div id="96" style="height: 1000px;" has_image="0" page_number="96" class='page_img'>
+                <span class='read_page_num'>Page 96</span>
+                 
+            </div>
+                                <div id="97" style="height: 1000px;" has_image="0" page_number="97" class='page_img'>
+                <span class='read_page_num'>Page 97</span>
+                 
+            </div>
+                                <div id="98" style="height: 1000px;" has_image="0" page_number="98" class='page_img'>
+                <span class='read_page_num'>Page 98</span>
+                 
+            </div>
+                                <div id="99" style="height: 1000px;" has_image="0" page_number="99" class='page_img'>
+                <span class='read_page_num'>Page 99</span>
+                 
+            </div>
+                                <div id="100" style="height: 1000px;" has_image="0" page_number="100" class='page_img'>
+                <span class='read_page_num'>Page 100</span>
+                 
+            </div>
+              
+    </div>
+        <a href="#top_page"><h4 class="read_book_modal_title p-b-5"><i class="fa fa-angle-up"></i> Scroll To Top</h4></a>
+    <br>
+</div>
+
+<script>
+                        var download_URL = '';
+                        var copy_number = '0';
+                        var book_img_ext = "";
+                            var curr_reading_pages = 111;
+</script>
+<script>
+    $(document).ready(function () {
+        script_url = '/publice/js/read.min.js?v=2228992';
+        $.getScript(script_url);
+    });
+</script>
+<script>window.dataLayer = window.dataLayer || [];
+    function gtag() {
+        dataLayer.push(arguments);
+    }
+    gtag('js', new Date());
+    gtag('config', 'G-5J44LL9E2R');</script>
+<style>
+    #read_progress{
+        height: 5px;
+        background-color: #ceece7;
+        position: absolute;
+        top: 60px;
+        width: 100%;
+        z-index: 1;
+        left: 0;
+        right: 0;
+        margin: auto;
+    }
+    #read_progress .inside{
+        width: 0%;
+        height: 100%;
+        background: #45b09e ;
+        transition: 0.5s;
+    }
+</style>

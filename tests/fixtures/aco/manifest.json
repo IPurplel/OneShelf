@@ -1,0 +1,535 @@
+{
+ "@context": "http://iiif.io/api/presentation/3/context.json",
+ "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/manifest.json",
+ "type": "Manifest",
+ "label": {
+  "en": [
+   "Sharḥ dīwān al-Mutanabbī v.3"
+  ],
+  "ar": [
+   "شرح ديوان المتنبي v.3"
+  ]
+ },
+ "behavior": [
+  "paged"
+ ],
+ "items": [
+  {
+   "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/canvas/1",
+   "type": "Canvas",
+   "label": {
+    "en": [
+     "1"
+    ]
+   },
+   "width": 2739,
+   "height": 3935,
+   "thumbnail": [
+    {
+     "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/1/full/!300,300/0/default.jpg",
+     "type": "Image",
+     "format": "image/jpeg",
+     "height": 300,
+     "width": 300,
+     "service": [
+      {
+       "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/1",
+       "type": "ImageService2",
+       "profile": "level1"
+      }
+     ]
+    }
+   ],
+   "items": [
+    {
+     "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/page/1",
+     "type": "AnnotationPage",
+     "items": [
+      {
+       "@context": "http://iiif.io/api/presentation/3/context.json",
+       "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/annotation/painting/1",
+       "type": "Annotation",
+       "motivation": "painting",
+       "body": {
+        "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/1",
+        "type": "Image",
+        "format": "image/jpeg",
+        "service": [
+         {
+          "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/1",
+          "type": "ImageService2",
+          "profile": "level1"
+         }
+        ],
+        "height": 3935,
+        "width": 2739
+       },
+       "target": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/canvas/1"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/canvas/2",
+   "type": "Canvas",
+   "label": {
+    "en": [
+     "2"
+    ]
+   },
+   "width": 2564,
+   "height": 3664,
+   "thumbnail": [
+    {
+     "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/2/full/!300,300/0/default.jpg",
+     "type": "Image",
+     "format": "image/jpeg",
+     "height": 300,
+     "width": 300,
+     "service": [
+      {
+       "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/2",
+       "type": "ImageService2",
+       "profile": "level1"
+      }
+     ]
+    }
+   ],
+   "items": [
+    {
+     "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/page/2",
+     "type": "AnnotationPage",
+     "items": [
+      {
+       "@context": "http://iiif.io/api/presentation/3/context.json",
+       "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/annotation/painting/2",
+       "type": "Annotation",
+       "motivation": "painting",
+       "body": {
+        "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/2",
+        "type": "Image",
+        "format": "image/jpeg",
+        "service": [
+         {
+          "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/2",
+          "type": "ImageService2",
+          "profile": "level1"
+         }
+        ],
+        "height": 3664,
+        "width": 2564
+       },
+       "target": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/canvas/2"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/canvas/3",
+   "type": "Canvas",
+   "label": {
+    "en": [
+     "3"
+    ]
+   },
+   "width": 2358,
+   "height": 3720,
+   "thumbnail": [
+    {
+     "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/3/full/!300,300/0/default.jpg",
+     "type": "Image",
+     "format": "image/jpeg",
+     "height": 300,
+     "width": 300,
+     "service": [
+      {
+       "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/3",
+       "type": "ImageService2",
+       "profile": "level1"
+      }
+     ]
+    }
+   ],
+   "items": [
+    {
+     "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/page/3",
+     "type": "AnnotationPage",
+     "items": [
+      {
+       "@context": "http://iiif.io/api/presentation/3/context.json",
+       "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/annotation/painting/3",
+       "type": "Annotation",
+       "motivation": "painting",
+       "body": {
+        "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/3",
+        "type": "Image",
+        "format": "image/jpeg",
+        "service": [
+         {
+          "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/3",
+          "type": "ImageService2",
+          "profile": "level1"
+         }
+        ],
+        "height": 3720,
+        "width": 2358
+       },
+       "target": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/canvas/3"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "metadata": [
+  {
+   "label": {
+    "en": [
+     "Author/Contributor"
+    ],
+    "ar": [
+     "المؤلف/المساهم"
+    ]
+   },
+   "value": {
+    "en": [
+     "Mutanabbī, Abū al-Ṭayyib Aḥmad ibn al-Ḥusayn, 915 or 916-965, author.",
+     "Barqūqī, ʻAbd al-Raḥmān, compiler."
+    ],
+    "ar": [
+     "متنبي، أبو الطيب أحمد بن الحسين،, 915-965،, author.",
+     "البرقوقي، عبد الرحمن،, معد."
+    ]
+   }
+  },
+  {
+   "label": {
+    "en": [
+     "Call number"
+    ],
+    "ar": [
+     "رقم الاستدعاء"
+    ]
+   },
+   "value": {
+    "en": [
+     "PJ7750 .M8 1938"
+    ],
+    "ar": [
+     "PJ7750 .M8 1938"
+    ]
+   }
+  },
+  {
+   "label": {
+    "en": [
+     "Date of publication"
+    ],
+    "ar": [
+     "تاريخ النشر"
+    ]
+   },
+   "value": {
+    "en": [
+     "1357 H. = 1938 M"
+    ],
+    "ar": [
+     "1357 H. = 1938 M"
+    ]
+   }
+  },
+  {
+   "label": {
+    "en": [
+     "Place of publication"
+    ],
+    "ar": [
+     "مكان النشر"
+    ]
+   },
+   "value": {
+    "en": [
+     "al-Qāhirah"
+    ],
+    "ar": [
+     "القاهرة :"
+    ]
+   }
+  },
+  {
+   "label": {
+    "en": [
+     "Language"
+    ],
+    "ar": [
+     "اللغة"
+    ]
+   },
+   "value": {
+    "en": [
+     "Arabic"
+    ],
+    "ar": [
+     "Arabic"
+    ]
+   }
+  },
+  {
+   "label": {
+    "en": [
+     "Publisher"
+    ],
+    "ar": [
+     "الناشر"
+    ]
+   },
+   "value": {
+    "en": [
+     "al-Maktabah al-Tijārīyah al-Kubrá"
+    ],
+    "ar": [
+     "المكتبة التجارية الكبرى،"
+    ]
+   }
+  },
+  {
+   "label": {
+    "en": [
+     "Topic"
+    ],
+    "ar": [
+     "الموضوع"
+    ]
+   },
+   "value": {
+    "en": [
+     "Language and Literature"
+    ],
+    "ar": [
+     "اللغات والآداب"
+    ]
+   }
+  },
+  {
+   "label": {
+    "en": [
+     "Collection"
+    ],
+    "ar": [
+     "المجموعة"
+    ]
+   },
+   "value": {
+    "en": [
+     "Arabic Collections Online"
+    ],
+    "ar": [
+     "المجموعات العربية على الإنترنت"
+    ]
+   }
+  },
+  {
+   "label": {
+    "en": [
+     "Provider"
+    ],
+    "ar": [
+     "المزوِّد"
+    ]
+   },
+   "value": {
+    "en": [
+     "American University of Beirut"
+    ],
+    "ar": [
+     "الجامعة الاميركية في بيروت"
+    ]
+   }
+  },
+  {
+   "label": {
+    "en": [
+     "Subject"
+    ],
+    "ar": [
+     "الموضوع"
+    ]
+   },
+   "value": {
+    "en": [
+     "Mutanabbi, Abu al Tayyib Ahmad ibn al Husayn -- 915 or 16-965 -- Criticism and interpretation",
+     "Arabic poetry -- 750-1258"
+    ],
+    "ar": [
+     "Mutanabbi, Abu al Tayyib Ahmad ibn al Husayn -- 915 or 16-965 -- Criticism and interpretation",
+     "Arabic poetry -- 750-1258"
+    ]
+   }
+  },
+  {
+   "label": {
+    "en": [
+     "Permanent Link"
+    ],
+    "ar": [
+     "الرابط الثابت"
+    ]
+   },
+   "value": {
+    "en": [
+     "<a href='https://hdl.handle.net/2333.1/cnp5hvxq'>https://hdl.handle.net/2333.1/cnp5hvxq</a>"
+    ],
+    "ar": [
+     "<a href='https://hdl.handle.net/2333.1/cnp5hvxq'>https://hdl.handle.net/2333.1/cnp5hvxq</a>"
+    ]
+   }
+  }
+ ],
+ "viewingDirection": "right-to-left",
+ "homepage": [
+  {
+   "id": "https://sites.dlib.nyu.edu/viewer/books/aub_aco000056/1",
+   "type": "Text",
+   "label": {
+    "en": [
+     "View on NYU DLTS Viewer"
+    ]
+   },
+   "format": "text/html"
+  }
+ ],
+ "provider": [
+  {
+   "id": "https://wp.nyu.edu/library-dlts/",
+   "type": "Agent",
+   "label": {
+    "en": [
+     "NYU Digital Library Technology Services"
+    ]
+   },
+   "homepage": [
+    {
+     "id": "https://wp.nyu.edu/library-dlts/",
+     "type": "Text",
+     "label": {
+      "en": [
+       "NYU Digital Library Technology Services Homepage"
+      ]
+     },
+     "format": "text/html"
+    }
+   ],
+   "logo": [
+    {
+     "id": "https://sites.dlib.nyu.edu/viewer/sites/all/modules/dlts_viewer/images/nyu-logo.jpg",
+     "type": "Image",
+     "format": "image/jpeg",
+     "height": 900,
+     "width": 900
+    }
+   ]
+  }
+ ],
+ "thumbnail": [
+  {
+   "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/1/full/!400,400/0/default.jpg",
+   "type": "Image",
+   "format": "image/jpeg",
+   "height": 400,
+   "width": 400,
+   "service": [
+    {
+     "id": "https://sites.dlib.nyu.edu/viewer/api/image/books/aub_aco000056/1",
+     "type": "ImageService2",
+     "profile": "level1"
+    }
+   ]
+  }
+ ],
+ "rendering": [
+  {
+   "id": "http://mc.dlib.nyu.edu/files/books/aub_aco000056/aub_aco000056_hi.pdf",
+   "type": "Text",
+   "format": "application/pdf",
+   "label": {
+    "en": [
+     "High-resolution PDF rendering (262.26 MB)"
+    ]
+   }
+  },
+  {
+   "id": "http://mc.dlib.nyu.edu/files/books/aub_aco000056/aub_aco000056_lo.pdf",
+   "type": "Text",
+   "format": "application/pdf",
+   "label": {
+    "en": [
+     "Low-resolution PDF rendering (53.22 MB)"
+    ]
+   }
+  }
+ ],
+ "requiredStatement": {
+  "label": {
+   "en": [
+    "Rights"
+   ]
+  },
+  "value": {
+   "en": [
+    "NYU believes the materials displayed on this site are all in the    public domain. However, if you believe that you are the    copyright owner of any material displayed here, please see our    takedown policy: http://dlib.nyu.edu/aco/takedownpolicy/"
+   ]
+  }
+ },
+ "partOf": [
+  {
+   "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/collections/aco:aub/manifest.json",
+   "type": "Collection",
+   "label": {
+    "en": [
+     "Arabic Collections Online"
+    ]
+   }
+  },
+  {
+   "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/multivolume/aub_aco000056/manifest.json",
+   "type": "Collection",
+   "label": {
+    "und": [
+     "Sharḥ dīwān al-Mutanabbī"
+    ]
+   },
+   "items": [
+    {
+     "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000054/manifest.json",
+     "type": "Manifest",
+     "label": {
+      "und": " Sharḥ dīwān al-Mutanabbī v.1"
+     }
+    },
+    {
+     "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000055/manifest.json",
+     "type": "Manifest",
+     "label": {
+      "und": " Sharḥ dīwān al-Mutanabbī v.2"
+     }
+    },
+    {
+     "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000056/manifest.json",
+     "type": "Manifest",
+     "label": {
+      "und": " Sharḥ dīwān al-Mutanabbī v.3"
+     }
+    },
+    {
+     "id": "https://sites.dlib.nyu.edu/viewer/api/presentation/books/aub_aco000057/manifest.json",
+     "type": "Manifest",
+     "label": {
+      "und": " Sharḥ dīwān al-Mutanabbī v.4"
+     }
+    }
+   ]
+  }
+ ]
+}

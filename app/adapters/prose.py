@@ -175,3 +175,67 @@ def _inside_a_block(node, container) -> bool:
             return True
         parent = parent.parent
     return False
+
+
+# ------------------------------------------------ telling prose from pictures
+#
+# A manga platform's theme is markup, not a content type, and several sites
+# serve *novels* through one. Measured 2026-09-08: kolnovel.com fingerprints as
+# MangaThemesia and its adapter listed 13,406 chapters correctly, then failed
+# with "No page images found" — because a kolnovel chapter is **180 <p> and
+# 0 <img>**. cenele.com does the same thing wearing Madara's theme.
+#
+# So the platform says how to *find* a chapter and cannot say what is in it.
+# Only the chapter can, and this is the question it gets asked.
+
+#: Blocks of running text below which a reader is not carrying a chapter.
+#:
+#: Measured across every captured reader fixture:
+#:
+#:     fixture                        imgs  blocks   chars
+#:     kolnovel chapter (prose)          0      80    8082
+#:     rewayat chapter (prose)           0      56    6631
+#:     wuxiabox chapter (prose)          0     122   19478
+#:     madara reader (comic)             4       0       0
+#:     madara chapter page (comic)       0       0       0
+#:     vcomics reader (comic)            3       0       0
+#:
+#: Blocks separate the two completely -- 0 against 56 and up -- and they keep
+#: separating them when an image reader yields **no images at all** (row 5),
+#: which is the case this floor is really guarding.
+#:
+#: One block is therefore enough, and asking for more is actively wrong: a
+#: chapter served as a single long paragraph is still a chapter. The character
+#: floor below is what rejects a reader holding one stray line.
+MIN_PROSE_BLOCKS = 1
+
+#: A residual guard against a container of stray words. Deliberately small:
+#: this used to be 1,500 characters, which is above a genuinely short chapter,
+#: so a ~600-character chapter was judged "not prose", packaged as ``cbz`` and
+#: then died in ``fetch_pages`` with "no reader images" -- the exact failure
+#: the prose routing exists to remove.
+MIN_PROSE_CHARACTERS = 200
+
+
+def looks_like_prose(container, image_count: int) -> bool:
+    """Whether a reader is serving text rather than pictures of it.
+
+    Deliberately asked as "are there no images *and* is there a chapter's worth
+    of blocks", rather than as a ratio. A chapter with images is a comic
+    chapter even when it also carries a long translator's note, and treating it
+    as prose would silently drop every page -- the worst outcome available
+    here. So an image anywhere in the reader settles it.
+
+    Counted in blocks rather than characters because that is what actually
+    discriminates: ``blocks_from`` splits on ``<br>`` as well as on block
+    elements, so a chapter served as one ``<p>`` full of line breaks still
+    reads as many blocks (wuxiabox's 122 come from a single paragraph), while a
+    reader's navigation furniture reads as none.
+    """
+    if image_count:
+        return False
+    if container is None:
+        return False
+    if len(blocks_from(container, max_blocks=MIN_PROSE_BLOCKS)) < MIN_PROSE_BLOCKS:
+        return False
+    return len(normalise(container.text() or "")) >= MIN_PROSE_CHARACTERS

@@ -1,0 +1,98 @@
+94 of 183 sites need a second look
+
+www.noor-book.com                  content
+www.alarabimag.com                 content
+foulabook.com                      unreachable via desync too
+3asq.org                           content
+www.aseeralkotb.com                shell only (1620 bytes)
+www.on-manga.me                    shell only (1060 bytes)
+mangaae.com                        unreachable via desync too
+lekmanga.net                       unreachable via desync too
+mngaar.com                         unreachable via desync too
+prochan.net                        unreachable via desync too
+mangaat.com                        shell only (473 bytes)
+arabshentai.com                    unreachable via desync too
+stellarsaber.pro                   unreachable via desync too
+ar-manga.com                       unreachable via desync too
+teamx.net                          shell only (114 bytes)
+gate-manga.com                     unreachable via desync too
+shqawemanga.com                    unreachable via desync too
+as-gate.com                        unreachable via desync too
+arabic-novel.com                   unreachable via desync too
+riwayat.com                        shell only (114 bytes)
+books-library.net                  unreachable via desync too
+al-maktaba.org                     unreachable via desync too
+arab-books.com                     shell only (1361 bytes)
+114quran.com                       unreachable via desync too
+areamanga.com                      unreachable via desync too
+riwayatclub.com                    unreachable via desync too
+bookcc.com                         shell only (114 bytes)
+arabic-manga.com                   unreachable via desync too
+mangapro.com                       shell only (114 bytes)
+swatmanga.net                      unreachable via desync too
+manga-on.com                       unreachable via desync too
+mnga.cc                            unreachable via desync too
+rewayat-ar.com                     unreachable via desync too
+rewayat20.com                      unreachable via desync too
+azoramanga.com                     unreachable via desync too
+www.kutub.info                     content
+maktabet.com                       unreachable via desync too
+novel-ar.com                       unreachable via desync too
+kotob.com                          unreachable via desync too
+golden-manga.com                   unreachable via desync too
+mangakakalot.com                   unreachable via desync too
+aladdinlibrary.org                 unreachable via desync too
+mangadex.org                       shell only (6850 bytes)
+comico.io                          unreachable via desync too
+comixology.com                     content
+mangaplanet.com                    unreachable via desync too
+mangaplus.shueisha.co.jp           shell only (2350 bytes)
+toomics.com                        content
+1stkissmanga.io                    shell only (1064 bytes)
+mangakomi.io                       content
+mangafreak.eu                      unreachable via desync too
+bilibilicomics.com                 unreachable via desync too
+arnovel.me                         shell only (472 bytes)
+mangapark.net                      unreachable via desync too
+mangapanda.com                     unreachable via desync too
+mangasee123.com                    unreachable via desync too
+mangazuki.co                       unreachable via desync too
+ozulscans.com                      shell only (475 bytes)
+readmanhua.net                     unreachable via desync too
+wuxiaworld.com                     shell only (9851 bytes)
+mangarose.com                      shell only (475 bytes)
+novelbin.com                       unreachable via desync too
+toonily.com                        unreachable via desync too
+scribblehub.com                    unreachable via desync too
+bookfrom.net                       unreachable via desync too
+z-lib.org                          unreachable via desync too
+ketabpedia.com                     unreachable via desync too
+oceanofpdf.com                     unreachable via desync too
+maktabti.com                       unreachable via desync too
+justlightnovels.com                unreachable via desync too
+epubpub.com                        shell only (1048 bytes)
+mangareader.to                     unreachable via desync too
+baka-tsuki.org                     shell only (1521 bytes)
+foxaholic.com                      unreachable via desync too
+lightnovelworld.com                shell only (4370 bytes)
+1stkissnovel.love                  unreachable via desync too
+wnmtl.org                          unreachable via desync too
+manganelo.com                      unreachable via desync too
+allnovelfull.com                   unreachable via desync too
+aquamanga.com                      unreachable via desync too
+coffeemanga.io                     unreachable via desync too
+boxnovel.com                       unreachable via desync too
+feedbooks.com                      unreachable via desync too
+bato.to                            unreachable via desync too
+mangahub.io                        unreachable via desync too
+readm.org                          unreachable via desync too
+pdfbooksworld.com                  shell only (7198 bytes)
+lightnovelpub.com                  shell only (4370 bytes)
+daonovel.com                       unreachable via desync too
+readcomiconline.li                 unreachable via desync too
+creativenovels.com                 unreachable via desync too
+readlightnovel.me                  unreachable via desync too
+mtlnovel.com                       unreachable via desync too
+reaperscans.com                    unreachable via desync too
+
+94 re-probed -> docs/evidence/wp5/triage-pass2.json

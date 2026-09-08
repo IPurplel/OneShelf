@@ -1,0 +1,28 @@
+Isolated run: /workspace/manga downloader/.state/verification/run-lppfce24
+2026-09-08 08:21:28,242 INFO    app.desync: DPI-bypass proxy listening on socks5://127.0.0.1:33729 (split at 1 byte(s), 50 ms delay)
+2026-09-08 08:21:28,281 INFO    app.fetcher: HTTP egress via proxy socks5://127.0.0.1:33729
+2026-09-08 08:21:28,983 INFO    httpx: HTTP Request: GET https://3asq.org/manga/hunter-x-hunter/ "HTTP/1.1 301 Moved Permanently"
+2026-09-08 08:21:30,228 INFO    httpx: HTTP Request: GET https://3asq.online/manga/hunter-x-hunter/ "HTTP/1.1 200 OK"
+2026-09-08 08:21:30,246 INFO    app.adapters.registry: Using adapter madara for https://3asq.org/manga/hunter-x-hunter/
+2026-09-08 08:21:30,685 INFO    httpx: HTTP Request: GET https://3asq.org/manga/hunter-x-hunter/ "HTTP/1.1 301 Moved Permanently"
+2026-09-08 08:21:31,920 INFO    httpx: HTTP Request: GET https://3asq.online/manga/hunter-x-hunter/ "HTTP/1.1 200 OK"
+2026-09-08 08:21:32,383 INFO    httpx: HTTP Request: POST https://3asq.org/manga/hunter-x-hunter/ajax/chapters/ "HTTP/1.1 301 Moved Permanently"
+2026-09-08 08:21:33,831 INFO    httpx: HTTP Request: GET https://3asq.online/manga/hunter-x-hunter/ajax/chapters/ "HTTP/1.1 200 OK"
+2026-09-08 08:21:34,445 INFO    httpx: HTTP Request: POST https://3asq.org/wp-admin/admin-ajax.php "HTTP/1.1 301 Moved Permanently"
+2026-09-08 08:21:35,199 INFO    httpx: HTTP Request: GET https://3asq.online/wp-admin/admin-ajax.php "HTTP/1.1 400 Bad Request"
+2026-09-08 08:21:35,218 INFO    app.session: Browser driver: patchright (stealth=True, channel=bundled chromium)
+2026-09-08 08:21:35,434 INFO    app.session: Launching Chromium (headless=True, profile=/workspace/manga downloader/.state/verification/run-lppfce24/browser)
+2026-09-08 08:21:35,434 INFO    app.session: Browser egress direct (Chromium's own ECH/DoH)
+2026-09-08 08:21:35,583 INFO    app.session: Rewriting headless UA marker -> Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.33 Safari/537.36
+2026-09-08 08:21:35,588 WARNING app.session: The browser went away; it will be relaunched on the next request
+2026-09-08 08:21:35,604 INFO    app.session: Browser egress direct (Chromium's own ECH/DoH)
+2026-09-08 08:21:35,663 INFO    app.session: Browser user agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.33 Safari/537.36
+2026-09-08 08:21:35,976 WARNING app.session: The browser went away; it will be relaunched on the next request
+{
+  "source_url": "https://3asq.org/manga/hunter-x-hunter/",
+  "checked": "2026-09-08T08:21:28.242243+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-lppfce24",
+  "passed": false,
+  "error": "AdapterError: Could not read the chapter list. Tried: _chapters_via_ajax_path: no chapters found; _chapters_via_admin_ajax: Page.goto: net::ERR_CONNECTION_RESET at https://3asq.org/manga/hunter-x-hunter/\nCall log:\n  - navigating to \"https://3asq.org/manga/hunter-x-hunter/\", waiting until \"domcontentloaded\"\n; _chapters_via_inline_html: no chapters found"
+}
+FAIL

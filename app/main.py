@@ -29,6 +29,7 @@ from .adapters.base import (
     SCORE_WORD_PREFIX,
     relevance,
 )
+from .adapters.textmatch import clean_query, query_variants
 from .config import RUNTIME_EDITABLE, settings
 from .db import Database
 from .desync import DesyncProxy
@@ -460,7 +461,9 @@ async def sources() -> dict[str, Any]:
     grouped: dict[str, list[dict[str, str]]] = {kind: [] for kind in CONTENT_TYPES}
     for site in settings.search_sites:
         adapter = select_adapter(site)
-        kind = adapter.content_type
+        # Asked of the site, not the adapter class: one platform can serve more
+        # than one kind, and a web novel on a manga theme belongs under Books.
+        kind = adapter.content_type_for(site)
         if kind not in grouped:
             continue
         grouped[kind].append({
@@ -520,14 +523,26 @@ async def search(
     # check — off to walk its whole catalogue on one query string.
     limit = max(1, min(limit, MAX_SEARCH_RESULTS))
 
-    query = q.strip()
+    # What gets *sent*. `clean_query` strips the invisible marks a copied
+    # title drags along -- LRM/RLM, the bidi embedding controls, ZWJ/ZWNJ and
+    # a stray BOM. They survive `.strip()`, they are invisible to the person
+    # who pasted them, and left in place they reach the punctuation rule in
+    # `fold()` and become a *space*, splitting one word into two tokens that
+    # every gate downstream then looks for separately.
+    #
+    # Only invisible characters are removed. Letters, case and punctuation go
+    # to the site exactly as typed, because the index on the other end may
+    # well be exact -- and because this string is echoed back to the user as
+    # the query they searched for.
+    query = clean_query(q)
     # Which sites can serve this kind at all, decided from the URL alone so
     # nothing is fetched to find out. ``all`` keeps every site that serves any
     # kind — the results are grouped by kind afterwards rather than mixed,
     # which is what made searching everything at once unusable before.
     chosen = [s for s in settings.search_sites
-              if select_adapter(s).content_type in CONTENT_TYPES
-              and (kind == ANY_TYPE or select_adapter(s).content_type == kind)]
+              if select_adapter(s).content_type_for(s) in CONTENT_TYPES
+              and (kind == ANY_TYPE
+                   or select_adapter(s).content_type_for(s) == kind)]
 
     # An explicit site list narrows it further. Matched on the host so the UI
     # can send back what it displayed without having to echo the exact URL.
@@ -554,19 +569,46 @@ async def search(
         try:
             adapter = await resolve_adapter(site, sessions)
             # The URL-only guess above is a filter, not the verdict: the page
-            # itself decides the adapter, so confirm before searching.
-            if adapter.content_type not in CONTENT_TYPES or (
-                kind != ANY_TYPE and adapter.content_type != kind
+            # itself decides the adapter, so confirm before searching. The kind
+            # is the *site's*, so a novel site on a manga theme is not skipped
+            # from a book search for serving the wrong thing.
+            site_kind = adapter.content_type_for(site)
+            if site_kind not in CONTENT_TYPES or (
+                kind != ANY_TYPE and site_kind != kind
             ):
                 log.info("Skipping %s: it serves %s, not %s",
-                         site, adapter.content_type, kind)
+                         site, site_kind, kind)
                 return site, [], "skipped"
             async def ask() -> tuple[list, str]:
+                deadline = settings.search_timeout
                 found = await asyncio.wait_for(
-                    adapter.search(site, query, limit=limit),
-                    timeout=settings.search_timeout,
-                )
-                rows = [{**r.to_dict(), "content_type": adapter.content_type}
+                    adapter.search(site, query, limit=limit), timeout=deadline)
+
+                # Folding rescues a hit the site returned. It cannot rescue a
+                # hit the site never returned -- and an unnormalised Arabic
+                # index answers "رواية" and "روايه" as different words. So a
+                # site that found *nothing* is asked again in the spellings a
+                # reader might have typed instead.
+                #
+                # Only on nothing, and only until something answers. Every
+                # query in this fan-out shares one rate limiter and one
+                # timeout, and HANDOFF records what happens to a search budget
+                # when work is spent on queries nobody is waiting for.
+                if not found:
+                    for variant in query_variants(query)[1:]:
+                        try:
+                            found = await asyncio.wait_for(
+                                adapter.search(site, variant, limit=limit),
+                                timeout=deadline)
+                        except asyncio.TimeoutError:
+                            log.info("Variant %r timed out on %s", variant, site)
+                            break
+                        if found:
+                            log.info("%s found %d hit(s) for %r, spelled %r",
+                                     site, len(found), query, variant)
+                            break
+
+                rows = [{**r.to_dict(), "content_type": site_kind}
                         for r in found]
                 return rows, "ok" if rows else "empty"
 

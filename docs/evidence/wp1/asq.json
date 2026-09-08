@@ -1,0 +1,103 @@
+{
+  "source_url": "https://3asq.org/manga/hunter-x-hunter/",
+  "checked": "2026-09-08T08:23:42.425735+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-o0kef12b",
+  "passed": true,
+  "adapter": "madara",
+  "title": "Hunter X Hunter",
+  "listed_chapters": 93,
+  "chapter_url": "https://3asq.online/manga/hunter-x-hunter/420/",
+  "job_status": "done",
+  "pages_expected": 16,
+  "pages_downloaded": 16,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-o0kef12b/downloads/Hunter X Hunter/Hunter X Hunter - c420.cbz",
+    "passed": true,
+    "count": 16,
+    "unit": "pages",
+    "bytes": 47861046,
+    "sha256": "5be19e00b04f0f4b24ddf72d01329b2d777c165a8f69463180543cf2b2488e09",
+    "dimensions": [
+      [
+        "001.jpg",
+        2000,
+        2919
+      ],
+      [
+        "002.jpg",
+        4000,
+        2919
+      ],
+      [
+        "003.jpg",
+        2000,
+        2919
+      ],
+      [
+        "004.jpg",
+        2000,
+        2919
+      ],
+      [
+        "005.jpg",
+        4000,
+        2919
+      ],
+      [
+        "006.jpg",
+        2000,
+        2919
+      ],
+      [
+        "007.jpg",
+        2000,
+        2919
+      ],
+      [
+        "008.jpg",
+        2000,
+        2919
+      ],
+      [
+        "009.jpg",
+        2000,
+        2919
+      ],
+      [
+        "010.jpg",
+        2000,
+        2919
+      ],
+      [
+        "011.jpg",
+        2000,
+        2919
+      ],
+      [
+        "012.jpg",
+        2000,
+        2919
+      ],
+      [
+        "013.jpg",
+        2000,
+        2919
+      ],
+      [
+        "014.jpg",
+        2000,
+        2919
+      ],
+      [
+        "015.jpg",
+        2000,
+        2919
+      ],
+      [
+        "016.jpg",
+        4000,
+        2919
+      ]
+    ]
+  }
+}

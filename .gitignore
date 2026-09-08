@@ -28,7 +28,22 @@ browser/
 # Local development artifacts and captured pages
 /.claude/
 /.codex_probe.svg
-/scratchpad/
+/scratchpad/*
+# The evidence tooling, allowlisted because SOURCES.md, HANDOFF.md and
+# docs/development.md cite these by name as how to reproduce a result.
+# Anything not listed here is a one-off probe kept for reference only.
+!/scratchpad/verify_dl.py
+!/scratchpad/audit_connectivity.py
+!/scratchpad/audit_search.py
+!/scratchpad/triage_sites.py
+!/scratchpad/triage_pass2.py
+!/scratchpad/measure_arabic.py
+!/scratchpad/probe_novels.py
+!/scratchpad/novel_seeds.json
+!/scratchpad/probe_network.py
+!/scratchpad/probe_via_app.py
+!/scratchpad/wp4_search_again.py
+!/scratchpad/fix_endings.py
 /chapter.html
 /series.html
 

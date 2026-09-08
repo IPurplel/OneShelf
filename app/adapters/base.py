@@ -8,6 +8,7 @@ site-agnostic and talks only through this interface.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from abc import ABC, abstractmethod
 from urllib.parse import unquote, urljoin, urlparse
@@ -16,6 +17,31 @@ from selectolax.parser import HTMLParser
 
 from ..models import Chapter, Page, SearchResult, Series, TextChapter
 from .textmatch import close_enough, fold
+
+log = logging.getLogger(__name__)
+
+
+#: Sites whose content kind is not the one their platform usually serves.
+#:
+#: A manga platform's theme is markup and says nothing about what a site puts
+#: in it: kolnovel.com runs MangaThemesia and cenele.com runs Madara, and both
+#: serve Arabic web novels. Filing them under Manga -- which is what reading
+#: the kind off the adapter class did -- meant a Books search could never reach
+#: them while a Manga search returned novels.
+#:
+#: Keyed by bare hostname and held here rather than on the adapters, because
+#: the one caller that matters cannot use an adapter's opinion: ``/api/sources``
+#: groups every configured site on every page load and so must not fetch, and
+#: without a fetch these two sites fingerprint as ``generic``. A per-host map,
+#: not branches -- the same shape as ``books._MIN_PATH_DEPTH``.
+#:
+#: This is a *declaration*, not a detection. What a given chapter turns out to
+#: be is decided separately and from the chapter itself, by
+#: ``Adapter.packaging_for``.
+SITE_CONTENT_TYPES: dict[str, str] = {
+    "kolnovel.com": "book",
+    "cenele.com": "book",
+}
 
 
 class AdapterError(RuntimeError):
@@ -89,7 +115,22 @@ class Adapter(ABC):
     even reaches. Deliberately ``None`` here rather than a default: an adapter
     that forgets to declare it should be caught by the test that checks every
     registered adapter, not quietly filed under whichever kind was convenient.
+
+    This is the adapter's *usual* kind. Where one platform serves more than one
+    — a manga theme is markup, and web-novel sites run it — the site decides;
+    see :meth:`content_type_for`.
     """
+
+    @classmethod
+    def content_type_for(cls, url: str) -> str | None:
+        """The kind *this site* serves, which is not always the adapter's.
+
+        Consults :data:`SITE_CONTENT_TYPES` first, then falls back to the
+        adapter's usual kind. See that map for why it is keyed by host rather
+        than held on the adapter that serves it.
+        """
+        host = urlparse(url).netloc.lower().removeprefix("www.")
+        return SITE_CONTENT_TYPES.get(host, cls.content_type)
     packaging: str = "cbz"
     """What the queue should do with what this adapter yields.
 
@@ -158,6 +199,41 @@ class Adapter(ABC):
 
     # ------------------------------------------------------------- utilities
 
+    http_first: bool = False
+    """Opt in only when the platform can identify complete static markup."""
+
+    def static_html_complete(self, url: str, html: str) -> bool:
+        """Whether this document contains what the adapter needs without JS."""
+        return False
+
+    #: What WordPress ``admin-ajax`` answers when it will not serve a request:
+    #: ``0`` for an action it does not recognise, ``-1`` for a failed nonce.
+    #: Both arrive as **HTTP 200 with a one-character body**, so a direct POST
+    #: that hits one of them succeeds by every measure except the only one that
+    #: matters. A redirected POST produces the same thing: the redirect is
+    #: followed as a GET, the action never runs, and the body is ``0``.
+    EMPTY_FORM_REPLIES = frozenset({"", "0", "-1"})
+
+    async def post_form(self, url: str, data: dict, *, referer: str | None = None) -> str:
+        """POST a form, over plain HTTP first where the adapter allows it.
+
+        The browser is the fallback for both ways the direct path can fail —
+        raising, and *answering nothing*. Only retrying on an exception left an
+        adapter holding ``0`` and reporting "no chapters found" against a site
+        that would have answered a browser perfectly well.
+        """
+        if self.http_first:
+            try:
+                html = await self.sessions.post_form_direct(url, data, referer=referer)
+            except Exception as exc:
+                log.debug("Direct form request failed for %s: %s", url, exc)
+            else:
+                if html.strip() not in self.EMPTY_FORM_REPLIES:
+                    return html
+                log.debug("Direct form request for %s answered nothing; "
+                          "retrying the same endpoint in the browser", url)
+        return await self.sessions.post_form(url, data, referer=referer)
+
     async def get_html(
         self,
         url: str,
@@ -165,12 +241,34 @@ class Adapter(ABC):
         referer: str | None = None,
         wait_for: str | None = None,
         wait_ms: int = 0,
+        scroll_for: str | None = None,
+        wait_timeout: float | None = None,
     ) -> str:
         """Fetch a page, optionally waiting for JS-injected content.
 
-        ``wait_for``/``wait_ms`` are forwarded only when set, so a session
-        manager without them (the test fakes) keeps working unchanged.
+        ``wait_for``/``wait_ms``/``scroll_for``/``wait_timeout`` are forwarded
+        only when set, so a session manager without them (the test fakes) keeps
+        working unchanged. ``wait_timeout`` bounds the selector wait for this
+        call alone — for a selector whose absence is a real answer rather than
+        a fault, such as a search with no results. ``scroll_for`` is for a reader that mounts its content as it
+        scrolls into view — see :meth:`SessionManager.fetch_html`.
         """
+        if self.http_first and not wait_ms:
+            try:
+                from ..session import is_challenge
+
+                html = await self.sessions.fetch_text_direct(url, referer=referer)
+                if (not is_challenge(html)
+                        and self.static_html_complete(url, html)
+                        and (not wait_for or self.parse(html).css_first(wait_for))):
+                    return html
+            except Exception as exc:
+                log.debug("Direct HTML unavailable for %s: %s", url, exc)
+        if scroll_for or wait_timeout is not None:
+            return await self.sessions.fetch_html(
+                url, referer=referer, wait_for=wait_for, wait_ms=wait_ms,
+                scroll_for=scroll_for, wait_timeout=wait_timeout,
+            )
         if wait_for or wait_ms:
             return await self.sessions.fetch_html(
                 url, referer=referer, wait_for=wait_for, wait_ms=wait_ms

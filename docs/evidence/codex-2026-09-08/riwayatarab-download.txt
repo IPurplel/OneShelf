@@ -1,0 +1,63 @@
+Isolated run: /workspace/manga downloader/.state/verification/run-_2nh2c7w
+2026-09-08 20:33:01,409 INFO    app.desync: DPI-bypass proxy listening on socks5://127.0.0.1:36437 (split at 1 byte(s), 50 ms delay)
+2026-09-08 20:33:01,448 INFO    app.fetcher: HTTP egress via proxy socks5://127.0.0.1:36437
+2026-09-08 20:33:01,472 INFO    app.adapters.registry: Using adapter riwayatarab for https://riwayatarab.com/novel/demonic-emperor (by host)
+2026-09-08 20:33:02,170 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor "HTTP/1.1 200 OK"
+2026-09-08 20:33:03,257 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters "HTTP/1.1 200 OK"
+2026-09-08 20:33:04,293 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=2 "HTTP/1.1 200 OK"
+2026-09-08 20:33:05,058 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=3 "HTTP/1.1 200 OK"
+2026-09-08 20:33:05,784 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=4 "HTTP/1.1 200 OK"
+2026-09-08 20:33:06,610 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=5 "HTTP/1.1 200 OK"
+2026-09-08 20:33:07,354 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=6 "HTTP/1.1 200 OK"
+2026-09-08 20:33:08,378 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=7 "HTTP/1.1 200 OK"
+2026-09-08 20:33:09,099 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=8 "HTTP/1.1 200 OK"
+2026-09-08 20:33:09,923 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=9 "HTTP/1.1 200 OK"
+2026-09-08 20:33:10,762 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=10 "HTTP/1.1 200 OK"
+2026-09-08 20:33:11,563 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=11 "HTTP/1.1 200 OK"
+2026-09-08 20:33:12,389 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=12 "HTTP/1.1 200 OK"
+2026-09-08 20:33:13,177 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=13 "HTTP/1.1 200 OK"
+2026-09-08 20:33:13,960 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=14 "HTTP/1.1 200 OK"
+2026-09-08 20:33:14,758 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=15 "HTTP/1.1 200 OK"
+2026-09-08 20:33:15,545 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=16 "HTTP/1.1 200 OK"
+2026-09-08 20:33:16,310 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=17 "HTTP/1.1 200 OK"
+2026-09-08 20:33:17,178 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=18 "HTTP/1.1 200 OK"
+2026-09-08 20:33:17,912 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=19 "HTTP/1.1 200 OK"
+2026-09-08 20:33:19,037 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=20 "HTTP/1.1 200 OK"
+2026-09-08 20:33:19,838 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=21 "HTTP/1.1 200 OK"
+2026-09-08 20:33:20,638 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=22 "HTTP/1.1 200 OK"
+2026-09-08 20:33:21,483 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=23 "HTTP/1.1 200 OK"
+2026-09-08 20:33:22,259 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=24 "HTTP/1.1 200 OK"
+2026-09-08 20:33:23,183 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=25 "HTTP/1.1 200 OK"
+2026-09-08 20:33:24,017 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=26 "HTTP/1.1 200 OK"
+2026-09-08 20:33:24,822 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=27 "HTTP/1.1 200 OK"
+2026-09-08 20:33:25,615 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapters?page=28 "HTTP/1.1 200 OK"
+2026-09-08 20:33:25,724 INFO    app.adapters.riwayatarab: Resolved 1344 chapters from https://riwayatarab.com/novel/demonic-emperor
+2026-09-08 20:33:26,491 INFO    app.adapters.registry: Using adapter riwayatarab for https://riwayatarab.com/novel/demonic-emperor (by host)
+2026-09-08 20:33:27,067 INFO    httpx: HTTP Request: GET https://riwayatarab.com/novel/demonic-emperor/chapter/1 "HTTP/1.1 200 OK"
+2026-09-08 20:33:27,207 INFO    app.queue: Wrote الإمبراطور الشيطاني - c001.epub (8003 characters)
+{
+  "source_url": "https://riwayatarab.com/novel/demonic-emperor",
+  "checked": "2026-09-08T20:33:01.409426+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-_2nh2c7w",
+  "passed": true,
+  "adapter": "riwayatarab",
+  "title": "الإمبراطور الشيطاني",
+  "listed_chapters": 1344,
+  "chapter_url": "https://riwayatarab.com/novel/demonic-emperor/chapter/1",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-_2nh2c7w/downloads/الإمبراطور الشيطاني/الإمبراطور الشيطاني - c001.epub",
+    "passed": true,
+    "count": 1,
+    "unit": "spine items",
+    "bytes": 6607,
+    "sha256": "7880a65740bb98c4f41b14d2b0028f268867fe924026debc2e1abbc21a30ebbf",
+    "spine": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "rendered_pages": 7
+  }
+}
+PASS

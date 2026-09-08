@@ -354,17 +354,10 @@ $('#search-clear').addEventListener('click', () => {
   input.focus();
 });
 
-/* "/" focuses the field from anywhere, the way every search-first tool does —
-   but never while the user is typing into some other field. */
-document.addEventListener('keydown', (event) => {
-  if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return;
-  const tag = document.activeElement?.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-  event.preventDefault();
-  document.querySelector('.tab[data-view="add"]')?.click();
-  input.focus();
-  input.select();
-});
+/* "/" is handled once, near the bottom of this file. There used to be a
+   second handler here doing the same job by a different rule; being registered
+   first it also ran first, so the later one silently overrode it and "/" did
+   whatever that one decided. One shortcut, one handler. */
 
 /* Arrow keys walk the results without leaving the field, Enter opens the one
    under the cursor, Escape backs out one step at a time. */
@@ -380,6 +373,17 @@ input.addEventListener('keydown', (event) => {
   } else if (event.key === 'Enter' && cursor >= 0 && hits[cursor]) {
     event.preventDefault();
     hits[cursor].click();
+  } else if (event.key === 'Enter') {
+    // The box keeps its text after a result is opened, and search only fires
+    // on `input` — so retyping the same query changes nothing and fires
+    // nothing. Enter is the way back to the list you already had.
+    event.preventDefault();
+    if (heldSearch && $('#search-results').hidden
+        && input.value.trim() === (heldSearch.query || '').trim()) {
+      closePreview({ restore: true });
+    } else {
+      rerunSearch();
+    }
   } else if (event.key === 'Escape') {
     if (!$('#sources-popover').hidden) { toggleSources(false); return; }
     if (cursor >= 0) { cursor = -1; moveCursor(hits); return; }
@@ -432,6 +436,31 @@ $('#recents-clear').addEventListener('click', () => {
 });
 
 /* ---- running a search ---- */
+
+/* The rendered payload of the result list a preview was opened from.
+   `clearResults()` nulls `lastSearch`, so without holding a copy here there is
+   nothing left to go back to. */
+let heldSearch = null;
+
+function closePreview({ restore = false } = {}) {
+  $('#preview').hidden = true;
+  $('#back-to-results').hidden = true;
+  if (restore && heldSearch) {
+    // Straight from the payload we already have: going back to a list you
+    // were just looking at must not depend on the network, or on the sites
+    // answering the same way twice.
+    renderSearch(heldSearch);
+  }
+  // #preview sits below .finder, so a long chapter list leaves the search box
+  // scrolled off the top; landing back on a search you cannot see reads as
+  // nothing having happened.
+  $('.finder')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+
+$('#back-to-results').addEventListener('click', () => {
+  closePreview({ restore: true });
+  input.focus();
+});
 
 function rerunSearch() {
   const query = input.value.trim();
@@ -590,11 +619,11 @@ function hitCard(item, index, grouped = false) {
              src="/api/cover?url=${encodeURIComponent(item.cover_url)}">`
         : '<span class="no-cover"></span>'}
       <span class="hit-text">
-        <span class="hit-title">${escapeHtml(item.title)}</span>
+        <span class="hit-title" dir="auto">${escapeHtml(item.title)}</span>
         ${item.alt_title
           // Why this hit matched: the site indexes names in several scripts,
           // so an Arabic query can land on a romanised title and look wrong.
-          ? `<span class="hit-alt">${escapeHtml(item.alt_title)}</span>`
+          ? `<span class="hit-alt" dir="auto">${escapeHtml(item.alt_title)}</span>`
           : ''}
         ${item.author
           // The other reason a hit can look wrong: you searched a person, and
@@ -704,10 +733,21 @@ $('#search-results').addEventListener('error', (event) => {
 $('#search-results').addEventListener('click', (event) => {
   const hit = event.target.closest('.search-hit');
   if (!hit || hit.classList.contains('skeleton')) return;
+  // The same reset the kind chips and the clear button run. Without it a
+  // debounce still pending, or a fetch still in flight, survives the click and
+  // its late render reopens the result list on top of the preview that was
+  // just loaded.
+  clearTimeout(searchTimer);
+  searchToken++;
+  abandonSearch();
+  // Held before clearResults() nulls it, so "Back to results" has something to
+  // restore.
+  heldSearch = lastSearch;
   // Fill the URL box and run the normal preview, so picking a result and
   // pasting a link end up on exactly the same path.
   $('#series-url').value = hit.dataset.url;
   clearResults();
+  $('#back-to-results').hidden = !heldSearch;
   $('#preview-form').requestSubmit();
 });
 
@@ -1547,6 +1587,16 @@ document.addEventListener('keydown', (event) => {
   // Escape clears the filter or search box it is pressed in. Browsers do this
   // for type=search already — but only via the little ⨯, and not in a way that
   // fires `input`, so our own handlers never heard about it.
+  // Escape leaves an open preview and puts the results back. Checked before
+  // the search-input rule below so it works whether or not focus is in a box.
+  if (event.key === 'Escape' && !$('#preview').hidden
+      && $('#sources-popover').hidden
+      && !event.target.matches('#chapter-filter')) {
+    closePreview({ restore: true });
+    event.preventDefault();
+    return;
+  }
+
   if (event.key === 'Escape' && event.target.matches('input[type=search]')) {
     if (!event.target.value) return;
     event.target.value = '';
@@ -1557,15 +1607,16 @@ document.addEventListener('keydown', (event) => {
 
   if (event.key !== '/' || inField || event.ctrlKey || event.metaKey || event.altKey) return;
 
-  // Whichever box is on screen and can actually be typed in — the search input
-  // stays disabled until a kind is chosen, and focusing a disabled input
-  // silently does nothing at all.
+  // One rule: "/" goes to the search box for the view you are on. It used to
+  // retarget the *chapter filter* whenever a preview was open, which is
+  // exactly when someone wants to search again — so the keyboard route back to
+  // search was dead from the first result click until a page reload. The
+  // chapter filter is on screen and clickable; it does not need the shortcut.
   const view = $('.view.is-active').id;
   let target = null;
   if (view === 'view-library') target = $('#library-filter');
   else if (view === 'view-add') {
-    target = !$('#preview').hidden ? $('#chapter-filter')
-      : (searchKind ? $('#search-input') : $('#series-url'));
+    target = searchKind ? $('#search-input') : $('#series-url');
   } else {
     // Queue and Settings have nothing to type in, so '/' means "go search".
     showView('add');

@@ -1,0 +1,62 @@
+Isolated run: /workspace/manga downloader/.state/verification/run-g35nslbj
+2026-09-08 08:22:52,670 INFO    app.desync: DPI-bypass proxy listening on socks5://127.0.0.1:40065 (split at 1 byte(s), 50 ms delay)
+2026-09-08 08:22:52,708 INFO    app.fetcher: HTTP egress via proxy socks5://127.0.0.1:40065
+2026-09-08 08:22:53,374 INFO    httpx: HTTP Request: GET https://3asq.org/manga/hunter-x-hunter/ "HTTP/1.1 301 Moved Permanently"
+2026-09-08 08:22:54,454 INFO    httpx: HTTP Request: GET https://3asq.online/manga/hunter-x-hunter/ "HTTP/1.1 200 OK"
+2026-09-08 08:22:54,471 INFO    app.adapters.registry: Using adapter madara for https://3asq.org/manga/hunter-x-hunter/
+2026-09-08 08:22:55,054 INFO    httpx: HTTP Request: GET https://3asq.org/manga/hunter-x-hunter/ "HTTP/1.1 301 Moved Permanently"
+2026-09-08 08:22:56,163 INFO    httpx: HTTP Request: GET https://3asq.online/manga/hunter-x-hunter/ "HTTP/1.1 200 OK"
+2026-09-08 08:22:56,759 INFO    httpx: HTTP Request: POST https://3asq.online/manga/hunter-x-hunter/ajax/chapters/ "HTTP/1.1 200 OK"
+2026-09-08 08:22:56,862 INFO    app.adapters.madara: Resolved 93 chapters via _chapters_via_ajax_path
+2026-09-08 08:22:58,111 INFO    httpx: HTTP Request: GET https://3asq.online/manga/hunter-x-hunter/ "HTTP/1.1 200 OK"
+2026-09-08 08:22:58,127 INFO    app.adapters.registry: Using adapter madara for https://3asq.online/manga/hunter-x-hunter/
+2026-09-08 08:22:58,948 INFO    httpx: HTTP Request: GET https://3asq.online/manga/hunter-x-hunter/01/ "HTTP/1.1 200 OK"
+2026-09-08 08:22:59,535 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/01.png "HTTP/2 200 OK"
+2026-09-08 08:22:59,769 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/01a.png "HTTP/2 404 Not Found"
+2026-09-08 08:23:00,344 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/02.png "HTTP/2 200 OK"
+2026-09-08 08:23:00,988 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/004-copy.jpg "HTTP/2 200 OK"
+2026-09-08 08:23:01,573 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/005-copy.jpg "HTTP/2 200 OK"
+2026-09-08 08:23:02,133 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/04.png "HTTP/2 200 OK"
+2026-09-08 08:23:02,643 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/05.png "HTTP/2 200 OK"
+2026-09-08 08:23:03,248 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/06.png "HTTP/2 200 OK"
+2026-09-08 08:23:03,899 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/07.png "HTTP/2 404 Not Found"
+2026-09-08 08:23:04,491 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/08.png "HTTP/2 404 Not Found"
+2026-09-08 08:23:05,078 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/09.png "HTTP/2 404 Not Found"
+2026-09-08 08:23:05,673 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/10.png "HTTP/2 200 OK"
+2026-09-08 08:23:06,303 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/11.png "HTTP/2 200 OK"
+2026-09-08 08:23:06,940 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/12.png "HTTP/2 200 OK"
+2026-09-08 08:23:07,518 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/13.png "HTTP/2 200 OK"
+2026-09-08 08:23:08,134 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/14.png "HTTP/2 404 Not Found"
+2026-09-08 08:23:08,669 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/15.png "HTTP/2 200 OK"
+2026-09-08 08:23:09,203 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/16.png "HTTP/2 200 OK"
+2026-09-08 08:23:09,846 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/17.png "HTTP/2 200 OK"
+2026-09-08 08:23:10,405 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/18.png "HTTP/2 200 OK"
+2026-09-08 08:23:10,949 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/19.png "HTTP/2 200 OK"
+2026-09-08 08:23:11,559 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/20.png "HTTP/2 200 OK"
+2026-09-08 08:23:12,065 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/21.png "HTTP/2 200 OK"
+2026-09-08 08:23:12,653 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/22.png "HTTP/2 200 OK"
+2026-09-08 08:23:13,265 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/23.png "HTTP/2 200 OK"
+2026-09-08 08:23:13,823 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/24.png "HTTP/2 200 OK"
+2026-09-08 08:23:14,338 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/25.png "HTTP/2 200 OK"
+2026-09-08 08:23:14,959 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/26.png "HTTP/2 200 OK"
+2026-09-08 08:23:15,479 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/27.png "HTTP/2 404 Not Found"
+2026-09-08 08:23:16,070 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/28.png "HTTP/2 200 OK"
+2026-09-08 08:23:16,603 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/29.png "HTTP/2 200 OK"
+2026-09-08 08:23:17,146 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/30.png "HTTP/2 200 OK"
+2026-09-08 08:23:17,700 INFO    httpx: HTTP Request: GET https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/31.png "HTTP/2 200 OK"
+2026-09-08 08:23:18,367 WARNING app.queue: Chapter failed (01 - يوم الرحيل): Page download failed: Failed to download https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/01a.png: HTTP 404 for https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/01a.png
+{
+  "source_url": "https://3asq.org/manga/hunter-x-hunter/",
+  "checked": "2026-09-08T08:22:52.670714+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-g35nslbj",
+  "passed": false,
+  "adapter": "madara",
+  "title": "Hunter X Hunter",
+  "listed_chapters": 93,
+  "chapter_url": "https://3asq.online/manga/hunter-x-hunter/01/",
+  "job_status": "failed",
+  "pages_expected": 33,
+  "pages_downloaded": 27,
+  "error": "ValueError: Page download failed: Failed to download https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/01a.png: HTTP 404 for https://3asq.online/wp-content/uploads/WP-manga/data/manga_5ca1538babe38/eaf5ff7c120029124e001845ea3db773/01a.png"
+}
+FAIL

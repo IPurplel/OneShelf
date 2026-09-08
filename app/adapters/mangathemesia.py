@@ -23,8 +23,10 @@ import logging
 import re
 from urllib.parse import quote_plus, urlparse
 
-from ..models import Chapter, Page, SearchResult, Series
-from .base import Adapter, AdapterError, extract_number, first_attr
+from ..models import Chapter, Page, SearchResult, Series, TextChapter
+from .base import (
+    Adapter, AdapterError, extract_number, first_attr, query_matches)
+from .prose import blocks_from, looks_like_prose, strip_noise
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +67,18 @@ class MangaThemesiaAdapter(Adapter):
     priority = 110
     content_type = "manga"
 
+    #: The reader, whichever shape it holds. The same container carries a
+    #: comic's pages and a novel's paragraphs -- the theme is markup, not a
+    #: content type.
+    READER_SELECTORS = ("#readerarea", "div.reader-area", "div.epcontent",
+                        "div.entry-content")
+
+    def __init__(self, session_manager) -> None:
+        super().__init__(session_manager)
+        #: Chapter HTML, kept so deciding what a chapter *is* and then reading
+        #: it do not cost two fetches of the same page.
+        self._chapter_html: dict[str, str] = {}
+
     # -------------------------------------------------------- identification
 
     @classmethod
@@ -88,7 +102,21 @@ class MangaThemesiaAdapter(Adapter):
 
         results: list[SearchResult] = []
         seen: set[str] = set()
-        for card in tree.css("div.listupd div.bs") or tree.css("div.bs"):
+        # `article` is the last resort, not the first: it is WordPress's
+        # generic result wrapper, so on a site that *does* use the theme's grid
+        # it would also match carousels and sidebar widgets. Measured
+        # 2026-09-08: kolnovel.com answers `?s=` with real results in
+        # `<article>` and uses no `div.bs` at all, so the search returned
+        # nothing for a series the site plainly holds.
+        cards = tree.css("div.listupd div.bs") or tree.css("div.bs")
+        # Whether these are the theme's own result cards or a generic sweep.
+        # It decides whether the text gate below applies: ranking is normally
+        # /api/search's job, and gating here as well would drop the near
+        # misses it exists to rank.
+        swept = not cards
+        if swept:
+            cards = tree.css("article")
+        for card in cards:
             link = card.css_first("a")
             href = self.absolute(url, first_attr(link, "href"))
             # The theme puts the full title in the anchor's title attribute and
@@ -96,9 +124,19 @@ class MangaThemesiaAdapter(Adapter):
             title = (
                 first_attr(link, "title")
                 or self.text(card.css_first(".tt"))
+                or self.text(card.css_first("h2"))
+                or first_attr(card.css_first("img"), "alt")
                 or self.text(link)
             )
             if not href or not title:
+                continue
+            # Only for the sweep. `article` is WordPress's generic wrapper and
+            # reaches navigation, category pages and sidebar widgets, so an
+            # ungated sweep would put a site's furniture into every unrelated
+            # search -- the failure `query_matches` exists for. The theme's own
+            # `div.bs` cards need no such check: they are results because the
+            # site said so.
+            if swept and not query_matches(query, title, urlparse(href).path):
                 continue
             # The same series appears in both a carousel and the grid.
             if href.rstrip("/") in seen:
@@ -204,11 +242,23 @@ class MangaThemesiaAdapter(Adapter):
         html = await self._series_html(series.url)
         tree = self.parse(html)
 
-        nodes = tree.css("div.eplister ul li a") or tree.css("#chapterlist ul li a")
+        # One row, one chapter. Rows are walked rather than anchors, because a
+        # row can hold more than one link: kolnovel puts a second, unlabelled
+        # `<a>` beside every chapter pointing at `<chapter-url>/pdf/`. Reading
+        # every anchor counted each chapter twice -- a measured **13,406 for a
+        # 6,703-chapter novel** -- and, worse, the `/pdf/` copy sorted equal to
+        # the real one and could win, so the download opened a page with no
+        # reader on it at all.
+        rows = tree.css("div.eplister ul li") or tree.css("#chapterlist ul li")
         collected: list[tuple[str, str, str | None]] = []
         seen: set[str] = set()
 
-        for node in nodes:
+        for row in rows:
+            # The row's own labelled link. An anchor with no text is furniture
+            # -- a download or bookmark control -- never the chapter itself.
+            node = next((a for a in row.css("a") if self.text(a)), None)
+            if node is None:
+                continue
             href = self.absolute(series.url, first_attr(node, "href"))
             if not href or href in seen:
                 continue
@@ -243,8 +293,65 @@ class MangaThemesiaAdapter(Adapter):
 
     # ----------------------------------------------------------------- pages
 
+    async def _chapter_page(self, chapter: Chapter) -> str:
+        cached = self._chapter_html.get(chapter.url)
+        if cached is None:
+            cached = await self.get_html(chapter.url, referer=chapter.url)
+            self._chapter_html[chapter.url] = cached
+        return cached
+
+    def _reader(self, tree):
+        for selector in self.READER_SELECTORS:
+            node = tree.css_first(selector)
+            if node is not None:
+                return node
+        return None
+
+    async def packaging_for(self, chapter: Chapter) -> str:
+        """Ask the chapter what it is, because the theme cannot say.
+
+        This theme is WordPress markup and several **web-novel** sites run it:
+        kolnovel.com fingerprints here and lists 13,406 chapters correctly,
+        but a kolnovel chapter is 180 paragraphs and no images at all. Read as
+        a comic it failed outright; read as prose it is an ordinary EPUB.
+
+        Answered from the chapter page, which is cached, so the fetch is the
+        one ``fetch_pages`` or ``fetch_text`` was going to make anyway.
+        """
+        try:
+            html = await self._chapter_page(chapter)
+        except Exception as exc:
+            # Not this method's job to report a broken chapter -- let the
+            # fetch that follows raise the error the user should see.
+            log.debug("Could not classify %s: %s", chapter.url, exc)
+            return self.packaging
+
+        images = _images_from_ts_reader(html) or self._images_from_dom(
+            html, chapter.url)
+        if looks_like_prose(self._reader(self.parse(html)), len(images)):
+            log.info("%s is prose, not pages; packaging as text", chapter.url)
+            return "text"
+        return self.packaging
+
+    async def fetch_text(self, chapter: Chapter) -> TextChapter:
+        tree = self.parse(await self._chapter_page(chapter))
+        container = self._reader(tree)
+        if container is None:
+            raise AdapterError(
+                f"No reader content on {chapter.url}. The chapter may be "
+                "empty, or this may not be a chapter page."
+            )
+        strip_noise(container)
+        blocks = blocks_from(container)
+        if not blocks:
+            raise AdapterError(
+                f"The reader on {chapter.url} held no readable text."
+            )
+        return TextChapter(title=chapter.title or f"Chapter {chapter.number}",
+                           blocks=blocks)
+
     async def fetch_pages(self, chapter: Chapter) -> list[Page]:
-        html = await self.get_html(chapter.url, referer=chapter.url)
+        html = await self._chapter_page(chapter)
 
         urls = _images_from_ts_reader(html)
         if not urls:
@@ -262,11 +369,28 @@ class MangaThemesiaAdapter(Adapter):
         ]
 
     def _images_from_dom(self, html: str, base: str) -> list[str]:
+        """Page images from the reader, and **only** from the reader.
+
+        This used to fall back to scanning the whole document when neither
+        ``#readerarea`` nor ``div.reader-area`` was present. Measured on
+        kolnovel 2026-09-08: an install that names its reader something else
+        returned **8 "pages"**, every one an analytics tracking pixel
+        (`pixel.quantserve.com/pixel/….gif`) harvested from the page furniture.
+        They are not decorative by name, they are not 1x1 by URL, and they
+        download with a 200 -- so the only thing that tells them from a comic
+        page is that they were never inside the reader.
+
+        An image outside the reader is not a page. If the reader cannot be
+        found, the honest answer is none, and the caller's "no page images
+        found" error is correct.
+        """
         tree = self.parse(html)
-        area = tree.css_first("#readerarea") or tree.css_first("div.reader-area")
+        area = self._reader(tree)
+        if area is None:
+            return []
         urls: list[str] = []
         seen: set[str] = set()
-        for node in (area or tree).css("img"):
+        for node in area.css("img"):
             candidate = first_attr(node, *IMAGE_ATTRS)
             resolved = self.absolute(base, candidate)
             if not resolved or resolved in seen or _is_decorative(resolved):

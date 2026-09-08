@@ -59,6 +59,8 @@ class FakeSessionManager:
         self.json_routes = json_routes or {}
         self.requested: list[str] = []
         self.waited: list[str | None] = []
+        self.scrolled: list[str | None] = []
+        self.wait_timeouts: list[float | None] = []
         self.clicked: list[tuple[str, tuple[str, ...]]] = []
         self.posted: list[tuple[str, dict]] = []
         self.direct: list[str] = []
@@ -71,11 +73,16 @@ class FakeSessionManager:
         referer: str | None = None,
         wait_for: str | None = None,
         wait_ms: int = 0,
+        scroll_for: str | None = None,
+        wait_timeout: float | None = None,
     ) -> str:
-        # wait_for/wait_ms are recorded rather than honoured: there is no
-        # browser here, and the adapters that use them must still be testable.
+        # wait_for/wait_ms/scroll_for are recorded rather than honoured: there
+        # is no browser here, and the adapters that use them must still be
+        # testable.
         self.requested.append(url)
         self.waited.append(wait_for)
+        self.scrolled.append(scroll_for)
+        self.wait_timeouts.append(wait_timeout)
         if url not in self.pages:
             raise RuntimeError(f"no fixture registered for GET {url}")
         return self.pages[url]

@@ -1,0 +1,13 @@
+$ python -m pytest -q
+........................................................................ [ 98%]
+..............                                                           [100%]
+878 passed in 38.17s
+
+$ python -m pyflakes app tests
+exit: 0
+
+$ bash -n startup.sh
+exit: 0
+
+$ node --check web/app.js
+exit: 0

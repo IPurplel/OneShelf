@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import PrivateAttr, field_validator
+from pydantic import PositiveFloat, PrivateAttr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CONFIG_FILE = Path(os.environ.get("MD_CONFIG_FILE", "config.yaml"))
@@ -148,16 +148,42 @@ class Settings(BaseSettings):
     """
 
     search_sites: list[str] = [
+        # Every site here has produced a real, inspected file on disk. That is
+        # the whole entry requirement: a site that only *searches* is a site
+        # that looks supported and is not, and a source returning noise is
+        # worse than a missing source. SOURCES.md carries the artifact, its
+        # byte size and its page or chapter count for each one.
+        #
         # Arabic
         "https://3asq.online",
-        "https://manga-starz.net",
+        # manga-starz.net is out: this network resets the connection before any
+        # HTTP response reaches it -- `curl` and the browser alike -- so every
+        # manga search waited on a host that can never answer. The adapter and
+        # its tests stay; SOURCES.md files it TB, re-testable on an unfiltered
+        # network. Its redirect target starzmanga.com does answer, and is a
+        # candidate to add once one of its chapters has actually landed.
         "https://arabtoons.net",
         "https://azoramoon.com",
+        # Arabic web novels served through manga platforms' themes -- kolnovel
+        # on MangaThemesia, cenele on Madara. Both download as EPUB, because
+        # the adapters ask the chapter what it is rather than assuming pages,
+        # and both are filed under Books rather than Manga because the kind is
+        # the site's, not the adapter's -- see `adapters.base.SITE_CONTENT_TYPES`.
+        "https://kolnovel.com",
+        "https://cenele.com",
+        # Rewayat Club. Its chapter list is not on the novel page at all -- it
+        # rides in every chapter's Nuxt payload -- and its search answers from
+        # /library?search=, not /search?q=.
+        "https://rewayat.club",
+        # RiwayatArab. Its novel and chapter pages are server-rendered, but its
+        # search results are mounted client-side, so that one page costs a
+        # browser render.
+        "https://riwayatarab.com",
         # Books — searched alongside comics, and answering an Arabic query
         # better than any of the manga sites do.
         "https://8ghrb.com",
         "https://www.noor-book.com",
-        # Kitaboka is a masked alias; use its active Norkitab backend.
+        # Kitaboka serves the books; Norkitab is only a frameset wrapper.
         "https://kitaboka.com",
         # arabic-book.net is deliberately absent: it downloads fine by URL, but
         # its search page renders a "latest posts" widget in the same <article>
@@ -166,6 +192,12 @@ class Settings(BaseSettings):
         "https://www.planetebook.com",
         "https://bettergutenberg.org",
         "https://www.gutenberg.org",
+        # Arabic Collections Online (NYU) — open access, institutionally hosted,
+        # and it answers an unanswerable query with nothing. Its search indexes
+        # both the romanised and the Arabic title, so an Arabic query lands on
+        # a record displayed under a romanised name; `alt_title` carries the
+        # name that actually matched.
+        "https://aco.dlib.nyu.edu",
         # Added by the 2026-09-07 source survey. Each was verified reachable
         # from this machine, matched by an adapter, and — the part that is not
         # optional — checked to return *nothing* for a query it cannot answer,
@@ -183,7 +215,12 @@ class Settings(BaseSettings):
         "https://mangadex.org",
         "https://mangaread.org",
         "https://manhuaplus.com",
-        "https://rizzfables.com",
+        # rizzfables.com is out: it parses, lists chapters and enumerates page
+        # URLs perfectly, but every one of them 404s -- cdn.rizzfables.com
+        # answers HTTP 526 (Cloudflare: invalid origin certificate) to every
+        # request, including its own root. That is the site's own
+        # infrastructure, not a bot check and not this network, so it is filed
+        # T3 rather than TB and can come back the moment its CDN does.
     ]
     """Sites the search box queries, in order.
 
@@ -269,6 +306,12 @@ class Settings(BaseSettings):
     requests_per_second: float = 4.0
     """Per-host cap. Deliberately modest: getting the IP banned costs far more
     time than the throughput ever saves."""
+    host_requests_per_second: dict[str, PositiveFloat] = {"noor-book.com": 0.5}
+    """Additional per-host ceilings, shared by bare and www aliases.
+
+    These never raise the global per-host cap. Noor's reader throttles sustained
+    parallel requests, so it receives one page request every two seconds.
+    """
     max_retries: int = 3
     request_timeout: float = 60.0
 

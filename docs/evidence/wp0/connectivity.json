@@ -1,0 +1,365 @@
+{
+  "checked": "2026-09-07T23:43:17.522385+00:00",
+  "run_dir": "/workspace/manga downloader/.state/connectivity/run-js71xi5s",
+  "config_file": "/workspace/manga downloader/config.yaml",
+  "desync_enabled": true,
+  "desync_browser": false,
+  "configured_urls": [
+    "https://3asq.online",
+    "https://manga-starz.net",
+    "https://arabtoons.net",
+    "https://azoramoon.com",
+    "https://8ghrb.com",
+    "https://www.noor-book.com",
+    "https://kitaboka.com",
+    "https://www.planetebook.com",
+    "https://bettergutenberg.org",
+    "https://www.gutenberg.org",
+    "https://www.royalroad.com",
+    "https://archiveofourown.org",
+    "https://www.webtoons.com",
+    "https://azorafly.com",
+    "https://mangadex.org",
+    "https://mangaread.org",
+    "https://manhuaplus.com",
+    "https://rizzfables.com"
+  ],
+  "results": [
+    {
+      "url": "https://3asq.online",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 180748,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "generic",
+      "checked": "2026-09-07T23:43:19.112896+00:00",
+      "supplemental": {
+        "final_url": "https://3asq.online",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "madara"
+      }
+    },
+    {
+      "url": "https://manga-starz.net",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 150464,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "generic",
+      "checked": "2026-09-07T23:43:19.448726+00:00",
+      "supplemental": {
+        "final_url": "https://starzmanga.com/",
+        "status": 200,
+        "redirects": [
+          {
+            "url": "https://manga-starz.net",
+            "status": 301,
+            "location": "https://starzmanga.com/"
+          }
+        ],
+        "adapter_fingerprint": "madara"
+      }
+    },
+    {
+      "url": "https://arabtoons.net",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 129877,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "generic",
+      "checked": "2026-09-07T23:43:18.388322+00:00",
+      "supplemental": {
+        "final_url": "https://arabtoons.net",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "madara"
+      }
+    },
+    {
+      "url": "https://azoramoon.com",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 1110598,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "vcomics",
+      "checked": "2026-09-07T23:43:19.296588+00:00",
+      "supplemental": {
+        "final_url": "https://azorafly.com/",
+        "status": 200,
+        "redirects": [
+          {
+            "url": "https://azoramoon.com",
+            "status": 301,
+            "location": "https://azorafly.com/"
+          }
+        ],
+        "adapter_fingerprint": "vcomics"
+      }
+    },
+    {
+      "url": "https://8ghrb.com",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 180961,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "books",
+      "checked": "2026-09-07T23:43:19.805313+00:00",
+      "supplemental": {
+        "final_url": "https://8ghrb.com",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "books"
+      }
+    },
+    {
+      "url": "https://www.noor-book.com",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 146741,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "books",
+      "checked": "2026-09-07T23:43:20.904636+00:00",
+      "supplemental": {
+        "final_url": "https://www.noor-book.com",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "books"
+      }
+    },
+    {
+      "url": "https://kitaboka.com",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 244967,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "books",
+      "checked": "2026-09-07T23:43:21.424259+00:00",
+      "supplemental": {
+        "final_url": "https://kitaboka.com",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "books"
+      }
+    },
+    {
+      "url": "https://www.planetebook.com",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 828285,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "books",
+      "checked": "2026-09-07T23:43:21.631770+00:00",
+      "supplemental": {
+        "final_url": "https://www.planetebook.com",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "books"
+      }
+    },
+    {
+      "url": "https://bettergutenberg.org",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 166803,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "books",
+      "checked": "2026-09-07T23:43:22.408422+00:00",
+      "supplemental": {
+        "final_url": "https://bettergutenberg.org",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "books"
+      }
+    },
+    {
+      "url": "https://www.gutenberg.org",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 26444,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "gutenberg",
+      "checked": "2026-09-07T23:43:22.215761+00:00",
+      "supplemental": {
+        "final_url": "https://www.gutenberg.org",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "gutenberg"
+      }
+    },
+    {
+      "url": "https://www.royalroad.com",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 165463,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "royalroad",
+      "checked": "2026-09-07T23:43:23.093822+00:00",
+      "supplemental": {
+        "final_url": "https://www.royalroad.com/home",
+        "status": 200,
+        "redirects": [
+          {
+            "url": "https://www.royalroad.com",
+            "status": 302,
+            "location": "/home"
+          }
+        ],
+        "adapter_fingerprint": "royalroad"
+      }
+    },
+    {
+      "url": "https://archiveofourown.org",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 24501,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "ao3",
+      "checked": "2026-09-07T23:43:23.049954+00:00",
+      "supplemental": {
+        "final_url": "https://archiveofourown.org",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "ao3"
+      }
+    },
+    {
+      "url": "https://www.webtoons.com",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 244805,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "webtoons",
+      "checked": "2026-09-07T23:43:25.143157+00:00",
+      "supplemental": {
+        "final_url": "https://www.webtoons.com/en/",
+        "status": 200,
+        "redirects": [
+          {
+            "url": "https://www.webtoons.com",
+            "status": 301,
+            "location": "/en/"
+          }
+        ],
+        "adapter_fingerprint": "webtoons"
+      }
+    },
+    {
+      "url": "https://azorafly.com",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 1110598,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "vcomics",
+      "checked": "2026-09-07T23:43:24.225541+00:00",
+      "supplemental": {
+        "final_url": "https://azorafly.com",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "vcomics"
+      }
+    },
+    {
+      "url": "https://mangadex.org",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 6854,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "mangadex",
+      "checked": "2026-09-07T23:43:24.814881+00:00",
+      "supplemental": {
+        "final_url": "https://mangadex.org",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "mangadex"
+      }
+    },
+    {
+      "url": "https://mangaread.org",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 318557,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "generic",
+      "checked": "2026-09-07T23:43:25.857796+00:00",
+      "supplemental": {
+        "final_url": "https://www.mangaread.org/",
+        "status": 200,
+        "redirects": [
+          {
+            "url": "https://mangaread.org",
+            "status": 301,
+            "location": "https://www.mangaread.org/"
+          }
+        ],
+        "adapter_fingerprint": "madara"
+      }
+    },
+    {
+      "url": "https://manhuaplus.com",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 170316,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "generic",
+      "checked": "2026-09-07T23:43:26.163327+00:00",
+      "supplemental": {
+        "final_url": "https://manhuaplus.com",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "madara"
+      }
+    },
+    {
+      "url": "https://rizzfables.com",
+      "proxy": "socks5://127.0.0.1:36829",
+      "reachable": true,
+      "kind": "ok",
+      "status": 200,
+      "bytes": 338997,
+      "hint": "Reached the site normally.",
+      "adapter_guess": "generic",
+      "checked": "2026-09-07T23:43:26.858891+00:00",
+      "supplemental": {
+        "final_url": "https://rizzfables.com",
+        "status": 200,
+        "redirects": [],
+        "adapter_fingerprint": "mangathemesia"
+      }
+    }
+  ]
+}

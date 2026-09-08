@@ -1,0 +1,65 @@
+Isolated run: /workspace/manga downloader/.state/verification/run-v9dd41zq
+2026-09-08 20:33:56,492 INFO    app.desync: DPI-bypass proxy listening on socks5://127.0.0.1:46697 (split at 1 byte(s), 50 ms delay)
+2026-09-08 20:33:56,532 INFO    app.fetcher: HTTP egress via proxy socks5://127.0.0.1:46697
+2026-09-08 20:33:56,558 INFO    app.adapters.registry: Using adapter wuxiabox for https://wuxiabox.com/novel/absolute-resonance.html (by host)
+2026-09-08 20:33:57,166 INFO    httpx: HTTP Request: GET https://wuxiabox.com/novel/absolute-resonance.html "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:33:57,804 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/novel/absolute-resonance.html "HTTP/1.1 200 OK"
+2026-09-08 20:33:58,298 INFO    httpx: HTTP Request: GET https://wuxiabox.com/novel/absolute-resonance.html?tab=chapters "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:33:58,789 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/novel/absolute-resonance.html?tab=chapters "HTTP/1.1 200 OK"
+2026-09-08 20:33:59,307 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=1&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:33:59,828 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=1&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:00,364 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=2&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:01,088 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=2&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:01,627 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=3&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:02,339 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=3&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:02,929 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=4&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:03,484 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=4&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:03,965 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=5&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:04,523 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=5&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:04,997 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=6&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:05,570 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=6&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:06,112 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=7&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:06,619 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=7&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:07,087 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=8&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:07,662 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=8&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:08,190 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=9&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:08,732 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=9&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:09,222 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=10&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:09,789 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=10&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:10,260 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=11&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:10,777 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=11&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:11,302 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=12&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:11,873 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=12&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:12,402 INFO    httpx: HTTP Request: GET https://wuxiabox.com/e/extend/fy.php?page=13&wjm=absolute-resonance "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:12,970 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/e/extend/fy.php?page=13&wjm=absolute-resonance "HTTP/1.1 200 OK"
+2026-09-08 20:34:12,973 INFO    app.adapters.wuxiabox: Resolved 1216 chapters from https://wuxiabox.com/novel/absolute-resonance.html
+2026-09-08 20:34:12,997 INFO    app.adapters.registry: Using adapter wuxiabox for https://wuxiabox.com/novel/absolute-resonance.html (by host)
+2026-09-08 20:34:13,555 INFO    httpx: HTTP Request: GET https://wuxiabox.com/novel/absolute-resonance_1.html "HTTP/1.1 301 Moved Permanently"
+2026-09-08 20:34:14,123 INFO    httpx: HTTP Request: GET https://www.wuxiabox.com/novel/absolute-resonance_1.html "HTTP/1.1 200 OK"
+2026-09-08 20:34:14,156 INFO    app.queue: Wrote Absolute Resonance - c001.epub (19478 characters)
+{
+  "source_url": "https://wuxiabox.com/novel/absolute-resonance.html",
+  "checked": "2026-09-08T20:33:56.492025+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-v9dd41zq",
+  "passed": true,
+  "adapter": "wuxiabox",
+  "title": "Absolute Resonance",
+  "listed_chapters": 1216,
+  "chapter_url": "https://wuxiabox.com/novel/absolute-resonance_1.html",
+  "job_status": "done",
+  "pages_expected": 1,
+  "pages_downloaded": 1,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-v9dd41zq/downloads/Absolute Resonance/Absolute Resonance - c001.epub",
+    "passed": true,
+    "count": 1,
+    "unit": "spine items",
+    "bytes": 9390,
+    "sha256": "f1875b67d6f36d4f2d7f87ceec001f5de7bfb761d3b265f0840c59d925c5340b",
+    "spine": [
+      "OEBPS/chapter.xhtml"
+    ],
+    "rendered_pages": 15
+  }
+}
+PASS

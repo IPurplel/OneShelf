@@ -1,0 +1,1045 @@
+[
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "adapter": "madara",
+    "label": "alef forms (hamza written)",
+    "query": "الأمير",
+    "sent": "الأمير",
+    "variants": [
+      "الامير"
+    ],
+    "raw_hits": 8,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "الامير": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "adapter": "madara",
+    "label": "alef forms (hamza omitted)",
+    "query": "الامير",
+    "sent": "الامير",
+    "variants": [],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "adapter": "madara",
+    "label": "teh marbuta",
+    "query": "رواية",
+    "sent": "رواية",
+    "variants": [
+      "روايه"
+    ],
+    "raw_hits": 7,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "روايه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "adapter": "madara",
+    "label": "teh marbuta spelled as heh",
+    "query": "روايه",
+    "sent": "روايه",
+    "variants": [
+      "رواية"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 7,
+    "variant_detail": {
+      "رواية": [
+        "https://3asq.online/manga/no-no-kurasu-class-of-brains/",
+        "https://3asq.online/manga/kingdom-2/",
+        "https://3asq.online/manga/ginga-tetsudou-no-yoru/",
+        "https://3asq.online/manga/one-piece-episode-a/",
+        "https://3asq.online/manga/omniscient-readers-viewpoint/"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "adapter": "madara",
+    "label": "alef maqsura",
+    "query": "ليلى",
+    "sent": "ليلى",
+    "variants": [
+      "ليلي"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 6,
+    "variant_detail": {
+      "ليلي": [
+        "https://3asq.online/manga/prism-rondo/",
+        "https://3asq.online/manga/aria/",
+        "https://3asq.online/manga/kingdom-2/",
+        "https://3asq.online/manga/pandora-hearts/",
+        "https://3asq.online/manga/kakkou-no-iinazuke/"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "adapter": "madara",
+    "label": "alef maqsura spelled as yeh",
+    "query": "ليلي",
+    "sent": "ليلي",
+    "variants": [
+      "ليلى"
+    ],
+    "raw_hits": 6,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "ليلى": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "adapter": "madara",
+    "label": "harakat present",
+    "query": "رِوايَة",
+    "sent": "رِوايَة",
+    "variants": [
+      "رِوايَه"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "رِوايَه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "adapter": "madara",
+    "label": "tatweel",
+    "query": "روايـــة",
+    "sent": "روايـــة",
+    "variants": [
+      "روايـــه"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "روايـــه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "adapter": "madara",
+    "label": "arabic-indic digits",
+    "query": "الجزء ٢",
+    "sent": "الجزء ٢",
+    "variants": [],
+    "raw_hits": 1,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "adapter": "madara",
+    "label": "persian keheh and farsi yeh",
+    "query": "کتاب",
+    "sent": "کتاب",
+    "variants": [],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "adapter": "madara",
+    "label": "definite article present",
+    "query": "الغريب",
+    "sent": "الغريب",
+    "variants": [],
+    "raw_hits": 10,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://3asq.online",
+    "host": "3asq.online",
+    "adapter": "madara",
+    "label": "copy-paste carrying RLM",
+    "query": "‏الغريب‎",
+    "sent": "الغريب",
+    "variants": [],
+    "raw_hits": 10,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "adapter": "madara",
+    "label": "alef forms (hamza written)",
+    "query": "الأمير",
+    "sent": "الأمير",
+    "variants": [
+      "الامير"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "الامير": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "adapter": "madara",
+    "label": "alef forms (hamza omitted)",
+    "query": "الامير",
+    "sent": "الامير",
+    "variants": [],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "adapter": "madara",
+    "label": "teh marbuta",
+    "query": "رواية",
+    "sent": "رواية",
+    "variants": [
+      "روايه"
+    ],
+    "raw_hits": 6,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "روايه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "adapter": "madara",
+    "label": "teh marbuta spelled as heh",
+    "query": "روايه",
+    "sent": "روايه",
+    "variants": [
+      "رواية"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 6,
+    "variant_detail": {
+      "رواية": [
+        "https://arabtoons.net/manga/i-banged-all-my-classmates-after-graduation",
+        "https://arabtoons.net/manga/prison-revenge",
+        "https://arabtoons.net/manga/a-sweet-part-time-job",
+        "https://arabtoons.net/manga/i-ended-up-in-the-world-of-murim",
+        "https://arabtoons.net/manga/taming-an-evil-young-lady"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "adapter": "madara",
+    "label": "alef maqsura",
+    "query": "ليلى",
+    "sent": "ليلى",
+    "variants": [
+      "ليلي"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 3,
+    "variant_detail": {
+      "ليلي": [
+        "https://arabtoons.net/manga/%d8%a3%d8%a8%d9%86%d8%a7%d8%a1-%d9%84%d9%8a%d9%84%d9%8a%d8%ab",
+        "https://arabtoons.net/manga/your-wife-was-amazing",
+        "https://arabtoons.net/manga/phantom-sex-king"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "adapter": "madara",
+    "label": "alef maqsura spelled as yeh",
+    "query": "ليلي",
+    "sent": "ليلي",
+    "variants": [
+      "ليلى"
+    ],
+    "raw_hits": 3,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "ليلى": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "adapter": "madara",
+    "label": "harakat present",
+    "query": "رِوايَة",
+    "sent": "رِوايَة",
+    "variants": [
+      "رِوايَه"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "رِوايَه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "adapter": "madara",
+    "label": "tatweel",
+    "query": "روايـــة",
+    "sent": "روايـــة",
+    "variants": [
+      "روايـــه"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "روايـــه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "adapter": "madara",
+    "label": "arabic-indic digits",
+    "query": "الجزء ٢",
+    "sent": "الجزء ٢",
+    "variants": [],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "adapter": "madara",
+    "label": "persian keheh and farsi yeh",
+    "query": "کتاب",
+    "sent": "کتاب",
+    "variants": [],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "adapter": "madara",
+    "label": "definite article present",
+    "query": "الغريب",
+    "sent": "الغريب",
+    "variants": [],
+    "raw_hits": 1,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://arabtoons.net",
+    "host": "arabtoons.net",
+    "adapter": "madara",
+    "label": "copy-paste carrying RLM",
+    "query": "‏الغريب‎",
+    "sent": "الغريب",
+    "variants": [],
+    "raw_hits": 1,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "adapter": "books",
+    "label": "alef forms (hamza written)",
+    "query": "الأمير",
+    "sent": "الأمير",
+    "variants": [
+      "الامير"
+    ],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 4,
+    "variant_detail": {
+      "الامير": [
+        "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a3%d9%88%d8%b2%d9%85%d8%a7-%d8%a3%d9%85%d9%8a%d8%b1%d8%a9-%d8%a3%d9%88%d8%b2-%d8%b3%d9%84%d8%b3%d9%84%d8%a9-%d8%a3%d9%88%d8%b2-%d8%a7%d9%84%d8%ac%d8%b2%d8%a1-3/",
+        "https://8ghrb.com/%d9%83%d8%aa%d8%a7%d8%a8-%d9%85%d9%82%d8%a7%d9%85%d8%a7%d8%aa-%d8%a8%d8%ba%d8%af%d8%a7%d8%af%d9%8a%d8%a9-%d9%85%d9%86-%d9%8a%d9%88%d9%85%d9%8a%d8%a7%d8%aa-%d8%a7%d9%84%d8%a7%d8%ad%d8%aa%d9%84%d8%a7/",
+        "https://8ghrb.com/%d9%83%d8%aa%d8%a7%d8%a8-%d8%b1%d8%b3%d8%a7%d8%a6%d9%84-%d8%a5%d9%84%d9%89-%d8%a7%d9%84%d9%88%d8%b7%d9%86-%d8%a7%d9%84%d8%ac%d8%b2%d8%a1-%d8%a7%d9%84%d8%ab%d8%a7%d9%86%d9%8a-%d9%85%d9%86-%d9%85%d8%b0/",
+        "https://8ghrb.com/%d9%83%d8%aa%d8%a7%d8%a8-%d9%85%d8%b0%d9%83%d8%b1%d8%a7%d8%aa-%d8%a3%d9%85%d9%8a%d8%b1%d8%a9-%d8%b9%d8%b1%d8%a8%d9%8a%d8%a9-%d8%b3%d8%a7%d9%84%d9%85%d8%a9-%d8%a8%d9%86%d8%aa-%d8%b3%d8%b9%d9%8a%d8%af/"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "adapter": "books",
+    "label": "alef forms (hamza omitted)",
+    "query": "الامير",
+    "sent": "الامير",
+    "variants": [],
+    "raw_hits": 4,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "adapter": "books",
+    "label": "teh marbuta",
+    "query": "رواية",
+    "sent": "رواية",
+    "variants": [
+      "روايه"
+    ],
+    "raw_hits": 1,
+    "raw_error": "",
+    "variant_new_hits": 12,
+    "variant_detail": {
+      "روايه": [
+        "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d9%87-%d8%a7%d9%84%d8%b9%d9%82%d8%af-%d8%ad%d8%b3%d8%a7%d9%85-%d8%b9%d9%8a%d8%b3%d9%89/",
+        "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%b9%d8%b2%d8%b3%d9%81%d9%8a%d8%b1-%d8%a5%d8%a8%d8%b1%d8%a7%d9%87%d9%8a%d9%85-%d9%88%d9%87%d8%a8%d9%8a/",
+        "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%86%d8%aa%d9%82%d9%85%d8%aa-%d9%84%d8%b0%d8%a7%d8%aa%d9%8a-%d8%b7%d8%a7%d8%b1%d9%82-%d8%b9%d9%8a%d8%b3%d9%89/",
+        "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%af%d9%85%d8%a7%d8%a1-%d9%85%d9%82%d8%af%d8%b3%d8%a9-%d9%85%d8%ad%d9%85%d8%af-%d8%a3%d9%85%d9%8a%d8%b1/",
+        "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a3%d8%b2%d9%87%d8%a7%d8%b1-%d9%85%d8%b3%d9%83-%d8%a7%d9%84%d9%84%d9%8a%d9%84-%d9%85%d8%b1%d9%8a%d9%85-%d8%ac%d8%b9%d9%81%d8%b1%d9%8a/"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "adapter": "books",
+    "label": "teh marbuta spelled as heh",
+    "query": "روايه",
+    "sent": "روايه",
+    "variants": [
+      "رواية"
+    ],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 1,
+    "variant_detail": {
+      "رواية": [
+        "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%a7%d9%84%d8%ae%d8%aa%d9%85-%d8%a7%d9%84%d9%83%d8%b1%d8%b2%d9%8a-%d9%86%d9%8a%d9%81%d9%8a%d9%86-%d8%a7%d9%84%d9%85%d9%88%d8%b5%d9%84%d9%8a/"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "adapter": "books",
+    "label": "alef maqsura",
+    "query": "ليلى",
+    "sent": "ليلى",
+    "variants": [
+      "ليلي"
+    ],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 12,
+    "variant_detail": {
+      "ليلي": [
+        "https://8ghrb.com/%d9%83%d8%aa%d8%a7%d8%a8-%d8%a7%d9%84%d8%b1%d8%a4%d9%8a%d8%a9-%d8%a7%d9%84%d9%82%d8%b1%d8%a2%d9%86%d9%8a%d8%a9-%d9%82%d8%b1%d8%a7%d8%a1%d8%a9-%d8%aa%d8%ad%d9%84%d9%8a%d9%84%d9%8a%d8%a9-%d9%86%d9%82/",
+        "https://8ghrb.com/%d9%83%d8%aa%d8%a7%d8%a8-%d9%85%d8%aa%d8%b9%d8%a9-%d8%a7%d9%84%d8%b9%d9%84%d9%85-%d8%ac%d9%8a%d9%85-%d8%a7%d9%84%d8%ae%d9%84%d9%8a%d9%84%d9%8a/",
+        "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d9%85%d8%ad%d8%a7%d8%af%d8%ab%d8%a9-%d9%84%d9%8a%d9%84%d9%8a%d8%a9-%d8%b3%d8%a7%d8%b4%d8%a7-%d9%86%d8%a7%d8%b3%d8%a8%d9%8a%d9%86%d9%8a/",
+        "https://8ghrb.com/%d9%83%d8%aa%d8%a7%d8%a8-%d8%a3%d9%86%d9%81%d8%a7%d8%b3-%d9%82%d8%b5%d9%8a%d8%af%d8%a9-%d9%84%d9%8a%d9%84%d9%8a%d8%a9-%d8%a8%d8%a7%d8%b3%d9%85-%d8%ae%d9%86%d8%af%d9%82%d8%ac%d9%8a/",
+        "https://8ghrb.com/%d9%83%d8%aa%d8%a7%d8%a8-%d9%84%d9%85-%d8%a3%d8%ae%d8%b1%d8%ac-%d9%85%d9%86-%d9%84%d9%8a%d9%84%d9%8a-%d8%a2%d9%86%d9%8a-%d8%a5%d8%b1%d9%86%d9%88/"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "adapter": "books",
+    "label": "alef maqsura spelled as yeh",
+    "query": "ليلي",
+    "sent": "ليلي",
+    "variants": [
+      "ليلى"
+    ],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 12,
+    "variant_detail": {
+      "ليلى": [
+        "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d9%88%d8%b3%d9%85%d9%8a%d8%a9-%d8%aa%d8%ae%d8%b1%d8%ac-%d9%85%d9%86-%d8%a7%d9%84%d8%a8%d8%ad%d8%b1-%d9%84%d9%8a%d9%84%d9%89-%d8%a7%d9%84%d8%b9%d8%ab%d9%85%d8%a7%d9%86/",
+        "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d9%85%d8%a6%d8%b0%d9%86%d8%a9-%d9%81%d9%8a-%d8%b1%d9%8a%d8%ac%d9%86%d8%aa-%d8%a8%d8%a7%d8%b1%d9%83-%d9%84%d9%8a%d9%84%d9%89-%d8%a3%d8%a8%d9%88-%d8%a7%d9%84%d8%b9/",
+        "https://8ghrb.com/%d9%83%d8%aa%d8%a7%d8%a8-%d9%81%d9%87%d8%b1%d8%b3-%d8%a7%d9%84%d9%85%d9%84%d9%88%d9%83-%d9%84%d9%8a%d9%84%d9%89-%d8%b9%d8%a8%d8%af-%d8%a7%d9%84%d9%84%d9%87/",
+        "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d9%84%d9%8a%d9%84%d9%89-%d9%83%d9%88%d9%84%d9%8a%d9%86-%d9%87%d9%88%d9%81%d8%b1/",
+        "https://8ghrb.com/%d8%b1%d9%88%d8%a7%d9%8a%d8%a9-%d8%ad%d9%83%d8%a7%d9%8a%d8%a9-%d8%b5%d9%81%d9%8a%d8%a9-%d9%84%d9%8a%d9%84%d9%89-%d8%a7%d9%84%d8%b9%d8%ab%d9%85%d8%a7%d9%86/"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "adapter": "books",
+    "label": "harakat present",
+    "query": "رِوايَة",
+    "sent": "رِوايَة",
+    "variants": [
+      "رِوايَه"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "رِوايَه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "adapter": "books",
+    "label": "tatweel",
+    "query": "روايـــة",
+    "sent": "روايـــة",
+    "variants": [
+      "روايـــه"
+    ],
+    "raw_hits": 1,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "روايـــه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "adapter": "books",
+    "label": "arabic-indic digits",
+    "query": "الجزء ٢",
+    "sent": "الجزء ٢",
+    "variants": [],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "adapter": "books",
+    "label": "persian keheh and farsi yeh",
+    "query": "کتاب",
+    "sent": "کتاب",
+    "variants": [],
+    "raw_hits": 7,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "adapter": "books",
+    "label": "definite article present",
+    "query": "الغريب",
+    "sent": "الغريب",
+    "variants": [],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://8ghrb.com",
+    "host": "8ghrb.com",
+    "adapter": "books",
+    "label": "copy-paste carrying RLM",
+    "query": "‏الغريب‎",
+    "sent": "الغريب",
+    "variants": [],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "adapter": "books",
+    "label": "alef forms (hamza written)",
+    "query": "الأمير",
+    "sent": "الأمير",
+    "variants": [
+      "الامير"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "الامير": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "adapter": "books",
+    "label": "alef forms (hamza omitted)",
+    "query": "الامير",
+    "sent": "الامير",
+    "variants": [],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "adapter": "books",
+    "label": "teh marbuta",
+    "query": "رواية",
+    "sent": "رواية",
+    "variants": [
+      "روايه"
+    ],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 8,
+    "variant_detail": {
+      "روايه": [
+        "https://kitaboka.com/books/wsmy-tkhrj-mn-lbhr",
+        "https://kitaboka.com/books/roay-frdos-algnon",
+        "https://kitaboka.com/books/hky-zhr",
+        "https://kitaboka.com/books/roay-alh-allatyn",
+        "https://kitaboka.com/books/roay-ryh-algnob"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "adapter": "books",
+    "label": "teh marbuta spelled as heh",
+    "query": "روايه",
+    "sent": "روايه",
+    "variants": [
+      "رواية"
+    ],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 8,
+    "variant_detail": {
+      "رواية": [
+        "https://kitaboka.com/books/roay-allyaly-albydaaa",
+        "https://kitaboka.com/books/roay-magdolyn",
+        "https://kitaboka.com/books/thmyl-nsaaa-sghyrat-1-roay-loyza-alkot-pdf",
+        "https://kitaboka.com/books/thmyl-nsaaa-sghyrat-2-roay-loyza-alkot-pdf",
+        "https://kitaboka.com/books/roay-saaatyn-odaaa"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "adapter": "books",
+    "label": "alef maqsura",
+    "query": "ليلى",
+    "sent": "ليلى",
+    "variants": [
+      "ليلي"
+    ],
+    "raw_hits": 1,
+    "raw_error": "",
+    "variant_new_hits": 1,
+    "variant_detail": {
+      "ليلي": [
+        "https://kitaboka.com/books/roay-khan-alkhlyly"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "adapter": "books",
+    "label": "alef maqsura spelled as yeh",
+    "query": "ليلي",
+    "sent": "ليلي",
+    "variants": [
+      "ليلى"
+    ],
+    "raw_hits": 1,
+    "raw_error": "",
+    "variant_new_hits": 1,
+    "variant_detail": {
+      "ليلى": [
+        "https://kitaboka.com/books/roay-alshyaa-alakhr-mn-ktl-lyl-alhayk"
+      ]
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "adapter": "books",
+    "label": "harakat present",
+    "query": "رِوايَة",
+    "sent": "رِوايَة",
+    "variants": [
+      "رِوايَه"
+    ],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "رِوايَه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "adapter": "books",
+    "label": "tatweel",
+    "query": "روايـــة",
+    "sent": "روايـــة",
+    "variants": [
+      "روايـــه"
+    ],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "روايـــه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "adapter": "books",
+    "label": "arabic-indic digits",
+    "query": "الجزء ٢",
+    "sent": "الجزء ٢",
+    "variants": [],
+    "raw_hits": 2,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "adapter": "books",
+    "label": "persian keheh and farsi yeh",
+    "query": "کتاب",
+    "sent": "کتاب",
+    "variants": [],
+    "raw_hits": 1,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "adapter": "books",
+    "label": "definite article present",
+    "query": "الغريب",
+    "sent": "الغريب",
+    "variants": [],
+    "raw_hits": 2,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://kitaboka.com",
+    "host": "kitaboka.com",
+    "adapter": "books",
+    "label": "copy-paste carrying RLM",
+    "query": "‏الغريب‎",
+    "sent": "الغريب",
+    "variants": [],
+    "raw_hits": 2,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "adapter": "books",
+    "label": "alef forms (hamza written)",
+    "query": "الأمير",
+    "sent": "الأمير",
+    "variants": [
+      "الامير"
+    ],
+    "raw_hits": 6,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "الامير": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "adapter": "books",
+    "label": "alef forms (hamza omitted)",
+    "query": "الامير",
+    "sent": "الامير",
+    "variants": [],
+    "raw_hits": 6,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "adapter": "books",
+    "label": "teh marbuta",
+    "query": "رواية",
+    "sent": "رواية",
+    "variants": [
+      "روايه"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "روايه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "adapter": "books",
+    "label": "teh marbuta spelled as heh",
+    "query": "روايه",
+    "sent": "روايه",
+    "variants": [
+      "رواية"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "رواية": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "adapter": "books",
+    "label": "alef maqsura",
+    "query": "ليلى",
+    "sent": "ليلى",
+    "variants": [
+      "ليلي"
+    ],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "ليلي": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "adapter": "books",
+    "label": "alef maqsura spelled as yeh",
+    "query": "ليلي",
+    "sent": "ليلي",
+    "variants": [
+      "ليلى"
+    ],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "ليلى": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "adapter": "books",
+    "label": "harakat present",
+    "query": "رِوايَة",
+    "sent": "رِوايَة",
+    "variants": [
+      "رِوايَه"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "رِوايَه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "adapter": "books",
+    "label": "tatweel",
+    "query": "روايـــة",
+    "sent": "روايـــة",
+    "variants": [
+      "روايـــه"
+    ],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {
+      "روايـــه": []
+    },
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "adapter": "books",
+    "label": "arabic-indic digits",
+    "query": "الجزء ٢",
+    "sent": "الجزء ٢",
+    "variants": [],
+    "raw_hits": 9,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "adapter": "books",
+    "label": "persian keheh and farsi yeh",
+    "query": "کتاب",
+    "sent": "کتاب",
+    "variants": [],
+    "raw_hits": 0,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "adapter": "books",
+    "label": "definite article present",
+    "query": "الغريب",
+    "sent": "الغريب",
+    "variants": [],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  },
+  {
+    "site": "https://www.noor-book.com",
+    "host": "www.noor-book.com",
+    "adapter": "books",
+    "label": "copy-paste carrying RLM",
+    "query": "‏الغريب‎",
+    "sent": "الغريب",
+    "variants": [],
+    "raw_hits": 12,
+    "raw_error": "",
+    "variant_new_hits": 0,
+    "variant_detail": {},
+    "checked": "2026-09-08"
+  }
+]

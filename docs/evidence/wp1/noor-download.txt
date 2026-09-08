@@ -1,0 +1,147 @@
+Isolated run: /workspace/manga downloader/.state/verification/run-xrfm1lrn
+2026-09-08 08:16:52,669 INFO    app.desync: DPI-bypass proxy listening on socks5://127.0.0.1:45147 (split at 1 byte(s), 50 ms delay)
+2026-09-08 08:16:52,708 INFO    app.fetcher: HTTP egress via proxy socks5://127.0.0.1:45147
+2026-09-08 08:16:52,732 INFO    app.adapters.registry: Using adapter books for https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf (by host)
+2026-09-08 08:16:53,314 INFO    httpx: HTTP Request: GET https://www.noor-book.com/en/ebook-%D8%A7%D9%84%D9%84%D9%8A%D8%A7%D9%84%D9%8A-%D8%A7%D9%84%D8%A8%D9%8A%D8%B6%D8%A7%D8%A1-%D8%AF%D9%88%D8%B3%D8%AA%D9%88%D9%8A%D9%81%D8%B3%D9%83%D9%8A-pdf "HTTP/1.1 200 OK"
+2026-09-08 08:16:53,463 INFO    httpx: HTTP Request: POST https://www.noor-book.com/en/Verification/check_user?o=1788855413.3431869 "HTTP/1.1 200 OK"
+2026-09-08 08:16:53,611 INFO    httpx: HTTP Request: POST https://www.noor-book.com/en/book/read_book?o=1788855413.4636931 "HTTP/1.1 200 OK"
+2026-09-08 08:16:53,616 INFO    app.adapters.books: Noor reader has 111 page(s) for https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf
+2026-09-08 08:16:53,633 INFO    app.adapters.registry: Using adapter books for https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf (by host)
+2026-09-08 08:16:54,124 INFO    httpx: HTTP Request: GET https://www.noor-book.com/en/ebook-%D8%A7%D9%84%D9%84%D9%8A%D8%A7%D9%84%D9%8A-%D8%A7%D9%84%D8%A8%D9%8A%D8%B6%D8%A7%D8%A1-%D8%AF%D9%88%D8%B3%D8%AA%D9%88%D9%8A%D9%81%D8%B3%D9%83%D9%8A-pdf "HTTP/1.1 200 OK"
+2026-09-08 08:16:54,273 INFO    httpx: HTTP Request: POST https://www.noor-book.com/en/Verification/check_user?o=1788855414.1495914 "HTTP/1.1 200 OK"
+2026-09-08 08:16:54,423 INFO    httpx: HTTP Request: POST https://www.noor-book.com/en/book/read_book?o=1788855414.273672 "HTTP/1.1 200 OK"
+2026-09-08 08:16:55,175 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/1/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:16:56,723 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/2/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:16:58,874 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/3/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:00,870 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/4/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:02,899 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/5/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:05,005 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/6/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:07,034 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/7/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:09,070 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/8/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:11,065 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/9/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:13,135 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/10/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:15,328 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/11/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:17,348 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/12/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:19,375 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/13/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:21,510 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/14/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:23,536 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/15/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:25,554 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/16/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:27,566 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/17/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:29,650 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/18/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:31,765 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/19/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:33,728 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/20/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:35,921 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/21/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:38,103 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/22/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:40,080 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/23/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:42,120 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/24/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:44,203 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/25/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:46,287 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/26/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:48,344 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/27/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:50,365 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/28/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:52,454 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/29/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:54,545 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/30/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:56,839 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/31/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:17:58,709 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/32/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:00,860 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/33/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:03,147 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/34/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:05,053 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/35/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:07,204 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/36/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:09,184 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/37/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:11,540 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/38/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:13,060 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/39/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:15,158 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/40/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:17,474 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/41/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:19,315 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/42/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:21,334 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/43/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:23,445 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/44/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:25,481 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/45/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:27,579 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/46/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:29,834 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/47/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:31,855 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/48/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:34,004 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/49/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:36,020 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/50/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:38,136 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/51/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:40,255 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/52/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:42,400 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/53/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:44,589 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/54/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:46,635 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/55/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:48,606 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/56/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:50,725 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/57/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:52,743 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/58/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:54,703 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/59/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:56,763 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/60/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:18:58,723 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/61/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:00,836 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/62/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:02,853 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/63/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:05,078 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/64/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:07,205 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/65/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:09,183 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/66/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:11,250 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/67/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:13,440 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/68/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:15,453 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/69/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:17,656 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/70/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:19,630 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/71/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:21,695 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/72/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:23,765 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/73/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:25,773 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/74/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:27,789 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/75/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:29,833 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/76/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:31,929 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/77/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:34,128 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/78/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:36,265 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/79/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:38,149 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/80/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:40,241 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/81/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:42,314 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/82/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:44,556 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/83/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:46,588 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/84/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:48,576 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/85/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:50,698 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/86/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:52,733 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/87/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:54,751 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/88/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:56,874 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/89/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:19:59,094 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/90/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:01,086 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/91/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:03,238 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/92/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:05,210 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/93/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:07,225 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/94/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:09,350 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/95/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:11,336 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/96/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:13,426 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/97/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:15,545 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/98/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:17,669 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/99/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:19,881 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/100/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:21,925 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/101/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:23,989 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/102/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:26,153 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/103/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:28,195 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/104/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:30,329 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/105/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:32,510 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/106/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:34,550 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/107/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:36,670 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/108/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:38,786 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/109/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:40,849 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/110/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:42,980 INFO    httpx: HTTP Request: GET https://www.noor-book.com/book/read_book_image/0/8a9df550dfe435a8230e71c0ef602889/111/2e14098dca3fb74fcdf2d9057b4c4e0e.svg "HTTP/2 200 OK"
+2026-09-08 08:20:45,280 INFO    app.queue: Wrote Download Book White Nights Pdf.pdf (111 pages)
+{
+  "source_url": "https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf",
+  "checked": "2026-09-08T08:16:52.669009+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-xrfm1lrn",
+  "passed": true,
+  "adapter": "books",
+  "title": "Download Book White Nights Pdf",
+  "listed_chapters": 1,
+  "chapter_url": "https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf#read",
+  "job_status": "done",
+  "pages_expected": 111,
+  "pages_downloaded": 111,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-xrfm1lrn/downloads/Download Book White Nights Pdf/Download Book White Nights Pdf.pdf",
+    "passed": true,
+    "count": 111,
+    "unit": "pages",
+    "bytes": 33679155,
+    "sha256": "a630995f08c6aeb575716058d1d5362262842f0b45e3d03dc09a8dd80007ff64",
+    "rendered_pages": 111
+  }
+}
+PASS

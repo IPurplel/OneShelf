@@ -106,6 +106,14 @@ PAGE_LOAD_ROUNDS = 3
 _REDIRECT_MARKERS = ("redirecting", "please wait while you are redirected")
 REDIRECT_SETTLE_MS = 4000
 
+#: Bounds for `scroll_for`, the lazily-built-list wait. Generous enough for a
+#: long chapter, finite because a reader with an endless feed underneath it
+#: would otherwise never stop. A round that adds nothing ends the loop, so
+#: these are ceilings and not costs.
+LAZY_SCROLL_ROUNDS = 60
+LAZY_SCROLL_PIXELS = 20000
+LAZY_SCROLL_SETTLE_MS = 700
+
 
 def looks_like_redirect(html: str, title: str = "") -> bool:
     """True when a page is only an interstitial pointing somewhere else."""
@@ -983,6 +991,8 @@ class SessionManager:
         referer: str | None = None,
         wait_for: str | None = None,
         wait_ms: int = 0,
+        scroll_for: str | None = None,
+        wait_timeout: float | None = None,
     ) -> str:
         """Render a page in the browser and return its HTML.
 
@@ -993,6 +1003,13 @@ class SessionManager:
         and ``wait_ms`` a bounded settle delay. Both default to off, so every
         existing adapter keeps today's behaviour and today's speed — only the
         sites that inject content after ``domcontentloaded`` pay for the wait.
+
+        ``scroll_for`` is for the readers that mount their content as it
+        scrolls into view: the document is scrolled until that selector stops
+        gaining matches. Off by default, and it costs one scroll on a page that
+        was already complete. Without it such a reader hands back whatever
+        happened to be on screen, which parses and packages perfectly and is
+        simply missing most of the chapter.
         """
         page = await self._new_page()
         try:
@@ -1000,7 +1017,8 @@ class SessionManager:
             # overriding headers is fingerprint injection, while goto's referer
             # is the ordinary one a real navigation would carry.
             content = await self._load_cleared(
-                page, url, referer=referer, wait_for=wait_for, wait_ms=wait_ms
+                page, url, referer=referer, wait_for=wait_for, wait_ms=wait_ms,
+                scroll_for=scroll_for, wait_timeout=wait_timeout,
             )
 
             host = urlparse(url).netloc
@@ -1075,6 +1093,8 @@ class SessionManager:
         referer: str | None = None,
         wait_for: str | None = None,
         wait_ms: int = 0,
+        scroll_for: str | None = None,
+        wait_timeout: float | None = None,
     ) -> str:
         """Navigate to ``url`` and return the real document, not a challenge.
 
@@ -1087,7 +1107,8 @@ class SessionManager:
         host = urlparse(url).netloc
         for attempt in range(1, PAGE_LOAD_ROUNDS + 1):
             await page.goto(url, wait_until="domcontentloaded", referer=referer)
-            content = await self._settled_content(page, wait_for, wait_ms)
+            content = await self._settled_content(
+                page, wait_for, wait_ms, scroll_for, wait_timeout)
 
             # Some sites answer with a shell that moves you on via meta refresh
             # or script. goto() returns once that shell is parsed, so without a
@@ -1095,7 +1116,8 @@ class SessionManager:
             if looks_like_redirect(content, await page.title()):
                 log.info("%s served a redirect shell; waiting for it to land", url)
                 await page.wait_for_timeout(REDIRECT_SETTLE_MS)
-                content = await self._settled_content(page, wait_for, wait_ms)
+                content = await self._settled_content(
+                    page, wait_for, wait_ms, scroll_for, wait_timeout)
 
             if not is_challenge(content, await page.title()):
                 return content
@@ -1113,7 +1135,8 @@ class SessionManager:
         )
 
     async def _settled_content(
-        self, page: Page, wait_for: str | None, wait_ms: int
+        self, page: Page, wait_for: str | None, wait_ms: int,
+        scroll_for: str | None = None, wait_timeout: float | None = None,
     ) -> str:
         """Read the document, optionally after content has been injected.
 
@@ -1121,25 +1144,61 @@ class SessionManager:
         not have that content — the adapter's own parse error says far more than
         a timeout here would, and a challenge page will never carry the
         selector anyway.
+
+        ``wait_timeout`` overrides the configured one for this call. It exists
+        for the case where the selector's *absence* is a real answer rather
+        than a fault — a search whose results legitimately do not exist — and
+        the caller would otherwise pay the full timeout to learn "nothing
+        found". Measured on riwayatarab: an unanswerable query cost **12.2s**
+        against 1.0s for a site that settles quickly, and in a thirteen-site
+        book fan-out that one site pushed the whole search to its ceiling.
         """
+        limit = self._settings.wait_timeout if wait_timeout is None else wait_timeout
         matched = False
         if wait_for:
             try:
-                await page.wait_for_selector(
-                    wait_for, timeout=self._settings.wait_timeout * 1000
-                )
+                await page.wait_for_selector(wait_for, timeout=limit * 1000)
                 matched = True
             except Exception:
                 # Warn, not debug: this costs real seconds on every page it
                 # happens to, and it used to do so entirely silently.
                 log.warning("Selector %r did not appear within %.0fs on %s",
-                            wait_for, self._settings.wait_timeout, page.url)
+                            wait_for, limit, page.url)
         # The selector arriving *is* the signal, so the settle delay is only
         # for pages that had none or missed. Paying it anyway cost 1.2s on
         # every page of a 24-page chapter list, for nothing.
         if wait_ms and not matched:
             await page.wait_for_timeout(wait_ms)
+        if scroll_for:
+            await self._scroll_until_settled(page, scroll_for)
         return await page.content()
+
+    async def _scroll_until_settled(self, page: Page, selector: str) -> None:
+        """Scroll to the end of a lazily-built list, then stop.
+
+        A reader that mounts its pages as they scroll into view hands
+        ``page.content()`` only what has been reached so far, and the result
+        parses perfectly, packs into a valid archive, and is *wrong*.
+        Measured on comix.to 2026-09-08: Attack on Titan chapter 1 answered
+        **3 images** after the settle delay and **12** after scrolling — a CBZ
+        of the first quarter of the chapter, with nothing downstream able to
+        tell.
+
+        Stops as soon as a round adds nothing, so a page that was already
+        complete pays one scroll and one interval.
+        """
+        seen = await page.locator(selector).count()
+        for _ in range(LAZY_SCROLL_ROUNDS):
+            await page.mouse.wheel(0, LAZY_SCROLL_PIXELS)
+            await page.wait_for_timeout(LAZY_SCROLL_SETTLE_MS)
+            now = await page.locator(selector).count()
+            if now == seen:
+                break
+            seen = now
+        else:
+            log.warning("Still loading %r after %d scrolls on %s; kept %d",
+                        selector, LAZY_SCROLL_ROUNDS, page.url, seen)
+        log.info("Lazy list settled at %d matches for %r", seen, selector)
 
     async def fetch_html_capturing(
         self,
@@ -1180,7 +1239,7 @@ class SessionManager:
         page.on("response", on_response)
         try:
             content = await self._load_cleared(
-                page, url, referer=referer, wait_for=wait_for, wait_ms=wait_ms
+                page, url, referer=referer, wait_for=wait_for, wait_ms=wait_ms,
             )
             host = urlparse(url).netloc
             self._sessions[host] = await self._harvest(page.context, host)
@@ -1189,6 +1248,35 @@ class SessionManager:
             return content, list(captured)
         finally:
             await page.close()
+
+    async def post_form_direct(self, url: str, data: dict, *, referer: str | None = None) -> str:
+        """Anonymous HTTP form request, with browser fallback owned by adapters."""
+        import httpx
+
+        headers = {"X-Requested-With": "XMLHttpRequest"}
+        if referer:
+            headers["Referer"] = str(httpx.URL(referer))
+        async with self.direct_http_client() as client:
+            response = await client.post(url, data=data, headers=headers)
+            response.raise_for_status()
+            if is_challenge(response.text, status=response.status_code):
+                raise RuntimeError("The HTTP form response is a browser challenge")
+            return response.text
+
+    def direct_http_client(self):
+        """A scoped HTTP session for anonymous multi-request reader protocols.
+
+        The caller owns the async context. Cookies persist within that context,
+        never importing an attached browser's authenticated state.
+        """
+        import httpx
+
+        options = {"timeout": self._settings.request_timeout,
+                   "follow_redirects": True,
+                   "headers": {"User-Agent": self.user_agent}}
+        if self._settings.proxy_config is not None:
+            options["proxy"] = self._settings.proxy_config.for_httpx()
+        return httpx.AsyncClient(**options)
 
     async def fetch_json_direct(self, url: str, params=None):
         """GET JSON over plain HTTP, honouring the app's proxy.

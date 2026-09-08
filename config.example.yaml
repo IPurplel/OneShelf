@@ -121,6 +121,8 @@ proxy:                           # UI-editable
 chapter_concurrency: 2           # UI-editable
 image_concurrency: 6             # UI-editable
 requests_per_second: 4.0         # UI-editable, per host
+host_requests_per_second:        # Additional ceilings; never raise the cap above
+  noor-book.com: 0.5             # Anonymous reader: one page request per 2 seconds
 max_retries: 3                   # UI-editable, per image
 request_timeout: 60.0
 

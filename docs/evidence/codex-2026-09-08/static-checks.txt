@@ -1,0 +1,5 @@
+$ .venv-linux/bin/python -m pyflakes app tests
+Exit: 0
+
+$ bash -n startup.sh
+Exit: 0

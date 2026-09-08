@@ -1,0 +1,9 @@
+what the old code did with it, before anything reached a site:
+  q.strip()      -> .strip()     '\u200fالغريب\u200e'
+  fold(raw)      -> 'الغريب'   tokens: ['الغريب']
+  clean_query    -> 'الغريب'
+
+https://8ghrb.com        as pasted (old behaviour): 0 hits
+https://8ghrb.com        cleaned (new behaviour) : 12 hits
+https://3asq.online      as pasted (old behaviour): 0 hits
+https://3asq.online      cleaned (new behaviour) : 10 hits

@@ -309,9 +309,15 @@ class Fetcher:
         return self._client
 
     def _limiter(self, host: str) -> RateLimiter:
+        overrides = self._settings.host_requests_per_second
+        bare = host.lower().removeprefix("www.")
+        if bare in overrides:
+            host = bare
         limiter = self._limiters.get(host)
         if limiter is None:
-            limiter = RateLimiter(self._settings.requests_per_second)
+            rate = min(self._settings.requests_per_second,
+                       overrides.get(host, self._settings.requests_per_second))
+            limiter = RateLimiter(rate)
             self._limiters[host] = limiter
         return limiter
 
@@ -366,6 +372,9 @@ class Fetcher:
         if session and session.cookies:
             headers["Cookie"] = session.cookie_header()
         if referer:
+            # URLs accept Unicode; HTTP header values must be ASCII. Arabic
+            # reader slugs otherwise fail before a request reaches the host.
+            referer = str(httpx.URL(referer))
             headers["Referer"] = referer
             parsed = urlparse(referer)
             headers["Origin"] = f"{parsed.scheme}://{parsed.netloc}"

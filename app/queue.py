@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import inspect
 import logging
 from pathlib import Path
 from typing import Any, Awaitable, Callable
@@ -327,16 +328,26 @@ class JobQueue:
             await self._emit({"type": "job_updated", "job": job.summary()})
 
     @staticmethod
-    def _packaging_for(adapter, chapter: Chapter) -> str:
-        """What to build from this chapter: ``cbz``, ``file`` or ``pdf``.
+    async def _packaging_for(adapter, chapter: Chapter) -> str:
+        """What to build from this chapter: ``cbz``, ``file``, ``pdf`` or ``text``.
 
         Asked per chapter rather than read off the class, because ``books``
         serves both shapes: most of its sites link a finished PDF, while Noor
         exposes a book only through its page-by-page reader.
+
+        **May answer asynchronously.** A platform's theme says how to find a
+        chapter and cannot say what is inside it — several web-novel sites run
+        a manga platform's markup — so for those adapters the honest answer
+        requires opening the chapter. Awaited when the hook returns an
+        awaitable, called plainly when it does not, so every existing adapter
+        keeps its synchronous one-liner.
         """
         chosen = getattr(adapter, "packaging_for", None)
         if callable(chosen):
-            return chosen(chapter)
+            result = chosen(chapter)
+            if inspect.isawaitable(result):
+                return await result
+            return result
         return getattr(adapter, "packaging", "cbz")
 
     async def _process_chapter(self, job: Job, adapter, chapter: Chapter) -> None:
@@ -345,7 +356,7 @@ class JobQueue:
         # archive to build. Everything around it — resume, progress, the
         # database, failure handling — is the same, which is why it forks here
         # and nowhere else.
-        packaging = self._packaging_for(adapter, chapter)
+        packaging = await self._packaging_for(adapter, chapter)
         if packaging == "file":
             await self._process_file(job, adapter, chapter)
             return

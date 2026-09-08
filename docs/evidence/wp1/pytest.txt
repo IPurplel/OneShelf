@@ -1,0 +1,36 @@
+.................................................F...................... [ 10%]
+........................................................................ [ 20%]
+........................................................................ [ 30%]
+........................................................................ [ 40%]
+........................................................................ [ 50%]
+........................................................................ [ 60%]
+........................................................................ [ 70%]
+........................................................................ [ 80%]
+........................................................................ [ 90%]
+.................................................................        [100%]
+=================================== FAILURES ===================================
+__________ test_noor_search_hides_catalog_only_books_and_keeps_covers __________
+
+    async def test_noor_search_hides_catalog_only_books_and_keeps_covers():
+        sessions = FakeSessionManager(pages={NOOR_SEARCH_URL: NOOR_SEARCH_HTML})
+    
+        results = await BooksAdapter(sessions).search(NOOR_ROOT, "white nights")
+    
+        assert [result.url for result in results] == [
+            NOOR_BOOK_URL,
+            NOOR_SECOND_BOOK_URL,
+        ]
+        assert results[0].cover_url == (
+            "https://www.noor-book.com/covers/white-nights.jpg"
+        )
+        assert sessions.direct == [NOOR_SEARCH_URL]
+>       assert sessions.direct == []
+E       AssertionError: assert ['https://www...ite%20nights'] == []
+E         
+E         Left contains one more item: 'https://www.noor-book.com/en/tag/white%20nights'
+E         Use -v to get more diff
+
+tests/test_books.py:644: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_books.py::test_noor_search_hides_catalog_only_books_and_keeps_covers
+1 failed, 712 passed in 36.87s

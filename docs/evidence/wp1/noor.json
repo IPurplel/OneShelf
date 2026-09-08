@@ -1,0 +1,22 @@
+{
+  "source_url": "https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf",
+  "checked": "2026-09-08T08:16:52.669009+00:00",
+  "run_dir": "/workspace/manga downloader/.state/verification/run-xrfm1lrn",
+  "passed": true,
+  "adapter": "books",
+  "title": "Download Book White Nights Pdf",
+  "listed_chapters": 1,
+  "chapter_url": "https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf#read",
+  "job_status": "done",
+  "pages_expected": 111,
+  "pages_downloaded": 111,
+  "artifact": {
+    "path": "/workspace/manga downloader/.state/verification/run-xrfm1lrn/downloads/Download Book White Nights Pdf/Download Book White Nights Pdf.pdf",
+    "passed": true,
+    "count": 111,
+    "unit": "pages",
+    "bytes": 33679155,
+    "sha256": "a630995f08c6aeb575716058d1d5362262842f0b45e3d03dc09a8dd80007ff64",
+    "rendered_pages": 111
+  }
+}

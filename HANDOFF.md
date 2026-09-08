@@ -1,4 +1,7 @@
 > Historical development notes. For current deployment, use [README.md](README.md).
+> **Latest continuation: [CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md),
+> 2026-09-08.** Read it first for Codex's changes, fresh verification, and the
+> ranked remaining work. Dated findings below preserve earlier observations.
 
 # Handoff — manga/comic downloader
 
@@ -22,7 +25,8 @@ E:\projects\manga downloader
 ```
 
 Run: `./.venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8080`
-Test: `./.venv/Scripts/python.exe -m pytest -q` → **499 pass**
+Test on Linux: `.venv-linux/bin/python -m pytest -q` → **859 passed**
+(2026-09-08, after Codex's continuation; baseline was 853).
 Lint: `./.venv/Scripts/python.exe -m pyflakes app/ tests/` → clean
 
 **The UI has no test runner.** `web/` is three static files with no build step,
@@ -41,17 +45,26 @@ Console output must use `PYTHONIOENCODING=utf-8` or Arabic titles crash cp1252.
 
 ## State
 
+**Superseded by [SOURCES.md](SOURCES.md), 2026-09-08.** That file is the
+evidence ledger: one row per source, one tier, and for every T4 an absolute
+path, a byte size and a page or chapter count. The table below is kept only as
+a summary of where each *adapter* stands.
+
 | Adapter | Status |
 | --- | --- |
-| `madara` | **Verified end-to-end.** manga-starz 391 ch, 3asq 68 ch |
-| `mangathemesia` | Preview + search only (TS theme; rizzfables) |
-| `vcomics` | **Verified end-to-end.** azoramoon c1, 29 pp. Search + locked-chapter handling live-checked |
-| `mangadex` | **Verified end-to-end.** Berserk ar: c0.01 47 pp, c1 38 pp, full-size originals, no browser |
-| `comix` | Preview 463 ch; never downloaded |
-| `blogger` | Preview 21 issues; never downloaded |
-| `books` | **Verified end-to-end.** planetebook, 8ghrb, bettergutenberg, arabic-book (URL only). Search live-checked |
-| `gutenberg` | **Verified end-to-end.** 77k books; search + one-per-format downloads, Frankenstein EPUB 0.47 MB |
-| `generic` | Heuristic fallback |
+| `madara` | **T4** on four sites: 3asq, mangaread, manhuaplus, arabtoons |
+| `mangathemesia` | **T4 for prose** on kolnovel. Its image path remains unproven: rizzfables' CDN fails. See SOURCES.md |
+| `vcomics` | **T4.** azoramoon/azorafly, 46 pp. Search + locked-chapter handling live-checked |
+| `mangadex` | **T4.** 37 pp, full-size originals, no browser |
+| `comix` | **T4** — 12 pp, but only after `scroll_for`; it read 3 before |
+| `blogger` | **T4** — 52 pp, unblocked by the stylesheet-fingerprint fix |
+| `books` | **T4** on planetebook, 8ghrb, bettergutenberg, kitaboka, noor. `ktobati` excluded (account) |
+| `gutenberg` | **T4.** 77k books; search + one-per-format downloads |
+| `royalroad` / `ao3` / `webtoons` / `sunovels` | **T4**, one artifact each |
+| `aco` | **T4**, 524-page PDF from the IIIF manifest's rendering link |
+| `wuxiabox` / `rewayat` / `riwayatarab` | **T4**, one EPUB chapter each; full listing counts recorded in SOURCES.md |
+| `scribblehub` | **TB** — Turnstile this container cannot clear |
+| `generic` | Heuristic fallback; no source of its own to verify |
 
 **Search asks for one kind at a time.** The UI requires Book / Manga / Comics
 before the box is usable, `/api/search` requires `?type=` (400 otherwise), and
@@ -60,10 +73,13 @@ adapter declares one — `manga` for mangadex/vcomics/mangathemesia/madara/gener
 `comics` for comix/blogger, `book` for books — and a test fails if a new adapter
 forgets, because a missing type makes it unreachable from search.
 
-Configured: 8 manga sites (3asq, manga-starz, arabtoons, azoramoon, mangadex,
-mangaread, manhuaplus, rizzfables), 4 book sites (8ghrb, planetebook,
-bettergutenberg, gutenberg) and **no comics site** — comix/blogger have no search at all, so the Comics chip
-says so rather than looking broken.
+Default configuration as of 2026-09-08: **21 search URLs, all with T4 evidence**
+— **7 Manga, 13 Books, 1 Comics**. User configuration can override this list.
+The reconciled ledger contains 26 T4 hostnames including redirect aliases;
+10 match the supplied inventory exactly after removing `www.`.
+`manga-starz` (SNI-filtered here) and `rizzfables` (its CDN answers 526 to
+everything) were removed by WP-2. comix and blogger still have no search, so
+they remain paste-by-URL — but both now download.
 
 **Ranking is ours; matching is still the site's.** These engines match
 descriptions and word stems, so their raw answer to `berserk` buries the real
@@ -72,8 +88,9 @@ with `base.relevance()`, drops what is judged irrelevant, and orders the rest by
 band — except across scripts, where an Arabic query legitimately returns a
 series shown under a romanised name and text can settle nothing. See Findings.
 
-`mangathemesia`, `comix` and `blogger` are still unproven at the step that
-matters: none has produced a CBZ.
+`comix` and `blogger` have since produced real CBZs (WP-2, 2026-09-08).
+`mangathemesia` later produced a prose EPUB from kolnovel; its image download
+path still needs an artifact from a working site.
 
 ## Findings — do not re-derive
 
@@ -570,15 +587,21 @@ webcomicsapp.com, mangaplaza.com, mangaswat.com's real host. That is the
 ISP-level SNI filtering this file documents; `desync_enabled` is the remedy and
 could not be exercised in this session.
 
-## Open work, in priority order
+## Historical open work (superseded)
 
-**1. Download one file from `ktobati`, `noor-book`, `kitaboka`, and one chapter
-from `mangathemesia`, `comix`, `blogger`, `generic`.**
-Preview proves the chapter list parses and nothing else. Every serious bug this
-project has had — scrambled ordering, thumbnail images, an interstitial parsed
-as content — passed preview and died here. `scratchpad/verify_dl.py <url>
-[--chapter N]` runs preview → real queue → CBZ inspection (decodes every page,
-flags anything under 600px) against a throwaway output dir.
+**Do not use this list as the current task queue.** WP-5 and several source
+additions below were completed later in this file. The current queue is in
+[CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md#remaining-work-in-order).
+
+**1. ~~Download one file from every unproven adapter.~~ Done 2026-09-08 (WP-2).**
+`noor-book`, `kitaboka`, `comix` and `blogger` all produced files; `ktobati` is
+excluded as account-gated; `mangathemesia` is blocked by its site's own CDN;
+`generic` is a fallback with no source of its own. Evidence in
+[SOURCES.md](SOURCES.md). What remains is WP-5: triage the 183 supplied URLs in
+`docs/source-inventory.md` — auth check first, then reachability, then
+fingerprint, then platform cluster — before WP-6 adds anything to
+`search_sites`. Note that the meta prompt's Group D is a hypothesis list: a
+spot check found no live MangaThemesia site among its candidates.
 
 **2. `olympustaff.com` → the 5-Arabic target.** Now the only one left: it does
 **not** share azoramoon's platform (no `astro-island`, no `/_vcomics/`, no
@@ -632,3 +655,739 @@ because it needlessly goes through rate limiting and quality upgrading.
 - Fixtures must be captured from real pages. The Madara adapter passed fixtures
   I had written myself while silently mis-ordering chapters and downloading
   thumbnails.
+
+## Findings — 2026-09-07 WP-0 verification baseline
+
+**The handoff and meta prompt lag the checkout.** The isolated Linux baseline
+ran **691 tests**, not 499 or 552. `desync_browser` is already a declared Settings
+field and `SessionManager` uses its proxy selection; HTTP limiters are already
+per-host, although all use the same configured rate. These are read from code,
+not proposed fixes. WP-1 must measure the existing route before replacing it.
+
+**The verification tool could delete the directory it was given and write into
+the real database.** It reassigned only `settings.output_dir`, recursively
+removed that directory on entry, and used the unchanged `settings.db_path` and
+browser profile. `--keep` saved the archive but did not isolate anything else.
+Each invocation now copies settings and assigns all storage paths to a fresh
+child directory, clears attached-browser and runtime-proxy state, uses an
+ephemeral desync port, and retains evidence on both success and failure.
+The regression test supplies conflicting MD_* storage variables and a sentinel
+user file: the isolated paths stay separate and the existing file survives.
+
+**A signature is not an openable book.** The old verifier accepted both a fake
+PDF made from `%PDF`, padding and `%%EOF`, and an arbitrary ZIP named `.epub`.
+Both failures were reproduced before the fix. The audit now renders PDF pages,
+follows EPUB container/OPF/spine references and renders the document, and still
+fully decodes CBZ images with a 600px width floor. A real Gutenberg EPUB does
+not contain `OEBPS/chapter.xhtml`, which the app's generated-EPUB verifier
+assumes; audit source EPUBs by their own spine instead of applying that layout.
+Missing spine members, empty prose, truncated images, and page-count mismatches
+are regression cases. EPUB spine items include front matter, and rendered page
+counts depend on layout; neither should be mislabeled as literary chapters.
+
+**A finished queue job can still fail its audit.** The first WP-0 Frankenstein
+file was written successfully but the new reporting path imported `by_id` from
+`app.adapters`, which does not export it. It is in `app.adapters.registry`.
+The audit correctly kept the file and recorded a failed run; after correcting
+the import, a fresh real run passed. A job marked done is not the report's pass
+condition: artifact inspection must also succeed.
+
+**Historical SNI failures are not current TB evidence.** All 18 configured URLs
+answered HTTP 200 via the local desync proxy during WP-0, including Noor and
+`3asq.online`. That says nothing about Noor's browser reader route or whether
+desync was necessary. The configured `3asq.online` is also not `3asq.org`.
+Supplemental probes captured `manga-starz.net` -> `starzmanga.com` and
+`azoramoon.com` -> `azorafly.com`; URL-only selection called several theme sites
+`generic`, while their fetched DOM correctly selected Madara or MangaThemesia.
+Keep route, exact hostname and fingerprint evidence separate from support.
+
+**One current T4 artifact is retained.** Anonymous Gutenberg Frankenstein EPUB:
+`/workspace/manga downloader/.state/verification/run-arxyf3k8/downloads/Frankenstein; or, the modern prometheus/Frankenstein; or, the modern prometheus.epub`,
+474161 bytes, 32 spine items and 239 rendered pages (PyMuPDF 1.26.4). A prose
+page was visually inspected; blank pagination pages also occur and are not
+missing chapters. Source, SHA-256, queue result and verifier details are in
+`docs/evidence/wp0/download.json`; a byte-identical real-file fixture is in
+`tests/fixtures/books/gutenberg_frankenstein.epub`. SOURCES.md assigns the other
+17 configured URLs T1 pending their own artifacts; it does not turn historical
+claims into current T4 evidence. TU is the user-approved tier for unavailable
+or insufficient evidence that fits none of T0–T4 or TB.
+
+**An audit must survive the failure it is measuring.** Review found that one
+POST timeout or invalid JSON response aborted the entire connectivity batch
+before any report was saved, and the fixed output filename erased the previous
+run. Endpoint failures now become per-site `audit_error` records, other hosts
+continue, and each unique run checkpoints its own JSON after every response.
+A timeout/invalid-JSON regression test confirms that completed results survive.
+
+**The original URL inventory has now arrived.** `docs/source-inventory.md`
+preserves all 183 supplied entries (86 Arabic, 97 English), including names,
+categories, `www` prefixes and path-specific entry points. Every supplied host
+appears in Section 5 of the meta prompt; its additional references are
+`3asq.online`, `azoramoon.com` and `olympustaff.com`. Only four supplied hosts
+overlap the 18 configured search hosts. This is inventory reconciliation, not
+live triage. A first domain scan falsely reported three omissions because it
+missed `.edu`, `.info`, and a domain immediately followed by `->`; compare
+complete domain tokens before claiming an inventory is missing entries.
+
+## Findings — 2026-09-08 coverage program, WP-1
+
+**Noor does not need a browser to open its anonymous reader.** A live White
+Nights page provides `csrf_token`, `crypto_token`, `b_h` and `book_hash`; its
+script posts to `/en/Verification/check_user`, then `/en/book/read_book`.
+The former explicitly reports `is_logged: 0`. Replaying these requests through
+one initially empty HTTP session produced all 111 reader pages. Clearing the
+session cookies between POSTs changed the reader response to 403. The SVG URLs
+then worked in a separate client, so the ordinary page fetcher remains the
+correct download path. `SessionManager.direct_http_client` provides the scoped
+cookie-preserving transport; no account or Download endpoint is involved.
+Real HTML/JSON and search captures are in `tests/fixtures/noor`.
+
+**An Arabic URL is valid request input and an invalid raw HTTP header.** The
+reader opened, but its pages failed before any request reached the server:
+httpx raises UnicodeEncodeError on an Arabic slug placed in `Referer`. A test
+reproduced it while constructing the request. `Fetcher._headers` now encodes the
+URL through `httpx.URL` first. This applies to every adapter, not just Noor.
+
+**Noor's complete-book run crossed the old failure point.** At 0.5 requests per
+second and image concurrency 1, all 111 pages downloaded, bound into a PDF and
+rendered successfully: 33679155 bytes. The exact path and SHA-256 are in
+`docs/evidence/wp1/noor.json`. `host_requests_per_second` now supplies a
+Noor-specific 0.5 ceiling, with bare and www names sharing the limiter; a lower
+user-wide cap still wins. Other hosts keep their usual cap. The first attempt,
+before the Referer fix, was interrupted and remains failed evidence. The
+successful PDF is scanned Arabic; its page 12 was visually inspected.
+
+**A redirected GET hides the failure of the following POST.** 3asq.org redirects
+to 3asq.online. Reading the series over desync worked, but posting the chapter
+list to the old hostname was redirected with 301, became a GET, and returned no
+chapters. Madara now follows the series' canonical link when deciding the AJAX
+origin. Direct static HTML and form requests use the existing HTTP bypass;
+complete-markup checks preserve browser fallback for JS readers. This is a
+platform behavior, not a hardcoded 3asq exception.
+
+**A readable chapter list can still name missing pages.** Hunter X Hunter
+chapter 1 parsed 33 images but six returned 404, and the queue correctly failed
+at 27/33. Chapter 420 completed: 16 pages, 47861046 bytes, every image decoded
+and at least 600 pixels wide. Both runs are preserved under
+`docs/evidence/wp1`; the failed first chapter is a source-content limitation,
+not evidence that retrying stable URLs will restore missing files.
+
+## Findings — 2026-09-08 coverage program, WP-2 / WP-3 / WP-4
+
+**A WordPress AJAX endpoint says no with `0`, and an exception-only fallback
+never hears it.** `Adapter.post_form` fell back to the browser when the direct
+HTTP POST *raised*, and kept the answer when it succeeded. `admin-ajax` returns
+`0` for an action it does not recognise and `-1` for a failed nonce, both as
+**HTTP 200 with a one-character body**, and a redirected POST produces the same
+`0` — the redirect is followed as a GET and the action never runs. So Madara
+held `0`, reported "no chapters found", and never tried the browser that would
+have answered. `EMPTY_FORM_REPLIES` now treats an empty reply as a failure of
+the direct path, not as an answer. The test for this was already in the tree,
+failing, before this session began.
+
+**A stylesheet decided the adapter.** A real Blogger comics blog has a
+MangaThemesia theme's CSS pasted into its template, so its markup carries the
+marker `bixbox` twice — inside an `@media` block, styling a class the page
+never uses. Every fingerprint here is a substring test over raw HTML,
+MangaThemesia outranks Blogger (110 vs 90), so it claimed the page and every
+blogspot series failed with *"No chapter list … open the series page on the
+site"* against a URL that **was** the series page. `registry.fingerprint_html`
+now strips `<style>` blocks before matching. `<script>` deliberately stays:
+`ts_reader` is a real marker and lives in one. Only the copy used for matching
+is stripped; the adapter still parses the untouched page. Blogger produced its
+first CBZ — 52 pages — the moment this was fixed.
+
+**The Kitaboka alias pointed at the empty side.** The adapter mapped
+`kitaboka.com` → `norkitab.com`, described in its own docstring as "the active
+Norkitab backend". Live, `norkitab.com` answers **976 bytes of HTML 4
+frameset** whose only content is `<frame src="…kitaboka.com/books">`;
+`kitaboka.com` answers **227 KB with 37 book links**. So every Kitaboka search
+fetched an empty document and returned nothing, for every query, and had done
+since it was added. Nothing caught it because the tests were built from
+hand-written markup that agreed with the mistake — the exact failure the bottom
+of this file warns about. Fixtures are now real captures
+(`tests/fixtures/kitaboka/`), the alias resolves towards `kitaboka.com`, and
+the site went from *never produced a file* to a 246-page, 4.8 MB PDF.
+
+**Kitaboka is the sixth site to answer an unanswerable query with its
+catalogue.** The sentinel `zzqvoneshelfnonexistent987654321` returns **27 real
+book links**, overlapping the ones a genuine query returns. `query_matches`
+turns it back into "nothing found". Six now, in six different shapes. Assume
+the next one does it too.
+
+**A lazily-mounted reader hands back only what is on screen, and the result is
+a perfectly good archive of a quarter of the chapter.** comix.to mounts pages
+as they scroll into view. `wait_for` plus `wait_ms=2500` saw **3 images**;
+scrolling to the end saw **12**. The three were real, full-size, 785×1200 —
+they passed the 600px floor, passed the decode, packed into a valid CBZ, and
+nothing downstream could tell. Measured against the same chapter twice.
+`SessionManager.fetch_html(scroll_for=…)` now scrolls until a round adds no
+new matches; a page that was already complete pays one scroll. This is general,
+not a comix hack: any infinite-scroll reader needs it.
+
+**A verifier that opens the file still cannot tell you the chapter is short.**
+The comix CBZ passed `verify_cbz` completely. What caught it was knowing that
+Attack on Titan chapter 1 is not three pages. Artifact inspection proves the
+file is real; only the *source* can say whether it is complete.
+
+**`fold` folds ؤ and ئ, and said for a long time that it did not.** The comment
+above `_ARABIC_FOLD` presented Lucene's omission of ؤ→و and ئ→ي as this
+module's behaviour. It is not: NFKD decomposes U+0624 to waw + U+0654 and
+U+0626 to yeh + U+0654, and the combining-mark strip that removes harakat
+removes the hamza with them. The table omits them; the pass before it does not.
+Behaviour left alone, comment corrected, and the real behaviour is now pinned
+by a test rather than by prose.
+
+**A pasted bidi mark is not whitespace, and `.strip()` does not remove it.**
+`/api/search` sent `q.strip()` straight to every site. Measured live: the
+pasted string `‏الغريب‎` returns **0 hits on 8ghrb and 0 on 3asq**;
+the same query cleaned returns **12 and 10**. Inside `fold()` the same
+characters reached the `\W+` rule and became a *space* — harmless at the edge of
+a query, but in the middle of a word it split one token into two and every gate
+downstream then looked for both halves. `textmatch.clean_query` deletes them,
+and `main.search` cleans before fan-out.
+
+**Folding rescues a hit the site returned; it cannot rescue one the site never
+returned.** That was the whole of GAP A. A site with an unnormalised index
+answers `رواية` and `روايه` as different words, so the hit never arrives and
+there is nothing to re-rank. `textmatch.query_variants` offers the spellings a
+reader might have typed instead, and `main.search` sends them **only to a site
+that found nothing**, stopping at the first that answers — so a site whose
+index already normalises (Noor) pays nothing at all. Measured across the five
+Arabic sites: **276 → 447 hits, +62%**, table in
+`docs/evidence/wp3/before-after.md`.
+
+The single most valuable variant is the least interesting one: strip harakat
+and tatweel and map the Persian letter forms. `رِوايَة`, `روايـــة` and `کتاب`
+each returned **0 hits on every site** as typed. Nobody types tatweel into a
+search box on purpose — it arrives by copy-paste from a justified heading.
+`undecorate` is deliberately *not* `fold`: it changes only what is decorative,
+so the string being sent is still the word the reader meant.
+
+**The reverse letter substitutions have to be anchored to the end of a word.**
+Teh marbuta and alef maqsura occur nowhere else, so substituting every heh in
+`شهرزاد` produces a string that is not Arabic — and costs a real variant its
+turn in a list that is deliberately capped.
+
+**Two `'/'` handlers, and the loser was registered first.** `web/app.js` bound
+the shortcut twice; the later registration ran second and won, and it
+re-targeted `#chapter-filter` whenever `#preview` was visible — which is
+exactly when someone wants to search again. So the keyboard route back to
+search was dead from the first result click until a page reload. One handler
+now, one rule: `'/'` goes to the view's search box, never to the chapter
+filter. Its comment about the search input "staying disabled until a kind is
+chosen" described behaviour that had already been removed.
+
+**`clearResults()` leaves the text in the box, and search only fires on
+`input`.** So after opening a result the box still read `berserk`, retyping the
+same query changed nothing and fired nothing, Enter needed a cursor that
+`clearResults` had just set to `-1`, and `renderRecents()` no-ops above two
+characters. The text is now deliberately kept — someone who clicked a result
+usually wants the same list back — and Enter, Escape and a visible **Back to
+results** control all restore it from `lastSearch`, held before it is nulled.
+Nothing re-queries the network to go back.
+
+**The result-click handler skipped the reset trio.** The kind chips and the
+clear button all run `clearTimeout(searchTimer); searchToken++;
+abandonSearch();`. Clicking a result ran none of them, so a pending debounce or
+an in-flight fetch survived and its late render could reopen the result list on
+top of the preview just loaded. It now runs the same three.
+
+**`pgrep -f <pattern>` matches the shell that is waiting on it.** A
+`while pgrep -f wp2_artifacts.sh; do sleep 10; done` never exits: the waiting
+command's own command line contains the pattern. The batch had already
+finished. `pkill -f` on the same pattern then killed the shell issuing it.
+Same family as the `grep -c` trap below — match on something only the thing
+under test produces.
+
+**A positive search query has to name something the site actually holds.** The
+first search audit scored `bettergutenberg.org` at zero for *Agnes Grey*, which
+is planetebook's copy, not theirs. It also showed WordPress `?s=` matching
+stems and body text: `?s=agnes` returns "Experiments upon **Magnes**ia Alba".
+A zero from this audit means "no gated, relevant hit", never "the site is
+broken" — check the query before the adapter.
+
+**URL-only adapter selection is a filter, not a verdict — including in your own
+tooling.** The first run of the search audit used `adapters.select(url)` and
+reported six sites returning nothing, because every Madara and MangaThemesia
+site resolves to `generic` by URL alone and `GenericAdapter` has no `search()`.
+`app.main` gets this right (`resolve`, which fingerprints the fetched DOM); the
+audit did not. Fingerprint in the tool the same way the app does, or measure
+the tool instead of the app.
+
+**This repo has mixed line endings, and a Python `write_text` silently
+normalises them.** `app/session.py` and `tests/test_books.py` are CRLF for most
+of their lines and LF for the rest — a Windows history showing through. Editing
+either with `pathlib.Path.write_text()` rewrote every line as LF and turned a
+40-line change into a **2,719-line diff** that would have buried the actual
+edit in review. Converting the whole file back to CRLF was no better: it
+rewrote the ~58 lines that were legitimately LF. The repair is to align the new
+content against `git show HEAD:<file>` and re-emit each *unchanged* line with
+its original bytes. Check `git diff --stat` against the size of the edit you
+actually made — a number far larger than expected is this, not your change.
+
+## Findings — 2026-09-08 coverage program, WP-5 (triage of the 183 supplied sites)
+
+**Group D was a hypothesis and it did not survive contact.** The meta prompt
+lists ~32 sites as "likely zero-code coverage" — 20 Madara, 12 MangaThemesia —
+on the strength of their names and reputations. Fingerprinted live: **one**.
+`kolnovel.com`, and it fingerprints as MangaThemesia, not the Madara it was
+filed under. Of the other 31, most no longer exist; the ones that answer serve
+Next.js or plain WordPress. Treat every hypothesis list in that prompt the same
+way: it is a place to start looking, never a verdict, and the whole WP-6 "add
+the host and run verify_dl" shortcut is worth about four sites, not thirty-two.
+
+**A 200 is not content, and this list is full of counter-examples.**
+`mangak.com` answers 200 with a HugeDomains **for-sale page**. `mangarose.com`
+and `ozulscans.com` answer 200 and redirect into ad networks
+(`p.asdfix.com`, `avq.one`). `mangapro.com` answers 200 with a **114-byte**
+body. A reachability check that reads only the status code calls all of these
+healthy. `triage_pass2.verdict_for` classifies on the *final* URL and the body
+size: below ~12 KB nothing in this inventory was ever real content, while live
+sites came back 40 KB–1.1 MB.
+
+**Separate "blocked here" from "gone" with a second pass, not a guess.** Of 94
+hosts that failed or answered too small, only **7** came back with content
+through the desync proxy — and four of those are account-gated anyway. The
+other 67 are unreachable through the bypass too, so the ISP filter is not what
+is wrong with them. Historical SNI hypotheses do not survive as current
+evidence; re-probe before filing anything TB.
+
+**Arabic web-novel sites run manga platforms' themes, and both adapters assume
+images.** `kolnovel.com` fingerprints as MangaThemesia and lists **13,406
+chapters correctly**, then dies with "No page images found". `cenele.com`
+fingerprints as Madara and finds no chapter list at all. A kolnovel chapter
+page carries **180 `<p>` and 0 `<img>`** — it is prose. The theme matched; the
+content type did not.
+
+This is the highest-leverage finding in the pass, because the supplied
+inventory holds ~15 Arabic novel sites and ~20 English web-novel sites and the
+fix is not one adapter each: it is deciding a chapter's *kind* from the chapter
+rather than from the adapter class. The machinery already exists and is proven
+— `prose.py`, `packaging = "text"`, `packager.write_epub`, `Adapter.fetch_text`,
+`packaging_for(chapter)` — and Sunovels and Royal Road ship on it today.
+
+**The remaining sites do not cluster into adapters.** Among live, unclaimed
+hosts the commonest signatures are Next.js (12), WordPress (10) and Laravel
+(8). None of those is an adapter-sized cluster: they describe how a site is
+*built*, not how its chapters are laid out, and a scraper cannot be shared on
+that basis. Only `vcomics/astro` (asuracomic.net) names real markup. Plan the
+rest as one adapter per site or per small family.
+
+**The 92-site target is not reachable from this list.** At most 74 of the 183
+supplied sites are live and not excluded, so even a perfect run tops out at 74
+— and each one costs adapter work, not a config line. Said here rather than
+discovered at the end.
+
+## Findings — 2026-09-08 coverage program, prose routing (WP-6/WP-7 first cut)
+
+**A platform's theme says how to find a chapter and cannot say what is in it.**
+`kolnovel.com` fingerprints as MangaThemesia and `cenele.com` as Madara, and
+both serve Arabic *novels*. Read as comics they failed outright. The fix is not
+per-site: `Adapter.packaging_for(chapter)` may now answer **asynchronously**
+(`JobQueue._packaging_for` awaits an awaitable and calls a plain hook plainly),
+so an adapter can open the chapter and decide. `prose.looks_like_prose` is the
+decision, and both adapters cache the chapter page so classifying it and
+reading it cost one fetch.
+
+`looks_like_prose` is deliberately "no images **and** real text", not a ratio.
+A chapter with images is a comic chapter however long its translator's note,
+and calling one prose would silently drop every page — the worst outcome
+available here. The character floor (1,500) only stops an empty or failed page
+becoming an EPUB.
+
+**Chasing those two sites turned up three bugs that had nothing to do with
+novels**, all of which would have hit comics too:
+
+*MangaThemesia counted every anchor in a chapter row as a chapter.* kolnovel
+puts a second, unlabelled `<a>` beside each chapter pointing at
+`<chapter-url>/pdf/`, so a 6,703-chapter novel listed **13,406** — exactly
+double, which is the shape to recognise. Worse, the `/pdf/` copy sorted equal
+to the real chapter and could win, so the download opened a page with no reader
+on it. Rows are walked now, not anchors, and an anchor with no text is
+furniture.
+
+*MangaThemesia harvested images from the whole document.* `_images_from_dom`
+fell back to `tree` when neither `#readerarea` nor `div.reader-area` was
+present. On kolnovel that produced **8 "pages", every one an analytics tracking
+pixel** (`pixel.quantserve.com/pixel/….gif`). They are not decorative by name,
+not 1×1 by URL, and they answer 200 — the only thing separating them from a
+comic page is that they were never inside the reader. No reader now means no
+pages, and the caller's "no page images found" is the correct answer.
+
+*Madara required `/manga/` in every chapter path.* The post-type slug is
+configurable and cenele uses `/cont/`, so all eight marked chapters were
+discarded and the series reported "could not read the chapter list" against a
+page whose list had parsed perfectly. That guard exists for the **fallback**
+scan, where "every `<li>` holding a link" really is a guess; a link the site
+marked `li.wp-manga-chapter` needs no such check. Same shape as the search fix
+below: be suspicious of what you inferred, not of what the site declared.
+
+**A generic wrapper is a last resort and has to be gated.** kolnovel answers
+`?s=` with real results in `<article>` and uses no `div.bs` at all, so search
+returned nothing for a series it plainly holds. `article` is WordPress's
+generic wrapper and also wraps navigation and category pages, so the sweep is
+gated with `query_matches` — but the theme's own `div.bs` cards are **not**,
+because ranking near misses is `/api/search`'s job and gating them here would
+drop exactly what it exists to rank. An existing test caught the first,
+over-broad version of this change.
+
+**Re-verify what already worked after a change like this.** 3asq, mangaread and
+manhuaplus were re-run and produced **byte-identical** artifacts (47,861,046 /
+13,572,089 / 10,168,699 bytes). A shared-path change that improves two sites is
+worth nothing if it quietly costs three.
+
+**`content_type` is per-adapter, and these two sites need it per-site.**
+kolnovel and cenele are filed under *Manga* in the search UI because they share
+an adapter class with real manga sites. A Books search cannot reach them. Known
+and recorded rather than papered over; the fix is to make the kind a property
+of the site.
+
+**`git checkout <file>` discards uncommitted work, and this tree is entirely
+uncommitted.** Reverting `tests/test_textmatch.py` to clean up a stray edit
+threw away 38 WP-3 tests written earlier in the same session. Nothing warned;
+the suite simply went from 765 to 727. In a tree with no commits behind it,
+`git checkout` is not an undo — it is a delete.
+
+**The content kind belongs to the site, not to the adapter — and the map has to
+be reachable without fingerprinting.** kolnovel and cenele are novels on manga
+themes, so reading `content_type` off the adapter class filed them under Manga:
+a Books search could never reach them and a Manga search returned novels.
+
+The first fix put a per-adapter `CONTENT_TYPE_BY_HOST` on MangaThemesia and
+Madara, and it did nothing for the one place the user sees. `/api/sources`
+groups every configured site on every page load, so it must not fetch — and
+without a fetch those two hosts fingerprint as **`generic`**, which has no such
+map. The override therefore lives in `adapters.base.SITE_CONTENT_TYPES`, keyed
+by bare hostname and consulted by `Adapter.content_type_for` whatever adapter
+is asking. A test pins the case that caught it: `select()` really does return
+`GenericAdapter` for kolnovel, and the kind is still `book`.
+
+Note the division: `SITE_CONTENT_TYPES` is a *declaration*, used where nothing
+may be fetched; `packaging_for` is a *detection*, made from the chapter itself.
+They answer different questions and must not be collapsed.
+
+**A test double has to carry the whole interface it doubles.** Adding
+`content_type_for` broke **20 tests** in `test_search_api.py`, none of them
+about content types: four hand-rolled stub adapters lacked the new method, each
+raised `AttributeError` inside the endpoint's broad per-site handler, and the
+endpoint duly reported every site as `"error"`. It read like a routing bug.
+They now share one `AdapterInterface` base, so the next hook breaks them
+visibly and in one place.
+
+## Findings — 2026-09-08, Arabic Collections Online (WP-6)
+
+**Look for the API before scraping the HTML.** ACO's book page is a **6.5 KB
+JavaScript shell**: no title, no author, no file, nothing to parse. Capturing
+what the reader actually fetches took one browser run and found a **IIIF
+Presentation 3.0 manifest** carrying the entire record — title in English and
+Arabic, metadata, `viewingDirection: right-to-left`, 524 page canvases, and a
+`rendering` array offering **the whole book as a single PDF** in two
+resolutions. The adapter reads one JSON document and never touches the page.
+
+It takes the bound PDF rather than assembling pages from the IIIF Image API,
+which also works (`…/full/full/0/default.jpg` returns a 2739x3935 JPEG). The
+site has already bound the book; rebuilding it from 524 JPEGs would be slower,
+larger and worse. Verified: 262,256,337 bytes, **524 rendered pages**, matching
+the manifest's canvas count exactly — which is the check worth doing, because
+a short download is the failure mode a PDF verifier cannot see.
+
+**The extension has to be the last thing in a filename.** The two renderings
+are distinguished by the manifest's own labels, and appending one after the
+extension produced `…v.3.pdf (High-resolution PDF rendering (262.26 MB))` —
+which the queue refused as "not a file type this library stores". The size also
+stays out of the name: it changes when the site re-scans, and a filename that
+encodes it goes stale. `(high resolution)` before `.pdf` is what ships.
+
+**A result card holds more links than the one you want.** ACO's search page
+gives each hit a title link, a "Read Online" control pointing at the same book,
+and two PDF links on `mc.dlib.nyu.edu/files/books/<id>/…`. All three match the
+book-id pattern, so sweeping every anchor read the title off whichever came
+last and named every result
+`تحميل دِقّة منخفضةLow-resolution PDF(34.…)`. Restricted to reader links on
+the collection's own host, and the first title per book wins.
+
+**A search that returns each hit twice is not returning two books.** ACO lists
+every result under its romanised title and again with `?lang=ar` under its
+Arabic one. Merged on the book id, with the Arabic name kept as `alt_title` —
+which is also what makes an Arabic query visibly land on a record displayed
+under a romanised name. Measured live: `المتنبي` → 10 hits, `mutanabbi` → 10,
+sentinel → **0**. An honest search, unlike six others in this file.
+
+**`curl` could not verify NYU's certificate chain from this container**
+(`unable to get local issuer certificate`), while httpx through the app was
+fine. A probe script's TLS failure is not the site's problem, and not the
+app's — check which client is complaining before recording a site as broken.
+
+## Findings — 2026-09-08, WuxiaBox and the novel-site sweep (WP-7)
+
+**The same chapter can be published under two URLs.** WuxiaBox lists some
+chapters both unpadded and zero-padded — `…_46.html` and `…_0046.html` are one
+chapter. De-duplicating on the URL is the obvious choice and is enough for the
+overlapping pages below, but it left both: measured on `absolute-resonance`,
+**1,333 listed links for 1,216 chapters, so 117 would have been downloaded and
+packaged twice**. Chapters are keyed on their *number* instead. Worth checking
+for anywhere: a chapter list whose length exceeds its highest chapter number is
+the symptom.
+
+**A paginated listing can be zero-based *and* overlapping.** `page=1` returns
+chapters **91-190**, not 101-200: 100 rows at a stride of 90. Sunovels was
+zero-based with no overlap, so "zero-based" is not one bug with one shape —
+measure the first row of the second page rather than assuming either.
+
+**Ranking a chapter list by `int()` hid a real defect and invented a fake one.**
+Comparing numbers as strings said the list was clean; comparing them as
+integers said 117 collided. Both were true, and the integer view was the one
+that mattered — `"46"` and `"0046"` are different strings and the same chapter.
+When two measurements of the same list disagree, the disagreement *is* the
+finding.
+
+**Probing a site hard enough gets you throttled, and throttling looks like
+absence.** After a few dozen requests wuxiabox began answering **2,009 bytes**
+to everything, including a chapter already downloaded successfully. `curl` had
+the same problem across the English novel sites — `novelfull`, `novelfire` and
+`freewebnovel` all returned ~5 KB Cloudflare pages to a rapid loop, having
+returned 39-105 KB of real content to the triage hours earlier. Route probes
+through the app's own session (desync, rate limits, browser fallback) before
+recording a site as blocked, and treat a uniform small response as a rate limit
+until proven otherwise.
+
+**Framework is not platform, confirmed again.** Of the 25 live novel sites,
+the triage's framework labels (Next.js, Laravel, WordPress) predicted nothing:
+`novelfull` and `readnovelfull` share a URL shape and neither shares markup
+with `wuxiabox`, while `wanderinginn.com` is WordPress built with **Elementor**
+and has no `.entry-content` at all — its prose sits in an `.elementor-*`
+container. Cluster novel sites by the selectors an adapter would use, not by
+what built them. `scratchpad/probe_novels.py` asks that question directly.
+
+**An inventory category is a user's label, not a fact.** `ruya.com` is listed
+in the supplied inventory under *Novels*. It is a WordPress site serving
+**Turkish dream interpretation** (`/ruyada-yumurta-sarisi-gormek`, `/harf/…`).
+Check what a site actually serves before building for the category it was filed
+under — and expect a share of any supplied list to be mislabelled, not merely
+dead.
+
+**Not every hydration payload holds what you want.** rewayat.club is a Nuxt app
+and its `__NUXT__` blob carries the novel record — Arabic title, English title,
+description — but **not** its chapters, only the newest 24 of a novel numbered
+past 950. There is no pagination control on the page and three guessed
+`api.rewayat.club` endpoints answered 404. Recorded as unsolved rather than
+half-built: azoramoon's payload held the whole list, and the lesson from that
+was "look in the payload", not "the payload always has it".
+
+## Findings — 2026-09-08, Rewayat Club
+
+**A site's chapter list can live on the chapter, not on the novel.** Rewayat's
+novel page shows the newest 24 of a 955-chapter serial, has no pagination
+control and no "all chapters" link, and three guessed `api.rewayat.club`
+endpoints answer 404 — so it was recorded as unsolved. Every *chapter* page's
+Nuxt payload carries an `allChapters` array covering the whole serial. When the
+index page does not have the list, open a leaf and look there.
+
+**A hydration payload is not necessarily JSON.** Rewayat's is minified
+JavaScript: `allChapters` entries read `{value:j,text:"الفصل 2"}` where `j` is
+a single-letter variable assigned earlier in the same function. `value` cannot
+be read at all without evaluating the script; the chapter number comes from the
+literal `text`. azoramoon's payload was HTML-escaped JSON in an attribute, and
+this one is executable code — "look in the payload" does not imply "parse it as
+JSON".
+
+**The record for the page you are on is often the one that is missing.**
+Rewayat builds the current chapter's entry by assignment (`i.text=e`) instead
+of writing it as a literal, so a regex over `text:"…"` returns 954 of 955 — and
+*which* one is absent depends on which chapter was fetched. Off-by-one at the
+end of a 955-chapter list is invisible in a preview, so both ends are pinned by
+real fixtures: chapter 1's payload omits 1, chapter 955's omits 955. The
+adapter adds the fetched chapter back explicitly.
+
+**Scope a regex to the array it belongs to.** The same `text:"…"` shape appears
+elsewhere in the hydration state — menus, footers — so an unscoped match
+invents chapters out of navigation labels. `_all_chapter_numbers` finds
+`allChapters:[`, walks to its matching bracket, and searches only inside.
+
+**One anchor can hold the title and everything filed under it.** Rewayat's
+search cards wrap the name *and* its genre tags in a single `<a>`, so the
+anchor's text reads `ساطور الخطيئة مترجمة أكشن فانتازيا`. Vuetify's
+`div.v-list-item__title` holds just the name. Same family as ACO's result cards
+and kolnovel's `/pdf/` anchors: **a card is not a link, and the link you want is
+rarely the whole card.**
+
+**Two search endpoints, one of which lies.** `/search?q=` returns 36 KB that
+mentions the query and links nothing; `/library?search=` returns the matches.
+A page that contains the query string is not a page that answered it.
+
+## Findings — 2026-09-08, RiwayatArab
+
+**A cross-check that returns `None` has not passed — it has been skipped.**
+`_advertised_count` was written to read the site's chapter total out of its
+"عرض جميع الفصول (1344)" link. React's server rendering splits that number from
+its own parentheses — the markup is literally `(<!-- -->1344<!-- -->)` — so the
+regex matched nothing and the function returned `None` on every real page. The
+live run logged no mismatch, and I briefly read that as the counts agreeing.
+It meant the comparison never ran. The count now comes from the page's
+schema.org JSON-LD (`"numberOfPages":1344`), which is meant for machines and
+survives React's markers, and a test pins both the broken shape and the working
+one.
+
+**React SSR puts `<!-- -->` between adjacent text nodes.** Any string match
+that spans two of them fails, and it fails silently. Match inside a single text
+node, or use structured data.
+
+**A 200 can mean "not found".** A missing RiwayatArab novel answers 200 with a
+16 KB shell titled *"رواية غير موجودة"* and zero anchors — which looks exactly
+like a client-rendered page that has not finished. Two hours were nearly spent
+concluding "this site needs a browser" from a slug that was simply dead. The
+adapter distinguishes them by looking for a title.
+
+**Server-rendered does not mean server-rendered everywhere.** On this site the
+novel page, the chapter list and the chapter are all in the HTML; the *search*
+results are mounted client-side, and over plain HTTP that page returns 25 KB
+that names the query and links nothing. One page needing a browser does not
+make a site a browser site, and vice versa — check the page you actually need.
+
+**Pagination shapes seen so far, all different:** sunovels zero-based;
+wuxiabox zero-based *and* overlapping by ten; riwayatarab one-based and clean.
+There is no house style. Measure the first row of the second page.
+
+
+## Findings — 2026-09-08, Codex continuation
+
+**A failed listing request is not an end-of-list marker.** RiwayatArab and
+WuxiaBox caught exceptions on subsequent listing pages, logged them, and
+returned whatever chapters had already been collected. Thus a timeout after
+one page became a successful, incomplete preview. RiwayatArab also replaced a
+first-page transport failure with misleading advice to find a different novel
+URL. Both now raise `AdapterError` with the failed page URL and collected count,
+retain the exception cause, and ask the user to retry. The existing preview
+endpoint maps the error to HTTP 502; chapter rows are written only after the
+listing succeeds. Six regression cases failed before the fix and pass after it,
+including retrying the same adapter after the connection recovers.
+
+**Missing test fixtures were accidentally simulating successful pagination.**
+The fake session raises when a page is unregistered. Existing tests relied on
+the adapters swallowing that exception to stop their shortened catalogues.
+They now explicitly replay their last captured page as an end-of-list response.
+This is a controlled test condition, not a claim about the live site's last
+page. Actual timeout/connection failures are injected separately. Successful
+empty/repeated responses and listing safety caps still need their own future
+completeness policy; this fix addresses raised request failures only.
+
+**Count fixture links inside the reader list.** WuxiaBox's provenance said its
+first page contained chapters 1–100 plus ten padded duplicates. The captured
+`ul.chapter-list` actually holds 100 links total and 90 distinct chapters
+(1–90); the second fixture holds 91–190. The prose and a new test expectation
+were corrected after counting the saved markup. Whole-page links also include
+recommendations and do not establish the listing's count.
+
+Both adapters were re-verified through preview → queue → EPUB inspection after
+the fix. RiwayatArab: 1,344 listed chapters; chapter 1 is 6,607 bytes, one spine
+item, seven rendered pages. WuxiaBox: 1,216 listed chapters; chapter 1 is 9,390
+bytes, one spine item, fifteen rendered pages. Exact paths, hashes, transcripts,
+the 859-test result, and ranked next steps are in
+[CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md).
+
+## Findings — 2026-09-08, audit of this session's own source work
+
+Five defects, each reproduced before being written down, none caught by the
+859 tests passing at the time. That is the point: all five survive a green run
+and a preview.
+
+**A classifier calibrated on characters excluded short chapters.**
+`prose.looks_like_prose` required 1,500 characters, so a genuinely short
+chapter on a manga-themed novel site was judged "not prose", packaged as `cbz`,
+and died in `fetch_pages` with "no reader images" — the exact failure the prose
+routing exists to remove. Measured across every captured reader fixture:
+
+    fixture                        imgs  blocks   chars
+    kolnovel chapter (prose)          0      80    8082
+    rewayat chapter (prose)           0      56    6631
+    wuxiabox chapter (prose)          0     122   19478
+    madara reader (comic)             4       0       0
+    madara chapter page (comic)       0       0       0
+    vcomics reader (comic)            3       0       0
+
+**Blocks separate them; characters do not.** 0 against 56 and up — and blocks
+keep separating them when an image reader yields no images at all (row 5),
+which is the case the floor was really guarding. The rule is now one block plus
+a small residual character floor. Asking for *three* blocks was the first
+attempt and an existing test caught it: a chapter served as one long paragraph
+is still a chapter. `blocks_from` splits on `<br>`, so a single-`<p>` chapter
+still reads as many blocks — wuxiabox's 122 come from one paragraph.
+
+**Asking the wrong question to select a container.** `rewayat.fetch_text` used
+`looks_like_prose` to *pick* its reader, so a short chapter failed with "the
+reader's markup has changed" — wrong twice over: the markup was fine and the
+chapter was readable. `riwayatarab`, which takes its container directly, read
+the same input correctly, so the two adapters disagreed about the same chapter.
+Whether a site serves prose is settled once; what is left is finding where it
+put it. Selection is now "the first candidate that yields blocks".
+
+**A selector whose absence is an answer must not cost the full timeout.**
+`riwayatarab` search waits for a result link, which legitimately never appears
+when a query has no matches, so every unsuccessful search paid the configured
+10s. Measured: **12.2s** for an unanswerable query against 1.0s for a site that
+settles quickly, and in a thirteen-site book fan-out that one site reported
+`timeout` and pushed the whole search to its 20s ceiling. `fetch_html` now
+takes an optional per-call `wait_timeout` (defaulting to the configured one, so
+every existing caller is unchanged) and that search bounds itself to 4s. The
+`wait_ms` settle went too: `_settled_content` only applies it when the selector
+missed, and here a missed selector *is* the answer. Re-measured: **4.5s**.
+
+Not a fixed delay instead — that would return before results mount on a slow
+render and report "nothing found", trading a slow search for a wrong one.
+
+**`owns_its_host` on a host you do not own.** `AcoAdapter` claimed all of
+`sites.dlib.nyu.edu`, which is NYU's DLTS viewer serving many collections —
+book ids are collection-prefixed and its root is a bare "Index of /". Because
+`owns_its_host` skips fingerprinting entirely, every unrelated URL on that host
+routed to ACO. Now guarded by `/viewer/books/`, the way `dlib.nyu.edu` was
+already guarded by `/aco`. The adapter genuinely reads the *viewer*, not the
+collection, and its docstring now says so — while `SOURCES.md` still claims
+only ACO, because only ACO has an artifact.
+
+**Documentation cited tools that would not exist in a clone.** `.gitignore`
+excluded `scratchpad/*` wholesale while `SOURCES.md`, `HANDOFF.md` and the WP-8
+recipe named `audit_search.py`, `probe_novels.py` and others as how to
+reproduce a result. The curated evidence tooling is now allowlisted and a test
+asserts every cited path exists and is not ignored; one-off probes stay
+untracked, and a second test pins that too. `probe_aco.py` was ACO-shaped only
+by accident — it is now `probe_network.py`, takes a URL, and filters analytics
+out of the capture.
+
+**When two measurements of one thing disagree, the disagreement is the
+finding.** This session's recurring shape: string versus integer chapter
+numbers on WuxiaBox, a `None` cross-check read as a passing one on RiwayatArab,
+and here a character floor and a block count disagreeing about what a chapter
+is. In each case the cheaper measurement was the one quietly lying.
+
+## Findings — 2026-09-08, live health check of every shipped source
+
+Ran the search gate against all **21 configured search URLs** and a real
+download against all **24 sources with a retained artifact**. Report and
+transcripts: `docs/evidence/health/`.
+
+**No site is broken.** 21/21 answer a real query and return nothing for an
+unanswerable one; 24/24 still download and pass artifact inspection, including
+Noor's 111-page reader-bound PDF and ACO's 524-page 262 MB PDF.
+
+**The one failure was the harness, and it exposed a real gap.** ACO reported
+*"No selectable chapter matches the requested number/format"* for `--chapter 2`
+because its chapters carried **no `number` at all** — and neither did
+Gutenberg's. Both offer one book in several formats, so nothing that addresses
+a chapter by number could reach the second one. Both now number each format by
+position. It is selection only: `file` packaging still names each download
+after the book, and `format_chapter_number` already fell back to the index, so
+nothing that was working changed. Verified by taking ACO's *low*-resolution
+copy on its own: 53,216,484 bytes against the high-resolution 262,256,337, both
+524 pages.
+
+**A source with several formats needs a number even though the UI never uses
+one.** The web UI selects by checkbox, so this gap was invisible there and only
+appeared the first time something addressed a chapter by name. Worth checking
+for whenever an adapter builds chapters positionally from a list of files.
+
+**Re-running a known-good chapter is not the same as re-running the source.**
+Two sources needed their original parameters to be checked at all: 3asq's
+chapter 1 has six source images that 404 (documented; the verified artifact is
+chapter 420), and MangaDex needs `--language en` for this title. A health check
+that ignores those reports two false failures.

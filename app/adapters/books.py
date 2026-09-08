@@ -29,6 +29,8 @@ from __future__ import annotations
 import base64
 import binascii
 import logging
+import json
+import time
 import re
 from urllib.parse import quote, quote_plus, unquote, urlparse, urlsplit
 
@@ -67,7 +69,11 @@ KNOWN_HOSTS = {
     "8ghrb.com",
     "bettergutenberg.org",
     "arabic-book.net",
-    "ktobati.com",
+    # ktobati.com is deliberately absent. Its reader and its Download control
+    # both require an account: the adapter's own error used to tell the user to
+    # sign in and make sure their account was "allowed to download this book".
+    # A site that needs an account to reach readable content is excluded, not
+    # worked around, so it is neither a known host nor a search site.
     "noor-book.com",
     "kitaboka.com",
     "norkitab.com",
@@ -80,9 +86,9 @@ KNOWN_HOSTS = {
     "hindawi.org",
 }
 
-# Ktobati needs its authenticated browser session. Noor needs cookies and a
-# JavaScript-driven download action, so neither source can use plain HTTP.
-_BROWSER_SESSION_HOSTS = {"ktobati.com", "noor-book.com"}
+# Legacy browser sources. Noor now opens its anonymous reader over a
+# cookie-preserving HTTP session first; its Download action remains unused.
+_BROWSER_SESSION_HOSTS = {"noor-book.com"}
 
 # Noor creates the final PDF anchor after its download-preparation script runs.
 _NOOR_FILE_SELECTOR = 'a[href$=".pdf"], a[href*=".pdf?"]'
@@ -186,16 +192,11 @@ class BooksAdapter(Adapter):
         return _noor_unwrap(content)
 
     pages_expire = True
-    """Noor's reader token dies partway through a long book.
+    """Re-list failed reader pages and retry only casualties.
 
-    Measured on a 124-page title: pages 1-90 downloaded, then page 91 answered
-    114 bytes of ``text/html``. The token is minted per reading session, so the
-    fix is the one this queue already has for MangaDex@Home — re-list and retry
-    the casualties, which for Noor means opening the reader again.
-
-    Harmless for the file-linking sites: re-listing a book page that failed
-    returns the same link, and re-reading a page whose links have changed is
-    right anyway.
+    Noor's historical mid-book failures were throttling, not proven token
+    expiry: the same URL worked later. Re-listing can still recover failures,
+    but a conservative host rate is what prevents the sustained overload.
     """
 
     async def refresh_pages(self, chapter: Chapter) -> list[Page]:
@@ -346,8 +347,16 @@ class BooksAdapter(Adapter):
     async def _search_kitaboka(
         self, query: str, limit: int
     ) -> list[SearchResult]:
-        """Search Kitaboka's active Norkitab backend for downloadable books."""
-        root = "https://norkitab.com"
+        """Search Kitaboka for books that actually link a file.
+
+        Kitaboka ignores a query it cannot answer and returns its catalogue --
+        the same failure mode as rizzfables, azoramoon, arabic-book, sunovels
+        and books.e3raf. Measured: the sentinel
+        ``zzqvoneshelfnonexistent987654321`` came back with **27 book links**,
+        overlapping the real query's results. ``query_matches`` is what turns
+        that back into "nothing found", so it stays.
+        """
+        root = "https://kitaboka.com"
         url = f"{root}/books?search={quote_plus(query)}"
         tree = self.parse(await self._get(url))
 
@@ -357,7 +366,7 @@ class BooksAdapter(Adapter):
             href = _canonical_kitaboka_url(
                 self.absolute(url, first_attr(link, "href")) or ""
             )
-            if not href or _host_of(href) != "norkitab.com":
+            if not href or _host_of(href) != "kitaboka.com":
                 continue
             path = _path_of(href)
             if not path.startswith("/books/") or path.startswith("/books/read/"):
@@ -407,8 +416,14 @@ class BooksAdapter(Adapter):
             return cached
         host = _host_of(url)
         if host in _BROWSER_SESSION_HOSTS:
-            if host == "noor-book.com" and "/ebook-" in _path_of(url):
+            if host == "noor-book.com" and any(marker in unquote(_path_of(url))
+                                                   for marker in ("/ebook-", "/كتاب-")):
                 html = await self._open_noor_reader(url)
+            elif host == "noor-book.com":
+                try:
+                    html = await self.sessions.fetch_text_direct(url)
+                except Exception:
+                    html = await self.get_html(url)
             else:
                 html = await self.get_html(url)
             self._cache[url] = html
@@ -422,6 +437,69 @@ class BooksAdapter(Adapter):
         return html
 
     async def _open_noor_reader(self, url: str) -> str:
+        """Use the anonymous HTTP reader; keep browser fallback for challenges."""
+        try:
+            return await self._open_noor_reader_direct(url)
+        except Exception as direct_error:
+            log.info("Noor HTTP reader failed for %s: %s", url, direct_error)
+            try:
+                html = await self._open_noor_reader_browser(url)
+                if _noor_reader_pages(html) is None:
+                    raise AdapterError("The browser returned no anonymous reader pages")
+                return html
+            except Exception as browser_error:
+                raise AdapterError(
+                    f"Noor reader did not open: HTTP ({direct_error}) and "
+                    f"browser ({browser_error})."
+                ) from browser_error
+
+    async def _open_noor_reader_direct(self, url: str) -> str:
+        """Replay the public reader's anonymous setup, never its Download flow.
+
+        Captured 2026-09-08: GET book -> Verification/check_user (is_logged=0)
+        -> book/read_book. The anonymous setup cookies must survive both POSTs;
+        discarding them gives a 403. Image URLs themselves work independently.
+        """
+        async with self.sessions.direct_http_client() as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            html = response.text
+            tree = self.parse(html)
+            if tree.css_first(".read-btn") is None:
+                raise AdapterError("This page has no anonymous Read control")
+            values = {}
+            for key in ("csrf_token", "crypto_token", "b_h", "book_hash"):
+                match = re.search(r"var\s+" + key + r"\s*=\s*['\"]([^'\"]+)['\"]", html)
+                if match is None:
+                    raise AdapterError(f"Noor reader setup is missing {key}")
+                values[key] = match.group(1)
+            final_url = str(response.url)
+            parts = urlsplit(final_url)
+            root = f"{parts.scheme}://{parts.netloc}"
+            locale = "/en" if parts.path.startswith("/en/") else ""
+            headers = {"Referer": final_url, "Origin": root,
+                       "X-Requested-With": "XMLHttpRequest"}
+            setup = await client.post(
+                root + locale + "/Verification/check_user",
+                params={"o": str(time.time())},
+                data={"csrf_token": values["csrf_token"], "book_hash": values["b_h"],
+                      "_": values["crypto_token"], "ls": "null"}, headers=headers,
+            )
+            setup.raise_for_status()
+            state = json.loads(setup.text)
+            if state.get("x") or state.get("is_logged") not in (0, False):
+                raise AdapterError("Noor did not establish an anonymous reader session")
+            reader = await client.post(
+                root + locale + "/book/read_book", params={"o": str(time.time())},
+                data={"book_hash": values["book_hash"], "csrf_token": state["osf"],
+                      "_": values["crypto_token"], "ls": state["ls"]}, headers=headers,
+            )
+            reader.raise_for_status()
+            if _noor_reader_pages(reader.text) is None:
+                raise AdapterError("Noor returned no pages for the anonymous reader")
+            return html + reader.text
+
+    async def _open_noor_reader_browser(self, url: str) -> str:
         """Click Read, and try again if an ad interstitial ate the click.
 
         Read, not Download: the download control is account-gated and on a live
@@ -499,18 +577,6 @@ class BooksAdapter(Adapter):
 
         links = _file_links(html, series.url)
         if not links:
-            if _host_of(series.url) == "ktobati.com":
-                if "/section/" in _path_of(series.url):
-                    raise AdapterError(
-                        "Ktobati category links list many books, not one downloadable "
-                        "file. Open a book and paste its /book/... URL instead."
-                    )
-                raise AdapterError(
-                    "Ktobati did not expose a downloadable PDF to the current "
-                    "browser session. Sign in to Ktobati in the app's persistent "
-                    "browser profile and make sure your account is allowed to "
-                    "download this book."
-                )
             raise AdapterError(
                 f"No book files are linked from {series.url}. This adapter "
                 f"looks for links ending in {', '.join(BOOK_EXTENSIONS)} — some "
@@ -573,17 +639,27 @@ def _host_of(url: str) -> str:
 
 
 def _canonical_kitaboka_url(url: str) -> str:
-    """Map Kitaboka's masked paths to the active Norkitab backend."""
-    if _host_of(url) != "kitaboka.com":
+    """Resolve either Kitaboka hostname to the one that serves the books.
+
+    The alias runs the opposite way round to what this adapter first assumed.
+    ``norkitab.com`` is not a backend: it answers **976 bytes of HTML 4
+    frameset** whose only content is ``<frame src="…kitaboka.com/books">``.
+    ``kitaboka.com`` serves the real 227 KB listing. Searching the mask
+    returned an empty document every time, so the site answered nothing for
+    every query -- measured 2026-09-08, against the captured fixtures in
+    ``tests/fixtures/kitaboka``.
+
+    The mask doubles the prefix on the links it does emit
+    (``/books/books/…``, ``/books/storage/…``), so those are unwrapped.
+    """
+    if _host_of(url) not in {"kitaboka.com", "norkitab.com"}:
         return url
     parts = urlsplit(url)
     path = parts.path or "/"
     if path.startswith("/books/books/") or path.startswith("/books/storage/"):
         path = path[len("/books"):]
-    elif path == "/books":
-        path = "/"
     return parts._replace(
-        scheme="https", netloc="norkitab.com", path=path
+        scheme="https", netloc="kitaboka.com", path=path
     ).geturl()
 
 
@@ -658,9 +734,7 @@ def _noor_chapters(series: Series, html: str) -> list[Chapter]:
         # the reader did not open is the only thing that is actually known.
         raise AdapterError(
             "Noor Book's reader did not open for this title, so there are no "
-            "pages to read. This is usually an ad interstitial swallowing the "
-            "click — retry, and if it persists open the book once in the app's "
-            "browser profile."
+            "pages to read. Retry or check the connection and reader in a browser."
         )
 
     total = reader[0]

@@ -176,3 +176,16 @@ async def test_a_stale_format_reference_is_reported(sessions):
     with pytest.raises(AdapterError, match="no longer offered"):
         await GutenbergAdapter(sessions).fetch_pages(
             Chapter(url=f"{BOOK}#9", title="x.epub", index=9))
+
+
+async def test_each_format_can_be_selected_by_number(sessions):
+    """As ACO: a book offered in several formats must be addressable one at a
+    time, and these chapters carried no `number` at all."""
+    adapter = GutenbergAdapter(sessions)
+    series = await adapter.fetch_series(BOOK)
+    chapters = await adapter.fetch_chapters(series)
+
+    assert [c.number for c in chapters] == [
+        str(n) for n in range(1, len(chapters) + 1)]
+    # The number is for selection; the filename still comes from the book.
+    assert all(c.title.endswith((".epub", ".azw3", ".pdf")) for c in chapters)

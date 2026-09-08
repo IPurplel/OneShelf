@@ -180,8 +180,16 @@ class ComixAdapter(Adapter):
     # ----------------------------------------------------------------- pages
 
     async def fetch_pages(self, chapter: Chapter) -> list[Page]:
+        # The reader mounts pages as they scroll into view, so the settle delay
+        # alone reads whatever fits on screen. Measured 2026-09-08 on Attack on
+        # Titan chapter 1: **3 images** after the delay, **12** after scrolling
+        # to the end. The short read parsed cleanly, validated as real full-size
+        # pages and packed into a perfectly good CBZ containing a quarter of the
+        # chapter -- nothing downstream can tell, which is why the scroll is not
+        # optional here.
         html = await self.get_html(
-            chapter.url, referer=chapter.url, wait_for=READER_SELECTOR, wait_ms=2500
+            chapter.url, referer=chapter.url, wait_for=READER_SELECTOR,
+            wait_ms=2500, scroll_for=READER_SELECTOR,
         )
         urls: list[str] = []
         seen: set[str] = set()

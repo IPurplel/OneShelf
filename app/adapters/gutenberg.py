@@ -162,9 +162,17 @@ class GutenbergAdapter(Adapter):
 
         chapters: list[Chapter] = []
         for position, (_url, extension) in enumerate(files, start=1):
+            # Numbered by position as well as indexed. `number` is what
+            # selects a single item from the command line and from any tool
+            # that addresses a chapter by name; without it a multi-format book
+            # could only ever be taken whole. It does not reach the filename --
+            # `file` packaging names each download after the book -- and
+            # `format_chapter_number` already falls back to the index, so this
+            # changes nothing that was working.
             chapters.append(Chapter(
                 url=f"{book_url}#{position}",
                 title=f"{series.title}{extension}",
+                number=str(position),
                 index=position,
             ))
         log.info("Gutenberg %s offers %d format(s)", series.title, len(chapters))

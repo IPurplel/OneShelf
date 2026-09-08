@@ -1,0 +1,188 @@
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+_ test_a_failed_listing_request_is_not_a_successful_partial_preview[TimeoutError-1-0] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f0ec7a57b00>
+failed_page = 1, collected = 0, error_type = <class 'TimeoutError'>
+
+    @pytest.mark.parametrize("failed_page, collected", [(1, 0), (2, 50)])
+    @pytest.mark.parametrize("error_type", [TimeoutError, ConnectionError])
+    async def test_a_failed_listing_request_is_not_a_successful_partial_preview(
+        monkeypatch, failed_page, collected, error_type,
+    ):
+        manager = sessions()
+        fetch = manager.fetch_text_direct
+        failed_url = CHAPTERS + (f"?page={failed_page}" if failed_page > 1 else "")
+        cause = error_type("connection interrupted")
+    
+        async def interrupted(url, *, referer=None):
+            if url == failed_url:
+                raise cause
+            return await fetch(url, referer=referer)
+    
+        monkeypatch.setattr(manager, "fetch_text_direct", interrupted)
+        series = Series(url=NOVEL, title="x", source="riwayatarab")
+        adapter = RiwayatArabAdapter(manager)
+    
+        with pytest.raises(AdapterError) as caught:
+            await adapter.fetch_chapters(series)
+    
+>       assert failed_url in str(caught.value)
+E       AssertionError: assert 'https://riwayatarab.com/novel/demonic-emperor/chapters' in 'No chapters listed for https://riwayatarab.com/novel/demonic-emperor. Open the novel on the site and paste the URL from its address bar.'
+E        +  where 'No chapters listed for https://riwayatarab.com/novel/demonic-emperor. Open the novel on the site and paste the URL from its address bar.' = str(AdapterError('No chapters listed for https://riwayatarab.com/novel/demonic-emperor. Open the novel on the site and paste the URL from its address bar.'))
+E        +    where AdapterError('No chapters listed for https://riwayatarab.com/novel/demonic-emperor. Open the novel on the site and paste the URL from its address bar.') = <ExceptionInfo AdapterError('No chapters listed for https://riwayatarab.com/novel/demonic-emperor. Open the novel on the site and paste the URL from its address bar.') tblen=2>.value
+
+tests/test_riwayatarab.py:209: AssertionError
+_ test_a_failed_listing_request_is_not_a_successful_partial_preview[TimeoutError-2-50] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f0ec5a50770>
+failed_page = 2, collected = 50, error_type = <class 'TimeoutError'>
+
+    @pytest.mark.parametrize("failed_page, collected", [(1, 0), (2, 50)])
+    @pytest.mark.parametrize("error_type", [TimeoutError, ConnectionError])
+    async def test_a_failed_listing_request_is_not_a_successful_partial_preview(
+        monkeypatch, failed_page, collected, error_type,
+    ):
+        manager = sessions()
+        fetch = manager.fetch_text_direct
+        failed_url = CHAPTERS + (f"?page={failed_page}" if failed_page > 1 else "")
+        cause = error_type("connection interrupted")
+    
+        async def interrupted(url, *, referer=None):
+            if url == failed_url:
+                raise cause
+            return await fetch(url, referer=referer)
+    
+        monkeypatch.setattr(manager, "fetch_text_direct", interrupted)
+        series = Series(url=NOVEL, title="x", source="riwayatarab")
+        adapter = RiwayatArabAdapter(manager)
+    
+>       with pytest.raises(AdapterError) as caught:
+E       Failed: DID NOT RAISE <class 'app.adapters.base.AdapterError'>
+
+tests/test_riwayatarab.py:206: Failed
+------------------------------ Captured log call -------------------------------
+WARNING  app.adapters.riwayatarab:riwayatarab.py:148 RiwayatArab lists 50 chapters for demonic-emperor but advertises 1344
+_ test_a_failed_listing_request_is_not_a_successful_partial_preview[ConnectionError-1-0] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f0ec5325880>
+failed_page = 1, collected = 0, error_type = <class 'ConnectionError'>
+
+    @pytest.mark.parametrize("failed_page, collected", [(1, 0), (2, 50)])
+    @pytest.mark.parametrize("error_type", [TimeoutError, ConnectionError])
+    async def test_a_failed_listing_request_is_not_a_successful_partial_preview(
+        monkeypatch, failed_page, collected, error_type,
+    ):
+        manager = sessions()
+        fetch = manager.fetch_text_direct
+        failed_url = CHAPTERS + (f"?page={failed_page}" if failed_page > 1 else "")
+        cause = error_type("connection interrupted")
+    
+        async def interrupted(url, *, referer=None):
+            if url == failed_url:
+                raise cause
+            return await fetch(url, referer=referer)
+    
+        monkeypatch.setattr(manager, "fetch_text_direct", interrupted)
+        series = Series(url=NOVEL, title="x", source="riwayatarab")
+        adapter = RiwayatArabAdapter(manager)
+    
+        with pytest.raises(AdapterError) as caught:
+            await adapter.fetch_chapters(series)
+    
+>       assert failed_url in str(caught.value)
+E       AssertionError: assert 'https://riwayatarab.com/novel/demonic-emperor/chapters' in 'No chapters listed for https://riwayatarab.com/novel/demonic-emperor. Open the novel on the site and paste the URL from its address bar.'
+E        +  where 'No chapters listed for https://riwayatarab.com/novel/demonic-emperor. Open the novel on the site and paste the URL from its address bar.' = str(AdapterError('No chapters listed for https://riwayatarab.com/novel/demonic-emperor. Open the novel on the site and paste the URL from its address bar.'))
+E        +    where AdapterError('No chapters listed for https://riwayatarab.com/novel/demonic-emperor. Open the novel on the site and paste the URL from its address bar.') = <ExceptionInfo AdapterError('No chapters listed for https://riwayatarab.com/novel/demonic-emperor. Open the novel on the site and paste the URL from its address bar.') tblen=2>.value
+
+tests/test_riwayatarab.py:209: AssertionError
+_ test_a_failed_listing_request_is_not_a_successful_partial_preview[ConnectionError-2-50] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f0ec5325940>
+failed_page = 2, collected = 50, error_type = <class 'ConnectionError'>
+
+    @pytest.mark.parametrize("failed_page, collected", [(1, 0), (2, 50)])
+    @pytest.mark.parametrize("error_type", [TimeoutError, ConnectionError])
+    async def test_a_failed_listing_request_is_not_a_successful_partial_preview(
+        monkeypatch, failed_page, collected, error_type,
+    ):
+        manager = sessions()
+        fetch = manager.fetch_text_direct
+        failed_url = CHAPTERS + (f"?page={failed_page}" if failed_page > 1 else "")
+        cause = error_type("connection interrupted")
+    
+        async def interrupted(url, *, referer=None):
+            if url == failed_url:
+                raise cause
+            return await fetch(url, referer=referer)
+    
+        monkeypatch.setattr(manager, "fetch_text_direct", interrupted)
+        series = Series(url=NOVEL, title="x", source="riwayatarab")
+        adapter = RiwayatArabAdapter(manager)
+    
+>       with pytest.raises(AdapterError) as caught:
+E       Failed: DID NOT RAISE <class 'app.adapters.base.AdapterError'>
+
+tests/test_riwayatarab.py:206: Failed
+------------------------------ Captured log call -------------------------------
+WARNING  app.adapters.riwayatarab:riwayatarab.py:148 RiwayatArab lists 50 chapters for demonic-emperor but advertises 1344
+_ test_a_failed_listing_request_is_not_a_successful_partial_preview[TimeoutError] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f0ec5325a90>
+error_type = <class 'TimeoutError'>
+
+    @pytest.mark.parametrize("error_type", [TimeoutError, ConnectionError])
+    async def test_a_failed_listing_request_is_not_a_successful_partial_preview(
+        monkeypatch, error_type,
+    ):
+        manager = sessions()
+        fetch = manager.fetch_text_direct
+        cause = error_type("connection interrupted")
+    
+        async def interrupted(url, *, referer=None):
+            if url == PAGE1:
+                raise cause
+            return await fetch(url, referer=referer)
+    
+        monkeypatch.setattr(manager, "fetch_text_direct", interrupted)
+        series = Series(url=NOVEL, title="Absolute Resonance", source="wuxiabox")
+        adapter = WuxiaBoxAdapter(manager)
+    
+>       with pytest.raises(AdapterError) as caught:
+E       Failed: DID NOT RAISE <class 'app.adapters.base.AdapterError'>
+
+tests/test_wuxiabox.py:184: Failed
+_ test_a_failed_listing_request_is_not_a_successful_partial_preview[ConnectionError] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f0ec53137d0>
+error_type = <class 'ConnectionError'>
+
+    @pytest.mark.parametrize("error_type", [TimeoutError, ConnectionError])
+    async def test_a_failed_listing_request_is_not_a_successful_partial_preview(
+        monkeypatch, error_type,
+    ):
+        manager = sessions()
+        fetch = manager.fetch_text_direct
+        cause = error_type("connection interrupted")
+    
+        async def interrupted(url, *, referer=None):
+            if url == PAGE1:
+                raise cause
+            return await fetch(url, referer=referer)
+    
+        monkeypatch.setattr(manager, "fetch_text_direct", interrupted)
+        series = Series(url=NOVEL, title="Absolute Resonance", source="wuxiabox")
+        adapter = WuxiaBoxAdapter(manager)
+    
+>       with pytest.raises(AdapterError) as caught:
+E       Failed: DID NOT RAISE <class 'app.adapters.base.AdapterError'>
+
+tests/test_wuxiabox.py:184: Failed
+=========================== short test summary info ============================
+FAILED tests/test_riwayatarab.py::test_a_failed_listing_request_is_not_a_successful_partial_preview[TimeoutError-1-0]
+FAILED tests/test_riwayatarab.py::test_a_failed_listing_request_is_not_a_successful_partial_preview[TimeoutError-2-50]
+FAILED tests/test_riwayatarab.py::test_a_failed_listing_request_is_not_a_successful_partial_preview[ConnectionError-1-0]
+FAILED tests/test_riwayatarab.py::test_a_failed_listing_request_is_not_a_successful_partial_preview[ConnectionError-2-50]
+FAILED tests/test_wuxiabox.py::test_a_failed_listing_request_is_not_a_successful_partial_preview[TimeoutError]
+FAILED tests/test_wuxiabox.py::test_a_failed_listing_request_is_not_a_successful_partial_preview[ConnectionError]
+6 failed, 33 deselected in 0.39s

@@ -547,3 +547,27 @@ async def test_the_downgrade_is_skipped_when_http1_fails_too(tmp_path):
         await fetcher.fetch_image("https://node.example.net/data/x/1.png")
 
     assert sessions.browser_fetches >= 1
+
+
+async def test_unicode_referer_is_encoded_before_becoming_an_http_header(settings):
+    fetcher = Fetcher(settings, CdnSessions())
+    headers = await fetcher._headers('https://cdn.example.net/1.jpg', 'https://example.net/كتاب')
+    request = httpx.Request('GET', 'https://cdn.example.net/1.jpg', headers=headers)
+    assert request.headers['referer'] == 'https://example.net/%D9%83%D8%AA%D8%A7%D8%A8'
+
+
+async def test_host_rate_override_paces_aliases_without_delaying_other_hosts(settings, monkeypatch):
+    monkeypatch.setattr('app.fetcher.random.uniform', lambda *args: 0)
+    settings.requests_per_second = 1000
+    settings.host_requests_per_second = {'noor-book.com': 10}
+    fetcher = Fetcher(settings, CdnSessions())
+    start = time.monotonic()
+
+    async def issue(host):
+        await fetcher._limiter(host).acquire()
+        return time.monotonic() - start
+
+    first, second, other = await asyncio.gather(issue('www.noor-book.com'),
+                                               issue('noor-book.com'), issue('example.net'))
+    assert second >= 0.09
+    assert first < 0.09 and other < 0.09

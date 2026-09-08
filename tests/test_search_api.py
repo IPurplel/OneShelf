@@ -24,12 +24,31 @@ BOOK_SITE = "https://8ghrb.com"
 COMICS_SITE = "https://comix.to"
 
 
-class StubAdapter:
+class AdapterInterface:
+    """The parts of ``Adapter`` that ``/api/search`` actually calls.
+
+    Shared by every stub in this module. A test double has to carry the whole
+    interface it stands in for: when ``content_type_for`` was added and these
+    stubs did not have it, each one raised AttributeError inside the endpoint's
+    broad per-site handler, which reported it as a site "error" — twenty tests
+    failed in a way that looked like a routing bug rather than a missing stub
+    method.
+    """
+
+    content_type: str = "manga"
+
+    def content_type_for(self, url: str) -> str:
+        """The kind *this site* serves; for a stub, always its own."""
+        return self.content_type
+
+
+class StubAdapter(AdapterInterface):
     """Answers any query with one hit, and records that it was asked."""
 
     def __init__(self, content_type: str, adapter_id: str) -> None:
         self.content_type = content_type
         self.id = adapter_id
+
 
     async def search(self, site, query, limit=12):
         return [SearchResult(title=f"{query} on {site}", url=f"{site}/x",
@@ -167,10 +186,14 @@ def test_the_known_adapters_are_filed_correctly():
     kinds = {a.id: a.content_type for a in ADAPTERS}
     assert kinds == {
         "mangadex": "manga",
+        "aco": "book",
         "ao3": "book",
         "royalroad": "book",
         "scribblehub": "book",
+        "rewayat": "book",
+        "riwayatarab": "book",
         "sunovels": "book",
+        "wuxiabox": "book",
         "webtoons": "comics",
         "gutenberg": "book",
         "vcomics": "manga",
@@ -263,7 +286,7 @@ def test_a_substring_buried_inside_a_word_still_counts_but_barely():
     assert relevance("serk", "Berserk") == SCORE_SUBSTRING
 
 
-class RankingAdapter:
+class RankingAdapter(AdapterInterface):
     """Returns a fixed set of hits regardless of the query."""
 
     content_type = "manga"
@@ -325,7 +348,7 @@ def test_a_sites_count_reflects_what_survived_filtering(client, monkeypatch):
 # ------------------------------------------------------------- the limit
 
 
-class LimitRecordingAdapter:
+class LimitRecordingAdapter(AdapterInterface):
     """Records the limit it was asked for, and answers with nothing."""
 
     content_type = "manga"
@@ -513,7 +536,7 @@ def test_a_fragment_buried_in_a_name_is_a_coincidence_not_a_match(author):
 
 def test_an_author_only_match_survives_the_endpoint(client, monkeypatch):
     """End to end: the filter must not eat the only hit worth having."""
-    class ByAuthor:
+    class ByAuthor(AdapterInterface):
         content_type = "manga"
         id = "mangadex"
 
@@ -893,3 +916,70 @@ def test_identical_concurrent_searches_are_coalesced():
 
 async def _answer(rows):
     return rows, "ok"
+
+
+# ------------------------------------------- the kind belongs to the site
+
+
+def test_a_site_can_serve_a_different_kind_from_its_adapter():
+    """One platform, two kinds.
+
+    A manga theme is WordPress markup and web-novel sites run it. kolnovel.com
+    fingerprints as MangaThemesia and cenele.com as Madara, and both serve
+    prose — so reading the kind off the adapter class filed novels under Manga,
+    where a Books search could never reach them.
+    """
+    from app.adapters.madara import MadaraAdapter
+    from app.adapters.mangathemesia import MangaThemesiaAdapter
+
+    assert MangaThemesiaAdapter.content_type_for("https://kolnovel.com") == "book"
+    assert MadaraAdapter.content_type_for("https://cenele.com") == "book"
+
+    # Every other site on those adapters is unaffected.
+    assert MangaThemesiaAdapter.content_type_for("https://rizzfables.com") == "manga"
+    assert MadaraAdapter.content_type_for("https://3asq.online") == "manga"
+
+
+def test_the_site_kind_holds_even_when_the_adapter_is_only_a_url_guess():
+    """The caller that matters cannot fingerprint.
+
+    `/api/sources` groups every configured site on every page load, so it must
+    not fetch — and without a fetch these two resolve to `generic`. Holding the
+    override on the MangaThemesia and Madara classes therefore did nothing at
+    all for the one place the user sees.
+    """
+    from app.adapters import select
+    from app.adapters.generic import GenericAdapter
+
+    assert select("https://kolnovel.com") is GenericAdapter
+    assert select("https://kolnovel.com").content_type_for(
+        "https://kolnovel.com") == "book"
+
+
+def test_the_site_kind_ignores_a_www_prefix_and_a_path():
+    from app.adapters.madara import MadaraAdapter
+
+    assert MadaraAdapter.content_type_for(
+        "https://www.cenele.com/cont/a-series/") == "book"
+
+
+def test_an_adapter_without_overrides_answers_its_own_kind():
+    """The hook must be free for the adapters that do not need it."""
+    from app.adapters.gutenberg import GutenbergAdapter
+    from app.adapters.mangadex import MangaDexAdapter
+
+    assert GutenbergAdapter.content_type_for("https://www.gutenberg.org") == "book"
+    assert MangaDexAdapter.content_type_for("https://mangadex.org") == "manga"
+
+
+def test_the_sources_listing_files_a_novel_site_under_books(client, monkeypatch):
+    """What the user actually sees: the chip a site is counted under."""
+    monkeypatch.setattr(main.settings, "search_sites",
+                        ["https://kolnovel.com", "https://cenele.com",
+                         "https://3asq.online"])
+
+    body = client.get("/api/sources").json()
+    by_kind = {k["type"]: {s["host"] for s in k["sites"]} for k in body["kinds"]}
+
+    assert by_kind["book"] == {"kolnovel.com", "cenele.com"}
+    assert by_kind["manga"] == {"3asq.online"}

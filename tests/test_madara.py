@@ -10,7 +10,8 @@ from __future__ import annotations
 import pytest
 
 from app.adapters.madara import MadaraAdapter, _extract_number
-from app.models import format_chapter_number, parse_chapter_number
+from app.models import (
+    Chapter, Series, format_chapter_number, parse_chapter_number)
 
 from .conftest import FakeSessionManager, fixture
 
@@ -376,7 +377,8 @@ async def test_a_chapter_page_resolves_back_to_its_series():
     series = await adapter.fetch_series(chapter_url)
 
     assert series.url == series_url
-    assert sessions.requested == [series_url]
+    assert sessions.direct == [series_url]
+    assert sessions.requested == []
 
 
 async def test_a_reader_page_on_an_unknown_install_is_followed():
@@ -395,7 +397,8 @@ async def test_a_reader_page_on_an_unknown_install_is_followed():
     series = await adapter.fetch_series(reader_url)
 
     assert series.url == series_url
-    assert sessions.requested == [reader_url, series_url]
+    assert sessions.direct == [reader_url, series_url]
+    assert sessions.requested == [reader_url]  # incomplete static breadcrumb page
 
 
 async def test_a_page_that_is_neither_is_rejected_clearly():
@@ -451,3 +454,90 @@ async def test_madara_search_deduplicates_repeated_hits():
                f"<html><body>{row}{row}</body></html>"}, posts={})
     results = await MadaraAdapter(sessions).search("https://e.net", "berserk")
     assert len(results) == 1
+
+
+# ------------------------------------- installs that are not comics, or not /manga/
+
+
+async def test_a_configurable_post_type_slug_still_yields_chapters():
+    """Madara's post-type slug is configurable, and not every site uses /manga/.
+
+    Measured 2026-09-08: cenele.com serves `/cont/<series>/<chapter>/`. The
+    parser required `/manga/` in every chapter path, so all eight marked
+    chapters were discarded and the series reported "could not read the
+    chapter list" against a page whose list had parsed perfectly. The guard
+    belongs to the *fallback* scan, where "every <li> holding a link" really is
+    a guess; a link the site marked `li.wp-manga-chapter` needs no such check.
+    """
+    series_url = "https://example.net/cont/a-series/"
+    html = """
+    <html><body><div class="listing-chapters_wrap"><ul>
+      <li class="wp-manga-chapter"><a href="/cont/a-series/chapter-1/">Chapter 1</a></li>
+      <li class="wp-manga-chapter"><a href="/cont/a-series/chapter-2/">Chapter 2</a></li>
+    </ul></div></body></html>
+    """
+    sessions = FakeSessionManager(pages={series_url: html})
+    adapter = MadaraAdapter(sessions)
+    series = Series(url=series_url, title="A Series", source="madara")
+
+    chapters = await adapter.fetch_chapters(series)
+
+    assert [c.number for c in chapters] == ["1", "2"]
+
+
+async def test_the_fallback_scan_still_refuses_navigation_links():
+    """The guard has to stay where it was actually earning its keep."""
+    series_url = "https://example.net/manga/a-series/"
+    html = """
+    <html><body><ul>
+      <li><a href="/about/">About us</a></li>
+      <li><a href="/manga/a-series/chapter-1/">Chapter 1</a></li>
+    </ul></body></html>
+    """
+    sessions = FakeSessionManager(pages={series_url: html})
+    adapter = MadaraAdapter(sessions)
+    series = Series(url=series_url, title="A Series", source="madara")
+
+    chapters = await adapter.fetch_chapters(series)
+
+    assert [c.url for c in chapters] == [
+        "https://example.net/manga/a-series/chapter-1/"]
+
+
+PROSE_HTML = "<html><body><div class='reading-content'><p>%s</p><p>%s</p></div></body></html>" % (
+    "الفصل " * 400, "قال " * 400)
+
+COMIC_HTML = """
+<html><body><div class="reading-content">
+  <img class="wp-manga-chapter-img" src="https://cdn.example.net/1.jpg">
+  <img class="wp-manga-chapter-img" src="https://cdn.example.net/2.jpg">
+  <p>A translator's note that goes on for a while. %s</p>
+</div></body></html>
+""" % ("word " * 500)
+
+
+async def test_a_madara_chapter_of_prose_is_packaged_as_text():
+    """cenele.com serves Arabic novels through this theme."""
+    url = "https://example.net/cont/a-series/chapter-1/"
+    sessions = FakeSessionManager(pages={url: PROSE_HTML})
+    adapter = MadaraAdapter(sessions)
+    chapter = Chapter(url=url, title="Chapter 1", number="1", index=1)
+
+    assert await adapter.packaging_for(chapter) == "text"
+    assert (await adapter.fetch_text(chapter)).blocks
+
+
+async def test_a_chapter_with_images_stays_a_comic_however_much_text_it_carries():
+    """An image anywhere in the reader settles it.
+
+    Treating a comic chapter as prose would silently drop every page, which is
+    the worst outcome available here -- so a long translator's note must never
+    tip the decision.
+    """
+    url = "https://example.net/manga/a-series/chapter-1/"
+    sessions = FakeSessionManager(pages={url: COMIC_HTML})
+    adapter = MadaraAdapter(sessions)
+    chapter = Chapter(url=url, title="Chapter 1", number="1", index=1)
+
+    assert await adapter.packaging_for(chapter) == "cbz"
+    assert len(await adapter.fetch_pages(chapter)) == 2

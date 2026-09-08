@@ -14,7 +14,7 @@ import zipfile
 import pytest
 from selectolax.parser import HTMLParser
 
-from app.adapters.prose import blocks_from, normalise, strip_noise
+from app.adapters.prose import blocks_from, looks_like_prose, normalise, strip_noise
 from app.models import TextBlock, TextChapter
 from app.packager import (
     PackagingError,
@@ -211,3 +211,86 @@ def test_block_kinds_are_a_closed_set():
 def test_rtl_detection_covers_the_scripts_these_sources_use():
     assert is_rtl_language("ar") and is_rtl_language("ar-EG") and is_rtl_language("he")
     assert not is_rtl_language("en") and not is_rtl_language(None)
+
+
+# --------------------------------------------- telling prose from pictures
+
+
+def _container(html: str):
+    from selectolax.parser import HTMLParser
+    return HTMLParser(html).css_first("div")
+
+
+def test_a_reader_with_images_is_never_prose():
+    """An image anywhere in the reader settles it.
+
+    Calling a comic chapter prose would silently drop every page, so a long
+    translator's note must not tip the decision. Deliberately not a ratio.
+    """
+    node = _container("<div><img src='a.jpg'><p>%s</p></div>" % ("word " * 900))
+    assert not looks_like_prose(node, 1)
+
+
+def test_a_reader_of_paragraphs_is_prose():
+    node = _container("<div><p>%s</p></div>" % ("الفصل " * 500))
+    assert looks_like_prose(node, 0)
+
+
+def test_an_empty_or_failed_page_is_not_a_novel():
+    """The character floor is what stops a broken fetch becoming an EPUB."""
+    assert not looks_like_prose(_container("<div><p>Loading…</p></div>"), 0)
+    assert not looks_like_prose(_container("<div></div>"), 0)
+    assert not looks_like_prose(None, 0)
+
+
+# ------------------------------- a short chapter is still a chapter (audit fix)
+
+
+SHORT_PROSE = "<div>" + "".join(
+    f"<p>{'قصيرة ' * 20}</p>" for _ in range(4)) + "</div>"
+
+
+def test_a_short_chapter_of_real_paragraphs_is_prose():
+    """A ~500-character chapter is short, not a comic.
+
+    The character floor was 1,500, so a genuinely short chapter was judged "not
+    prose", packaged as `cbz`, and then died in `fetch_pages` with "no reader
+    images" — the exact failure the prose routing exists to remove.
+    """
+    assert looks_like_prose(_container(SHORT_PROSE), 0)
+
+
+def test_an_image_reader_that_yielded_no_images_is_still_not_prose():
+    """The case the character floor was really guarding, and the reason the
+    replacement is a *block* count.
+
+    Measured across the captured fixtures: every comic reader parses to **0
+    blocks** — including `madara_chapter_page.html`, which has no images
+    either. Every prose reader parses to 56 or more. Blocks separate them;
+    characters do not.
+    """
+    reader = _container("<div><a href='/next'>Next</a> <span>Chapter 12</span></div>")
+    assert not looks_like_prose(reader, 0)
+
+
+@pytest.mark.parametrize("fixture, selector, prose", [
+    ("riwayatarab/chapter1.html", "div.chapter-content", True),
+    ("rewayat/chapter1.html", "div.v-card--flat", True),
+    ("wuxiabox/chapter.html", "div.chapter-content", True),
+    ("madara_reader.html", "div.reading-content", False),
+    ("madara_chapter_page.html", "div.reading-content", False),
+    # vcomics is deliberately absent: its Astro reader has no
+    # `div.reading-content`, so the row would only ever skip. The two Madara
+    # rows carry the comic case, including the no-image one that matters.
+])
+def test_real_readers_are_classified_from_their_blocks(fixture, selector, prose):
+    """The table this rule was calibrated on, pinned so it cannot drift."""
+    from pathlib import Path
+    from selectolax.parser import HTMLParser
+
+    path = Path(__file__).parent / "fixtures" / fixture
+    tree = HTMLParser(path.read_text(encoding="utf-8", errors="replace"))
+    node = tree.css_first(selector)
+    assert node is not None, f"{fixture} no longer has {selector}"
+    images = len(node.css("img"))
+    assert looks_like_prose(node, images) is prose

@@ -58,7 +58,10 @@
             <circle cx="9" cy="9" r="6"></circle>
             <line x1="13.5" y1="13.5" x2="17.5" y2="17.5"></line>
           </svg>
+          <!-- dir="auto" so an Arabic query renders right-to-left: the
+               first strong character decides, so a Latin query is unaffected. -->
           <input type="search" id="search-input" spellcheck="false"
+                 dir="auto"
                  placeholder="Search by title or author"
                  autocomplete="off" role="combobox" aria-expanded="false"
                  aria-controls="search-results" aria-autocomplete="list"
@@ -120,6 +123,14 @@
       </div>
 
       <div id="preview" hidden>
+        <!-- The way back. Clicking a result replaces this view in place and
+             there is no router, so without this the only route back to a
+             result list was retyping the query — and the box still held it,
+             so retyping it changed nothing and fired no search. Restores the
+             rendered payload; it never re-queries the network. -->
+        <button type="button" class="back-to-results" id="back-to-results" hidden>
+          <span aria-hidden="true">&#8592;</span> Back to results
+        </button>
         <div class="series-card">
           <img id="series-cover" alt="" hidden>
           <div class="series-meta">

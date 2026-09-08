@@ -1102,3 +1102,46 @@ def test_a_real_page_is_not_mistaken_for_a_redirect():
     # Long pages are never shells, even if the word appears somewhere in them.
     assert looks_like_redirect("<html>" + "chapter " * 5000 + "redirecting</html>") is False
     assert looks_like_redirect("<html><body><h1>One Piece</h1></body></html>") is False
+
+
+# ------------------------------------------------- the per-call selector wait
+
+
+async def test_a_call_can_bound_its_own_selector_wait():
+    """`_settled_content` takes the configured timeout unless told otherwise.
+
+    The override exists for a selector whose *absence* is a real answer rather
+    than a fault — a search whose results legitimately do not exist — where the
+    caller would otherwise pay the full timeout to learn "nothing found".
+    """
+    from app.session import SessionManager
+
+    class Settings:
+        wait_timeout = 10.0
+
+    class Page:
+        url = "https://example.net/search"
+
+        def __init__(self):
+            self.timeouts = []
+
+        async def wait_for_selector(self, selector, timeout):
+            self.timeouts.append(timeout)
+            raise RuntimeError("never appears")
+
+        async def wait_for_timeout(self, ms):
+            pass
+
+        async def content(self):
+            return "<html></html>"
+
+    manager = SessionManager.__new__(SessionManager)
+    manager._settings = Settings()
+
+    default = Page()
+    await manager._settled_content(default, "a.missing", 0)
+    assert default.timeouts == [10_000], "the configured wait, in milliseconds"
+
+    bounded = Page()
+    await manager._settled_content(bounded, "a.missing", 0, None, 4.0)
+    assert bounded.timeouts == [4_000]

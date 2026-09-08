@@ -18,7 +18,7 @@ from app.adapters.mangathemesia import (
     _images_from_ts_reader,
     _normalise_series_url,
 )
-from app.models import Chapter
+from app.models import Chapter, Series
 
 from .conftest import FakeSessionManager
 
@@ -349,3 +349,133 @@ def test_live_search_slug_matches_the_sites_own(title, slug):
     from app.adapters.mangathemesia import _live_slug
 
     assert _live_slug(title) == slug
+
+
+# ------------------------------------------- prose sites wearing this theme
+
+
+PROSE_CHAPTER_HTML = """
+<html><body>
+  <div id="readerarea">
+    <p>%s</p>
+    <p>%s</p>
+  </div>
+  <img src="https://pixel.quantserve.com/pixel/p-abc.gif">
+</body></html>
+""" % ("ساخن " * 400, "لقد " * 400)
+
+
+async def test_a_chapter_of_paragraphs_is_packaged_as_text_not_pages():
+    """The theme is markup, not a content type.
+
+    Measured 2026-09-08: kolnovel.com fingerprints as MangaThemesia and lists
+    its chapters correctly, but a chapter there is 180 paragraphs and no
+    images. Read as a comic it failed outright.
+    """
+    url = "https://example.net/chapter-1/"
+    sessions = FakeSessionManager(pages={url: PROSE_CHAPTER_HTML})
+    adapter = MangaThemesiaAdapter(sessions)
+    chapter = Chapter(url=url, title="Chapter 1", number="1", index=1)
+
+    assert await adapter.packaging_for(chapter) == "text"
+
+    text = await adapter.fetch_text(chapter)
+    assert text.blocks
+    assert text.characters > 1000
+    # The page was fetched once, not once per question.
+    assert sessions.requested.count(url) == 1
+
+
+async def test_a_tracking_pixel_outside_the_reader_is_not_a_page():
+    """An image outside the reader is not a page.
+
+    `_images_from_dom` used to fall back to scanning the whole document when
+    it could not find `#readerarea`. Measured on kolnovel: that returned eight
+    "pages", every one an analytics tracking pixel harvested from the page
+    furniture -- and they download with a 200, so nothing downstream would
+    have caught it.
+    """
+    url = "https://example.net/chapter-1/"
+    sessions = FakeSessionManager(pages={url: PROSE_CHAPTER_HTML})
+    adapter = MangaThemesiaAdapter(sessions)
+
+    assert adapter._images_from_dom(PROSE_CHAPTER_HTML, url) == []
+
+
+def test_no_reader_means_no_pages_rather_than_the_whole_document():
+    sessions = FakeSessionManager(pages={})
+    adapter = MangaThemesiaAdapter(sessions)
+    html = '<html><body><img src="https://cdn.example.net/ad.jpg"></body></html>'
+
+    assert adapter._images_from_dom(html, "https://example.net/c/1/") == []
+
+
+async def test_a_second_unlabelled_link_in_a_row_is_not_a_second_chapter():
+    """One row, one chapter.
+
+    kolnovel puts an unlabelled `<a>` beside every chapter pointing at
+    `<chapter-url>/pdf/`. Reading every anchor counted each chapter twice --
+    measured 13,406 for a 6,703-chapter novel -- and the `/pdf/` copy sorted
+    equal to the real one, so the download could open a page with no reader.
+    """
+    series_url = "https://example.net/series/a-novel/"
+    html = """
+    <html><body><div class="eplister"><ul>
+      <li><a href="/a-novel/chapter-1/"><span class="chapternum">Chapter 1</span></a>
+          <a href="/a-novel/chapter-1/pdf/"></a></li>
+      <li><a href="/a-novel/chapter-2/"><span class="chapternum">Chapter 2</span></a>
+          <a href="/a-novel/chapter-2/pdf/"></a></li>
+    </ul></div></body></html>
+    """
+    sessions = FakeSessionManager(pages={series_url: html})
+    adapter = MangaThemesiaAdapter(sessions)
+    series = Series(url=series_url, title="A Novel", source="mangathemesia")
+
+    chapters = await adapter.fetch_chapters(series)
+
+    assert len(chapters) == 2
+    assert all(not c.url.endswith("/pdf/") for c in chapters)
+
+
+ARTICLE_SEARCH_HTML = """
+<html><body>
+  <article><a href="https://example-ts.net/series/emperors-domination/"
+               title="Emperors Domination"><img alt="Emperors Domination"></a>
+     <h2>Emperors Domination</h2></article>
+  <article><a href="https://example-ts.net/category/action/"
+               title="Action"><img alt="Action"></a><h2>Action</h2></article>
+</body></html>
+"""
+
+
+async def test_search_falls_back_to_article_when_the_theme_grid_is_absent():
+    """Measured 2026-09-08: kolnovel.com answers `?s=` with real results in
+    `<article>` and uses no `div.bs` at all, so search returned nothing for a
+    series the site plainly holds."""
+    sessions = FakeSessionManager(
+        pages={"https://example-ts.net/?s=emperors+domination":
+               ARTICLE_SEARCH_HTML}, posts={})
+
+    results = await MangaThemesiaAdapter(sessions).search(
+        "https://example-ts.net", "emperors domination")
+
+    assert [r.title for r in results] == ["Emperors Domination"], (
+        "the category link must not survive the sweep")
+
+
+async def test_the_article_sweep_is_gated_but_the_theme_grid_is_not():
+    """`article` is WordPress's generic wrapper, so an ungated sweep would put
+    a site's navigation into every unrelated search. The theme's own cards need
+    no such check -- ranking near misses is `/api/search`'s job, and gating
+    them here would drop what it exists to rank."""
+    sessions = FakeSessionManager(
+        pages={"https://example-ts.net/?s=one+piece": SEARCH_HTML,
+               "https://example-ts.net/?s=nothing+here": ARTICLE_SEARCH_HTML},
+        posts={})
+    adapter = MangaThemesiaAdapter(sessions)
+
+    grid = await adapter.search("https://example-ts.net", "one piece")
+    assert [r.title for r in grid] == ["One Piece", "One Punch Man"]
+
+    swept = await adapter.search("https://example-ts.net", "nothing here")
+    assert swept == []

@@ -1,0 +1,584 @@
+<!doctype html>
+<html data-n-head-ssr lang="ar" data-n-head="%7B%22lang%22:%7B%22ssr%22:%22ar%22%7D%7D">
+  <head >
+    <title>المكتبة - نادي الروايات</title><meta data-n-head="ssr" charset="utf-8"><meta data-n-head="ssr" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, minimal-ui"><meta data-n-head="ssr" data-hid="description" name="description" content="نادي الروايات هو المنصة العربية الأولى للروايات المؤلفة والمترجمة من مختلف اللغات والتصنيفات."><meta data-n-head="ssr" data-hid="keywords" name="keywords" content="wuxia, wuxia world, webnovel, light novel, روايات, روايات رومانسية, روايات pdf, نادي الروايات, manga novel, anime novel,روايات انمي, روايات مانجا, روايات انيمي"><meta data-n-head="ssr" name="msapplication-TileColor" content="#ffffff"><meta data-n-head="ssr" name="msapplication-TileImage" content="/icons/mstile-144x144.png"><meta data-n-head="ssr" name="msapplication-config" content="/icons/browserconfig.xml"><meta data-n-head="ssr" name="theme-color" content="#ffffff"><link data-n-head="ssr" rel="icon" type="image/x-icon" href="/favicon.ico"><link data-n-head="ssr" rel="preconnect" href="https://api.rewayat.club" crossorigin="true"><link data-n-head="ssr" rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png"><link data-n-head="ssr" rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png"><link data-n-head="ssr" rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png"><link data-n-head="ssr" href="/icons/safari-pinned-tab.svg" color="#5bbad5"><link data-n-head="ssr" rel="shortcut icon" href="/icons/favicon.ico"><style data-n-head="vuetify" type="text/css" id="vuetify-theme-stylesheet" nonce="undefined">.v-application a { color: #1976d2; }
+.v-application .primary {
+  background-color: #1976d2 !important;
+  border-color: #1976d2 !important;
+}
+.v-application .primary--text {
+  color: #1976d2 !important;
+  caret-color: #1976d2 !important;
+}
+.v-application .primary.lighten-5 {
+  background-color: #c7fdff !important;
+  border-color: #c7fdff !important;
+}
+.v-application .primary--text.text--lighten-5 {
+  color: #c7fdff !important;
+  caret-color: #c7fdff !important;
+}
+.v-application .primary.lighten-4 {
+  background-color: #a8e0ff !important;
+  border-color: #a8e0ff !important;
+}
+.v-application .primary--text.text--lighten-4 {
+  color: #a8e0ff !important;
+  caret-color: #a8e0ff !important;
+}
+.v-application .primary.lighten-3 {
+  background-color: #8ac5ff !important;
+  border-color: #8ac5ff !important;
+}
+.v-application .primary--text.text--lighten-3 {
+  color: #8ac5ff !important;
+  caret-color: #8ac5ff !important;
+}
+.v-application .primary.lighten-2 {
+  background-color: #6aaaff !important;
+  border-color: #6aaaff !important;
+}
+.v-application .primary--text.text--lighten-2 {
+  color: #6aaaff !important;
+  caret-color: #6aaaff !important;
+}
+.v-application .primary.lighten-1 {
+  background-color: #488fef !important;
+  border-color: #488fef !important;
+}
+.v-application .primary--text.text--lighten-1 {
+  color: #488fef !important;
+  caret-color: #488fef !important;
+}
+.v-application .primary.darken-1 {
+  background-color: #005eb6 !important;
+  border-color: #005eb6 !important;
+}
+.v-application .primary--text.text--darken-1 {
+  color: #005eb6 !important;
+  caret-color: #005eb6 !important;
+}
+.v-application .primary.darken-2 {
+  background-color: #00479b !important;
+  border-color: #00479b !important;
+}
+.v-application .primary--text.text--darken-2 {
+  color: #00479b !important;
+  caret-color: #00479b !important;
+}
+.v-application .primary.darken-3 {
+  background-color: #003180 !important;
+  border-color: #003180 !important;
+}
+.v-application .primary--text.text--darken-3 {
+  color: #003180 !important;
+  caret-color: #003180 !important;
+}
+.v-application .primary.darken-4 {
+  background-color: #001e67 !important;
+  border-color: #001e67 !important;
+}
+.v-application .primary--text.text--darken-4 {
+  color: #001e67 !important;
+  caret-color: #001e67 !important;
+}
+.v-application .secondary {
+  background-color: #424242 !important;
+  border-color: #424242 !important;
+}
+.v-application .secondary--text {
+  color: #424242 !important;
+  caret-color: #424242 !important;
+}
+.v-application .secondary.lighten-5 {
+  background-color: #c1c1c1 !important;
+  border-color: #c1c1c1 !important;
+}
+.v-application .secondary--text.text--lighten-5 {
+  color: #c1c1c1 !important;
+  caret-color: #c1c1c1 !important;
+}
+.v-application .secondary.lighten-4 {
+  background-color: #a6a6a6 !important;
+  border-color: #a6a6a6 !important;
+}
+.v-application .secondary--text.text--lighten-4 {
+  color: #a6a6a6 !important;
+  caret-color: #a6a6a6 !important;
+}
+.v-application .secondary.lighten-3 {
+  background-color: #8b8b8b !important;
+  border-color: #8b8b8b !important;
+}
+.v-application .secondary--text.text--lighten-3 {
+  color: #8b8b8b !important;
+  caret-color: #8b8b8b !important;
+}
+.v-application .secondary.lighten-2 {
+  background-color: #727272 !important;
+  border-color: #727272 !important;
+}
+.v-application .secondary--text.text--lighten-2 {
+  color: #727272 !important;
+  caret-color: #727272 !important;
+}
+.v-application .secondary.lighten-1 {
+  background-color: #595959 !important;
+  border-color: #595959 !important;
+}
+.v-application .secondary--text.text--lighten-1 {
+  color: #595959 !important;
+  caret-color: #595959 !important;
+}
+.v-application .secondary.darken-1 {
+  background-color: #2c2c2c !important;
+  border-color: #2c2c2c !important;
+}
+.v-application .secondary--text.text--darken-1 {
+  color: #2c2c2c !important;
+  caret-color: #2c2c2c !important;
+}
+.v-application .secondary.darken-2 {
+  background-color: #171717 !important;
+  border-color: #171717 !important;
+}
+.v-application .secondary--text.text--darken-2 {
+  color: #171717 !important;
+  caret-color: #171717 !important;
+}
+.v-application .secondary.darken-3 {
+  background-color: #000000 !important;
+  border-color: #000000 !important;
+}
+.v-application .secondary--text.text--darken-3 {
+  color: #000000 !important;
+  caret-color: #000000 !important;
+}
+.v-application .secondary.darken-4 {
+  background-color: #000000 !important;
+  border-color: #000000 !important;
+}
+.v-application .secondary--text.text--darken-4 {
+  color: #000000 !important;
+  caret-color: #000000 !important;
+}
+.v-application .accent {
+  background-color: #82b1ff !important;
+  border-color: #82b1ff !important;
+}
+.v-application .accent--text {
+  color: #82b1ff !important;
+  caret-color: #82b1ff !important;
+}
+.v-application .accent.lighten-5 {
+  background-color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+.v-application .accent--text.text--lighten-5 {
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
+}
+.v-application .accent.lighten-4 {
+  background-color: #f8ffff !important;
+  border-color: #f8ffff !important;
+}
+.v-application .accent--text.text--lighten-4 {
+  color: #f8ffff !important;
+  caret-color: #f8ffff !important;
+}
+.v-application .accent.lighten-3 {
+  background-color: #daffff !important;
+  border-color: #daffff !important;
+}
+.v-application .accent--text.text--lighten-3 {
+  color: #daffff !important;
+  caret-color: #daffff !important;
+}
+.v-application .accent.lighten-2 {
+  background-color: #bce8ff !important;
+  border-color: #bce8ff !important;
+}
+.v-application .accent--text.text--lighten-2 {
+  color: #bce8ff !important;
+  caret-color: #bce8ff !important;
+}
+.v-application .accent.lighten-1 {
+  background-color: #9fccff !important;
+  border-color: #9fccff !important;
+}
+.v-application .accent--text.text--lighten-1 {
+  color: #9fccff !important;
+  caret-color: #9fccff !important;
+}
+.v-application .accent.darken-1 {
+  background-color: #6596e2 !important;
+  border-color: #6596e2 !important;
+}
+.v-application .accent--text.text--darken-1 {
+  color: #6596e2 !important;
+  caret-color: #6596e2 !important;
+}
+.v-application .accent.darken-2 {
+  background-color: #467dc6 !important;
+  border-color: #467dc6 !important;
+}
+.v-application .accent--text.text--darken-2 {
+  color: #467dc6 !important;
+  caret-color: #467dc6 !important;
+}
+.v-application .accent.darken-3 {
+  background-color: #2364aa !important;
+  border-color: #2364aa !important;
+}
+.v-application .accent--text.text--darken-3 {
+  color: #2364aa !important;
+  caret-color: #2364aa !important;
+}
+.v-application .accent.darken-4 {
+  background-color: #004c90 !important;
+  border-color: #004c90 !important;
+}
+.v-application .accent--text.text--darken-4 {
+  color: #004c90 !important;
+  caret-color: #004c90 !important;
+}
+.v-application .error {
+  background-color: #ff5252 !important;
+  border-color: #ff5252 !important;
+}
+.v-application .error--text {
+  color: #ff5252 !important;
+  caret-color: #ff5252 !important;
+}
+.v-application .error.lighten-5 {
+  background-color: #ffe4d5 !important;
+  border-color: #ffe4d5 !important;
+}
+.v-application .error--text.text--lighten-5 {
+  color: #ffe4d5 !important;
+  caret-color: #ffe4d5 !important;
+}
+.v-application .error.lighten-4 {
+  background-color: #ffc6b9 !important;
+  border-color: #ffc6b9 !important;
+}
+.v-application .error--text.text--lighten-4 {
+  color: #ffc6b9 !important;
+  caret-color: #ffc6b9 !important;
+}
+.v-application .error.lighten-3 {
+  background-color: #ffa99e !important;
+  border-color: #ffa99e !important;
+}
+.v-application .error--text.text--lighten-3 {
+  color: #ffa99e !important;
+  caret-color: #ffa99e !important;
+}
+.v-application .error.lighten-2 {
+  background-color: #ff8c84 !important;
+  border-color: #ff8c84 !important;
+}
+.v-application .error--text.text--lighten-2 {
+  color: #ff8c84 !important;
+  caret-color: #ff8c84 !important;
+}
+.v-application .error.lighten-1 {
+  background-color: #ff6f6a !important;
+  border-color: #ff6f6a !important;
+}
+.v-application .error--text.text--lighten-1 {
+  color: #ff6f6a !important;
+  caret-color: #ff6f6a !important;
+}
+.v-application .error.darken-1 {
+  background-color: #df323b !important;
+  border-color: #df323b !important;
+}
+.v-application .error--text.text--darken-1 {
+  color: #df323b !important;
+  caret-color: #df323b !important;
+}
+.v-application .error.darken-2 {
+  background-color: #bf0025 !important;
+  border-color: #bf0025 !important;
+}
+.v-application .error--text.text--darken-2 {
+  color: #bf0025 !important;
+  caret-color: #bf0025 !important;
+}
+.v-application .error.darken-3 {
+  background-color: #9f0010 !important;
+  border-color: #9f0010 !important;
+}
+.v-application .error--text.text--darken-3 {
+  color: #9f0010 !important;
+  caret-color: #9f0010 !important;
+}
+.v-application .error.darken-4 {
+  background-color: #800000 !important;
+  border-color: #800000 !important;
+}
+.v-application .error--text.text--darken-4 {
+  color: #800000 !important;
+  caret-color: #800000 !important;
+}
+.v-application .info {
+  background-color: #2196f3 !important;
+  border-color: #2196f3 !important;
+}
+.v-application .info--text {
+  color: #2196f3 !important;
+  caret-color: #2196f3 !important;
+}
+.v-application .info.lighten-5 {
+  background-color: #d4ffff !important;
+  border-color: #d4ffff !important;
+}
+.v-application .info--text.text--lighten-5 {
+  color: #d4ffff !important;
+  caret-color: #d4ffff !important;
+}
+.v-application .info.lighten-4 {
+  background-color: #b5ffff !important;
+  border-color: #b5ffff !important;
+}
+.v-application .info--text.text--lighten-4 {
+  color: #b5ffff !important;
+  caret-color: #b5ffff !important;
+}
+.v-application .info.lighten-3 {
+  background-color: #95e8ff !important;
+  border-color: #95e8ff !important;
+}
+.v-application .info--text.text--lighten-3 {
+  color: #95e8ff !important;
+  caret-color: #95e8ff !important;
+}
+.v-application .info.lighten-2 {
+  background-color: #75ccff !important;
+  border-color: #75ccff !important;
+}
+.v-application .info--text.text--lighten-2 {
+  color: #75ccff !important;
+  caret-color: #75ccff !important;
+}
+.v-application .info.lighten-1 {
+  background-color: #51b0ff !important;
+  border-color: #51b0ff !important;
+}
+.v-application .info--text.text--lighten-1 {
+  color: #51b0ff !important;
+  caret-color: #51b0ff !important;
+}
+.v-application .info.darken-1 {
+  background-color: #007cd6 !important;
+  border-color: #007cd6 !important;
+}
+.v-application .info--text.text--darken-1 {
+  color: #007cd6 !important;
+  caret-color: #007cd6 !important;
+}
+.v-application .info.darken-2 {
+  background-color: #0064ba !important;
+  border-color: #0064ba !important;
+}
+.v-application .info--text.text--darken-2 {
+  color: #0064ba !important;
+  caret-color: #0064ba !important;
+}
+.v-application .info.darken-3 {
+  background-color: #004d9f !important;
+  border-color: #004d9f !important;
+}
+.v-application .info--text.text--darken-3 {
+  color: #004d9f !important;
+  caret-color: #004d9f !important;
+}
+.v-application .info.darken-4 {
+  background-color: #003784 !important;
+  border-color: #003784 !important;
+}
+.v-application .info--text.text--darken-4 {
+  color: #003784 !important;
+  caret-color: #003784 !important;
+}
+.v-application .success {
+  background-color: #4caf50 !important;
+  border-color: #4caf50 !important;
+}
+.v-application .success--text {
+  color: #4caf50 !important;
+  caret-color: #4caf50 !important;
+}
+.v-application .success.lighten-5 {
+  background-color: #dcffd6 !important;
+  border-color: #dcffd6 !important;
+}
+.v-application .success--text.text--lighten-5 {
+  color: #dcffd6 !important;
+  caret-color: #dcffd6 !important;
+}
+.v-application .success.lighten-4 {
+  background-color: #beffba !important;
+  border-color: #beffba !important;
+}
+.v-application .success--text.text--lighten-4 {
+  color: #beffba !important;
+  caret-color: #beffba !important;
+}
+.v-application .success.lighten-3 {
+  background-color: #a2ff9e !important;
+  border-color: #a2ff9e !important;
+}
+.v-application .success--text.text--lighten-3 {
+  color: #a2ff9e !important;
+  caret-color: #a2ff9e !important;
+}
+.v-application .success.lighten-2 {
+  background-color: #85e783 !important;
+  border-color: #85e783 !important;
+}
+.v-application .success--text.text--lighten-2 {
+  color: #85e783 !important;
+  caret-color: #85e783 !important;
+}
+.v-application .success.lighten-1 {
+  background-color: #69cb69 !important;
+  border-color: #69cb69 !important;
+}
+.v-application .success--text.text--lighten-1 {
+  color: #69cb69 !important;
+  caret-color: #69cb69 !important;
+}
+.v-application .success.darken-1 {
+  background-color: #2d9437 !important;
+  border-color: #2d9437 !important;
+}
+.v-application .success--text.text--darken-1 {
+  color: #2d9437 !important;
+  caret-color: #2d9437 !important;
+}
+.v-application .success.darken-2 {
+  background-color: #00791e !important;
+  border-color: #00791e !important;
+}
+.v-application .success--text.text--darken-2 {
+  color: #00791e !important;
+  caret-color: #00791e !important;
+}
+.v-application .success.darken-3 {
+  background-color: #006000 !important;
+  border-color: #006000 !important;
+}
+.v-application .success--text.text--darken-3 {
+  color: #006000 !important;
+  caret-color: #006000 !important;
+}
+.v-application .success.darken-4 {
+  background-color: #004700 !important;
+  border-color: #004700 !important;
+}
+.v-application .success--text.text--darken-4 {
+  color: #004700 !important;
+  caret-color: #004700 !important;
+}
+.v-application .warning {
+  background-color: #fb8c00 !important;
+  border-color: #fb8c00 !important;
+}
+.v-application .warning--text {
+  color: #fb8c00 !important;
+  caret-color: #fb8c00 !important;
+}
+.v-application .warning.lighten-5 {
+  background-color: #ffff9e !important;
+  border-color: #ffff9e !important;
+}
+.v-application .warning--text.text--lighten-5 {
+  color: #ffff9e !important;
+  caret-color: #ffff9e !important;
+}
+.v-application .warning.lighten-4 {
+  background-color: #fffb82 !important;
+  border-color: #fffb82 !important;
+}
+.v-application .warning--text.text--lighten-4 {
+  color: #fffb82 !important;
+  caret-color: #fffb82 !important;
+}
+.v-application .warning.lighten-3 {
+  background-color: #ffdf67 !important;
+  border-color: #ffdf67 !important;
+}
+.v-application .warning--text.text--lighten-3 {
+  color: #ffdf67 !important;
+  caret-color: #ffdf67 !important;
+}
+.v-application .warning.lighten-2 {
+  background-color: #ffc24b !important;
+  border-color: #ffc24b !important;
+}
+.v-application .warning--text.text--lighten-2 {
+  color: #ffc24b !important;
+  caret-color: #ffc24b !important;
+}
+.v-application .warning.lighten-1 {
+  background-color: #ffa72d !important;
+  border-color: #ffa72d !important;
+}
+.v-application .warning--text.text--lighten-1 {
+  color: #ffa72d !important;
+  caret-color: #ffa72d !important;
+}
+.v-application .warning.darken-1 {
+  background-color: #db7200 !important;
+  border-color: #db7200 !important;
+}
+.v-application .warning--text.text--darken-1 {
+  color: #db7200 !important;
+  caret-color: #db7200 !important;
+}
+.v-application .warning.darken-2 {
+  background-color: #bb5900 !important;
+  border-color: #bb5900 !important;
+}
+.v-application .warning--text.text--darken-2 {
+  color: #bb5900 !important;
+  caret-color: #bb5900 !important;
+}
+.v-application .warning.darken-3 {
+  background-color: #9d4000 !important;
+  border-color: #9d4000 !important;
+}
+.v-application .warning--text.text--darken-3 {
+  color: #9d4000 !important;
+  caret-color: #9d4000 !important;
+}
+.v-application .warning.darken-4 {
+  background-color: #802700 !important;
+  border-color: #802700 !important;
+}
+.v-application .warning--text.text--darken-4 {
+  color: #802700 !important;
+  caret-color: #802700 !important;
+}</style><script data-n-head="ssr" class="coral-script" src="https://talk.rewayat.club/assets/js/count.js" defer></script><link rel="stylesheet" href="/_nuxt/app.092eaee.css"><link rel="stylesheet" href="/_nuxt/pages/library.b4a5e91.css">
+  </head>
+  <body >
+    <div data-server-rendered="true" id="__nuxt"><div id="__layout"><div><div data-app="true" id="app" class="v-application v-application--is-rtl theme--light"><div class="v-application--wrap"><header class="v-sheet theme--dark v-toolbar v-toolbar--absolute v-app-bar blue" style="height:56px;margin-top:0px;transform:translateY(0px);left:0px;right:0px;"><div class="v-toolbar__content" style="height:56px;"><button type="button" class="v-app-bar__nav-icon v-btn v-btn--icon v-btn--round theme--dark v-size--default"><span class="v-btn__content"><span aria-hidden="true" class="v-icon notranslate theme--dark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z"></path></svg></span></span></button> <button type="button" class="ml-1 v-btn v-btn--icon v-btn--round theme--dark v-size--default"><span class="v-btn__content"><span aria-hidden="true" class="v-icon notranslate theme--dark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,2L14.39,5.42C13.65,5.15 12.84,5 12,5C11.16,5 10.35,5.15 9.61,5.42L12,2M3.34,7L7.5,6.65C6.9,7.16 6.36,7.78 5.94,8.5C5.5,9.24 5.25,10 5.11,10.79L3.34,7M3.36,17L5.12,13.23C5.26,14 5.53,14.78 5.95,15.5C6.37,16.24 6.91,16.86 7.5,17.37L3.36,17M20.65,7L18.88,10.79C18.74,10 18.47,9.23 18.05,8.5C17.63,7.78 17.1,7.15 16.5,6.64L20.65,7M20.64,17L16.5,17.36C17.09,16.85 17.62,16.22 18.04,15.5C18.46,14.77 18.73,14 18.87,13.21L20.64,17M12,22L9.59,18.56C10.33,18.83 11.14,19 12,19C12.82,19 13.63,18.83 14.37,18.56L12,22Z"></path></svg></span></span></button> <div class="d-none d-lg-flex"><a href="/" class="font-weight-bold font-dense v-btn v-btn--text theme--dark v-size--large"><span class="v-btn__content">
+          الرئيسية
+        </span></a> <a href="/library" class="font-weight-bold font-dense v-btn v-btn--text theme--dark v-size--large"><span class="v-btn__content">
+          المكتبة
+        </span></a> <a href="https://play.google.com/store/apps/details?id=club.rewayat.app" target="_blank" class="font-weight-bold font-dense v-btn v-btn--text theme--dark v-size--large"><span class="v-btn__content">
+          تحميل التطبيق
+        </span></a> <a href="/privacy" class="font-weight-bold font-dense v-btn v-btn--text theme--dark v-size--large"><span class="v-btn__content">
+          سياسة الخصوصية
+        </span></a></div> <div class="spacer"></div> <div class="v-input font-weight-bold pl-1 v-input--hide-details v-input--dense theme--dark v-text-field v-text-field--full-width v-text-field--single-line v-text-field--solo v-text-field--solo-inverted v-text-field--solo-flat v-text-field--enclosed v-text-field--placeholder v-select v-autocomplete"><div class="v-input__control"><div role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-owns="list-25056936" class="v-input__slot"><div class="v-input__prepend-inner"><div class="v-input__icon v-input__icon--prepend-inner"><span aria-hidden="true" class="v-icon notranslate theme--dark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"></path></svg></span></div></div><div class="v-select__slot"><label for="input-25056936" class="v-label theme--dark" style="left:auto;right:0px;position:absolute;">البحث</label><input id="input-25056936" type="text" autocomplete="off"><div class="v-input__append-inner"><div class="v-input__icon v-input__icon--clear"><button disabled="disabled" type="button" aria-label="clear icon" class="v-icon notranslate v-icon--disabled v-icon--link theme--dark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z"></path></svg></button></div></div><input type="hidden"></div><div class="v-menu"><!----></div></div></div></div> <button type="button" class="v-app-bar__nav-icon rounded v-btn v-btn--icon v-btn--round theme--dark v-size--default"><span class="v-btn__content"><span aria-hidden="true" class="v-icon notranslate theme--dark" style="font-size:32px;height:32px;width:32px;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="currentColor" class="v-icon__component theme--dark" style="font-size:32px;height:32px;width:32px;"><path d="M30.816 14.323C30.0648 13.7342 29.092 13.4398 27.8976 13.4398C25.1496 13.4398 22.1889 14.7966 19.0145 17.5102C16.4546 20.0362 13.8858 22.5621 11.309 25.0877C8.44187 27.8013 6.01829 29.1664 4.03872 29.1836C2.67313 29.1836 1.93955 28.2532 1.83715 26.3933C1.70034 23.8845 2.57073 20.7701 4.44832 17.0494C4.68711 16.5886 4.80671 16.2646 4.80671 16.0766C4.80671 15.9574 4.76391 15.8974 4.67871 15.8974C4.38831 15.8974 4.11552 16.1278 3.85952 16.5886C1.79435 20.2922 0.761963 23.6709 0.761963 26.7261C0.761963 28.1764 1.25675 29.4224 2.24674 30.4636C3.23633 31.5044 4.43111 32.0164 5.8307 31.9996C7.28107 31.9824 9.20986 30.7792 11.6162 28.39C16.0534 23.9525 18.8949 21.2309 20.1409 20.2237C22.6837 18.159 24.9281 17.1262 26.8736 17.1262C28.768 17.1262 30.0564 17.7406 30.7392 18.9694C30.8584 19.2598 30.9864 19.4046 31.1232 19.4046C31.328 19.4046 31.524 19.0038 31.712 18.2014C31.8656 17.519 31.9424 16.9642 31.9424 16.5374C31.9424 15.6502 31.5668 14.9118 30.816 14.323ZM9.72185 1.20318V1.27998C11.9402 2.88437 13.0498 4.47994 13.0498 6.06712V6.47672C13.0498 6.74992 12.9898 7.17672 12.8706 7.7567C11.6758 10.0439 11.0786 11.6991 11.0786 12.723V12.9022C11.0786 14.063 11.5306 14.703 12.4354 14.8222H12.8194C13.6898 14.8222 14.3466 13.8838 14.7906 12.0063H14.5602C14.0138 12.8766 13.5106 13.3118 13.0498 13.3118C12.367 13.3118 12.0258 12.8254 12.0258 11.8527L12.1794 11.0847C13.4422 8.62709 14.0738 6.81832 14.0738 5.65753V5.29913C14.0738 3.04636 12.973 1.27998 10.7714 0H10.669C10.3618 0.2732 10.0458 0.674398 9.72185 1.20318ZM24.7745 21.9133C23.7505 23.6709 23.2385 25.2325 23.2385 26.5981V27.2893C23.2385 27.4257 23.2553 27.6132 23.2897 27.8525C23.4601 28.4156 23.7589 28.6972 24.1857 28.6972H24.3905C24.9705 28.6972 25.4145 27.8692 25.7216 26.2141L25.6448 26.1117H25.5936C25.2181 26.8965 24.8681 27.2893 24.5441 27.2893C24.1001 27.2893 23.8785 26.8453 23.8785 25.9581C23.8785 25.3777 24.2113 24.0293 24.8769 21.9133H24.7745Z"></path></svg></span></span></button></div></header> <nav class="v-navigation-drawer v-navigation-drawer--close v-navigation-drawer--fixed v-navigation-drawer--is-mobile v-navigation-drawer--right v-navigation-drawer--temporary theme--light" style="height:100vh;top:0px;transform:translateX(100%);width:256px;"><div class="v-navigation-drawer__content"><div class="v-list v-sheet theme--light v-list--nav"><div class="client-only-placeholder">جاري التحميل...</div></div> <hr role="separator" aria-orientation="horizontal" class="v-divider theme--light"> <div class="v-list v-sheet theme--light v-list--nav"><a tabindex="0" href="/" class="v-list-item v-list-item--link theme--light blue--text"><div class="v-list-item__icon"><span aria-hidden="true" class="v-icon notranslate theme--light"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M9,13H15V19H18V10L12,5.5L6,10V19H9V13M4,21V9L12,3L20,9V21H4Z"></path></svg></span></div> <div class="v-list-item__content"><div class="v-list-item__title font-weight-bold py-1">الرئيسية
+            </div></div></a> <a tabindex="0" href="/library" class="v-list-item v-list-item--link theme--light blue--text"><div class="v-list-item__icon"><span aria-hidden="true" class="v-icon notranslate theme--light"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M18,2A2,2 0 0,1 20,4V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2H18M18,4H13V12L10.5,9.75L8,12V4H6V20H18V4Z"></path></svg></span></div> <div class="v-list-item__content"><div class="v-list-item__title font-weight-bold py-1">المكتبة
+            </div></div></a> <a tabindex="0" href="https://play.google.com/store/apps/details?id=club.rewayat.app" target="_blank" class="v-list-item v-list-item--link theme--light blue--text"><div class="v-list-item__icon"><span aria-hidden="true" class="v-icon notranslate theme--light"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.6 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"></path></svg></span></div> <div class="v-list-item__content"><div class="v-list-item__title font-weight-bold py-1">تحميل التطبيق
+            </div></div></a> <a tabindex="0" href="/privacy" class="v-list-item v-list-item--link theme--light blue--text"><div class="v-list-item__icon"><span aria-hidden="true" class="v-icon notranslate theme--light"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,3.18L19,6.3V11.22C19,12.92 18.5,14.65 17.65,16.17C16,14.94 13.26,14.5 12,14.5C10.74,14.5 8,14.94 6.35,16.17C5.5,14.65 5,12.92 5,11.22V6.3L12,3.18M12,6A3.5,3.5 0 0,0 8.5,9.5A3.5,3.5 0 0,0 12,13A3.5,3.5 0 0,0 15.5,9.5A3.5,3.5 0 0,0 12,6M12,8A1.5,1.5 0 0,1 13.5,9.5A1.5,1.5 0 0,1 12,11A1.5,1.5 0 0,1 10.5,9.5A1.5,1.5 0 0,1 12,8M12,16.5C13.57,16.5 15.64,17.11 16.53,17.84C15.29,19.38 13.7,20.55 12,21C10.3,20.55 8.71,19.38 7.47,17.84C8.37,17.11 10.43,16.5 12,16.5Z"></path></svg></span></div> <div class="v-list-item__content"><div class="v-list-item__title font-weight-bold py-1">سياسة الخصوصية
+            </div></div></a> <!----> <!----></div></div><div class="v-navigation-drawer__border"></div></nav> <main class="v-main" style="padding-top:56px;padding-right:0px;padding-bottom:0px;padding-left:0px;"><div class="v-main__wrap"><div data-fetch-key="0" data-v-1ef87191><div class="container" data-v-1ef87191 data-v-1ef87191><div class="mb-3 v-card v-card--flat v-sheet theme--light transparent" data-v-1ef87191><div tabindex="-1" class="pa-0 v-list-item theme--light" data-v-1ef87191><div class="v-list-item__icon" data-v-1ef87191><span aria-hidden="true" class="v-icon notranslate theme--light" style="font-size:32px;height:32px;width:32px;" data-v-1ef87191><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg" style="font-size:32px;height:32px;width:32px;"><path d="M18,2A2,2 0 0,1 20,4V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2H18M18,4H13V12L10.5,9.75L8,12V4H6V20H18V4Z"></path></svg></span></div> <div class="v-list-item__content" data-v-1ef87191><div class="v-list-item__title text-h5 font-weight-bold font-cairo font-dense" data-v-1ef87191>
+              المكتبة
+            </div></div></div> <hr role="separator" aria-orientation="horizontal" class="v-divider theme--light" data-v-1ef87191></div> <div class="mb-3" data-v-1ef87191><div class="row ma-n2" data-v-1ef87191 data-v-1ef87191><div class="pa-2 col col-12" data-v-1ef87191 data-v-1ef87191><div class="v-input v-input--hide-details v-input--is-label-active v-input--is-dirty v-input--dense theme--light v-text-field v-text-field--enclosed v-text-field--outlined" data-v-1ef87191><div class="v-input__control"><div class="v-input__slot"><div class="v-input__prepend-inner"><div class="v-input__icon v-input__icon--prepend-inner"><span aria-hidden="true" class="v-icon notranslate theme--light"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"></path></svg></span></div></div><fieldset aria-hidden="true"><legend style="width:0px;"><span>&#8203;</span></legend></fieldset><div class="v-text-field__slot"><label for="input-25056963" class="v-label v-label--active theme--light" style="left:auto;right:0px;position:absolute;">البحث</label><input id="input-25056963" type="text" value="zzqvoneshelfnonexistent987654321"></div></div></div></div></div> <div class="pa-2 col" data-v-1ef87191 data-v-1ef87191><div class="v-input v-input--hide-details v-input--is-label-active v-input--is-dirty v-input--dense theme--light v-text-field v-text-field--enclosed v-text-field--outlined v-select" data-v-1ef87191><div class="v-input__control"><div role="button" aria-haspopup="listbox" aria-expanded="false" aria-owns="list-25056965" class="v-input__slot"><fieldset aria-hidden="true"><legend style="width:0px;"><span>&#8203;</span></legend></fieldset><div class="v-select__slot"><label for="input-25056965" class="v-label v-label--active theme--light" style="left:auto;right:0px;position:absolute;">النوع</label><div class="v-select__selections"><div class="v-select__selection v-select__selection--comma">جميع الروايات</div><input id="input-25056965" readonly="readonly" type="text" aria-readonly="false" autocomplete="off"></div><div class="v-input__append-inner"><div class="v-input__icon v-input__icon--append"><span aria-hidden="true" class="v-icon notranslate theme--light"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M7,10L12,15L17,10H7Z"></path></svg></span></div></div><input type="hidden" value="0"></div><div class="v-menu"><!----></div></div></div></div></div> <div class="pa-2 col" data-v-1ef87191 data-v-1ef87191><div class="v-input v-input--hide-details v-input--dense theme--light v-text-field v-text-field--enclosed v-text-field--outlined v-select v-select--is-multi" data-v-1ef87191><div class="v-input__control"><div role="button" aria-haspopup="listbox" aria-expanded="false" aria-owns="list-25056968" class="v-input__slot"><fieldset aria-hidden="true"><legend style="width:0px;"><span>&#8203;</span></legend></fieldset><div class="v-select__slot"><label for="input-25056968" class="v-label theme--light" style="left:auto;right:0px;position:absolute;">التصنيفات</label><div class="v-select__selections"><input id="input-25056968" readonly="readonly" type="text" aria-readonly="false" autocomplete="off"></div><div class="v-input__append-inner"><div class="v-input__icon v-input__icon--append"><span aria-hidden="true" class="v-icon notranslate theme--light"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M7,10L12,15L17,10H7Z"></path></svg></span></div></div><input type="hidden" value=""></div><div class="v-menu"><!----></div></div></div></div></div> <div class="pa-2 col" data-v-1ef87191 data-v-1ef87191><div class="v-input v-input--hide-details v-input--is-label-active v-input--is-dirty v-input--dense theme--light v-text-field v-text-field--enclosed v-text-field--outlined v-select" data-v-1ef87191><div class="v-input__control"><div role="button" aria-haspopup="listbox" aria-expanded="false" aria-owns="list-25056971" class="v-input__slot"><fieldset aria-hidden="true"><legend style="width:0px;"><span>&#8203;</span></legend></fieldset><div class="v-select__slot"><label for="input-25056971" class="v-label v-label--active theme--light" style="left:auto;right:0px;position:absolute;">الترتيب حسب</label><div class="v-select__selections"><div class="v-select__selection v-select__selection--comma">عدد الفصول - من أعلى ﻷقل</div><input id="input-25056971" readonly="readonly" type="text" aria-readonly="false" autocomplete="off"></div><div class="v-input__append-inner"><div class="v-input__icon v-input__icon--append"><span aria-hidden="true" class="v-icon notranslate theme--light"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M7,10L12,15L17,10H7Z"></path></svg></span></div></div><input type="hidden" value="-num_chapters"></div><div class="v-menu"><!----></div></div></div></div></div></div></div> <div data-v-1ef87191><div data-v-1ef87191><div class="row d-flex flex-column justify-center align-content-center" data-v-1ef87191 data-v-1ef87191><span aria-hidden="true" class="v-icon notranslate theme--light" style="font-size:40px;height:40px;width:40px;" data-v-1ef87191><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg" style="font-size:40px;height:40px;width:40px;"><path d="M2,6V8H14V6H2M2,10V12H11V10H2M14.17,10.76L12.76,12.17L15.59,15L12.76,17.83L14.17,19.24L17,16.41L19.83,19.24L21.24,17.83L18.41,15L21.24,12.17L19.83,10.76L17,13.59L14.17,10.76M2,14V16H11V14H2Z"></path></svg></span> <div class="text-h6 font-cairo mt-2" data-v-1ef87191>لا توجد روايات مطابقة للبحث !</div></div></div></div> <nav role="navigation" aria-label="Pagination Navigation" class="mt-3" data-v-1ef87191><ul class="v-pagination theme--light"><li><button disabled="disabled" type="button" aria-label="Previous page" class="v-pagination__navigation v-pagination__navigation--disabled"><span aria-hidden="true" class="v-icon notranslate theme--light"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"></path></svg></span></button></li><li><button disabled="disabled" type="button" aria-label="Next page" class="v-pagination__navigation v-pagination__navigation--disabled"><span aria-hidden="true" class="v-icon notranslate theme--light"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-hidden="true" class="v-icon__svg"><path d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z"></path></svg></span></button></li></ul></nav></div></div></div></main> <footer class="v-footer v-sheet theme--dark"><div class="text-center font-cairo text-body-2 col col-12"><strong>نادي الروايات</strong> - 2026
+      </div></footer> <div role="dialog" class="v-dialog__container"><!----></div> <div role="dialog" class="v-dialog__container"><!----></div></div></div></div></div></div><script>window.__NUXT__=(function(a,b,c,d){return {layout:"default",data:[{}],fetch:[{novelTypeItems:[{text:"جميع الروايات",value:b},{text:"مترجمة",value:"1"},{text:"مؤلفة",value:"2"},{text:"مكتملة",value:"3"}],novelTypeValue:b,novelGenreItems:[{text:"كوميديا",value:c},{text:"أكشن",value:2},{text:"دراما",value:3},{text:"فانتازيا",value:4},{text:"مهارات القتال",value:5},{text:"مغامرة",value:6},{text:"رومانسي",value:7},{text:"خيال علمي",value:8},{text:"الحياة المدرسية",value:9},{text:"قوى خارقة",value:10},{text:"سحر",value:11},{text:"رياضة",value:12},{text:"رعب",value:13},{text:"حريم",value:14}],novelGenreItemsSelected:[],orderByItems:[{text:"عدد الفصول - من أقل ﻷعلى",value:"num_chapters"},{text:"عدد الفصول - من أعلى ﻷقل",value:d},{text:"الاسم - من أقل ﻷعلى",value:"english"},{text:"الاسم - من أعلى ﻷقل",value:"-english"}],orderByValue:d,searchInput:"zzqvoneshelfnonexistent987654321",novels:[],error:a,pagination:{page:c,count:0,previous:a,next:a},iconBook:"M18,2A2,2 0 0,1 20,4V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2H18M18,4H13V12L10.5,9.75L8,12V4H6V20H18V4Z",iconSearch:"M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z",iconEmpty:"M2,6V8H14V6H2M2,10V12H11V10H2M14.17,10.76L12.76,12.17L15.59,15L12.76,17.83L14.17,19.24L17,16.41L19.83,19.24L21.24,17.83L18.41,15L21.24,12.17L19.83,10.76L17,13.59L14.17,10.76M2,14V16H11V14H2Z"}],error:a,state:{rewayatUrl:"https:\u002F\u002Fapi.rewayat.club",storageUrl:"http:\u002F\u002F127.0.0.1:8000",auth:{user:a,loggedIn:false,strategy:"local"}},serverRendered:true,routePath:"\u002Flibrary",config:{}}}(null,"0",1,"-num_chapters"));</script><script src="/_nuxt/runtime.16d3dd1.js" defer></script><script src="/_nuxt/pages/library.21f4498.js" defer></script><script src="/_nuxt/node_modules/commons.41a2817.js" defer></script><script src="/_nuxt/app.039272e.js" defer></script>
+  </body>
+</html>

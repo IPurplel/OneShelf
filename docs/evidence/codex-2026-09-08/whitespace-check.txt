@@ -1,0 +1,659 @@
+$ git diff --check
+Exit: 2
+app/adapters/mangathemesia.py:26: trailing whitespace.
++from ..models import Chapter, Page, SearchResult, Series, TextChapter
+app/adapters/mangathemesia.py:27: trailing whitespace.
++from .base import (
+app/adapters/mangathemesia.py:28: trailing whitespace.
++    Adapter, AdapterError, extract_number, first_attr, query_matches)
+app/adapters/mangathemesia.py:29: trailing whitespace.
++from .prose import blocks_from, looks_like_prose, strip_noise
+app/adapters/mangathemesia.py:70: trailing whitespace.
++    #: The reader, whichever shape it holds. The same container carries a
+app/adapters/mangathemesia.py:71: trailing whitespace.
++    #: comic's pages and a novel's paragraphs -- the theme is markup, not a
+app/adapters/mangathemesia.py:72: trailing whitespace.
++    #: content type.
+app/adapters/mangathemesia.py:73: trailing whitespace.
++    READER_SELECTORS = ("#readerarea", "div.reader-area", "div.epcontent",
+app/adapters/mangathemesia.py:74: trailing whitespace.
++                        "div.entry-content")
+app/adapters/mangathemesia.py:75: trailing whitespace.
++
+app/adapters/mangathemesia.py:76: trailing whitespace.
++    def __init__(self, session_manager) -> None:
+app/adapters/mangathemesia.py:77: trailing whitespace.
++        super().__init__(session_manager)
+app/adapters/mangathemesia.py:78: trailing whitespace.
++        #: Chapter HTML, kept so deciding what a chapter *is* and then reading
+app/adapters/mangathemesia.py:79: trailing whitespace.
++        #: it do not cost two fetches of the same page.
+app/adapters/mangathemesia.py:80: trailing whitespace.
++        self._chapter_html: dict[str, str] = {}
+app/adapters/mangathemesia.py:81: trailing whitespace.
++
+app/adapters/mangathemesia.py:105: trailing whitespace.
++        # `article` is the last resort, not the first: it is WordPress's
+app/adapters/mangathemesia.py:106: trailing whitespace.
++        # generic result wrapper, so on a site that *does* use the theme's grid
+app/adapters/mangathemesia.py:107: trailing whitespace.
++        # it would also match carousels and sidebar widgets. Measured
+app/adapters/mangathemesia.py:108: trailing whitespace.
++        # 2026-09-08: kolnovel.com answers `?s=` with real results in
+app/adapters/mangathemesia.py:109: trailing whitespace.
++        # `<article>` and uses no `div.bs` at all, so the search returned
+app/adapters/mangathemesia.py:110: trailing whitespace.
++        # nothing for a series the site plainly holds.
+app/adapters/mangathemesia.py:111: trailing whitespace.
++        cards = tree.css("div.listupd div.bs") or tree.css("div.bs")
+app/adapters/mangathemesia.py:112: trailing whitespace.
++        # Whether these are the theme's own result cards or a generic sweep.
+app/adapters/mangathemesia.py:113: trailing whitespace.
++        # It decides whether the text gate below applies: ranking is normally
+app/adapters/mangathemesia.py:114: trailing whitespace.
++        # /api/search's job, and gating here as well would drop the near
+app/adapters/mangathemesia.py:115: trailing whitespace.
++        # misses it exists to rank.
+app/adapters/mangathemesia.py:116: trailing whitespace.
++        swept = not cards
+app/adapters/mangathemesia.py:117: trailing whitespace.
++        if swept:
+app/adapters/mangathemesia.py:118: trailing whitespace.
++            cards = tree.css("article")
+app/adapters/mangathemesia.py:119: trailing whitespace.
++        for card in cards:
+app/adapters/mangathemesia.py:127: trailing whitespace.
++                or self.text(card.css_first("h2"))
+app/adapters/mangathemesia.py:128: trailing whitespace.
++                or first_attr(card.css_first("img"), "alt")
+app/adapters/mangathemesia.py:133: trailing whitespace.
++            # Only for the sweep. `article` is WordPress's generic wrapper and
+app/adapters/mangathemesia.py:134: trailing whitespace.
++            # reaches navigation, category pages and sidebar widgets, so an
+app/adapters/mangathemesia.py:135: trailing whitespace.
++            # ungated sweep would put a site's furniture into every unrelated
+app/adapters/mangathemesia.py:136: trailing whitespace.
++            # search -- the failure `query_matches` exists for. The theme's own
+app/adapters/mangathemesia.py:137: trailing whitespace.
++            # `div.bs` cards need no such check: they are results because the
+app/adapters/mangathemesia.py:138: trailing whitespace.
++            # site said so.
+app/adapters/mangathemesia.py:139: trailing whitespace.
++            if swept and not query_matches(query, title, urlparse(href).path):
+app/adapters/mangathemesia.py:140: trailing whitespace.
++                continue
+app/adapters/mangathemesia.py:245: trailing whitespace.
++        # One row, one chapter. Rows are walked rather than anchors, because a
+app/adapters/mangathemesia.py:246: trailing whitespace.
++        # row can hold more than one link: kolnovel puts a second, unlabelled
+app/adapters/mangathemesia.py:247: trailing whitespace.
++        # `<a>` beside every chapter pointing at `<chapter-url>/pdf/`. Reading
+app/adapters/mangathemesia.py:248: trailing whitespace.
++        # every anchor counted each chapter twice -- a measured **13,406 for a
+app/adapters/mangathemesia.py:249: trailing whitespace.
++        # 6,703-chapter novel** -- and, worse, the `/pdf/` copy sorted equal to
+app/adapters/mangathemesia.py:250: trailing whitespace.
++        # the real one and could win, so the download opened a page with no
+app/adapters/mangathemesia.py:251: trailing whitespace.
++        # reader on it at all.
+app/adapters/mangathemesia.py:252: trailing whitespace.
++        rows = tree.css("div.eplister ul li") or tree.css("#chapterlist ul li")
+app/adapters/mangathemesia.py:256: trailing whitespace.
++        for row in rows:
+app/adapters/mangathemesia.py:257: trailing whitespace.
++            # The row's own labelled link. An anchor with no text is furniture
+app/adapters/mangathemesia.py:258: trailing whitespace.
++            # -- a download or bookmark control -- never the chapter itself.
+app/adapters/mangathemesia.py:259: trailing whitespace.
++            node = next((a for a in row.css("a") if self.text(a)), None)
+app/adapters/mangathemesia.py:260: trailing whitespace.
++            if node is None:
+app/adapters/mangathemesia.py:261: trailing whitespace.
++                continue
+app/adapters/mangathemesia.py:296: trailing whitespace.
++    async def _chapter_page(self, chapter: Chapter) -> str:
+app/adapters/mangathemesia.py:297: trailing whitespace.
++        cached = self._chapter_html.get(chapter.url)
+app/adapters/mangathemesia.py:298: trailing whitespace.
++        if cached is None:
+app/adapters/mangathemesia.py:299: trailing whitespace.
++            cached = await self.get_html(chapter.url, referer=chapter.url)
+app/adapters/mangathemesia.py:300: trailing whitespace.
++            self._chapter_html[chapter.url] = cached
+app/adapters/mangathemesia.py:301: trailing whitespace.
++        return cached
+app/adapters/mangathemesia.py:302: trailing whitespace.
++
+app/adapters/mangathemesia.py:303: trailing whitespace.
++    def _reader(self, tree):
+app/adapters/mangathemesia.py:304: trailing whitespace.
++        for selector in self.READER_SELECTORS:
+app/adapters/mangathemesia.py:305: trailing whitespace.
++            node = tree.css_first(selector)
+app/adapters/mangathemesia.py:306: trailing whitespace.
++            if node is not None:
+app/adapters/mangathemesia.py:307: trailing whitespace.
++                return node
+app/adapters/mangathemesia.py:308: trailing whitespace.
++        return None
+app/adapters/mangathemesia.py:309: trailing whitespace.
++
+app/adapters/mangathemesia.py:310: trailing whitespace.
++    async def packaging_for(self, chapter: Chapter) -> str:
+app/adapters/mangathemesia.py:311: trailing whitespace.
++        """Ask the chapter what it is, because the theme cannot say.
+app/adapters/mangathemesia.py:312: trailing whitespace.
++
+app/adapters/mangathemesia.py:313: trailing whitespace.
++        This theme is WordPress markup and several **web-novel** sites run it:
+app/adapters/mangathemesia.py:314: trailing whitespace.
++        kolnovel.com fingerprints here and lists 13,406 chapters correctly,
+app/adapters/mangathemesia.py:315: trailing whitespace.
++        but a kolnovel chapter is 180 paragraphs and no images at all. Read as
+app/adapters/mangathemesia.py:316: trailing whitespace.
++        a comic it failed outright; read as prose it is an ordinary EPUB.
+app/adapters/mangathemesia.py:317: trailing whitespace.
++
+app/adapters/mangathemesia.py:318: trailing whitespace.
++        Answered from the chapter page, which is cached, so the fetch is the
+app/adapters/mangathemesia.py:319: trailing whitespace.
++        one ``fetch_pages`` or ``fetch_text`` was going to make anyway.
+app/adapters/mangathemesia.py:320: trailing whitespace.
++        """
+app/adapters/mangathemesia.py:321: trailing whitespace.
++        try:
+app/adapters/mangathemesia.py:322: trailing whitespace.
++            html = await self._chapter_page(chapter)
+app/adapters/mangathemesia.py:323: trailing whitespace.
++        except Exception as exc:
+app/adapters/mangathemesia.py:324: trailing whitespace.
++            # Not this method's job to report a broken chapter -- let the
+app/adapters/mangathemesia.py:325: trailing whitespace.
++            # fetch that follows raise the error the user should see.
+app/adapters/mangathemesia.py:326: trailing whitespace.
++            log.debug("Could not classify %s: %s", chapter.url, exc)
+app/adapters/mangathemesia.py:327: trailing whitespace.
++            return self.packaging
+app/adapters/mangathemesia.py:328: trailing whitespace.
++
+app/adapters/mangathemesia.py:329: trailing whitespace.
++        images = _images_from_ts_reader(html) or self._images_from_dom(
+app/adapters/mangathemesia.py:330: trailing whitespace.
++            html, chapter.url)
+app/adapters/mangathemesia.py:331: trailing whitespace.
++        if looks_like_prose(self._reader(self.parse(html)), len(images)):
+app/adapters/mangathemesia.py:332: trailing whitespace.
++            log.info("%s is prose, not pages; packaging as text", chapter.url)
+app/adapters/mangathemesia.py:333: trailing whitespace.
++            return "text"
+app/adapters/mangathemesia.py:334: trailing whitespace.
++        return self.packaging
+app/adapters/mangathemesia.py:335: trailing whitespace.
++
+app/adapters/mangathemesia.py:336: trailing whitespace.
++    async def fetch_text(self, chapter: Chapter) -> TextChapter:
+app/adapters/mangathemesia.py:337: trailing whitespace.
++        tree = self.parse(await self._chapter_page(chapter))
+app/adapters/mangathemesia.py:338: trailing whitespace.
++        container = self._reader(tree)
+app/adapters/mangathemesia.py:339: trailing whitespace.
++        if container is None:
+app/adapters/mangathemesia.py:340: trailing whitespace.
++            raise AdapterError(
+app/adapters/mangathemesia.py:341: trailing whitespace.
++                f"No reader content on {chapter.url}. The chapter may be "
+app/adapters/mangathemesia.py:342: trailing whitespace.
++                "empty, or this may not be a chapter page."
+app/adapters/mangathemesia.py:343: trailing whitespace.
++            )
+app/adapters/mangathemesia.py:344: trailing whitespace.
++        strip_noise(container)
+app/adapters/mangathemesia.py:345: trailing whitespace.
++        blocks = blocks_from(container)
+app/adapters/mangathemesia.py:346: trailing whitespace.
++        if not blocks:
+app/adapters/mangathemesia.py:347: trailing whitespace.
++            raise AdapterError(
+app/adapters/mangathemesia.py:348: trailing whitespace.
++                f"The reader on {chapter.url} held no readable text."
+app/adapters/mangathemesia.py:349: trailing whitespace.
++            )
+app/adapters/mangathemesia.py:350: trailing whitespace.
++        return TextChapter(title=chapter.title or f"Chapter {chapter.number}",
+app/adapters/mangathemesia.py:351: trailing whitespace.
++                           blocks=blocks)
+app/adapters/mangathemesia.py:352: trailing whitespace.
++
+app/adapters/mangathemesia.py:354: trailing whitespace.
++        html = await self._chapter_page(chapter)
+app/adapters/mangathemesia.py:372: trailing whitespace.
++        """Page images from the reader, and **only** from the reader.
+app/adapters/mangathemesia.py:373: trailing whitespace.
++
+app/adapters/mangathemesia.py:374: trailing whitespace.
++        This used to fall back to scanning the whole document when neither
+app/adapters/mangathemesia.py:375: trailing whitespace.
++        ``#readerarea`` nor ``div.reader-area`` was present. Measured on
+app/adapters/mangathemesia.py:376: trailing whitespace.
++        kolnovel 2026-09-08: an install that names its reader something else
+app/adapters/mangathemesia.py:377: trailing whitespace.
++        returned **8 "pages"**, every one an analytics tracking pixel
+app/adapters/mangathemesia.py:378: trailing whitespace.
++        (`pixel.quantserve.com/pixel/….gif`) harvested from the page furniture.
+app/adapters/mangathemesia.py:379: trailing whitespace.
++        They are not decorative by name, they are not 1x1 by URL, and they
+app/adapters/mangathemesia.py:380: trailing whitespace.
++        download with a 200 -- so the only thing that tells them from a comic
+app/adapters/mangathemesia.py:381: trailing whitespace.
++        page is that they were never inside the reader.
+app/adapters/mangathemesia.py:382: trailing whitespace.
++
+app/adapters/mangathemesia.py:383: trailing whitespace.
++        An image outside the reader is not a page. If the reader cannot be
+app/adapters/mangathemesia.py:384: trailing whitespace.
++        found, the honest answer is none, and the caller's "no page images
+app/adapters/mangathemesia.py:385: trailing whitespace.
++        found" error is correct.
+app/adapters/mangathemesia.py:386: trailing whitespace.
++        """
+app/adapters/mangathemesia.py:388: trailing whitespace.
++        area = self._reader(tree)
+app/adapters/mangathemesia.py:389: trailing whitespace.
++        if area is None:
+app/adapters/mangathemesia.py:390: trailing whitespace.
++            return []
+app/adapters/mangathemesia.py:393: trailing whitespace.
++        for node in area.css("img"):
+app/session.py:109: trailing whitespace.
++#: Bounds for `scroll_for`, the lazily-built-list wait. Generous enough for a
+app/session.py:110: trailing whitespace.
++#: long chapter, finite because a reader with an endless feed underneath it
+app/session.py:111: trailing whitespace.
++#: would otherwise never stop. A round that adds nothing ends the loop, so
+app/session.py:112: trailing whitespace.
++#: these are ceilings and not costs.
+app/session.py:113: trailing whitespace.
++LAZY_SCROLL_ROUNDS = 60
+app/session.py:114: trailing whitespace.
++LAZY_SCROLL_PIXELS = 20000
+app/session.py:115: trailing whitespace.
++LAZY_SCROLL_SETTLE_MS = 700
+app/session.py:116: trailing whitespace.
++
+app/session.py:994: trailing whitespace.
++        scroll_for: str | None = None,
+app/session.py:1005: trailing whitespace.
++
+app/session.py:1006: trailing whitespace.
++        ``scroll_for`` is for the readers that mount their content as it
+app/session.py:1007: trailing whitespace.
++        scrolls into view: the document is scrolled until that selector stops
+app/session.py:1008: trailing whitespace.
++        gaining matches. Off by default, and it costs one scroll on a page that
+app/session.py:1009: trailing whitespace.
++        was already complete. Without it such a reader hands back whatever
+app/session.py:1010: trailing whitespace.
++        happened to be on screen, which parses and packages perfectly and is
+app/session.py:1011: trailing whitespace.
++        simply missing most of the chapter.
+app/session.py:1019: trailing whitespace.
++                page, url, referer=referer, wait_for=wait_for, wait_ms=wait_ms,
+app/session.py:1020: trailing whitespace.
++                scroll_for=scroll_for,
+app/session.py:1095: trailing whitespace.
++        scroll_for: str | None = None,
+app/session.py:1108: trailing whitespace.
++            content = await self._settled_content(
+app/session.py:1109: trailing whitespace.
++                page, wait_for, wait_ms, scroll_for)
+app/session.py:1117: trailing whitespace.
++                content = await self._settled_content(
+app/session.py:1118: trailing whitespace.
++                    page, wait_for, wait_ms, scroll_for)
+app/session.py:1136: trailing whitespace.
++        self, page: Page, wait_for: str | None, wait_ms: int,
+app/session.py:1137: trailing whitespace.
++        scroll_for: str | None = None,
+app/session.py:1163: trailing whitespace.
++        if scroll_for:
+app/session.py:1164: trailing whitespace.
++            await self._scroll_until_settled(page, scroll_for)
+app/session.py:1167: trailing whitespace.
++    async def _scroll_until_settled(self, page: Page, selector: str) -> None:
+app/session.py:1168: trailing whitespace.
++        """Scroll to the end of a lazily-built list, then stop.
+app/session.py:1169: trailing whitespace.
++
+app/session.py:1170: trailing whitespace.
++        A reader that mounts its pages as they scroll into view hands
+app/session.py:1171: trailing whitespace.
++        ``page.content()`` only what has been reached so far, and the result
+app/session.py:1172: trailing whitespace.
++        parses perfectly, packs into a valid archive, and is *wrong*.
+app/session.py:1173: trailing whitespace.
++        Measured on comix.to 2026-09-08: Attack on Titan chapter 1 answered
+app/session.py:1174: trailing whitespace.
++        **3 images** after the settle delay and **12** after scrolling — a CBZ
+app/session.py:1175: trailing whitespace.
++        of the first quarter of the chapter, with nothing downstream able to
+app/session.py:1176: trailing whitespace.
++        tell.
+app/session.py:1177: trailing whitespace.
++
+app/session.py:1178: trailing whitespace.
++        Stops as soon as a round adds nothing, so a page that was already
+app/session.py:1179: trailing whitespace.
++        complete pays one scroll and one interval.
+app/session.py:1180: trailing whitespace.
++        """
+app/session.py:1181: trailing whitespace.
++        seen = await page.locator(selector).count()
+app/session.py:1182: trailing whitespace.
++        for _ in range(LAZY_SCROLL_ROUNDS):
+app/session.py:1183: trailing whitespace.
++            await page.mouse.wheel(0, LAZY_SCROLL_PIXELS)
+app/session.py:1184: trailing whitespace.
++            await page.wait_for_timeout(LAZY_SCROLL_SETTLE_MS)
+app/session.py:1185: trailing whitespace.
++            now = await page.locator(selector).count()
+app/session.py:1186: trailing whitespace.
++            if now == seen:
+app/session.py:1187: trailing whitespace.
++                break
+app/session.py:1188: trailing whitespace.
++            seen = now
+app/session.py:1189: trailing whitespace.
++        else:
+app/session.py:1190: trailing whitespace.
++            log.warning("Still loading %r after %d scrolls on %s; kept %d",
+app/session.py:1191: trailing whitespace.
++                        selector, LAZY_SCROLL_ROUNDS, page.url, seen)
+app/session.py:1192: trailing whitespace.
++        log.info("Lazy list settled at %d matches for %r", seen, selector)
+app/session.py:1193: trailing whitespace.
++
+app/session.py:1233: trailing whitespace.
++                page, url, referer=referer, wait_for=wait_for, wait_ms=wait_ms,
+app/session.py:1243: trailing whitespace.
++    async def post_form_direct(self, url: str, data: dict, *, referer: str | None = None) -> str:
+app/session.py:1244: trailing whitespace.
++        """Anonymous HTTP form request, with browser fallback owned by adapters."""
+app/session.py:1245: trailing whitespace.
++        import httpx
+app/session.py:1246: trailing whitespace.
++
+app/session.py:1247: trailing whitespace.
++        headers = {"X-Requested-With": "XMLHttpRequest"}
+app/session.py:1248: trailing whitespace.
++        if referer:
+app/session.py:1249: trailing whitespace.
++            headers["Referer"] = str(httpx.URL(referer))
+app/session.py:1250: trailing whitespace.
++        async with self.direct_http_client() as client:
+app/session.py:1251: trailing whitespace.
++            response = await client.post(url, data=data, headers=headers)
+app/session.py:1252: trailing whitespace.
++            response.raise_for_status()
+app/session.py:1253: trailing whitespace.
++            if is_challenge(response.text, status=response.status_code):
+app/session.py:1254: trailing whitespace.
++                raise RuntimeError("The HTTP form response is a browser challenge")
+app/session.py:1255: trailing whitespace.
++            return response.text
+app/session.py:1256: trailing whitespace.
++
+app/session.py:1257: trailing whitespace.
++    def direct_http_client(self):
+app/session.py:1258: trailing whitespace.
++        """A scoped HTTP session for anonymous multi-request reader protocols.
+app/session.py:1259: trailing whitespace.
++
+app/session.py:1260: trailing whitespace.
++        The caller owns the async context. Cookies persist within that context,
+app/session.py:1261: trailing whitespace.
++        never importing an attached browser's authenticated state.
+app/session.py:1262: trailing whitespace.
++        """
+app/session.py:1263: trailing whitespace.
++        import httpx
+app/session.py:1264: trailing whitespace.
++
+app/session.py:1265: trailing whitespace.
++        options = {"timeout": self._settings.request_timeout,
+app/session.py:1266: trailing whitespace.
++                   "follow_redirects": True,
+app/session.py:1267: trailing whitespace.
++                   "headers": {"User-Agent": self.user_agent}}
+app/session.py:1268: trailing whitespace.
++        if self._settings.proxy_config is not None:
+app/session.py:1269: trailing whitespace.
++            options["proxy"] = self._settings.proxy_config.for_httpx()
+app/session.py:1270: trailing whitespace.
++        return httpx.AsyncClient(**options)
+app/session.py:1271: trailing whitespace.
++
+tests/test_books.py:16: trailing whitespace.
++from app.adapters.books import (
+tests/test_books.py:17: trailing whitespace.
++    BooksAdapter, _canonical_kitaboka_url, _clean_title, _file_links)
+tests/test_books.py:552: trailing whitespace.
++def test_ktobati_is_not_claimed_as_a_book_source():
+tests/test_books.py:553: trailing whitespace.
++    """Excluded, not broken: reaching a Ktobati book requires an account.
+tests/test_books.py:555: trailing whitespace.
++    The adapter used to own this host and, when no file turned up, told the
+tests/test_books.py:556: trailing whitespace.
++    user to sign in to Ktobati in the app's browser profile. Instructing
+tests/test_books.py:557: trailing whitespace.
++    someone to authenticate is not a download path, so the host is no longer
+tests/test_books.py:558: trailing whitespace.
++    claimed by hostname at all. A page that genuinely links a file is still
+tests/test_books.py:559: trailing whitespace.
++    matched on that evidence, like any unknown site.
+tests/test_books.py:561: trailing whitespace.
++    assert not BooksAdapter.matches(KTOBATI_BOOK_URL)
+tests/test_books.py:562: trailing whitespace.
++    assert not BooksAdapter.matches(KTOBATI_BOOK_URL, "<html><h1>Book</h1></html>")
+tests/test_books.py:610: trailing whitespace.
++    assert sessions.direct == [NOOR_SEARCH_URL]
+tests/test_books.py:611: trailing whitespace.
++    assert sessions.requested == []
+tests/test_books.py:817: trailing whitespace.
++class _AnyBookPage(dict):
+tests/test_books.py:818: trailing whitespace.
++    """The captured pages, plus one stand-in for every book page requested.
+tests/test_books.py:819: trailing whitespace.
++
+tests/test_books.py:820: trailing whitespace.
++    Kitaboka's search opens each candidate to confirm it links a real file.
+tests/test_books.py:821: trailing whitespace.
++    Registering all 37 by hand would be fixture-writing by another name, so
+tests/test_books.py:822: trailing whitespace.
++    the one page actually captured answers for each of them.
+tests/test_books.py:823: trailing whitespace.
++    """
+tests/test_books.py:824: trailing whitespace.
++
+tests/test_books.py:825: trailing whitespace.
++    def __init__(self, known: dict, book_html: str):
+tests/test_books.py:826: trailing whitespace.
++        super().__init__(known)
+tests/test_books.py:827: trailing whitespace.
++        self._book = book_html
+tests/test_books.py:828: trailing whitespace.
++
+tests/test_books.py:829: trailing whitespace.
++    def __contains__(self, url: object) -> bool:
+tests/test_books.py:830: trailing whitespace.
++        return super().__contains__(url) or self._is_book(url)
+tests/test_books.py:831: trailing whitespace.
++
+tests/test_books.py:832: trailing whitespace.
++    def __getitem__(self, url):
+tests/test_books.py:833: trailing whitespace.
++        if super().__contains__(url):
+tests/test_books.py:834: trailing whitespace.
++            return super().__getitem__(url)
+tests/test_books.py:835: trailing whitespace.
++        if self._is_book(url):
+tests/test_books.py:836: trailing whitespace.
++            return self._book
+tests/test_books.py:837: trailing whitespace.
++        raise KeyError(url)
+tests/test_books.py:838: trailing whitespace.
++
+tests/test_books.py:839: trailing whitespace.
++    @staticmethod
+tests/test_books.py:840: trailing whitespace.
++    def _is_book(url: object) -> bool:
+tests/test_books.py:841: trailing whitespace.
++        return isinstance(url, str) and "kitaboka.com/books/" in url
+tests/test_books.py:842: trailing whitespace.
++
+tests/test_books.py:843: trailing whitespace.
++
+tests/test_books.py:844: trailing whitespace.
++# Real markup, captured from kitaboka.com 2026-09-08. The previous fixtures
+tests/test_books.py:845: trailing whitespace.
++# here were written by hand and encoded the alias backwards -- see
+tests/test_books.py:846: trailing whitespace.
++# tests/fixtures/kitaboka/PROVENANCE.md.
+tests/test_books.py:847: trailing whitespace.
++KITABOKA_FIXTURES = Path(__file__).parent / "fixtures/kitaboka"
+tests/test_books.py:849: trailing whitespace.
++KITABOKA_QUERY = "\u0631\u0648\u0627\u064a\u0629"  # رواية
+tests/test_books.py:850: trailing whitespace.
++KITABOKA_SEARCH_URL = f"{KITABOKA_ROOT}/books?search=%D8%B1%D9%88%D8%A7%D9%8A%D8%A9"
+tests/test_books.py:851: trailing whitespace.
++KITABOKA_SENTINEL = "zzqvoneshelfnonexistent987654321"
+tests/test_books.py:852: trailing whitespace.
++KITABOKA_SENTINEL_URL = f"{KITABOKA_ROOT}/books?search={KITABOKA_SENTINEL}"
+tests/test_books.py:853: trailing whitespace.
++KITABOKA_BOOK_URL = f"{KITABOKA_ROOT}/books/hky-zhr"
+tests/test_books.py:854: trailing whitespace.
++NORKITAB_BOOK_URL = "https://norkitab.com/books/hky-zhr"
+tests/test_books.py:855: trailing whitespace.
++KITABOKA_MASKED_URL = "https://www.kitaboka.com/books/books/hky-zhr"
+tests/test_books.py:857: trailing whitespace.
++
+tests/test_books.py:858: trailing whitespace.
++def _kitaboka(name: str) -> str:
+tests/test_books.py:859: trailing whitespace.
++    return (KITABOKA_FIXTURES / name).read_text(encoding="utf-8")
+tests/test_books.py:862: trailing whitespace.
++def test_kitaboka_and_its_mask_are_recognised():
+tests/test_books.py:863: trailing whitespace.
++    assert BooksAdapter.matches(KITABOKA_BOOK_URL)
+tests/test_books.py:867: trailing whitespace.
++def test_norkitab_is_the_mask_and_kitaboka_is_where_the_books_are():
+tests/test_books.py:868: trailing whitespace.
++    """The alias resolves towards the host that actually serves content.
+tests/test_books.py:869: trailing whitespace.
++
+tests/test_books.py:870: trailing whitespace.
++    norkitab.com answers a 976-byte HTML 4 frameset whose only content is a
+tests/test_books.py:871: trailing whitespace.
++    frame pointing back at kitaboka.com/books. Resolving the other way -- what
+tests/test_books.py:872: trailing whitespace.
++    this adapter did until 2026-09-08 -- meant every search fetched an empty
+tests/test_books.py:873: trailing whitespace.
++    document and every query returned nothing.
+tests/test_books.py:875: trailing whitespace.
++    assert _canonical_kitaboka_url(NORKITAB_BOOK_URL) == KITABOKA_BOOK_URL
+tests/test_books.py:876: trailing whitespace.
++    assert _canonical_kitaboka_url(KITABOKA_MASKED_URL) == KITABOKA_BOOK_URL
+tests/test_books.py:877: trailing whitespace.
++    # The mask doubles its own prefix on storage links too.
+tests/test_books.py:878: trailing whitespace.
++    assert _canonical_kitaboka_url(
+tests/test_books.py:879: trailing whitespace.
++        "https://norkitab.com/books/storage/book_files/x.pdf"
+tests/test_books.py:880: trailing whitespace.
++    ) == f"{KITABOKA_ROOT}/storage/book_files/x.pdf"
+tests/test_books.py:881: trailing whitespace.
++    # Any other host is left exactly as it was.
+tests/test_books.py:882: trailing whitespace.
++    assert _canonical_kitaboka_url("https://example.net/books/x") == (
+tests/test_books.py:883: trailing whitespace.
++        "https://example.net/books/x")
+tests/test_books.py:884: trailing whitespace.
++
+tests/test_books.py:885: trailing whitespace.
++
+tests/test_books.py:886: trailing whitespace.
++async def test_kitaboka_book_page_yields_its_pdf():
+tests/test_books.py:887: trailing whitespace.
++    sessions = FakeSessionManager(pages={KITABOKA_BOOK_URL: _kitaboka("book.html")})
+tests/test_books.py:890: trailing whitespace.
++    series = await adapter.fetch_series(KITABOKA_BOOK_URL)
+tests/test_books.py:894: trailing whitespace.
++    assert len(chapters) == 1
+tests/test_books.py:895: trailing whitespace.
++    assert chapters[0].title.endswith(".pdf")
+tests/test_books.py:896: trailing whitespace.
++    assert pages[0].url == (
+tests/test_books.py:897: trailing whitespace.
++        f"{KITABOKA_ROOT}/storage/book_files/"
+tests/test_books.py:898: trailing whitespace.
++        "01M00NDG35TDV35A6BTSMBYJH0.pdf")
+tests/test_books.py:899: trailing whitespace.
++    assert pages[0].referer == KITABOKA_BOOK_URL
+tests/test_books.py:902: trailing whitespace.
++async def test_kitaboka_search_returns_books_that_match_the_query():
+tests/test_books.py:903: trailing whitespace.
++    sessions = FakeSessionManager(pages={
+tests/test_books.py:904: trailing whitespace.
++        KITABOKA_SEARCH_URL: _kitaboka("search.html"),
+tests/test_books.py:905: trailing whitespace.
++    })
+tests/test_books.py:906: trailing whitespace.
++
+tests/test_books.py:907: trailing whitespace.
++    # Every candidate page is fetched to confirm it links a real file; serve
+tests/test_books.py:908: trailing whitespace.
++    # the one captured book page for all of them.
+tests/test_books.py:909: trailing whitespace.
++    sessions.pages = _AnyBookPage(sessions.pages, _kitaboka("book.html"))
+tests/test_books.py:910: trailing whitespace.
++    results = await BooksAdapter(sessions).search(KITABOKA_ROOT, KITABOKA_QUERY)
+tests/test_books.py:911: trailing whitespace.
++
+tests/test_books.py:912: trailing whitespace.
++    assert results, "the live listing holds 37 books whose titles carry رواية"
+tests/test_books.py:913: trailing whitespace.
++    assert all(KITABOKA_QUERY in result.title for result in results)
+tests/test_books.py:915: trailing whitespace.
++    assert all(result.url.startswith(f"{KITABOKA_ROOT}/books/")
+tests/test_books.py:916: trailing whitespace.
++               for result in results)
+tests/test_books.py:919: trailing whitespace.
++async def test_kitaboka_answers_an_unanswerable_query_with_its_catalogue():
+tests/test_books.py:920: trailing whitespace.
++    """The sixth site to do this, and the reason query_matches exists.
+tests/test_books.py:922: trailing whitespace.
++    Measured 2026-09-08: the sentinel below returns 27 real book links,
+tests/test_books.py:923: trailing whitespace.
++    overlapping the ones a genuine query returns. Nothing structural separates
+tests/test_books.py:924: trailing whitespace.
++    them from a hit -- only the text can, so the gate is what keeps this site
+tests/test_books.py:925: trailing whitespace.
++    out of every unrelated search.
+tests/test_books.py:926: trailing whitespace.
++    """
+tests/test_books.py:927: trailing whitespace.
++    raw = _kitaboka("negative.html")
+tests/test_books.py:928: trailing whitespace.
++    assert 'href="https://kitaboka.com/books/' in raw
+tests/test_books.py:929: trailing whitespace.
++
+tests/test_books.py:930: trailing whitespace.
++    sessions = FakeSessionManager(pages={KITABOKA_SENTINEL_URL: raw})
+tests/test_books.py:931: trailing whitespace.
++    sessions.pages = _AnyBookPage(sessions.pages, _kitaboka("book.html"))
+tests/test_books.py:933: trailing whitespace.
++    results = await BooksAdapter(sessions).search(KITABOKA_ROOT, KITABOKA_SENTINEL)
+tests/test_books.py:935: trailing whitespace.
++    assert results == []
+
+$ git -c core.whitespace=cr-at-eol diff --check
+Exit: 0

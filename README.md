@@ -108,19 +108,40 @@ See the [configuration reference](config.example.yaml) for advanced options and 
 
 ## 🌍 Supported Sources
 
-| Source or platform | Content | Output |
+Every source below has been verified by downloading a real file from it and
+opening that file — not by checking that search returns results. The evidence
+for each, with the file, its size and its page or chapter count, is in
+[SOURCES.md](SOURCES.md).
+
+| Source | Content | Output |
 |---|---|---|
 | MangaDex | Manga translations | CBZ |
-| Madara & MangaThemesia sites | Manga and comics, including compatible Arabic sites | CBZ |
+| 3asq · MangaRead · Manhua Plus · ArabToons | Manga on the Madara platform | CBZ |
+| AzoraMoon / AzoraFly | Manga and manhwa | CBZ |
+| Comix.to | Manga, manhwa and manhua | CBZ |
 | Webtoons | Free episodes | CBZ |
-| Comix, Blogger & VComics | Supported comic and manga pages | CBZ |
-| Royal Road & Scribble Hub | Web novels | EPUB per chapter |
-| Sunovels | Arabic web novels | EPUB per chapter |
-| Archive of Our Own | Works with downloadable files | Source-provided formats |
-| Project Gutenberg | Books | Available EPUB, AZW3, or PDF files |
-| Compatible direct-file book sites | Books | Source-provided formats |
+| Arcomixverse (Blogger / Blogspot) | Scanned comic issues | CBZ |
+| Royal Road | Web novels | EPUB per chapter |
+| Sunovels · KolNovel · Cenele · Rewayat Club · RiwayatArab | Arabic web novels | EPUB per chapter |
+| WuxiaBox | English web novels | EPUB per chapter |
+| Archive of Our Own | Public works | Site-provided EPUB, MOBI, PDF, AZW3 |
+| Project Gutenberg | Public-domain books | Site-provided EPUB, AZW3 or PDF |
+| Arabic Collections Online (NYU) | Open-access Arabic books | PDF |
+| Noor Book | Arabic books, bound from the free reader | PDF |
+| Kitaboka | Arabic books | Site-provided PDF |
+| 8ghrb · Planet eBook · Better Gutenberg | Books | Site-provided files |
 
-Many adapters recognize the site's page structure, so multiple sites using the same theme can work. A generic image extractor also handles some otherwise unsupported pages. Coverage is not guaranteed for every site, and source changes can break an adapter.
+Adapters recognize a site by the shape of its pages rather than its hostname,
+so a site sharing a platform with one of the above may well work when you paste
+its URL — but only the sources listed here have actually been verified, and a
+site can change its markup at any time.
+
+**Not supported, and why.** Sources that need an account, a subscription or a
+purchase to reach readable content are excluded on principle rather than worked
+around. A few others are believed correct but could not be proven from the
+machine this was developed on — an ISP-level filter or a bot check this
+container cannot clear — and those are listed in
+[SOURCES.md](SOURCES.md#not-verified) rather than advertised here.
 
 ---
 

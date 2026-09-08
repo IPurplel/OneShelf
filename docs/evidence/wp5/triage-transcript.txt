@@ -1,0 +1,185 @@
+www.noor-book.com                     -  unreachable
+www.alarabimag.com                    -  unreachable
+foulabook.com                         -  unreachable
+www.ktobati.com                     200  drupal
+www.abjjad.com                      200  unrecognised
+www.al-mostafa.com                  200  unrecognised
+www.pdfiles.net                     200  unrecognised
+raffy.me                            200  nuxt
+www.hindawi.org                     200  claimed by books
+slawat.net                          200  unrecognised
+riwayatarab.com                     200  next.js
+3asq.org                              -  unreachable
+www.aseeralkotb.com                 200  unrecognised
+kotobna.net                         200  laravel
+arabcomics.net                      200  wordpress
+dlib.nyu.edu                        200  claimed by books
+mangatales.com                      200  laravel
+mangaslayers.com                    200  next.js
+mangatuk.com                        200  next.js
+www.iqraalibrary.com                200  unrecognised
+gmanga.org                          200  next.js
+www.mangaf.co                       200  wordpress
+kutub-pdf.net                       200  wordpress
+www.on-manga.me                     200  unrecognised
+cenele.com                          200  claimed by madara
+ablibrary.net                       200  next.js
+maktbapdf.com                       200  laravel
+www.mangaarabia.com                 200  drupal
+www.rwayat.online                   200  claimed by blogger
+mangaae.com                           -  unreachable
+lekmanga.net                          -  unreachable
+mngaar.com                          403  http 403
+prochan.net                           -  unreachable
+mangaat.com                         200  unrecognised
+dilar.tube                          200  unrecognised
+arabshentai.com                       -  unreachable
+stellarsaber.pro                    403  http 403
+kolnovel.com                        200  claimed by mangathemesia
+www.anakatib.com                    200  laravel
+ar-manga.com                          -  unreachable
+healteer.com                        200  unrecognised
+www.alnaqeeb.me                     200  wordpress
+teamx.net                           200  unrecognised
+infinity896.blogspot.com            200  claimed by blogger
+gate-manga.com                        -  unreachable
+www.eshadow.net                     200  next.js
+shqawemanga.com                       -  unreachable
+as-gate.com                           -  unreachable
+free.ireadarabic.com                200  unrecognised
+www.rwaiaty.com                     200  wordpress
+arabic-novel.com                      -  unreachable
+riwayat.com                         200  unrecognised
+books-library.net                     -  unreachable
+al-maktaba.org                      403  http 403
+rewayat.club                        200  nuxt
+arab-books.com                      200  unrecognised
+114quran.com                        403  http 403
+areamanga.com                         -  unreachable
+riwayatclub.com                       -  unreachable
+bookcc.com                          200  unrecognised
+arabic-manga.com                      -  unreachable
+manga-land.com                      200  next.js
+mangapro.com                        200  unrecognised
+swatmanga.net                         -  unreachable
+manga-on.com                          -  unreachable
+mnga.cc                               -  unreachable
+rewayat-ar.com                        -  unreachable
+rewayat20.com                         -  unreachable
+azoramanga.com                        -  unreachable
+www.kutub.info                        -  unreachable
+waqfeya.net                         200  next.js
+books-era.com                       200  next.js
+maktabet.com                          -  unreachable
+novel-ar.com                          -  unreachable
+kotob.com                           404  http 404
+golden-manga.com                      -  unreachable
+ruya.com                            200  wordpress
+mangakakalot.com                      -  unreachable
+aladdinlibrary.org                  200  unrecognised
+itwadi.com                          200  drupal
+mangak.com                          200  unrecognised
+mangadex.org                        200  claimed by mangadex
+mawteni48.com                       200  wordpress
+cycomi.com                          200  next.js
+shonenjumpplus.com                  200  unrecognised
+comico.io                             -  unreachable
+coolmic.me                          200  laravel
+comixology.com                      503  http 503
+comicwalker.com                     200  unrecognised
+mangaplanet.com                       -  unreachable
+crunchyroll.com                     200  next.js
+j-novel.club                        200  next.js
+mangaplus.shueisha.co.jp            200  unrecognised
+viz.com                             200  unrecognised
+azuki.co                            200  laravel
+toomics.com                           -  unreachable
+renta.papy.co.jp                    200  unrecognised
+global.bookwalker.jp                200  next.js
+mangakatana.com                     200  unrecognised
+fanfox.net                          200  unrecognised
+1stkissmanga.io                     200  unrecognised
+mangakomi.io                          -  unreachable
+mangafreak.eu                         -  unreachable
+bilibilicomics.com                    -  unreachable
+arnovel.me                          200  unrecognised
+mangapark.net                         -  unreachable
+mangapanda.com                      200  unrecognised
+mangahere.cc                        200  unrecognised
+mangasee123.com                     200  unrecognised
+mangazuki.co                          -  unreachable
+ozulscans.com                       200  unrecognised
+readmng.com                         200  unrecognised
+readmanhua.net                      403  http 403
+wuxiaworld.com                      200  unrecognised
+mangarose.com                       200  unrecognised
+noveldrama.org                      200  laravel
+novelfire.net                       200  laravel
+novelbin.com                          -  unreachable
+toonily.com                           -  unreachable
+novelfull.com                       200  unrecognised
+wanderinginn.com                    200  wordpress
+royalroad.com                       200  claimed by royalroad
+scribblehub.com                     403  http 403
+booksee.org                         200  unrecognised
+webnovel.com                        200  unrecognised
+wattpad.com                         200  unrecognised
+bookfrom.net                        403  http 403
+gutenberg.org                       200  claimed by gutenberg
+z-lib.org                           202  unrecognised
+ketabpedia.com                        -  unreachable
+standardebooks.org                  200  unrecognised
+manybooks.net                       200  drupal
+oceanofpdf.com                      403  http 403
+globalgreyebooks.com                200  unrecognised
+openlibrary.org                     200  unrecognised
+loyalbooks.com                      200  unrecognised
+pdfroom.com                         200  unrecognised
+pdfcoffee.com                       200  unrecognised
+maktabti.com                          -  unreachable
+ranobes.net                         200  unrecognised
+wuxiabox.com                        200  unrecognised
+readnovelfull.com                   200  laravel
+justlightnovels.com                 403  http 403
+epubpub.com                         200  unrecognised
+theanarchistlibrary.org             200  unrecognised
+mangareader.to                      522  http 522
+novelbuddy.com                      200  unrecognised
+baka-tsuki.org                      200  unrecognised
+freewebnovel.com                    200  laravel
+foxaholic.com                       403  http 403
+wtr-lab.com                         200  next.js
+lightnovelworld.com                 200  unrecognised
+chrysanthemumgarden.com             200  wordpress
+1stkissnovel.love                     -  unreachable
+wnmtl.org                           200  unrecognised
+webfic.com                          200  next.js
+manganelo.com                       522  http 522
+allnovelfull.com                    403  http 403
+aquamanga.com                       200  unrecognised
+coffeemanga.io                        -  unreachable
+boxnovel.com                        200  unrecognised
+bookboon.com                        200  unrecognised
+chapmanganato.com                   200  unrecognised
+feedbooks.com                       403  http 403
+bato.to                               -  unreachable
+mangahub.io                           -  unreachable
+wikibooks.org                       200  unrecognised
+rawkuma.com                         200  unrecognised
+readm.org                           522  http 522
+free-ebooks.net                     200  unrecognised
+klmanga.com                         200  unrecognised
+pdfbooksworld.com                   200  unrecognised
+asuracomic.net                      200  vcomics/astro
+flamecomics.com                     200  next.js
+lightnovelpub.com                   200  unrecognised
+tapas.io                            200  next.js
+daonovel.com                          -  unreachable
+readcomiconline.li                    -  unreachable
+tappytoon.com                       200  next.js
+creativenovels.com                  522  http 522
+readlightnovel.me                   522  http 522
+mtlnovel.com                          -  unreachable
+reaperscans.com                     522  http 522
+
+183 probed -> docs/evidence/wp5/triage.json
