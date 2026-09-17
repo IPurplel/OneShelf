@@ -13,7 +13,13 @@ from fastapi.responses import StreamingResponse
 from oneshelf.api.access import AccessConfig
 from oneshelf.api.guard import RequestGuardMiddleware
 from oneshelf.api.middleware import AccessBoundaryMiddleware
+from oneshelf.api.discovery import router as discovery_router
 from oneshelf.api.sources import router as sources_router
+from oneshelf.catalog.trust import CatalogTrust
+from oneshelf.discovery.home import HomeService
+from oneshelf.search.cache import DiscoveryCache
+from oneshelf.search.service import SearchService
+from oneshelf.search.url_resolve import UrlResolver
 from oneshelf.net.governor import TrafficGovernor
 from oneshelf.net.lazy_browser import LazyBrowser
 from oneshelf.plugins.manager import PluginManager
@@ -40,6 +46,11 @@ class Services:
     source_service: SourceService
     logins: LoginController
     registry: object | None = None
+    cache: DiscoveryCache | None = None
+    search: SearchService | None = None
+    home: HomeService | None = None
+    url_resolver: UrlResolver | None = None
+    catalog: CatalogTrust | None = None
 
 
 @dataclass(frozen=True)
@@ -99,7 +110,11 @@ def create_app(config: AppConfig) -> FastAPI:
         source_service = SourceService(conn, plugins, governor, sessions, dev_test_source=config.dev_test_source,
                                        dev_hosts=config.dev_hosts(), browser=browser)
         logins = LoginController(source_service, browser, sessions, governor)
-        app.state.services = Services(conn, plugins, sessions, governor, source_service, logins, registry)
+        cache = DiscoveryCache(Path(config.data_dir) / "cache.db")
+        app.state.services = Services(
+            conn, plugins, sessions, governor, source_service, logins, registry, cache,
+            SearchService(conn, source_service, cache), HomeService(conn, source_service, cache),
+            UrlResolver(conn, plugins, source_service), CatalogTrust(conn))
         try:
             yield
         finally:
@@ -107,6 +122,7 @@ def create_app(config: AppConfig) -> FastAPI:
                 await login.cancel()
             await source_service.aclose()
             await browser.aclose()
+            cache.close()
             store.close()
             conn.close()
 
@@ -131,6 +147,7 @@ def create_app(config: AppConfig) -> FastAPI:
         )
 
     app.include_router(sources_router)
+    app.include_router(discovery_router)
     app.add_middleware(AccessBoundaryMiddleware, config=config.access)
     app.add_middleware(RequestGuardMiddleware, allowed_hosts=config.allowed_hosts)
     return app

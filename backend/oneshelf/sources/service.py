@@ -113,6 +113,23 @@ class SourceService:
         if self.sessions is not None and self.sessions.state(plugin_id) == "connected":
             self.sessions.mark_needs_reconnect(plugin_id, "source rejected the session")
 
+    def sources_with_capability(self, capability: str) -> list[tuple[str, str]]:
+        """Active plugins providing a capability, with their versions (used for cache namespacing)."""
+        found = []
+        for record in self.plugins.list():
+            if record.state != "active":
+                continue
+            try:
+                package = self.plugins.load_active(record.id)
+            except Exception:
+                continue
+            if capability in package.recipes:
+                found.append((record.id, package.version))
+        return found
+
+    def searchable_sources(self) -> list[tuple[str, str]]:
+        return self.sources_with_capability("search")
+
     async def run(self, plugin_id: str, capability: str, inputs: dict[str, Any], *,
                   priority: Priority = Priority.INTERACTIVE):
         package, fetcher = await self._fetcher(plugin_id, priority)

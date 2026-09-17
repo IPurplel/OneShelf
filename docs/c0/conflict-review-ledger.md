@@ -132,3 +132,23 @@ Routine choices made under Meta Prompt §C0.7 ("make routine engineering choices
 | D-C3-16 | Registry sources: `file://` local mirror or `https://` static index (client allowlisted to that host only). Configured by `ONESHELF_REGISTRY_URL`; no default registry. | A1 | Adopted |
 | D-C3-17 | Scrapling is used as a parser only; its `fetchers` extra (patchright, browserforge, curl_cffi, fingerprint data) must never be installed. A guard test fails if stealth packages or fetcher imports appear. | §12.1, §49, K1 | Adopted |
 | D-C3-18 | Adaptive selector fallback deferred to C9 (generator/repair), which owns selector fingerprints and validation. | §12.1, §12.3 | Adopted (carried forward) |
+
+---
+
+## 9. Engineering decisions recorded during C4 (2026-09-17)
+
+| ID | Decision | Rationale / Master refs | Disposition |
+|---|---|---|---|
+| D-C4-01 | Relevance tiers: exact title → exact normalized → **exact loose** → exact alias → prefix → all-token → substring → fuzzy. The loose tier makes the intentional Arabic ة↔ه equivalence explicit without weakening stronger matches. | §6.3, §6.4 | Adopted |
+| D-C4-02 | Boosts (user mapping, verified mapping, Shelf presence, language alias, agreeing sources) only reorder within one tier; they can never cross tiers. | §6.4 "boosts must not overpower strong textual relevance" | Adopted |
+| D-C4-03 | Search results are never persisted. Listings and tracks are written only by an explicit durable action (`persist_listing` / `POST /api/listings/bind`). | §6.6, INV-03 | Adopted |
+| D-C4-04 | Discovery Cache lives in its own `cache.db`, namespaced `source@plugin_version`, stores **hashed** keys, TTL 7 d, 250 MB LRU. | §7, C15 (no query history) | Adopted |
+| D-C4-05 | `source_listings.mapping_decided_by` records who linked a listing to a Work; automatic evidence never overrides a user decision, and Unlink/Never Match/Split block re-association for that pair. | §6.6, INV-04 | Adopted |
+| D-C4-06 | Merge refuses two Works that both have a track for the same source and language; the user unlinks or splits first. | §6.6 has no rule for this collision; refusing is non-destructive | **Review** |
+| D-C4-07 | When a source renames a listing, the previous raw title is kept as a `source_title` alias so the old title still finds the Work. | §6.8 "preserve title aliases/history" | Adopted |
+| D-C4-08 | A complete refresh whose unit set matches the trusted catalog updates that snapshot in place (state `unchanged`) instead of rotating the previous trusted catalog; metadata and order changes still apply. | §5.2 keeps current + previous trusted; §20 reordering ≠ new | Adopted |
+| D-C4-09 | Suspicion is computed only between complete snapshots using the §42 heuristic; recovery needs two consecutive complete checks with the same unit set; candidates are cleared when the source returns to the trusted reality, so an old candidate cannot recover later. | §5.2, §5.3 | Adopted |
+| D-C4-10 | Reading Units are materialized from the trusted catalog only. Units that disappear are marked unavailable with `missing_since`, never deleted, and their local files stay. | §5.5, §3.4 | Adopted |
+| D-C4-11 | Home Hero: Continue Reading → pinned Work → cached discovery, never a network request. The §31.4 "new-release Work" step is added with Follow in C6. | §31.4 | Adopted |
+| D-C4-12 | A Home feed that fails simply stays hidden for that source (no error placeholder, no invented data). | §31.1 | Adopted |
+| D-C4-13 | Direct URL entry previews through normal capabilities and persists nothing until the user acts. | §8 | Adopted |

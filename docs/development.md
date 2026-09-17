@@ -49,3 +49,17 @@ curl -X POST --data-binary @testsource.osp -H 'Content-Type: application/octet-s
 
 Scenarios are controlled with `POST /__control` on the Test Source (e.g. `{"big_collapsed": true}`, `{"paged_mode": "fail_page_3"}`,
 `{"rate_limit_remaining": 2}`, `{"expire_sessions": true}`). Test login: `reader` / `correct horse`.
+
+## API surfaces so far
+
+| Area | Endpoints |
+|---|---|
+| Health / events | `GET /api/health`, `GET /api/events` (SSE) |
+| Sources | `GET /api/sources`, `POST /api/sources/uploads`, `POST /api/sources/install`, `POST /api/sources/{id}/approve`, `POST /api/sources/{id}/{disable,enable,rollback}`, `DELETE /api/sources/{id}`, `GET /api/sources/{id}/health` |
+| Registry | `GET /api/registry`, `POST /api/registry/install` |
+| Sessions / login | `GET|DELETE /api/sources/{id}/session`, `POST /api/sources/{id}/session/validate`, `POST /api/sources/{id}/login`, `GET /api/logins/{id}/frame`, `POST /api/logins/{id}/{input,complete}`, `DELETE /api/logins/{id}` |
+| Discovery | `GET /api/search` (SSE: `local` → `partial` → `complete`), `POST /api/search/retry`, `POST /api/resolve-url`, `GET /api/home` |
+| Library identity | `POST /api/listings/bind`, `POST /api/mappings/{merge,split,unlink,never-match}` |
+| Catalog trust | `GET /api/tracks/{id}/catalog`, `POST /api/tracks/{id}/catalog/refresh`, `POST /api/tracks/{id}/catalog/trust` |
+
+Remote clients are refused until C8; LAN and loopback clients are served per `ONESHELF_TRUSTED_NETWORKS`.

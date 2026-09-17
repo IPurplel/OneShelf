@@ -1,6 +1,6 @@
 # Requirement Traceability Matrix
 
-Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
+Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3, C4) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
 
 **Coverage:** every Master heading from §0 to §56 (57 sections, 152 numbered subsections, and the unnumbered sub-headings in §4.4, §20, §26.3, §26.22), all 30 §51 invariants (INV), all 17 §42 default groups (DEF), all 30 §49 exclusions (EX), Meta Prompt §D3 deliverables (MPD) and §G investigation rules (MPG).
 
@@ -39,31 +39,31 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
-| M5 | Catalog trust foundational for Follow/Download Missing/navigation/missing inference | C4 | be/catalog | — | catalog_snapshots | rows below | NS |
-| M5.1 | Only complete snapshots may be Trusted; incomplete never replace trusted, infer deletion, baseline Follow, or feed Download Missing | C4 | be/catalog/completeness | — | snapshot.completeness + evidence | incomplete pagination / failed request / first-page-only / interrupted tests | NS |
-| M5.2 | Keep current + previous Trusted, release events, bounded debug window; suspicious heuristic ≥~50% loss and ≥5 units | C4 | be/catalog/trust | Sources, Work Details warning | catalog_snapshots (bounded) | 300→7 test; history bound test | NS |
-| M5.3 | Suspicious → Trusted after two consecutive complete matching checks or explicit Trust This Catalog | C4 | be/catalog/trust | Sources advanced action | snapshot state | recovery sequence tests; Trust action rejects incomplete | NS |
-| M5.4 | Download Missing, Follow comparison, missing inference, automation use last Trusted only | C4,C5,C6 | be/catalog, be/downloads, be/follow | Download Missing, Follow | — | trusted-only tests | NS |
-| M5.5 | Temporarily missing units keep local content, last_seen, missing_since; no deletion | C4,C6 | be/catalog | unit list state | last_seen, missing_since | disappear/reappear tests | NS |
+| M5 | Catalog trust foundational for Follow/Download Missing/navigation/missing inference | C4 | be/catalog | — | catalog_snapshots | rows below | IMPL |
+| M5.1 | Only complete snapshots may be Trusted; incomplete never replace trusted, infer deletion, baseline Follow, or feed Download Missing | C4 | be/catalog/completeness | — | snapshot.completeness + evidence | incomplete pagination / failed request / first-page-only / interrupted tests | IMPL |
+| M5.2 | Keep current + previous Trusted, release events, bounded debug window; suspicious heuristic ≥~50% loss and ≥5 units | C4 | be/catalog/trust | Sources, Work Details warning | catalog_snapshots (bounded) | 300→7 test; history bound test | IMPL |
+| M5.3 | Suspicious → Trusted after two consecutive complete matching checks or explicit Trust This Catalog | C4 | be/catalog/trust | Sources advanced action | snapshot state | recovery sequence tests; Trust action rejects incomplete | IMPL |
+| M5.4 | Download Missing, Follow comparison, missing inference, automation use last Trusted only | C4,C5,C6 | be/catalog, be/downloads, be/follow | Download Missing, Follow | — | trusted-only tests | IMPL |
+| M5.5 | Temporarily missing units keep local content, last_seen, missing_since; no deletion | C4,C6 | be/catalog | unit list state | last_seen, missing_since | disappear/reappear tests | IMPL |
 | M5.6 | Completed stays Completed; show "N releases since completion" | C6 | be/services/shelf | My Shelf, Work Details | shelf.completed_at + release events | completion preservation test | NS |
 
 ## §6–§8 Search, matching, discovery cache, URL entry
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
-| M6 | Unified search and matching | C4 | be/search | Search | — | rows below | NS |
-| M6.1 | Local-first then progressive live enrichment of same result set; never clear local results; slow source doesn't block; "7 / 8 sources"; Retry Source | C4 | be/search/service, fe/search | `GET /search` + SSE; Search screen | cache.db discovery | failing/slow source tests; e2e progressive render | NS |
-| M6.2 | SQLite FTS5 (or equivalent) index over original/display/normalized/loose/aliases/source titles/type/languages/creator/external IDs | C4 | be/search/index | — | FTS5 tables | index tests | NS |
-| M6.3 | Preserve originals; normalize keys only; strong Arabic normalization; loose ة↔ه; no stemming, translation, cover matching | C4 | be/search/normalize | — | key columns | Arabic regression + no-stemming tests | NS |
-| M6.4 | Ranking tiers exact→normalized→alias→phrase/prefix→all-token→substring/trigram→fuzzy; small boosts can't overpower; ranking ≠ grouping | C4 | be/search/rank | result order | — | tier ordering + boost-bound tests | NS |
-| M6.5 | Sequential Art family broadly compatible; Novel/Book vs sequential art usually not hard-merged | C4 | be/search/match | — | — | adaptation-boundary tests | NS |
-| M6.6 | Soft Group presentation-only; actions bind concrete listing/track; Hard Mapping needs evidence or user action; Merge/Split/Unlink/Never Match persist and win | C4 | be/search/mapping | Work Details, Search | mappings, overrides | INV-03, INV-04 tests | NS |
-| M6.7 | Missing metadata not negative evidence | C4 | be/search/match | — | — | INV-05 test | NS |
-| M6.8 | Reading Unit matching title-primary + stable supporting evidence; preserve aliases/history | C4 | be/catalog/unit_match | — | unit aliases | rename/reorder tests | NS |
-| M6.9 | Same-source identity via listing ID/canonical URL; cached + live merge | C4 | be/search | — | source_listings unique keys | cached/live dedupe test | NS |
+| M6 | Unified search and matching | C4 | be/search | Search | — | rows below | IMPL |
+| M6.1 | Local-first then progressive live enrichment of same result set; never clear local results; slow source doesn't block; "7 / 8 sources"; Retry Source | C4 | be/search/service, fe/search | `GET /search` + SSE; Search screen | cache.db discovery | failing/slow source tests; e2e progressive render | IMPL |
+| M6.2 | SQLite FTS5 (or equivalent) index over original/display/normalized/loose/aliases/source titles/type/languages/creator/external IDs | C4 | be/search/index | — | FTS5 tables | index tests | IMPL |
+| M6.3 | Preserve originals; normalize keys only; strong Arabic normalization; loose ة↔ه; no stemming, translation, cover matching | C4 | be/search/normalize | — | key columns | Arabic regression + no-stemming tests | IMPL |
+| M6.4 | Ranking tiers exact→normalized→alias→phrase/prefix→all-token→substring/trigram→fuzzy; small boosts can't overpower; ranking ≠ grouping | C4 | be/search/rank | result order | — | tier ordering + boost-bound tests | IMPL |
+| M6.5 | Sequential Art family broadly compatible; Novel/Book vs sequential art usually not hard-merged | C4 | be/search/match | — | — | adaptation-boundary tests | IMPL |
+| M6.6 | Soft Group presentation-only; actions bind concrete listing/track; Hard Mapping needs evidence or user action; Merge/Split/Unlink/Never Match persist and win | C4 | be/search/mapping | Work Details, Search | mappings, overrides | INV-03, INV-04 tests | IMPL |
+| M6.7 | Missing metadata not negative evidence | C4 | be/search/match | — | — | INV-05 test | IMPL |
+| M6.8 | Reading Unit matching title-primary + stable supporting evidence; preserve aliases/history | C4 | be/catalog/unit_match | — | unit aliases | rename/reorder tests | IMPL |
+| M6.9 | Same-source identity via listing ID/canonical URL; cached + live merge | C4 | be/search | — | source_listings unique keys | cached/live dedupe test | IMPL |
 | M6.10 | No matcher telemetry/central dataset/decision collector/shared logging, under any name | C4,C9 | be/search, be/diagnostics | — | none | INV-29 audit (schema, network, diagnostics) | NS |
-| M7 | Discovery Cache TTL 7 d, 250 MB, LRU; excludes Shelf/Follow/Downloads/mappings/corrections/authoritative; namespaced by source + plugin version/schema; no persistent query analytics | C4 | be/search/discovery_cache | — | cache.db | stale plugin-cache invalidation; cleanup-never-touches-authoritative; no query persistence test | NS |
-| M8 | Direct URL entry: identify plugin, normalize, fetch, preview/resolve; no auth/paywall/DRM bypass; same matching rules | C4 | be/search/url_resolve | Search URL paste | — | supported/unsupported URL tests | NS |
+| M7 | Discovery Cache TTL 7 d, 250 MB, LRU; excludes Shelf/Follow/Downloads/mappings/corrections/authoritative; namespaced by source + plugin version/schema; no persistent query analytics | C4 | be/search/discovery_cache | — | cache.db | stale plugin-cache invalidation; cleanup-never-touches-authoritative; no query persistence test | IMPL |
+| M8 | Direct URL entry: identify plugin, normalize, fetch, preview/resolve; no auth/paywall/DRM bypass; same matching rules | C4 | be/search/url_resolve | Search URL paste | — | supported/unsupported URL tests | IMPL |
 
 ## §9–§13 Plugins, lifecycle, SSRF, generator, sessions
 
@@ -201,11 +201,11 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M30.13 | Mandatory logical dedupe keys (`source-auth:`, `storage-low:`, `catalog-suspicious:`, `new-release:`); repeats update existing | C6 | be/notifications/dedupe | — | unique dedupe_key | dedupe tests | NS |
 | M30.14 | Persistent while action required; transient may expire; resolved lingers ~1 h | C6 | be/notifications/lifecycle | drawer | state timestamps | lifecycle tests | NS |
 | M30.15 | Bounded history 30 d or 500, whichever first; subsystem state stays authoritative | C6 | be/notifications/cleanup | — | — | both-limit tests (D2) | NS |
-| M31 | Home discovery semantics | C2,C4,C6 | fe/home, be/services/home | Home | — | rows below | NS |
-| M31.1 | Trending only from trusted getTrending data; no fake global score; hide if none | C4 | be/services/home | Home Trending | cache.db | hide-without-data test | NS |
-| M31.2 | Latest Releases = getLatest discovery feed, distinct from Following New Releases | C4 | be/services/home | Home | cache.db | separation test | NS |
-| M31.3 | Recently Added = recently added to My Shelf | C6 | be/services/home | Home | shelf_entries.added_at | test | NS |
-| M31.4 | Hero contextual but stable; no network request to choose; priority Continue Reading > pinned/new-release > cached discovery | C2,C6 | be/services/home | Home Hero | — | no-network Hero test | NS |
+| M31 | Home discovery semantics | C2,C4,C6 | fe/home, be/services/home | Home | — | rows below | IMPL |
+| M31.1 | Trending only from trusted getTrending data; no fake global score; hide if none | C4 | be/services/home | Home Trending | cache.db | hide-without-data test | IMPL |
+| M31.2 | Latest Releases = getLatest discovery feed, distinct from Following New Releases | C4 | be/services/home | Home | cache.db | separation test | IMPL |
+| M31.3 | Recently Added = recently added to My Shelf | C6 | be/services/home | Home | shelf_entries.added_at | test | IMPL |
+| M31.4 | Hero contextual but stable; no network request to choose; priority Continue Reading > pinned/new-release > cached discovery | C2,C6 | be/services/home | Home Hero | — | no-network Hero test | IMPL |
 | M32 | Approved visual identity (forest-green sidebar, cream canvas, olive, wood, restrained shadows, serif headings, clean UI type; calm/premium; not SaaS/Netflix) | C2 | fe/theme | all | — | visual checks vs reference V (EB-2) | NS |
 | M32.1 | Fixed forest-green sidebar with Home/Search/My Shelf/Following/Downloads/Sources/Settings; logo top-left; sparse botanical motif | C2 | fe/shell | sidebar | — | nav test; screenshot | NS |
 | M32.2 | No avatar; Notifications + Needs Attention (hidden at 0; Reconnect/Low Storage/Download Failed/Catalog Suspicious; grouped popover); filtered shortcut, no duplication | C2,C6 | fe/shell/header | header | derived | zero-hidden + filter tests | NS |
@@ -303,11 +303,11 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Invariant | Gate phase(s) | Minimum evidence (Meta Prompt §D1) | Status |
 |---|---|---|---|---|
-| INV-01 | Suspicious/incomplete catalog never erases trusted state | C4 | incomplete pagination + 300→7 preserve Trusted and derived state; recovery obeys completeness | NS |
+| INV-01 | Suspicious/incomplete catalog never erases trusted state | C4 | incomplete pagination + 300→7 preserve Trusted and derived state; recovery obeys completeness | IMPL |
 | INV-02 | Source/language never switch silently | C4,C5,C6,C7 | search, Follow, Reader, retries, fallback, downloads, exports preserve source/language | NS |
-| INV-03 | Soft Group never becomes permanent identity | C4 | Soft Group cannot create mappings; actions persist concrete track | NS |
-| INV-04 | User overrides never silently overwritten | C4,C7 | refresh, plugin update, restore merge preserve overrides | NS |
-| INV-05 | Unknown metadata never negative evidence | C4 | missing creator/date/volume/classification stays Unknown, not a mismatch | NS |
+| INV-03 | Soft Group never becomes permanent identity | C4 | Soft Group cannot create mappings; actions persist concrete track | IMPL |
+| INV-04 | User overrides never silently overwritten | C4,C7 | refresh, plugin update, restore merge preserve overrides | IMPL |
+| INV-05 | Unknown metadata never negative evidence | C4 | missing creator/date/volume/classification stays Unknown, not a mismatch | IMPL |
 | INV-06 | Unknown quality never blocks content | C4,C5 | Unknown quality doesn't hide/reject/mark unavailable | NS |
 | INV-07 | Reading never implies permanent download unless enabled | C5 | ordinary reading makes no permanent download | NS |
 | INV-08 | Auto-download OFF by default | C1,C5 | defaults registry + fresh install assertion; enabled engagement per spec | IMPL |
@@ -329,8 +329,8 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | INV-24 | Navigation follows Source Track order | C2 | prologue, Special, Extra, 3.5 navigate by track order | NS |
 | INV-25 | Cross-source progress approximate/manual | C2,C5 | Start This Unit / Try Approximate Position; no guessed unit or exact-page claim | NS |
 | INV-26 | Browser background work can't starve Reader/direct work | C3,C5 | saturated low-priority work; bounded Reader responsiveness | IMPL |
-| INV-27 | Search results represent Works | C4 | Work-level results with selectable provenance, no duplicated source cards | NS |
-| INV-28 | Covers never identity evidence | C4 | matching ignores covers; test with identical/different covers | NS |
+| INV-27 | Search results represent Works | C4 | Work-level results with selectable provenance, no duplicated source cards | IMPL |
+| INV-28 | Covers never identity evidence | C4 | matching ignores covers; test with identical/different covers | IMPL |
 | INV-29 | Matching diagnostics never telemetry | C4,C6,C9 | review persistent records, diagnostics, network calls, cleanup | NS |
 | INV-30 | Remote passkey/session/CSRF boundaries; genuine LAN trusted per config | C1,C8 | passkey/session/CSRF/Origin + LAN/trusted-proxy/forged-header tests | IMPL |
 
@@ -339,7 +339,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | ID | Default | Phase | Verification | Status |
 |---|---|---|---|---|
 | DEF-backup | Library Backup every 7 d; Full manual; retain last 4 verified | C7 | schedule + rotation tests | NS |
-| DEF-discovery-cache | TTL 7 d; 250 MB; LRU | C4 | cleanup both-limit tests | NS |
+| DEF-discovery-cache | TTL 7 d; 250 MB; LRU | C4 | cleanup both-limit tests | IMPL |
 | DEF-reader-cache | TTL 7 d; 5 GB; LRU; never evict current unit / open nearby pages / permanent downloads | C5 | eviction protection tests | NS |
 | DEF-auto-download | OFF; when enabled ~12% + genuine interaction | C1,C5 | INV-08; trigger test | NS |
 | DEF-read-ahead | next 5 existing Reading Units | C5 | bounded read-ahead test | NS |
@@ -353,7 +353,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | DEF-retry | initial + up to 3 retries | C5 | retry count test | NS |
 | DEF-remote-session | 30 d (options shorter/90 d/1 y/manual) | C8 | session expiry test | NS |
 | DEF-storage-reserve | 5% capped 5 GB; warning ~2× reserve | C1 | guard tests | IMPL |
-| DEF-catalog-suspicious | ≥~50% loss and ≥5 units; complete snapshots only; not sole truth | C4 | heuristic boundary tests | NS |
+| DEF-catalog-suspicious | ≥~50% loss and ≥5 units; complete snapshots only; not sole truth | C4 | heuristic boundary tests | IMPL |
 | DEF-staging | successful leftovers ~24 h; resumable failed ~7 d | C1,C5 | retention tests | IMPL |
 | DEF-other | Preferred + Ask; settings precedence; classification precedence; remember per-Work Reader settings ON; preload ~7/4; folder export default; Copy import default; local/LAN auth OFF; metadata/format identity behavior (Meta Prompt D2) | C1→C8 | registry consistency test across UI/API/runtime/migrations | NS |
 
@@ -404,7 +404,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | MPD-06 | Final verification report: commands, outcomes, workflows, artifact checks, UI/RTL/a11y screenshots, blocked gates | C9 | docs/evidence/verification.md | NS |
 | MPG-1 | Investigate actual source before recipes; static first; justified browser escalation; no guessed selectors; no eval; no stealth/CAPTCHA/paywall/DRM; Use My Session only | C3→C9 | per-source investigation notes | NS |
 | MPG-2 | Generate declarative packages with reviewed permissions; multi-Work/multi-query incl. Arabic; genuine empty queries; CDN vs ads domains; bounded transforms; adaptive only after failure; Unsupported instead of hacks | C9 | generator tests | NS |
-| MPG-3 | Complete catalogs with completion evidence; preserve raw unit fields/order; no numeric gap/duplicate inference; formats don't create Works; reject non-content resources | C4,C9 | catalog/content tests | NS |
+| MPG-3 | Complete catalogs with completion evidence; preserve raw unit fields/order; no numeric gap/duplicate inference; formats don't create Works; reject non-content resources | C4,C9 | catalog/content tests | IMPL |
 | MPG-4 | Recipes return descriptors; Core executes; scoped credentials; no header forwarding to CDN/redirect; expiring URL refresh bounded; error-class separation; Smart Retry/fallback semantics | C3,C5 | runtime tests | IMPL |
 | MPG-5 | Verify through application services with isolated data; sanitized dated fixtures; Test Source synthetic faults; open/parse actual artifacts; record revision/plugin/source/conditions/checksums; no runtime telemetry | C3→C9 | evidence ledger | NS |
 
@@ -458,3 +458,20 @@ Carried forward from C1 (still `NS`): M41.2 OneShelf Test Source skeleton → C3
 | MPG-4 | recipes return descriptors; Core executes; per-hop credential scoping; error-class separation | runtime, pipeline, session tests | expiring-URL refresh (C5) |
 
 Also improved in C3 without changing status: INV-14 now also covers plugin-supplied paths (packages cannot express filesystem paths).
+
+### C4 — 2026-09-17 (gate passed; see `docs/c4/verification.md`)
+
+| ID | C4 implementation | Evidence | Remaining |
+|---|---|---|---|
+| M5, M5.1–M5.5 | `catalog/trust.py`, migration 0004 | `tests/integration/catalog/test_trust.py`, `test_discovery_api.py` | Completed status + releases since completion (C6) |
+| M6, M6.1–M6.9 | `search/normalize.py`, `ranking.py`, `index.py`, `grouping.py`, `mapping.py`, `service.py` | `tests/unit/search/*`, `tests/integration/search/*` | Search UI (C2) |
+| M7 | `search/cache.py` | `test_cache.py`, API cached/refresh test | cache use by Reader/downloads (C5) |
+| M8 | `search/url_resolve.py` | `test_url_and_home.py`, API test | URL entry UI (C2) |
+| M31, M31.1–M31.4 | `discovery/home.py` | `test_url_and_home.py`, `GET /api/home` | Home screen (C2); new-release Hero step (C6) |
+| INV-01 | incomplete/suspicious never replace trusted state | trust suite + API gate | — |
+| INV-03 | soft grouping writes nothing; actions bind concrete listing/track | grouping suite, `POST /api/listings/bind` | Shelf/Follow/Download callers (C5/C6) |
+| INV-04 | `mapping_decided_by`, blocking mappings | mapping suite | restore merge (C7) |
+| INV-05 | Unknown type/metadata never blocks grouping or lowers a match | grouping + ranking suites | — |
+| INV-27, INV-28 | Work-level results with selectable provenance; covers never identity | grouping suite | search UI presentation (C2) |
+| DEF-discovery-cache, DEF-catalog-suspicious | defaults registry values applied | cache + trust suites | — |
+| MPG-3 | completeness evidence drives trust; no numeric-gap inference | runtime + trust suites | live sources (C9) |
