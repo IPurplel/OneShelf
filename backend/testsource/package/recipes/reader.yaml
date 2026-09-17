@@ -1,14 +1,22 @@
 capability: reader
-inputs: [unit_key]
+inputs:
+- unit_key
 request:
-  url: "{base_url}/api/units/{unit_key:path}/pages"
+  url: '{base_url}/api/units/{unit_key:path}/pages'
+  auth: optional
 response:
   format: json
 extract:
-  items: {json: "$.pages[*]"}
+  items:
+    json: $.pages[*]
   fields:
-    url: {json: "$.url", transforms: [normalize_url], required: true}
-    page_label: {json: "$.label"}
+    url:
+      json: $.url
+      transforms:
+      - normalize_url
+      required: true
+    page_label:
+      json: $.label
 pagination:
   mode: none
   complete_when: single_response

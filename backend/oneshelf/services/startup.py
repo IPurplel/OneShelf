@@ -17,6 +17,7 @@ from oneshelf.storage.staging_cleanup import clean_orphan_staging
 class StartupReport:
     order: list[str] = field(default_factory=list)
     jobs_failed: int = 0
+    downloads_recovered: int = 0
     commits: RecoveryReport = field(default_factory=RecoveryReport)
     scan: ScanReport = field(default_factory=ScanReport)
     staging_removed: int = 0
@@ -36,11 +37,24 @@ def _fail_interrupted_imports(conn: sqlite3.Connection, states: tuple[str, ...])
     return cur.rowcount
 
 
+def _recover_download_jobs(conn: sqlite3.Connection) -> int:
+    """Interrupted download jobs are re-queued as RECOVERING before any cleanup runs (Master §16, §25)."""
+    from oneshelf.downloads.engine import ACTIVE_STATES
+
+    placeholders = ",".join("?" * len(ACTIVE_STATES))
+    with transaction(conn):
+        cursor = conn.execute(
+            f"UPDATE download_jobs SET state = 'RECOVERING', updated_at = ? WHERE state IN ({placeholders})",
+            (utcnow_iso(), *ACTIVE_STATES))
+    return cursor.rowcount
+
+
 def run_startup_recovery(conn: sqlite3.Connection, *, now: datetime | None = None) -> StartupReport:
     report = StartupReport()
 
     report.order.append("recover_jobs")
     report.jobs_failed += _fail_interrupted_imports(conn, ("validating",))
+    report.downloads_recovered = _recover_download_jobs(conn)
 
     report.order.append("recover_commits")
     report.commits = CommitEngine(conn, registrars=all_registrars()).recover()

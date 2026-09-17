@@ -14,6 +14,12 @@ from oneshelf.api.access import AccessConfig
 from oneshelf.api.guard import RequestGuardMiddleware
 from oneshelf.api.middleware import AccessBoundaryMiddleware
 from oneshelf.api.discovery import router as discovery_router
+from oneshelf.api.library import router as library_router
+from oneshelf.downloads.contract import Settings
+from oneshelf.downloads.engine import DownloadEngine
+from oneshelf.downloads.runner import DownloadRunner
+from oneshelf.reader.cache import ReaderCache
+from oneshelf.reader.service import ReaderService
 from oneshelf.api.sources import router as sources_router
 from oneshelf.catalog.trust import CatalogTrust
 from oneshelf.discovery.home import HomeService
@@ -51,6 +57,9 @@ class Services:
     home: HomeService | None = None
     url_resolver: UrlResolver | None = None
     catalog: CatalogTrust | None = None
+    downloads: DownloadEngine | None = None
+    reader: ReaderService | None = None
+    reader_cache: ReaderCache | None = None
 
 
 @dataclass(frozen=True)
@@ -111,18 +120,26 @@ def create_app(config: AppConfig) -> FastAPI:
                                        dev_hosts=config.dev_hosts(), browser=browser)
         logins = LoginController(source_service, browser, sessions, governor)
         cache = DiscoveryCache(Path(config.data_dir) / "cache.db")
+        settings = Settings(conn)
+        engine = DownloadEngine(conn, source_service, plugins, governor, settings=settings, events=app.state.bus)
+        reader_cache = ReaderCache(Path(config.data_dir) / "reader-cache", Path(config.data_dir) / "cache.db")
+        reader = ReaderService(conn, source_service, reader_cache, engine, settings=settings, events=app.state.bus)
         app.state.services = Services(
             conn, plugins, sessions, governor, source_service, logins, registry, cache,
             SearchService(conn, source_service, cache), HomeService(conn, source_service, cache),
-            UrlResolver(conn, plugins, source_service), CatalogTrust(conn))
+            UrlResolver(conn, plugins, source_service), CatalogTrust(conn), engine, reader, reader_cache)
+        runner = DownloadRunner(engine)
+        await runner.start()
         try:
             yield
         finally:
             for login in list(logins._active.values()):
                 await login.cancel()
+            await runner.stop()
             await source_service.aclose()
             await browser.aclose()
             cache.close()
+            reader_cache.close()
             store.close()
             conn.close()
 
@@ -148,6 +165,7 @@ def create_app(config: AppConfig) -> FastAPI:
 
     app.include_router(sources_router)
     app.include_router(discovery_router)
+    app.include_router(library_router)
     app.add_middleware(AccessBoundaryMiddleware, config=config.access)
     app.add_middleware(RequestGuardMiddleware, allowed_hosts=config.allowed_hosts)
     return app

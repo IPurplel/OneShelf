@@ -20,6 +20,8 @@ WORKS = {
     "paged": {"title": "Paged Archive", "type": "comic", "language": "en"},
     "arabic": {"title": "حكاية القمر", "type": "manga", "language": "ar"},
     "private": {"title": "Members Only", "type": "manga", "language": "en"},
+    "broken": {"title": "Broken Media", "type": "manga", "language": "en"},
+    "manual": {"title": "The Manual", "type": "book", "language": "en"},
     "malformed": {"title": "  Weird   Metadata ", "type": "not-a-type", "language": "Klingon!!"},
 }
 
@@ -34,6 +36,18 @@ IRREGULAR_UNITS = [
     {"id": "irr-10b", "title": "Chapter 10 (part B)", "label": "Chapter 10", "type": "chapter"},
     {"id": "irr-extra", "title": "Extra Story", "label": "Extra", "type": "extra"},
 ]
+
+
+def pdf(pages: int = 1) -> bytes:
+    """A real PDF whose page count equals the file version, so a spliced file is detectable."""
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    for _ in range(max(1, pages)):
+        writer.add_blank_page(width=200, height=300)
+    buf = io.BytesIO()
+    writer.write(buf)
+    return buf.getvalue() + b"\n% padding " + b"x" * 40_000
 
 
 def png(width=40, height=60, shade=90) -> bytes:
@@ -68,6 +82,12 @@ def units_for(work: str, scenario: Scenario) -> list[dict]:
                 for i in range(1, 4)]
     if work == "private":
         return [{"id": "priv-1", "title": "Chapter 1", "label": "Chapter 1", "type": "chapter"}]
+    if work == "broken":
+        return [{"id": "bad-html", "title": "HTML instead of media", "label": "Chapter 1", "type": "chapter"},
+                {"id": "bad-corrupt", "title": "Corrupt media", "label": "Chapter 2", "type": "chapter"},
+                {"id": "bad-limited", "title": "Rate limited media", "label": "Chapter 3", "type": "chapter"}]
+    if work == "manual":
+        return [{"id": "manual-1", "title": "The Manual (PDF)", "label": "Manual", "type": "other"}]
     if work == "malformed":
         return [{"id": "mal-1", "title": None, "label": "???", "type": "Chapter-ish"}, {"title": "no id at all"}]
     raise web.HTTPNotFound()
@@ -131,10 +151,23 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
 
     async def pages(request: web.Request) -> web.Response:
         unit = request.match_info["unit"]
+        if unit.startswith("priv") and not logged_in(request):
+            raise web.HTTPFound(f"/login?next=/api/units/{unit}/pages")
+        if unit == "bad-html":
+            return web.json_response({"pages": [{"url": f"http://{CDN_HOST}/img/{unit}/1.png", "label": "1"},
+                                                {"url": f"http://{CDN_HOST}/media/html-as-image.png", "label": "2"}]})
+        if unit == "bad-corrupt":
+            return web.json_response({"pages": [{"url": f"http://{CDN_HOST}/media/corrupt.png", "label": "1"}]})
         return web.json_response({"pages": [
             {"url": f"http://{CDN_HOST}/img/{unit}/{i}.png", "label": str(i)} for i in range(1, 4)]})
 
+    async def files(request: web.Request) -> web.Response:
+        return web.json_response({"files": [{"url": f"http://{HOST}/files/versioned.pdf", "format": "pdf"}]})
+
     async def image(request: web.Request) -> web.Response:
+        if request.match_info.get("unit") == "bad-limited" and scenario.rate_limit_remaining > 0:
+            scenario.rate_limit_remaining -= 1
+            return web.Response(status=429, text="slow down", headers={"Retry-After": str(scenario.retry_after)})
         return web.Response(body=png(), content_type="image/png")
 
     async def html_as_image(request: web.Request) -> web.Response:
@@ -144,7 +177,7 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
         return web.Response(body=b"\x89PNG\r\n\x1a\n" + b"\x00" * 64, content_type="image/png")
 
     async def versioned_file(request: web.Request) -> web.StreamResponse:
-        body = (f"%PDF-1.4 version {scenario.file_version} ".encode() * 2000)
+        body = pdf(scenario.file_version)
         etag = f'"v{scenario.file_version}"'
         headers = {"ETag": etag, "Accept-Ranges": "bytes"}
         range_header = request.headers.get("Range")
@@ -231,7 +264,7 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
 
     app.add_routes([
         web.get("/search", search), web.get("/work/{work}", work), web.get("/api/works/{work}/units", catalog),
-        web.get("/api/units/{unit}/pages", pages), web.get("/img/{unit}/{page}.png", image),
+        web.get("/api/units/{unit}/pages", pages), web.get("/api/units/{unit}/files", files), web.get("/img/{unit}/{page}.png", image),
         web.get("/covers/{work}.png", image), web.get("/media/html-as-image.png", html_as_image),
         web.get("/media/corrupt.png", corrupt_image), web.get("/files/versioned.pdf", versioned_file),
         web.get("/files/interrupted.pdf", interrupted), web.get("/limited", limited), web.get("/flaky", flaky),

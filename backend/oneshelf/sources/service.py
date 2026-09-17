@@ -157,12 +157,14 @@ class SourceService:
         return result
 
     async def fetch_resource(self, plugin_id: str, url: str, *, capability: str,
-                             priority: Priority = Priority.MANUAL, max_bytes: int | None = None) -> HttpResponse:
+                             priority: Priority = Priority.MANUAL, max_bytes: int | None = None,
+                             headers: dict[str, str] | None = None) -> HttpResponse:
         """Fetch a resource descriptor URL (images, files) with the capability's session scope."""
         package, fetcher = await self._fetcher(plugin_id, priority)
         recipe = package.recipes.get(capability)
         auth_mode = recipe.request.auth if recipe is not None else "none"
-        response = await fetcher.request(url, capability=capability, auth_mode=auth_mode, max_bytes=max_bytes)
+        response = await fetcher.request(url, capability=capability, auth_mode=auth_mode, max_bytes=max_bytes,
+                                         headers=headers)
         if response.status == 429:
             self._record(package, capability, "failure", "rate_limit")
             raise_for_rate_limit(response)

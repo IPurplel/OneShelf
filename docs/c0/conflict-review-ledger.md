@@ -152,3 +152,23 @@ Routine choices made under Meta Prompt §C0.7 ("make routine engineering choices
 | D-C4-11 | Home Hero: Continue Reading → pinned Work → cached discovery, never a network request. The §31.4 "new-release Work" step is added with Follow in C6. | §31.4 | Adopted |
 | D-C4-12 | A Home feed that fails simply stays hidden for that source (no error placeholder, no invented data). | §31.1 | Adopted |
 | D-C4-13 | Direct URL entry previews through normal capabilities and persists nothing until the user acts. | §8 | Adopted |
+
+---
+
+## 10. Engineering decisions recorded during C5 (2026-09-17)
+
+| ID | Decision | Rationale / Master refs | Disposition |
+|---|---|---|---|
+| D-C5-01 | A `settings` table (scopes global/source/work/content_type) was added in C5; §42 defaults stay in the defaults registry and settings only override them. | §14 precedence, D2 single defaults source | Adopted |
+| D-C5-02 | Method → capability mapping: `direct` uses the `downloads` capability (whole files, Range/If-Range resume); `html_api`, `reader_media` and `browser` use the `reader` capability (per-page resources). | §14 methods; recipes declare their own fetch kind | Adopted |
+| D-C5-03 | Fallback is considered only after Smart Retry is exhausted, and only for method-specific categories (parser/selector/media/resource/not-found). Auth, CAPTCHA, rate limit, outage, transport and blocked never trigger a method change. | §14 | Adopted |
+| D-C5-04 | Preferred + Ask records a pending decision on the failed job (`pending_decision_json`) instead of switching method automatically; the user chooses through retry with a one-time method. | §14 "Preferred + Ask" | Adopted |
+| D-C5-05 | A method change restarts the unit in a fresh staging area (manifest cleared), so methods are never mixed inside one unit. | §14 "never mix extraction methods within one Reading Unit" | Adopted |
+| D-C5-06 | Enqueue skips units that already have a verified asset or an active job, and reports them as `skipped`. | §16.1, avoids duplicate work and duplicate assets | Adopted |
+| D-C5-07 | CBZ packaging stores original page bytes uncompressed (ZIP_STORED) with ComicInfo.xml, and the archive is validated before commit. | §39 preserve originals, no recompression | Adopted |
+| D-C5-08 | Reader Cache identity = source + Reading Unit key + hashed resource URL + validator; blobs live outside the library database and never inside a storage root. | §26.20 | Adopted |
+| D-C5-09 | Cache protection is explicit: `set_open_units()` marks what the Reader is showing; protected entries are never evicted even when that keeps the cache above its cap. | §42 Reader Cache protections | Adopted |
+| D-C5-10 | Progress writes are revision-checked (compare-and-set). Mark Read / Mark Unread and rereading always work; only stale writes are rejected. | §26.23 | Adopted |
+| D-C5-11 | Auto-download while reading queues the current unit plus up to 5 existing following units of the same track; leaving the Work cancels only queued jobs other than the unit being read. | §19 | Adopted |
+| D-C5-12 | Downloaded content is read from the local archive with no network and no cache entry; the Reader Cache is only for online reading. | §3.3, §26.20 | Adopted |
+| D-C5-13 | Reader page bytes are served from a dedicated route with `Content-Security-Policy: sandbox`, `nosniff` and `no-store`, ahead of the C2 isolated viewer. | §27, §48 | Adopted |

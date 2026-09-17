@@ -2,17 +2,31 @@ schema: oneshelf.osp/1
 id: oneshelf.test-source
 name: OneShelf Test Source
 version: 1.0.0
-api: "1.0"
-description: Deterministic local source for failure and recovery testing. Development use only.
+api: '1.0'
+description: Deterministic local source for failure and recovery testing. Development
+  use only.
 publisher: OneShelf
-capabilities: [search, work, catalog, reader, check_session, health]
+capabilities:
+- search
+- work
+- catalog
+- reader
+- downloads
+- check_session
+- health
 network:
-  domains: [testsource.example]
-  cdn_domains: [cdn.testsource.example]
+  domains:
+  - testsource.example
+  cdn_domains:
+  - cdn.testsource.example
   allow_http: true
 auth:
   login_url: http://testsource.example/login
-  session_domains: [testsource.example]
-  optional_for: [catalog, check_session]
+  session_domains:
+  - testsource.example
+  optional_for:
+  - catalog
+  - check_session
+  - reader
 defaults:
   language: en

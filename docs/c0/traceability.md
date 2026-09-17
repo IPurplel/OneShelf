@@ -1,6 +1,6 @@
 # Requirement Traceability Matrix
 
-Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3, C4) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
+Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3, C4, C5) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
 
 **Coverage:** every Master heading from §0 to §56 (57 sections, 152 numbered subsections, and the unnumbered sub-headings in §4.4, §20, §26.3, §26.22), all 30 §51 invariants (INV), all 17 §42 default groups (DEF), all 30 §49 exclusions (EX), Meta Prompt §D3 deliverables (MPD) and §G investigation rules (MPG).
 
@@ -90,19 +90,19 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
-| M14 | Methods Direct/HTML-API/Reader Media/Browser; Extraction Contract (source, language, unit, output, method); precedence one-time > source > global > plugin; Preferred + Ask default; Strict/Locked; optional Automatic Fallback; Smart Retry first; no fallback on auth/CAPTCHA/rate limit/outage; explicit public-reader alternative; no auth bypass; health doesn't rewrite; no mixed methods per unit; switch = full temp redownload + validate + atomic replace; method-specific resume; plugin update doesn't change method; history records methods locally | C3,C5 | be/downloads/extraction | download dialogs, Settings → Downloads advanced | extraction_contracts, history | contract-preservation + mode semantics tests | NS |
+| M14 | Methods Direct/HTML-API/Reader Media/Browser; Extraction Contract (source, language, unit, output, method); precedence one-time > source > global > plugin; Preferred + Ask default; Strict/Locked; optional Automatic Fallback; Smart Retry first; no fallback on auth/CAPTCHA/rate limit/outage; explicit public-reader alternative; no auth bypass; health doesn't rewrite; no mixed methods per unit; switch = full temp redownload + validate + atomic replace; method-specific resume; plugin update doesn't change method; history records methods locally | C3,C5 | be/downloads/extraction | download dialogs, Settings → Downloads advanced | extraction_contracts, history | contract-preservation + mode semantics tests | IMPL |
 | M15 | Global Source Traffic Governor: priority Reader > interactive > manual/downloads > read-ahead > Follow > Health; browser same priority; low-priority browser never blocks Reader; per-source/global concurrency, rate limits, Retry-After, backoff, fairness | C3,C5 | be/net/governor | — | in-memory + persisted rate state | INV-26 saturation test; fairness tests | IMPL |
-| M16 | Download Engine: persistent SQLite queue/state machine + scheduler + workers + governor + staging + integrity + packaging + commit + recovery + history; grouped UI states | C5 | be/downloads | Downloads | jobs, batches | state machine tests | NS |
-| M16.1 | Per-unit jobs under batch; partial failure ≠ batch failure; Completed / Completed with Issues / Retry All Failed; windowed queue; pause/resume/cancel/retry/reorder | C5 | be/downloads/scheduler | Downloads batch cards | batches, jobs | partial success; huge queue memory bound | NS |
-| M16.2 | Concurrency HTTP 4, Browser 1 independent; advanced may raise | C5 | be/settings/defaults, be/net | Settings advanced | settings | DEF-concurrency test | NS |
-| M16.3 | Initial + up to 3 retries, exponential backoff + jitter; 429 Retry-After; auth → WAITING_FOR_SESSION; 404 no blind repeat; 5xx/timeout/reset retryable | C5 | be/downloads/retry | — | job attempts | Test Source 429/500/404/session-expiry tests | NS |
-| M16.4 | Resume: skip valid pages; Range + ETag/Last-Modified/If-Range, never splice; browser rediscover manifest, compatible resume else restart; per-job manifest | C5 | be/downloads/resume | — | job_manifests | changed-ETag, Range, browser manifest tests | NS |
-| M16.5 | Integrity: images exist/non-zero/decodable/sensible/not HTML/coverage; books type/magic/openable/container valid; no partials in Shelf; same-method page repair | C5 | be/downloads/integrity | Reader repair | asset integrity | HTML-as-media, corrupt media, content-open checks | NS |
-| M16.6 | Cancel setting: delete or keep partial (A4) | C5 | be/downloads | Settings → Downloads | staging | both-mode tests | NS |
-| M16.7 | Clearing Download History keeps content + progress; no cloud telemetry | C5 | be/downloads/history | Downloads history | history table | INV-23 test | NS |
+| M16 | Download Engine: persistent SQLite queue/state machine + scheduler + workers + governor + staging + integrity + packaging + commit + recovery + history; grouped UI states | C5 | be/downloads | Downloads | jobs, batches | state machine tests | IMPL |
+| M16.1 | Per-unit jobs under batch; partial failure ≠ batch failure; Completed / Completed with Issues / Retry All Failed; windowed queue; pause/resume/cancel/retry/reorder | C5 | be/downloads/scheduler | Downloads batch cards | batches, jobs | partial success; huge queue memory bound | IMPL |
+| M16.2 | Concurrency HTTP 4, Browser 1 independent; advanced may raise | C5 | be/settings/defaults, be/net | Settings advanced | settings | DEF-concurrency test | IMPL |
+| M16.3 | Initial + up to 3 retries, exponential backoff + jitter; 429 Retry-After; auth → WAITING_FOR_SESSION; 404 no blind repeat; 5xx/timeout/reset retryable | C5 | be/downloads/retry | — | job attempts | Test Source 429/500/404/session-expiry tests | IMPL |
+| M16.4 | Resume: skip valid pages; Range + ETag/Last-Modified/If-Range, never splice; browser rediscover manifest, compatible resume else restart; per-job manifest | C5 | be/downloads/resume | — | job_manifests | changed-ETag, Range, browser manifest tests | IMPL |
+| M16.5 | Integrity: images exist/non-zero/decodable/sensible/not HTML/coverage; books type/magic/openable/container valid; no partials in Shelf; same-method page repair | C5 | be/downloads/integrity | Reader repair | asset integrity | HTML-as-media, corrupt media, content-open checks | IMPL |
+| M16.6 | Cancel setting: delete or keep partial (A4) | C5 | be/downloads | Settings → Downloads | staging | both-mode tests | IMPL |
+| M16.7 | Clearing Download History keeps content + progress; no cloud telemetry | C5 | be/downloads/history | Downloads history | history table | INV-23 test | IMPL |
 | M17 | Idempotent Commit Journal: staging → journal → rename → verify → DB txn → complete; startup reconciles listed cases; recovery repeatable; order recover → reconcile → clean orphans | C1,C5 | be/storage/commit_journal | — | commit_journal | crash injection at each boundary; repeated reconciliation (INV-17) | IMPL |
 | M18 | SQLite source of truth; WAL; migrations; short serialized writes; consistency boundaries; consistent snapshot backups; never copy live DB | C1,C7 | be/db | — | oneshelf.db | migration/recovery tests; snapshot consistency test | IMPL |
-| M19 | Reading ≠ Downloading; auto-download OFF; Current Unit Only / Current + Read Ahead (next 5 existing); Download Entire Work separate; trigger ~12% + genuine interaction; flow via Reader Cache; priority; leaving Work cancels not-started read-ahead; no source/language switch | C5 | be/reader/auto_download | Reader settings (advanced), Settings → Downloads | settings, jobs | INV-07/08; engagement trigger; leave-Work cancellation | NS |
+| M19 | Reading ≠ Downloading; auto-download OFF; Current Unit Only / Current + Read Ahead (next 5 existing); Download Entire Work separate; trigger ~12% + genuine interaction; flow via Reader Cache; priority; leaving Work cancels not-started read-ahead; no source/language switch | C5 | be/reader/auto_download | Reader settings (advanced), Settings → Downloads | settings, jobs | INV-07/08; engagement trigger; leave-Work cancellation | IMPL |
 
 ## §20–§23 Follow, health, Shelf, independence
 
@@ -158,12 +158,12 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M26.17 | Settings precedence Session > Work > Content-Type > Global; remember per-Work ON; normal vs advanced settings; backgrounds Black/Dark Gray/White | C2 | be/settings, fe/reader/settings | Reader Settings | reader_settings scoped | precedence tests | NS |
 | M26.18 | Preload ~next 7 / previous 4; Long Strip bounded window; advanced only | C2,C5 | fe/reader/preload | advanced settings | — | DEF preload test | NS |
 | M26.19 | Compact download state (not downloaded/progress/downloaded); quiet auto-download; Download Entire Work on Work page/More | C2,C5 | fe/reader | Reader top bar | — | UI test | NS |
-| M26.20 | Reader Cache ≠ download; no noisy Cached badges; details distinguish; cache key source + unit identity + resource validator, never title/number | C5 | be/reader/cache | Reader details | cache.db, blobs | key tests; eviction protections | NS |
+| M26.20 | Reader Cache ≠ download; no noisy Cached badges; details distinguish; cache key source + unit identity + resource validator, never title/number | C5 | be/reader/cache | Reader details | cache.db, blobs | key tests; eviction protections | IMPL |
 | M26.21 | Page failure Retry/Repair/Skip; corrupt local Repair from Source/Skip; never silently delete; source unavailable keeps local/cached readable, no switch; inline Reconnect resuming same unit; calm rate-limit auto retry; offline Downloaded vs Online-only | C2,C5 | fe/reader/errors, be/reader | Reader | — | error-state tests | NS |
 | M26.22 | Book Reader; no full notes/drawing/annotations; only bookmarks + highlights; sequential page bookmarks not required | C2 | fe/reader/book | Reader | bookmarks, highlights | EX-15 check | NS |
 | M26.22a | EPUB: font family/size, line height, margins, theme, TOC, search, bookmarks, highlights, logical progress; TOC tabs; no fake page count | C2 | fe/reader/epub | Reader | bookmarks, highlights, progress | EPUB gate tests (isolated renderer) | NS |
 | M26.22b | PDF: navigation, zoom, fit width/page, text-layer search, bookmarks, highlights, progress, optional sidebar | C2 | fe/reader/pdf | Reader | bookmarks, highlights, progress | PDF gate tests | NS |
-| M26.23 | Multi-tab: no stale regression; debounced writes; force flush on unit change/hidden/exit/lifecycle | C2 | be/reader/progress, fe/reader | — | progress.revision | multi-tab stale-write tests; Mark Unread/reread still work | NS |
+| M26.23 | Multi-tab: no stale regression; debounced writes; force flush on unit change/hidden/exit/lifecycle | C2 | be/reader/progress, fe/reader | — | progress.revision | multi-tab stale-write tests; Mark Unread/reread still work | IMPL |
 | M26.24 | Layout-preserving skeletons; one-time "Tap/click center" hint | C2 | fe/reader | Reader | local hint flag | UI test | NS |
 | M27 | Never inject untrusted HTML/EPUB/document content into app origin/DOM; sanitize, sandbox, CSP, script blocking, isolated viewer, safe SVG; no auth/privileged/network escape (K3) | C2 | be/reader/content_routes, fe/reader/isolation | Reader | — | INV-12 malicious HTML/EPUB/SVG/PDF tests | NS |
 
@@ -260,7 +260,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M36 | Real-time event channel (SSE/WebSocket) for downloads, notifications, progress, source/job state; polling fallback; no cloud | C1,C6 | be/events, be/api/sse, fe/events | all live screens | — | multi-client update + reconnect fallback tests | IMPL |
 | M37 | Import CBZ/PDF/EPUB; Copy default; Move explicit; Leave in Place advanced/future *(optional)*; confident associate / Choose Existing / Create Local Work; no aggressive merge; drag & drop optional | C1,C7 | be/importer | Import flow | imports, assets | import uncertainty tests; Copy leaves source intact | IMPL |
 | M38 | Scanner reconciles; manual delete → Missing Local File; offline → Unavailable; missing plugin still readable; OneShelf IDs aid recovery; per-asset checksum/size/path/integrity; checksums never matching evidence; no dedup | C1,C7 | be/storage/scanner | Storage | assets | scanner tests | IMPL |
-| M39 | CBZ may include ComicInfo.xml; preserve originals; no unnecessary recompression; packaging only after integrity verification | C1,C5 | be/downloads/packaging | — | — | packaging order + byte preservation tests | NS |
+| M39 | CBZ may include ComicInfo.xml; preserve originals; no unnecessary recompression; packaging only after integrity verification | C1,C5 | be/downloads/packaging | — | — | packaging order + byte preservation tests | IMPL |
 
 ## §40–§43 API docs, source suite, defaults, diagnostics
 
@@ -309,7 +309,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | INV-04 | User overrides never silently overwritten | C4,C7 | refresh, plugin update, restore merge preserve overrides | IMPL |
 | INV-05 | Unknown metadata never negative evidence | C4 | missing creator/date/volume/classification stays Unknown, not a mismatch | IMPL |
 | INV-06 | Unknown quality never blocks content | C4,C5 | Unknown quality doesn't hide/reject/mark unavailable | NS |
-| INV-07 | Reading never implies permanent download unless enabled | C5 | ordinary reading makes no permanent download | NS |
+| INV-07 | Reading never implies permanent download unless enabled | C5 | ordinary reading makes no permanent download | IMPL |
 | INV-08 | Auto-download OFF by default | C1,C5 | defaults registry + fresh install assertion; enabled engagement per spec | IMPL |
 | INV-09 | Follow never auto-downloads | C6 | new-release events enqueue nothing | NS |
 | INV-10 | Remove from Shelf / Unfollow / Delete Files independent | C6 | separate assertions on files, Shelf, Follow, read state, progress | NS |
@@ -325,7 +325,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | INV-20 | Export never silently modifies library | C7 | state diff before/after normal export | NS |
 | INV-21 | Download Missing Then Export requires explicit notice | C7 | disclosure required; normal validated commit then export | NS |
 | INV-22 | Notifications never alter reading state | C6 | Seen / Clear Seen / cleanup leave reading untouched | NS |
-| INV-23 | Clearing history never deletes content/state | C5,C6,C7 | download/export/notification history cleanup preserves content + progress | NS |
+| INV-23 | Clearing history never deletes content/state | C5,C6,C7 | download/export/notification history cleanup preserves content + progress | IMPL |
 | INV-24 | Navigation follows Source Track order | C2 | prologue, Special, Extra, 3.5 navigate by track order | NS |
 | INV-25 | Cross-source progress approximate/manual | C2,C5 | Start This Unit / Try Approximate Position; no guessed unit or exact-page claim | NS |
 | INV-26 | Browser background work can't starve Reader/direct work | C3,C5 | saturated low-priority work; bounded Reader responsiveness | IMPL |
@@ -340,17 +340,17 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 |---|---|---|---|---|
 | DEF-backup | Library Backup every 7 d; Full manual; retain last 4 verified | C7 | schedule + rotation tests | NS |
 | DEF-discovery-cache | TTL 7 d; 250 MB; LRU | C4 | cleanup both-limit tests | IMPL |
-| DEF-reader-cache | TTL 7 d; 5 GB; LRU; never evict current unit / open nearby pages / permanent downloads | C5 | eviction protection tests | NS |
-| DEF-auto-download | OFF; when enabled ~12% + genuine interaction | C1,C5 | INV-08; trigger test | NS |
-| DEF-read-ahead | next 5 existing Reading Units | C5 | bounded read-ahead test | NS |
-| DEF-auto-mark-read | 97% | C2 | threshold test | NS |
+| DEF-reader-cache | TTL 7 d; 5 GB; LRU; never evict current unit / open nearby pages / permanent downloads | C5 | eviction protection tests | IMPL |
+| DEF-auto-download | OFF; when enabled ~12% + genuine interaction | C1,C5 | INV-08; trigger test | IMPL |
+| DEF-read-ahead | next 5 existing Reading Units | C5 | bounded read-ahead test | IMPL |
+| DEF-auto-mark-read | 97% | C2 | threshold test | IMPL |
 | DEF-reader-smart-controls | auto-hide ~3 s | C2 | timing test | NS |
 | DEF-download-concurrency | HTTP 4; Browser 1 (independent) | C3,C5 | governor limit tests | IMPL |
 | DEF-follow | ~12 h + jitter | C6 | scheduler test | NS |
 | DEF-notifications | resolved visible ~1 h; history 30 d or 500 | C6 | lifecycle + both-limit tests | NS |
 | DEF-export-activity | 30 d or 100 jobs | C7 | both-limit test | NS |
 | DEF-diagnostics | 7 d or 100 MB | C3 | both-limit test | NS |
-| DEF-retry | initial + up to 3 retries | C5 | retry count test | NS |
+| DEF-retry | initial + up to 3 retries | C5 | retry count test | IMPL |
 | DEF-remote-session | 30 d (options shorter/90 d/1 y/manual) | C8 | session expiry test | NS |
 | DEF-storage-reserve | 5% capped 5 GB; warning ~2× reserve | C1 | guard tests | IMPL |
 | DEF-catalog-suspicious | ≥~50% loss and ≥5 units; complete snapshots only; not sole truth | C4 | heuristic boundary tests | IMPL |
@@ -475,3 +475,18 @@ Also improved in C3 without changing status: INV-14 now also covers plugin-suppl
 | INV-27, INV-28 | Work-level results with selectable provenance; covers never identity | grouping suite | search UI presentation (C2) |
 | DEF-discovery-cache, DEF-catalog-suspicious | defaults registry values applied | cache + trust suites | — |
 | MPG-3 | completeness evidence drives trust; no numeric-gap inference | runtime + trust suites | live sources (C9) |
+
+### C5 — 2026-09-17 (gate passed; see `docs/c5/verification.md`)
+
+| ID | C5 implementation | Evidence | Remaining |
+|---|---|---|---|
+| M14 | `downloads/contract.py` (precedence, modes, Smart Retry, fallback eligibility) | `tests/unit/downloads/test_contract.py` | browser-method downloads (C9); Ask UI (C2) |
+| M16, M16.1–M16.7 | `downloads/engine.py`, `downloads/runner.py`, migration 0007 | `tests/integration/downloads/test_engine.py`, `test_library_api.py` | Downloads screen (C2), failure notifications (C6) |
+| M19 | `reader/service.py` auto-download | `tests/integration/reader/test_reading.py` | Reader settings UI (C2) |
+| M26.20, M26.23 | `reader/cache.py`, revisioned progress | reader suite, API progress tests | Reader UI (C2) |
+| M39 | CBZ packaging with ComicInfo, validated before commit | engine suite | — |
+| INV-07 | online reading creates no assets, files or batches | reader + API suites | — |
+| INV-23 | clearing history keeps content and progress | engine + API suites | export/notification history (C6/C7) |
+| DEF-retry, DEF-reader-cache, DEF-read-ahead, DEF-auto-download, DEF-auto-mark-read | defaults applied at runtime | contract, engine and reader suites | remaining defaults in their phases |
+
+Also strengthened without status change: INV-16 (invalid media never registered), INV-17 (download commits replay through the journal), INV-26 (Reader stays responsive under download saturation).

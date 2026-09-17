@@ -61,5 +61,7 @@ Scenarios are controlled with `POST /__control` on the Test Source (e.g. `{"big_
 | Discovery | `GET /api/search` (SSE: `local` → `partial` → `complete`), `POST /api/search/retry`, `POST /api/resolve-url`, `GET /api/home` |
 | Library identity | `POST /api/listings/bind`, `POST /api/mappings/{merge,split,unlink,never-match}` |
 | Catalog trust | `GET /api/tracks/{id}/catalog`, `POST /api/tracks/{id}/catalog/refresh`, `POST /api/tracks/{id}/catalog/trust` |
+| Downloads | `POST /api/downloads`, `GET /api/downloads[/{batch}]`, `POST /api/downloads/{batch}/{pause,resume,retry-failed,cancel,reorder}`, `POST /api/downloads/jobs/{job}/{retry,cancel}`, `DELETE /api/downloads/history` |
+| Reader | `GET /api/reader/units/{id}/pages`, `GET /api/reader/units/{id}/pages/{index}` (sandboxed bytes), `POST /api/reader/units/{id}/progress`, `POST /api/reader/units/{id}/{mark-read,mark-unread,engagement}`, `POST /api/reader/works/{id}/leave` |
 
 Remote clients are refused until C8; LAN and loopback clients are served per `ONESHELF_TRUSTED_NETWORKS`.
