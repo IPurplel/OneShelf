@@ -41,14 +41,19 @@ def _rows_for_work(conn: sqlite3.Connection, work_id: str) -> list[tuple]:
     return [(kind, entity_id, title, language) for kind, entity_id, title, language in rows if title]
 
 
+def write_work_index(conn: sqlite3.Connection, work_id: str) -> None:
+    """Rebuilds one work's index rows; the caller owns the transaction (used by commit-journal registrars)."""
+    conn.execute("DELETE FROM search_index WHERE work_id = ?", (work_id,))
+    for kind, entity_id, title, language in _rows_for_work(conn, work_id):
+        keys = search_keys(title)
+        conn.execute(
+            "INSERT INTO search_index (title, normalized, loose, entity_kind, entity_id, work_id, language)"
+            " VALUES (?,?,?,?,?,?,?)", (title, keys.normalized, keys.loose, kind, entity_id, work_id, language))
+
+
 def index_work(conn: sqlite3.Connection, work_id: str) -> None:
     with transaction(conn):
-        conn.execute("DELETE FROM search_index WHERE work_id = ?", (work_id,))
-        for kind, entity_id, title, language in _rows_for_work(conn, work_id):
-            keys = search_keys(title)
-            conn.execute(
-                "INSERT INTO search_index (title, normalized, loose, entity_kind, entity_id, work_id, language)"
-                " VALUES (?,?,?,?,?,?,?)", (title, keys.normalized, keys.loose, kind, entity_id, work_id, language))
+        write_work_index(conn, work_id)
 
 
 def reindex_all(conn: sqlite3.Connection) -> int:

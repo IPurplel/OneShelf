@@ -191,3 +191,20 @@ Routine choices made under Meta Prompt §C0.7 ("make routine engineering choices
 | D-C6-10 | New-release summaries use a numeric range only when the numbers are contiguous integers ("Ch. 209–211"); otherwise they list labels ("Chapter 209, Special, Extra Story"). | §30.2 | Adopted |
 | D-C6-11 | Only final download failures notify; Smart Retry, page repairs, health probes and cache work never do (`should_notify` blocklist). | §30.1, §30.4 | Adopted |
 | D-C6-12 | API route ordering is enforced by a test: a literal path may never be registered after a parameterized path that would shadow it (this bug shipped twice during C5/C6). | defensive; no Master rule | Adopted |
+
+---
+
+## 12. Engineering decisions recorded during C7 (2026-09-17)
+
+| ID | Decision | Rationale / Master refs | Disposition |
+|---|---|---|---|
+| D-C7-01 | Merge restores records that are missing from the current library, including Shelf entries removed after the backup was taken. | §33.7 "missing records may be added"; the Master gives no tombstones | **Review** |
+| D-C7-02 | Export output layout is `<Work Title> (<language>)/` per selected work, with the optional `oneshelf-export.json` sidecar inside it; ZIP wraps that same folder. | §34.5–34.7 ask for cleaner naming and a folder default without fixing a layout | **Review** |
+| D-C7-03 | Export history retention is 30 days or the 100 most recent jobs, whichever is tighter. | §34.11, DEF-export-activity | Adopted |
+| D-C7-04 | Backup retention is four verified archives in a single configured backup location; several simultaneous backup locations are not modelled in v1. | §33.8–33.9 | **Review** |
+| D-C7-05 | Excluded-by-construction backup tables: source session refs, commit journal, download jobs and batches, search index, health signals and state, storage-migration bookkeeping. They are cleared from the snapshot copy, which is then vacuumed. | §33.1, §33.3 (rebuildable/transient state is not library state) | Adopted |
+| D-C7-06 | A local import writes its search-index rows inside the same commit-journal transaction, so an imported work is immediately findable and can be an association target for later imports. | §6.1, §22, §37 | Adopted |
+| D-C7-07 | `/api/import/uploads` accepts a `filename` query parameter used only as a label for the suggested title; the stored path is always the opaque upload id. | §48 path safety; a client-supplied name never influences placement | Adopted |
+| D-C7-08 | A storage migration is planned and verified against the destination before any file is copied, and the old copy is deleted only by an explicit later request (`discard_old_copy`). | §24.8 "never auto-delete old" | Adopted |
+| D-C7-09 | Export chooses among existing files only: CBZ is preferred for sequential content, books export as they are, and an explicit format list is honoured exactly. Nothing is ever converted. | §34.4, EX-29 | Adopted |
+| D-C7-10 | Selected Works export as one job carrying one contract per work (shared destination, output and conflict policy), so sources and languages are never mixed. | §34.1 | Adopted |

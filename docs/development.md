@@ -65,6 +65,10 @@ Scenarios are controlled with `POST /__control` on the Test Source (e.g. `{"big_
 | Shelf | `GET /api/shelf` (views and `q=` local search), `POST /api/shelf/{work}`, `GET /api/shelf/{work}/removal-summary`, `DELETE /api/shelf/{work}`, `DELETE /api/works/{work}/files` |
 | Follow | `GET /api/follows`, `POST /api/follows/{work}`, `POST /api/follows/{work}/{check,preferred-source}`, `POST /api/follows/check-all`, `DELETE /api/follows/{work}`, `POST /api/follows/undo` |
 | Notifications / health | `GET /api/notifications[?attention=true]`, `POST /api/notifications/{mark-all-seen,clear-seen,cleanup}`, `GET /api/sources/{id}/health/state` |
+| Storage | `GET /api/storage`, `POST /api/storage/roots`, `POST /api/storage/roots/{root}/{default,remap,migrate}`, `POST /api/storage/migrations/{id}/discard-old-copy`, `POST /api/storage/scan` |
+| Import | `POST /api/import/uploads?filename=` (review + association suggestions), `POST /api/import` |
+| Backup / restore | `GET|POST /api/backups`, `POST /api/backups/verify`, `POST /api/restore/preflight`, `POST /api/restore` |
+| Export | `POST /api/export/preview`, `POST /api/export` (one work or `works[]`), `GET /api/export/{job}`, `POST /api/export/{job}/retry-failed`, `DELETE /api/export/history` |
 | Reader | `GET /api/reader/units/{id}/pages`, `GET /api/reader/units/{id}/pages/{index}` (sandboxed bytes), `POST /api/reader/units/{id}/progress`, `POST /api/reader/units/{id}/{mark-read,mark-unread,engagement}`, `POST /api/reader/works/{id}/leave` |
 
 Remote clients are refused until C8; LAN and loopback clients are served per `ONESHELF_TRUSTED_NETWORKS`.

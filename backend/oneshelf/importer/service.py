@@ -19,6 +19,7 @@ from oneshelf.db.connection import transaction
 from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.integrity.validators import detect_format, validate
+from oneshelf.search.index import write_work_index
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.storage.commit import CommitEngine, CommitError, CommitRequest
 from oneshelf.storage.hashing import sha256_file
@@ -69,14 +70,15 @@ class ImportOutcome:
     warnings: list[str] = field(default_factory=list)
 
 
-def inspect_import(path: str | Path) -> InspectResult:
+def inspect_import(path: str | Path, *, display_name: str | None = None) -> InspectResult:
+    """`display_name` is the name the file had for the user; an upload's stored path is an opaque id."""
     path = Path(path)
     result = validate(path)
     return InspectResult(
         valid=result.ok,
         format=result.format,
         reason=result.reason,
-        suggested_title=result.metadata.get("title") or path.stem,
+        suggested_title=result.metadata.get("title") or (display_name and Path(display_name).stem) or path.stem,
         language=result.metadata.get("language"),
         page_count=result.page_count,
         warnings=result.warnings,
@@ -118,6 +120,7 @@ def register_local_import(conn: sqlite3.Connection, p: dict) -> None:
     )
     if conn.execute("SELECT 1 FROM assets WHERE id = ?", (asset["id"],)).fetchone() is None:
         raise CommitError("asset registration conflicted with an existing record")
+    write_work_index(conn, work["id"])   # a local import is a Work like any other, so local-first search must find it
     if p["add_to_shelf"]:
         conn.execute("INSERT OR IGNORE INTO shelf_entries (work_id, added_at) VALUES (?, ?)", (work["id"], now))
     conn.execute(

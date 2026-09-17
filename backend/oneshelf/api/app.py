@@ -16,6 +16,12 @@ from oneshelf.api.middleware import AccessBoundaryMiddleware
 from oneshelf.api.discovery import router as discovery_router
 from oneshelf.api.library import router as library_router
 from oneshelf.api.shelf import router as shelf_router
+from oneshelf.api.storage import router as storage_router
+from oneshelf.backup.runner import BackupRunner
+from oneshelf.backup.service import BackupService
+from oneshelf.export.service import ExportService
+from oneshelf.restore.service import RestoreService
+from oneshelf.storage.migration import StorageMigration
 from oneshelf.follow.runner import FollowRunner
 from oneshelf.follow.service import FollowService
 from oneshelf.health.service import HealthService
@@ -71,6 +77,10 @@ class Services:
     follow_runner: FollowRunner | None = None
     notifications: NotificationService | None = None
     health: HealthService | None = None
+    migrations: StorageMigration | None = None
+    backups: BackupService | None = None
+    restore: RestoreService | None = None
+    exports: ExportService | None = None
 
 
 @dataclass(frozen=True)
@@ -136,6 +146,7 @@ def create_app(config: AppConfig) -> FastAPI:
         reader_cache = ReaderCache(Path(config.data_dir) / "reader-cache", Path(config.data_dir) / "cache.db")
         reader = ReaderService(conn, source_service, reader_cache, engine, settings=settings, events=app.state.bus)
         catalog = CatalogTrust(conn)
+        backups = BackupService(conn, config.db_path, backup_dir=Path(config.data_dir) / "backups")
         notifications = NotificationService(conn, events=app.state.bus)
         shelf = ShelfService(conn, events=app.state.bus)
         follows = FollowService(conn, catalog, events=app.state.bus)
@@ -145,10 +156,14 @@ def create_app(config: AppConfig) -> FastAPI:
             conn, plugins, sessions, governor, source_service, logins, registry, cache,
             SearchService(conn, source_service, cache), HomeService(conn, source_service, cache),
             UrlResolver(conn, plugins, source_service), catalog, engine, reader, reader_cache,
-            shelf, follows, follow_runner, notifications, HealthService(conn, events=app.state.bus))
+            shelf, follows, follow_runner, notifications, HealthService(conn, events=app.state.bus),
+            StorageMigration(conn), backups, RestoreService(conn, config.db_path, backups=backups),
+            ExportService(conn, downloads=engine))
         runner = DownloadRunner(engine)
         await runner.start()
         await follow_runner.start()
+        backup_runner = BackupRunner(backups, notifications=notifications)
+        await backup_runner.start()
         try:
             yield
         finally:
@@ -156,6 +171,7 @@ def create_app(config: AppConfig) -> FastAPI:
                 await login.cancel()
             await runner.stop()
             await follow_runner.stop()
+            await backup_runner.stop()
             await source_service.aclose()
             await browser.aclose()
             cache.close()
@@ -187,6 +203,7 @@ def create_app(config: AppConfig) -> FastAPI:
     app.include_router(discovery_router)
     app.include_router(library_router)
     app.include_router(shelf_router)
+    app.include_router(storage_router)
     app.add_middleware(AccessBoundaryMiddleware, config=config.access)
     app.add_middleware(RequestGuardMiddleware, allowed_hosts=config.allowed_hosts)
     return app

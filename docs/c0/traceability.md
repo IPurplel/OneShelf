@@ -1,6 +1,6 @@
 # Requirement Traceability Matrix
 
-Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3, C4, C5, C6) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
+Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3, C4, C5, C6, C7) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
 
 **Coverage:** every Master heading from §0 to §56 (57 sections, 152 numbered subsections, and the unnumbered sub-headings in §4.4, §20, §26.3, §26.22), all 30 §51 invariants (INV), all 17 §42 default groups (DEF), all 30 §49 exclusions (EX), Meta Prompt §D3 deliverables (MPD) and §G investigation rules (MPG).
 
@@ -121,7 +121,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
-| M24 | Storage model | C1,C7 | be/storage | Settings → Storage | storage_roots | rows below | NS |
+| M24 | Storage model | C1,C7 | be/storage | Settings → Storage | storage_roots | rows below | IMPL |
 | M24.1 | Roots with stable ID, path, availability, free space, default flag; DB stores root_id + relative path; never absolute host paths | C1 | be/storage/roots | Storage settings | storage_roots, assets | identity tests; mount remap test | IMPL |
 | M24.2 | Families Sequential Art/Books/Other; Work→Language→Source→Files; short stable IDs for collisions; Unicode/Arabic names; untrusted source filenames; Core-owned paths; no rename on metadata change | C1 | be/storage/layout | — | — | collision + Unicode + metadata-change tests | IMPL |
 | M24.3 | Per-root `<root>/.oneshelf/staging/` on same filesystem; partials only there; scanner/reader ignore | C1 | be/storage/staging | — | staging dirs | same-fs rename test; scanner ignore test | IMPL |
@@ -129,7 +129,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M24.5 | Reserve 5% capped 5 GB; warn ~2×; pause automatic/background writes at reserve; never auto-delete; expected-size preflight | C1,C7 | be/storage/disk_guard | Low Storage notice | root state | reserve/warning/preflight tests | IMPL |
 | M24.6 | Offline root → Storage Location Unavailable; no mass Missing, cleanup or destructive repair; reconcile on return | C1,C7 | be/storage/roots, scanner | Needs Attention/Storage | root availability | INV-18 test | IMPL |
 | M24.7 | Manual deletion → Missing Local File keeping Work/Follow/progress; relocation recovery via IDs else import/reconcile | C7 | be/storage/scanner | unit state | assets.integrity | manual delete/move tests | IMPL |
-| M24.8 | Resumable migration preflight→pause→stream copy→checksum→switch→reconcile→offer keep/delete; never auto-delete old; reads continue where practical; mount-path change = remap + validate, no copy | C7 | be/storage/migration | Storage settings | migration jobs | interrupted migration resume; old-data preservation; remap test | NS |
+| M24.8 | Resumable migration preflight→pause→stream copy→checksum→switch→reconcile→offer keep/delete; never auto-delete old; reads continue where practical; mount-path change = remap + validate, no copy | C7 | be/storage/migration | Storage settings | migration jobs | interrupted migration resume; old-data preservation; remap test | IMPL |
 | M25 | Staging cleanup: successful leftovers ~24 h; resumable failed ~7 d; startup recover jobs → commits → reconcile → clean proven orphans; never clean before recovery | C1,C5 | be/storage/staging_cleanup | — | — | ordering + retention tests | IMPL |
 
 ## §26–§27 Reader and isolation
@@ -233,29 +233,29 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
-| M33 | Exactly two backup types | C7 | be/backup | Settings → Backup | backups | rows below | NS |
-| M33.1 | Library Backup contents list; no downloaded reading files | C7 | be/backup/library | Backup | — | manifest inspection test | NS |
-| M33.2 | Full Backup = Library + selected content; user chooses Works | C7 | be/backup/full | Backup selection | — | selection test | NS |
-| M33.3 | Hard exclusions: passwords, cookies, sessions, tokens, remote UI sessions, recovery code, master key, browser profiles, staging, partials, rebuildable caches | C7 | be/backup | — | — | INV-19 content scan of both types | NS |
-| M33.4 | Canonical `.osbackup` with manifest, schema/version, checksums, inventory, plugin requirements | C7 | be/backup/format | — | — | format validation tests | NS |
-| M33.5 | Older backup migrates forward in staging (original unchanged); newer blocked, never discard unknown fields | C7 | be/backup/restore | Restore | — | version compatibility tests | NS |
-| M33.6 | Preflight: archive/checksum, manifest, compatibility, space, plugins, permission changes, summary; missing plugin doesn't block (reinstall/skip); compatible newer only with review; new permissions need approval | C7 | be/backup/preflight | Restore steps | restore_ops | preflight tests | NS |
-| M33.7 | Replace (after Safety Snapshot) / Merge with deterministic rules (current manual wins, add missing, progress never regresses, healthy files kept, verified backup repairs missing/corrupt) | C7 | be/backup/merge | Restore mode | — | merge conflict matrix tests | NS |
-| M33.8 | Library Backup every 7 d with catch-up; Full manual; keep 4 verified; create → verify → rotate; never delete prior verified first | C7 | be/backup/schedule | Backup settings | backups | failed verification doesn't rotate; catch-up test | NS |
-| M33.9 | Explicit Backup Location; default app storage allowed; same-disk warning; external mounts | C7 | be/backup, fe/backup | Backup Location | settings | warning test | NS |
-| M33.10 | Built-in encryption not required; secrets excluded; external encryption allowed | C7 | — | docs | — | docs note | NS |
-| M34 | Export ≠ Backup; one-way copy; never modifies library/DB/progress/mapping/content | C7 | be/export | Export wizard | export_jobs | INV-20 state diff test | NS |
-| M34.1 | Scope Current Unit/Selected/Range/Entire Work/Selected Works; contract Work+Language+Source+units+formats; no mixing | C7 | be/export/contract | wizard Content | — | contract tests | NS |
-| M34.2 | Prefer local files as-is; copy originals; no recompress/rebuild | C7 | be/export | — | — | byte-identical copy test | NS |
-| M34.3 | Missing content choices Export Downloaded Only / Download Missing Then Export / Cancel; explicit permanent-download notice; normal engine → integrity → commit → export; no hidden temp download | C7 | be/export, fe/export | wizard | — | INV-21 test | NS |
-| M34.4 | CBZ default for sequential; originals for books; no conversion subsystem | C7 | be/export | wizard Format | — | EX-29 check | NS |
-| M34.5 | Folder default; optional ZIP; no giant default ZIP; avoid recompression | C7 | be/export | wizard | — | ZIP store-mode test | NS |
-| M34.6 | Preserve ComicInfo.xml; optional `oneshelf-export.json` (title, aliases, language, source, units, formats, date); never secrets/sessions/tokens/cookies/absolute paths; files usable without it | C7 | be/export/metadata | — | — | metadata secret/path scan | NS |
-| M34.7 | Cleaner export naming; IDs not required by default | C7 | be/export/naming | — | — | naming tests | NS |
-| M34.8 | Explicit destination; preflight online/writable/space/conflicts; never silent overwrite; Skip Identical/Replace/Keep Both; checksum-identical skip | C7 | be/export/destination | wizard Destination/Review | — | conflict tests | NS |
-| M34.9 | Persistent resumable jobs; streaming; destination-local staging; checksum verify; per-file failure isolation; Retry Failed; always Copy | C7 | be/export/jobs | Export activity | export_jobs, export_items | interruption resume; per-file failure tests | NS |
-| M34.10 | Local Source Track exports; missing plugin doesn't block | C7 | be/export | — | — | INV-11 export test | NS |
-| M34.11 | Export activity 30 d or 100 jobs; cleanup never deletes exported files | C7 | be/export/cleanup | activity | — | both-limit + file-preservation tests | NS |
+| M33 | Exactly two backup types | C7 | be/backup | Settings → Backup | backups | rows below | IMPL |
+| M33.1 | Library Backup contents list; no downloaded reading files | C7 | be/backup/library | Backup | — | manifest inspection test | IMPL |
+| M33.2 | Full Backup = Library + selected content; user chooses Works | C7 | be/backup/full | Backup selection | — | selection test | IMPL |
+| M33.3 | Hard exclusions: passwords, cookies, sessions, tokens, remote UI sessions, recovery code, master key, browser profiles, staging, partials, rebuildable caches | C7 | be/backup | — | — | INV-19 content scan of both types | IMPL |
+| M33.4 | Canonical `.osbackup` with manifest, schema/version, checksums, inventory, plugin requirements | C7 | be/backup/format | — | — | format validation tests | IMPL |
+| M33.5 | Older backup migrates forward in staging (original unchanged); newer blocked, never discard unknown fields | C7 | be/backup/restore | Restore | — | version compatibility tests | IMPL |
+| M33.6 | Preflight: archive/checksum, manifest, compatibility, space, plugins, permission changes, summary; missing plugin doesn't block (reinstall/skip); compatible newer only with review; new permissions need approval | C7 | be/backup/preflight | Restore steps | restore_ops | preflight tests | IMPL |
+| M33.7 | Replace (after Safety Snapshot) / Merge with deterministic rules (current manual wins, add missing, progress never regresses, healthy files kept, verified backup repairs missing/corrupt) | C7 | be/backup/merge | Restore mode | — | merge conflict matrix tests | IMPL |
+| M33.8 | Library Backup every 7 d with catch-up; Full manual; keep 4 verified; create → verify → rotate; never delete prior verified first | C7 | be/backup/schedule | Backup settings | backups | failed verification doesn't rotate; catch-up test | IMPL |
+| M33.9 | Explicit Backup Location; default app storage allowed; same-disk warning; external mounts | C7 | be/backup, fe/backup | Backup Location | settings | warning test | IMPL |
+| M33.10 | Built-in encryption not required; secrets excluded; external encryption allowed | C7 | — | docs | — | docs note | IMPL |
+| M34 | Export ≠ Backup; one-way copy; never modifies library/DB/progress/mapping/content | C7 | be/export | Export wizard | export_jobs | INV-20 state diff test | IMPL |
+| M34.1 | Scope Current Unit/Selected/Range/Entire Work/Selected Works; contract Work+Language+Source+units+formats; no mixing | C7 | be/export/contract | wizard Content | — | contract tests | IMPL |
+| M34.2 | Prefer local files as-is; copy originals; no recompress/rebuild | C7 | be/export | — | — | byte-identical copy test | IMPL |
+| M34.3 | Missing content choices Export Downloaded Only / Download Missing Then Export / Cancel; explicit permanent-download notice; normal engine → integrity → commit → export; no hidden temp download | C7 | be/export, fe/export | wizard | — | INV-21 test | IMPL |
+| M34.4 | CBZ default for sequential; originals for books; no conversion subsystem | C7 | be/export | wizard Format | — | EX-29 check | IMPL |
+| M34.5 | Folder default; optional ZIP; no giant default ZIP; avoid recompression | C7 | be/export | wizard | — | ZIP store-mode test | IMPL |
+| M34.6 | Preserve ComicInfo.xml; optional `oneshelf-export.json` (title, aliases, language, source, units, formats, date); never secrets/sessions/tokens/cookies/absolute paths; files usable without it | C7 | be/export/metadata | — | — | metadata secret/path scan | IMPL |
+| M34.7 | Cleaner export naming; IDs not required by default | C7 | be/export/naming | — | — | naming tests | IMPL |
+| M34.8 | Explicit destination; preflight online/writable/space/conflicts; never silent overwrite; Skip Identical/Replace/Keep Both; checksum-identical skip | C7 | be/export/destination | wizard Destination/Review | — | conflict tests | IMPL |
+| M34.9 | Persistent resumable jobs; streaming; destination-local staging; checksum verify; per-file failure isolation; Retry Failed; always Copy | C7 | be/export/jobs | Export activity | export_jobs, export_items | interruption resume; per-file failure tests | IMPL |
+| M34.10 | Local Source Track exports; missing plugin doesn't block | C7 | be/export | — | — | INV-11 export test | IMPL |
+| M34.11 | Export activity 30 d or 100 jobs; cleanup never deletes exported files | C7 | be/export/cleanup | activity | — | both-limit + file-preservation tests | IMPL |
 | M35 | Notifications / Download History / Export activity / Backup history / Diagnostics kept separate | C6,C7 | respective modules | respective screens | separate tables/files | separation audit | IMPL |
 | M36 | Real-time event channel (SSE/WebSocket) for downloads, notifications, progress, source/job state; polling fallback; no cloud | C1,C6 | be/events, be/api/sse, fe/events | all live screens | — | multi-client update + reconnect fallback tests | IMPL |
 | M37 | Import CBZ/PDF/EPUB; Copy default; Move explicit; Leave in Place advanced/future *(optional)*; confident associate / Choose Existing / Create Local Work; no aggressive merge; drag & drop optional | C1,C7 | be/importer | Import flow | imports, assets | import uncertainty tests; Copy leaves source intact | IMPL |
@@ -321,9 +321,9 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | INV-16 | Incomplete downloads never appear as completed | C1,C5 | incomplete/corrupt artifacts stay out of local content | IMPL |
 | INV-17 | Commit crash recoverable idempotently | C1,C5 | crash at each commit step; repeated reconciliation, no duplicate/lost registration | IMPL |
 | INV-18 | Offline storage ≠ mass deletion | C1,C7 | offline root → Unavailable, no mass Missing/cleanup; safe reconnect reconcile | IMPL |
-| INV-19 | Backups contain no sessions/passwords/tokens | C7 | inspect Library + Full contents/manifests for all exclusions | NS |
-| INV-20 | Export never silently modifies library | C7 | state diff before/after normal export | NS |
-| INV-21 | Download Missing Then Export requires explicit notice | C7 | disclosure required; normal validated commit then export | NS |
+| INV-19 | Backups contain no sessions/passwords/tokens | C7 | inspect Library + Full contents/manifests for all exclusions | IMPL |
+| INV-20 | Export never silently modifies library | C7 | state diff before/after normal export | IMPL |
+| INV-21 | Download Missing Then Export requires explicit notice | C7 | disclosure required; normal validated commit then export | IMPL |
 | INV-22 | Notifications never alter reading state | C6 | Seen / Clear Seen / cleanup leave reading untouched | IMPL |
 | INV-23 | Clearing history never deletes content/state | C5,C6,C7 | download/export/notification history cleanup preserves content + progress | IMPL |
 | INV-24 | Navigation follows Source Track order | C2 | prologue, Special, Extra, 3.5 navigate by track order | NS |
@@ -338,7 +338,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Default | Phase | Verification | Status |
 |---|---|---|---|---|
-| DEF-backup | Library Backup every 7 d; Full manual; retain last 4 verified | C7 | schedule + rotation tests | NS |
+| DEF-backup | Library Backup every 7 d; Full manual; retain last 4 verified | C7 | schedule + rotation tests | IMPL |
 | DEF-discovery-cache | TTL 7 d; 250 MB; LRU | C4 | cleanup both-limit tests | IMPL |
 | DEF-reader-cache | TTL 7 d; 5 GB; LRU; never evict current unit / open nearby pages / permanent downloads | C5 | eviction protection tests | IMPL |
 | DEF-auto-download | OFF; when enabled ~12% + genuine interaction | C1,C5 | INV-08; trigger test | IMPL |
@@ -348,7 +348,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | DEF-download-concurrency | HTTP 4; Browser 1 (independent) | C3,C5 | governor limit tests | IMPL |
 | DEF-follow | ~12 h + jitter | C6 | scheduler test | IMPL |
 | DEF-notifications | resolved visible ~1 h; history 30 d or 500 | C6 | lifecycle + both-limit tests | IMPL |
-| DEF-export-activity | 30 d or 100 jobs | C7 | both-limit test | NS |
+| DEF-export-activity | 30 d or 100 jobs | C7 | both-limit test | IMPL |
 | DEF-diagnostics | 7 d or 100 MB | C3 | both-limit test | NS |
 | DEF-retry | initial + up to 3 retries | C5 | retry count test | IMPL |
 | DEF-remote-session | 30 d (options shorter/90 d/1 y/manual) | C8 | session expiry test | NS |
@@ -389,7 +389,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | EX-26 | DRM bypass | code audit | NS |
 | EX-27 | Screenshot-based normal extraction | extraction method audit | NS |
 | EX-28 | Hidden destructive cleanup | cleanup audits (M3.4, M25, INV-18/23) | NS |
-| EX-29 | Implicit format conversion subsystem | export/packaging audit | NS |
+| EX-29 | Implicit format conversion subsystem | export/packaging audit | IMPL |
 | EX-30 | Uncontrolled plugin access to LAN/internal services | INV-15 | IMPL |
 
 ## Meta Prompt deliverables and source-investigation rules
@@ -504,3 +504,20 @@ Also strengthened without status change: INV-16 (invalid media never registered)
 | INV-22 | Seen/Clear Seen never touch reading state | notification suite + API test | — |
 | EX-12 | no browser notification or push APIs | `tests/unit/test_no_browser_notifications.py` | — |
 | DEF-follow, DEF-notifications | ~12 h + jitter; 1 h resolved, 30 d / 500 retention | follow and notification suites | — |
+
+### C7 — 2026-09-17 (gate passed; see `docs/c7/verification.md`)
+
+| ID | C7 implementation | Evidence | Remaining |
+|---|---|---|---|
+| M24, M24.8 | `storage/migration.py`, `db/schema/0009_storage.sql`, `api/storage.py` | `tests/integration/storage/test_migration.py`, `test_storage_api.py` | Storage UI (C2) |
+| M33–M33.10 | `backup/service.py`, `backup/runner.py` | `tests/integration/backup/test_backup.py`, `test_restore.py` | Backup/Restore UI (C2, M32.15) |
+| M34–M34.11 | `export/service.py`, `db/schema/0010_export.sql` | `tests/integration/export/test_export.py`, `test_storage_api.py` | Export wizard UI (C2, M32.16) |
+| M37 (association) | `importer/suggest.py`, `search/index.py::write_work_index` | `tests/unit/test_import_suggestions.py`, `test_storage_api.py` | import UI and drag & drop (C2) |
+| M38 (reconcile surface) | `POST /api/storage/scan` | `test_storage_api.py::test_storage_overview_and_scan` | Storage UI (C2) |
+| DEF-backup, DEF-export-activity | `settings/defaults.py`, `backup/service.py`, `export/service.py` | `test_backup.py`, `test_export.py` | — |
+| EX-29 | no conversion path exists; format choice only selects an existing file | `test_missing_content_offers_choices_and_never_converts_formats`, `test_sequential_units_default_to_cbz_while_books_keep_their_original` | audit repeated in C9 |
+| INV-19 | `backup/service.py` exclusions by construction | `test_backup_excludes_every_secret_and_rebuildable_store` | repeat with live sessions (C9) |
+| INV-20 | `export/service.py` copies only | `test_export_copies_originals_without_touching_the_library` | — |
+| INV-21 | `ExportBlocked` unless the disclosure is acknowledged | `test_download_missing_requires_an_explicit_permanent_download_notice` | wizard wording (C2) |
+
+Carried forward from C7 (still `NS`): M32.15 Backup/Restore screens and M32.16 Export wizard → C2; INV-11 and M3.3 need the C2 Reader half before they can be marked; M47 destructive-action wording → C2/C8.
