@@ -1,0 +1,31 @@
+[project]
+name = "oneshelf"
+version = "0.1.0"
+description = "OneShelf: self-hosted personal reading library"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.141",
+    "uvicorn>=0.53",
+    "Pillow>=12.3",
+    "pypdf>=6.19",
+    "defusedxml>=0.7.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=9.1", "httpx2>=2.13"]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["oneshelf*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+filterwarnings = [
+    "error",
+    # Third-party: starlette.testclient still references a deprecated anyio alias (not OneShelf code).
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]

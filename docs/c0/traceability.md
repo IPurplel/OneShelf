@@ -1,6 +1,6 @@
-# C0 — Requirement Traceability Matrix
+# Requirement Traceability Matrix
 
-Recorded: 2026-09-17 · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
+Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
 
 **Coverage:** every Master heading from §0 to §56 (57 sections, 152 numbered subsections, and the unnumbered sub-headings in §4.4, §20, §26.3, §26.22), all 30 §51 invariants (INV), all 17 §42 default groups (DEF), all 30 §49 exclusions (EX), Meta Prompt §D3 deliverables (MPD) and §G investigation rules (MPG).
 
@@ -26,14 +26,14 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M3.2 | UNKNOWN is valid; never coerced to No/False/Unavailable/Unsupported/Bad/Missing; unknown quality ≠ unavailable | C1,C4,C5 | be/domain (Unknown-aware types) | cards, details, plugin capabilities | nullable tri-state columns | INV-05, INV-06 tests | NS |
 | M3.3 | Local content readable without source/plugin/internet/session/catalog | C2,C7 | be/reader, be/storage | Reader | assets | INV-11 test | NS |
 | M3.4 | No hidden destructive behavior (listed cases) | C1,C4,C6,C7 | be/storage, be/catalog, be/services | destructive dialogs | — | INV-01/10/18 tests; cleanup audits | NS |
-| M4 | Core domain model | C1 | be/domain, be/db | — | schema | rows M4.1–M4.6 | NS |
-| M4.1 | Work: logical title aggregating listings/languages/formats with provenance; not title equality | C1,C4 | be/domain/work | Work Details | works, work_aliases | domain tests; same-title distinct Works | NS |
-| M4.2 | Source Listing with source-specific identity + provenance | C1,C3 | be/domain | Sources tab | source_listings | same-source dedupe tests (M6.9) | NS |
-| M4.3 | Source Track = Work × source × language with own catalog/order/units/metadata/session/capabilities/baseline/availability; never blended | C1 | be/domain | Work Details Sources/Read tabs | source_tracks | track isolation tests | NS |
-| M4.4 | Reading Unit types and fields (raw/display title, type, numbers, volume, order, date, source, language, availability/download/integrity/read state, progress) | C1 | be/domain/reading_unit | index list, TOC | reading_units | schema + fixture tests (special/extra/3.5) | NS |
-| M4.4a | Numbering precedence source > adapter-derived > UNKNOWN; derived = display/order only, never identity; user correction wins | C1,C4 | be/domain, be/catalog | unit list | source_number, derived_number, user_number | tests: specials not numbered; identity unchanged on renumber | NS |
-| M4.5 | Volumes optional grouping; no volume folder hierarchy required | C1 | be/domain, be/storage/layout | unit list grouping | volume column | layout tests | NS |
-| M4.6 | Local Source Track first-class; readable/exportable without network plugin | C1,C7 | be/domain, be/importer | Work Details | source_tracks(kind=local) | import→read→export offline test | NS |
+| M4 | Core domain model | C1 | be/domain, be/db | — | schema | rows M4.1–M4.6 | IMPL |
+| M4.1 | Work: logical title aggregating listings/languages/formats with provenance; not title equality | C1,C4 | be/domain/work | Work Details | works, work_aliases | domain tests; same-title distinct Works | IMPL |
+| M4.2 | Source Listing with source-specific identity + provenance | C1,C3 | be/domain | Sources tab | source_listings | same-source dedupe tests (M6.9) | IMPL |
+| M4.3 | Source Track = Work × source × language with own catalog/order/units/metadata/session/capabilities/baseline/availability; never blended | C1 | be/domain | Work Details Sources/Read tabs | source_tracks | track isolation tests | IMPL |
+| M4.4 | Reading Unit types and fields (raw/display title, type, numbers, volume, order, date, source, language, availability/download/integrity/read state, progress) | C1 | be/domain/reading_unit | index list, TOC | reading_units | schema + fixture tests (special/extra/3.5) | IMPL |
+| M4.4a | Numbering precedence source > adapter-derived > UNKNOWN; derived = display/order only, never identity; user correction wins | C1,C4 | be/domain, be/catalog | unit list | source_number, derived_number, user_number | tests: specials not numbered; identity unchanged on renumber | IMPL |
+| M4.5 | Volumes optional grouping; no volume folder hierarchy required | C1 | be/domain, be/storage/layout | unit list grouping | volume column | layout tests | IMPL |
+| M4.6 | Local Source Track first-class; readable/exportable without network plugin | C1,C7 | be/domain, be/importer | Work Details | source_tracks(kind=local) | import→read→export offline test | IMPL |
 
 ## §5 Catalog trust
 
@@ -100,8 +100,8 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M16.5 | Integrity: images exist/non-zero/decodable/sensible/not HTML/coverage; books type/magic/openable/container valid; no partials in Shelf; same-method page repair | C5 | be/downloads/integrity | Reader repair | asset integrity | HTML-as-media, corrupt media, content-open checks | NS |
 | M16.6 | Cancel setting: delete or keep partial (A4) | C5 | be/downloads | Settings → Downloads | staging | both-mode tests | NS |
 | M16.7 | Clearing Download History keeps content + progress; no cloud telemetry | C5 | be/downloads/history | Downloads history | history table | INV-23 test | NS |
-| M17 | Idempotent Commit Journal: staging → journal → rename → verify → DB txn → complete; startup reconciles listed cases; recovery repeatable; order recover → reconcile → clean orphans | C1,C5 | be/storage/commit_journal | — | commit_journal | crash injection at each boundary; repeated reconciliation (INV-17) | NS |
-| M18 | SQLite source of truth; WAL; migrations; short serialized writes; consistency boundaries; consistent snapshot backups; never copy live DB | C1,C7 | be/db | — | oneshelf.db | migration/recovery tests; snapshot consistency test | NS |
+| M17 | Idempotent Commit Journal: staging → journal → rename → verify → DB txn → complete; startup reconciles listed cases; recovery repeatable; order recover → reconcile → clean orphans | C1,C5 | be/storage/commit_journal | — | commit_journal | crash injection at each boundary; repeated reconciliation (INV-17) | IMPL |
+| M18 | SQLite source of truth; WAL; migrations; short serialized writes; consistency boundaries; consistent snapshot backups; never copy live DB | C1,C7 | be/db | — | oneshelf.db | migration/recovery tests; snapshot consistency test | IMPL |
 | M19 | Reading ≠ Downloading; auto-download OFF; Current Unit Only / Current + Read Ahead (next 5 existing); Download Entire Work separate; trigger ~12% + genuine interaction; flow via Reader Cache; priority; leaving Work cancels not-started read-ahead; no source/language switch | C5 | be/reader/auto_download | Reader settings (advanced), Settings → Downloads | settings, jobs | INV-07/08; engagement trigger; leave-Work cancellation | NS |
 
 ## §20–§23 Follow, health, Shelf, independence
@@ -122,15 +122,15 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
 | M24 | Storage model | C1,C7 | be/storage | Settings → Storage | storage_roots | rows below | NS |
-| M24.1 | Roots with stable ID, path, availability, free space, default flag; DB stores root_id + relative path; never absolute host paths | C1 | be/storage/roots | Storage settings | storage_roots, assets | identity tests; mount remap test | NS |
-| M24.2 | Families Sequential Art/Books/Other; Work→Language→Source→Files; short stable IDs for collisions; Unicode/Arabic names; untrusted source filenames; Core-owned paths; no rename on metadata change | C1 | be/storage/layout | — | — | collision + Unicode + metadata-change tests | NS |
-| M24.3 | Per-root `<root>/.oneshelf/staging/` on same filesystem; partials only there; scanner/reader ignore | C1 | be/storage/staging | — | staging dirs | same-fs rename test; scanner ignore test | NS |
-| M24.4 | Block `../`, absolute injection, symlink escape, malicious names, plugin paths; delete only in managed roots | C1 | be/storage/paths | — | — | INV-14 path tests | NS |
-| M24.5 | Reserve 5% capped 5 GB; warn ~2×; pause automatic/background writes at reserve; never auto-delete; expected-size preflight | C1,C7 | be/storage/disk_guard | Low Storage notice | root state | reserve/warning/preflight tests | NS |
-| M24.6 | Offline root → Storage Location Unavailable; no mass Missing, cleanup or destructive repair; reconcile on return | C1,C7 | be/storage/roots, scanner | Needs Attention/Storage | root availability | INV-18 test | NS |
-| M24.7 | Manual deletion → Missing Local File keeping Work/Follow/progress; relocation recovery via IDs else import/reconcile | C7 | be/storage/scanner | unit state | assets.integrity | manual delete/move tests | NS |
+| M24.1 | Roots with stable ID, path, availability, free space, default flag; DB stores root_id + relative path; never absolute host paths | C1 | be/storage/roots | Storage settings | storage_roots, assets | identity tests; mount remap test | IMPL |
+| M24.2 | Families Sequential Art/Books/Other; Work→Language→Source→Files; short stable IDs for collisions; Unicode/Arabic names; untrusted source filenames; Core-owned paths; no rename on metadata change | C1 | be/storage/layout | — | — | collision + Unicode + metadata-change tests | IMPL |
+| M24.3 | Per-root `<root>/.oneshelf/staging/` on same filesystem; partials only there; scanner/reader ignore | C1 | be/storage/staging | — | staging dirs | same-fs rename test; scanner ignore test | IMPL |
+| M24.4 | Block `../`, absolute injection, symlink escape, malicious names, plugin paths; delete only in managed roots | C1 | be/storage/paths | — | — | INV-14 path tests | IMPL |
+| M24.5 | Reserve 5% capped 5 GB; warn ~2×; pause automatic/background writes at reserve; never auto-delete; expected-size preflight | C1,C7 | be/storage/disk_guard | Low Storage notice | root state | reserve/warning/preflight tests | IMPL |
+| M24.6 | Offline root → Storage Location Unavailable; no mass Missing, cleanup or destructive repair; reconcile on return | C1,C7 | be/storage/roots, scanner | Needs Attention/Storage | root availability | INV-18 test | IMPL |
+| M24.7 | Manual deletion → Missing Local File keeping Work/Follow/progress; relocation recovery via IDs else import/reconcile | C7 | be/storage/scanner | unit state | assets.integrity | manual delete/move tests | IMPL |
 | M24.8 | Resumable migration preflight→pause→stream copy→checksum→switch→reconcile→offer keep/delete; never auto-delete old; reads continue where practical; mount-path change = remap + validate, no copy | C7 | be/storage/migration | Storage settings | migration jobs | interrupted migration resume; old-data preservation; remap test | NS |
-| M25 | Staging cleanup: successful leftovers ~24 h; resumable failed ~7 d; startup recover jobs → commits → reconcile → clean proven orphans; never clean before recovery | C1,C5 | be/storage/staging_cleanup | — | — | ordering + retention tests | NS |
+| M25 | Staging cleanup: successful leftovers ~24 h; resumable failed ~7 d; startup recover jobs → commits → reconcile → clean proven orphans; never clean before recovery | C1,C5 | be/storage/staging_cleanup | — | — | ordering + retention tests | IMPL |
 
 ## §26–§27 Reader and isolation
 
@@ -172,8 +172,8 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
 | M28 | Web UI authentication | C1,C8 | be/auth, be/api | Settings → Remote Access | remote_auth | rows below | NS |
-| M28.1 | Localhost + LAN auth OFF by default; genuine LAN fully trusted incl. passkey reset / session revoke | C1,C8 | be/api/access | — | trusted networks config (A2) | LAN admin tests | NS |
-| M28.2 | LAN origin from real connection + explicit config; X-Forwarded-For only from trusted proxies; remote proxy traffic gets no LAN trust | C1,C8 | be/api/access | — | trusted proxies config | forged header + proxy tests (INV-30) | NS |
+| M28.1 | Localhost + LAN auth OFF by default; genuine LAN fully trusted incl. passkey reset / session revoke | C1,C8 | be/api/access | — | trusted networks config (A2) | LAN admin tests | IMPL |
+| M28.2 | LAN origin from real connection + explicit config; X-Forwarded-For only from trusted proxies; remote proxy traffic gets no LAN trust | C1,C8 | be/api/access | — | trusted proxies config | forged header + proxy tests (INV-30) | IMPL |
 | M28.3 | Remote: passkey-only built-in auth; advanced VPN/proxy setups; canonical HTTPS hostname; LAN IP stays unauthenticated | C8 | be/auth/webauthn | Remote setup | passkeys | passkey register/authenticate tests | NS |
 | M28.4 | Single fixed internal WebAuthn identity; never exposed as account/profile | C8 | be/auth | — | constant user handle | UI audit | NS |
 | M28.5 | Recovery code at first passkey; not for login; stored as verifier; regeneration invalidates; can authorize new passkey; LAN Recovery resets passkeys + revokes sessions + allows registration; explicit confirmation affecting only remote auth | C8 | be/auth/recovery | Remote Access, LAN Recovery dialog | recovery verifier | regeneration invalidation; recovery scope test (library untouched) | NS |
@@ -257,9 +257,9 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M34.10 | Local Source Track exports; missing plugin doesn't block | C7 | be/export | — | — | INV-11 export test | NS |
 | M34.11 | Export activity 30 d or 100 jobs; cleanup never deletes exported files | C7 | be/export/cleanup | activity | — | both-limit + file-preservation tests | NS |
 | M35 | Notifications / Download History / Export activity / Backup history / Diagnostics kept separate | C6,C7 | respective modules | respective screens | separate tables/files | separation audit | NS |
-| M36 | Real-time event channel (SSE/WebSocket) for downloads, notifications, progress, source/job state; polling fallback; no cloud | C1,C6 | be/events, be/api/sse, fe/events | all live screens | — | multi-client update + reconnect fallback tests | NS |
-| M37 | Import CBZ/PDF/EPUB; Copy default; Move explicit; Leave in Place advanced/future *(optional)*; confident associate / Choose Existing / Create Local Work; no aggressive merge; drag & drop optional | C1,C7 | be/importer | Import flow | imports, assets | import uncertainty tests; Copy leaves source intact | NS |
-| M38 | Scanner reconciles; manual delete → Missing Local File; offline → Unavailable; missing plugin still readable; OneShelf IDs aid recovery; per-asset checksum/size/path/integrity; checksums never matching evidence; no dedup | C1,C7 | be/storage/scanner | Storage | assets | scanner tests | NS |
+| M36 | Real-time event channel (SSE/WebSocket) for downloads, notifications, progress, source/job state; polling fallback; no cloud | C1,C6 | be/events, be/api/sse, fe/events | all live screens | — | multi-client update + reconnect fallback tests | IMPL |
+| M37 | Import CBZ/PDF/EPUB; Copy default; Move explicit; Leave in Place advanced/future *(optional)*; confident associate / Choose Existing / Create Local Work; no aggressive merge; drag & drop optional | C1,C7 | be/importer | Import flow | imports, assets | import uncertainty tests; Copy leaves source intact | IMPL |
+| M38 | Scanner reconciles; manual delete → Missing Local File; offline → Unavailable; missing plugin still readable; OneShelf IDs aid recovery; per-asset checksum/size/path/integrity; checksums never matching evidence; no dedup | C1,C7 | be/storage/scanner | Storage | assets | scanner tests | IMPL |
 | M39 | CBZ may include ComicInfo.xml; preserve originals; no unnecessary recompression; packaging only after integrity verification | C1,C5 | be/downloads/packaging | — | — | packaging order + byte preservation tests | NS |
 
 ## §40–§43 API docs, source suite, defaults, diagnostics
@@ -273,7 +273,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M41.3 | Roles: foundation (Gutenberg, Hindawi, arXiv), sequential (MangaDex, 3asq), difficult web (WEBTOON, Tapas), format stress (Standard Ebooks: one Work, many formats, no duplicate Works) | C3→C9 | plugins/official | — | — | role-specific workflow tests | NS |
 | M41.4 | Correctness/reference vs real-world stress sources; 3asq public parser testing only, not official/licensed default | C9 | docs/evidence | — | — | evidence ledger labels | NS |
 | M41.5 | Local deterministic cases: irregular order/numbers, Special, Prologue, 3.5, 300→7, 429 Retry-After, 500, session expiry, HTML-as-media, corrupt media, interruption, changed ETag, unapproved redirect, malformed metadata, incomplete pagination, other recovery | C1→C5 | test_source/ | — | — | one scenario test each | NS |
-| M42 | Single source of approved defaults, consistent across UI/API/runtime/migrations (D2) | C1 | be/settings/defaults | Settings | settings | DEF rows | NS |
+| M42 | Single source of approved defaults, consistent across UI/API/runtime/migrations (D2) | C1 | be/settings/defaults | Settings | settings | DEF rows | IMPL |
 | M43 | Diagnostics: parser/network/job/health operational data only; 7 d or 100 MB rotating; never passwords/cookies/tokens/auth headers/sensitive bodies; no matcher telemetry | C3,C6 | be/diagnostics | Settings → Advanced | rotating files | redaction scan; retention both-limit test | NS |
 
 ## §44–§50 UX rules, security, exclusions, non-goals
@@ -293,7 +293,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
 | M51 | All 30 acceptance invariants preserved | all | — | — | — | INV rows | NS |
-| M52 | Subsystem separation as listed; source-specific logic out of generic queue/storage; small testable units | C0→all | architecture.md §2 | — | — | architecture review each phase; import-boundary lint | NS |
+| M52 | Subsystem separation as listed; source-specific logic out of generic queue/storage; small testable units | C0→all | architecture.md §2 | — | — | architecture review each phase; import-boundary lint | IMPL |
 | M53 | Test categories: unit, integration, deterministic source failures, adapter contract, migration, crash/recovery, queue restart, storage offline, catalog trust, session reconnect, rate limits, resume/validators, corrupt repair, path safety, SSRF, EPUB/HTML isolation, CSRF/Origin, backup compatibility, restore merge, export resume/conflicts, Arabic normalization, RTL/LTR, manual overrides, multi-tab progress, events, accessibility-critical; isolated data only | C1→C9 | tests/ | — | isolated fixtures | C9 final verification report | NS |
 | M54 | Architecture fully specified; visual refinement only within approved language; no semantic changes | C0→all | — | — | — | ledger | C0 |
 | M55 | Instructions to the Meta Prompt generating model | — | — | — | — | Meta Prompt §A | UP |
@@ -310,17 +310,17 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | INV-05 | Unknown metadata never negative evidence | C4 | missing creator/date/volume/classification stays Unknown, not a mismatch | NS |
 | INV-06 | Unknown quality never blocks content | C4,C5 | Unknown quality doesn't hide/reject/mark unavailable | NS |
 | INV-07 | Reading never implies permanent download unless enabled | C5 | ordinary reading makes no permanent download | NS |
-| INV-08 | Auto-download OFF by default | C1,C5 | defaults registry + fresh install assertion; enabled engagement per spec | NS |
+| INV-08 | Auto-download OFF by default | C1,C5 | defaults registry + fresh install assertion; enabled engagement per spec | IMPL |
 | INV-09 | Follow never auto-downloads | C6 | new-release events enqueue nothing | NS |
 | INV-10 | Remove from Shelf / Unfollow / Delete Files independent | C6 | separate assertions on files, Shelf, Follow, read state, progress | NS |
 | INV-11 | Local content readable without source/plugin/network | C2,C7 | read + export CBZ/PDF/EPUB with source offline, plugin disabled/uninstalled, session disconnected | NS |
 | INV-12 | Reader content can't execute privileged actions | C2 | malicious HTML/EPUB/SVG/PDF can't reach privileged actions, auth context or prohibited network | NS |
 | INV-13 | Community plugins can't execute arbitrary code | C3 | malicious `.osp` code payloads rejected | NS |
-| INV-14 | Plugins can't access arbitrary paths | C1,C3 | path payloads rejected; Core-only path generation | NS |
+| INV-14 | Plugins can't access arbitrary paths | C1,C3 | path payloads rejected; Core-only path generation | IMPL |
 | INV-15 | Plugins can't SSRF into LAN/internal | C3 | HTTP + browser redirect/DNS SSRF cases blocked | NS |
-| INV-16 | Incomplete downloads never appear as completed | C1,C5 | incomplete/corrupt artifacts stay out of local content | NS |
-| INV-17 | Commit crash recoverable idempotently | C1,C5 | crash at each commit step; repeated reconciliation, no duplicate/lost registration | NS |
-| INV-18 | Offline storage ≠ mass deletion | C1,C7 | offline root → Unavailable, no mass Missing/cleanup; safe reconnect reconcile | NS |
+| INV-16 | Incomplete downloads never appear as completed | C1,C5 | incomplete/corrupt artifacts stay out of local content | IMPL |
+| INV-17 | Commit crash recoverable idempotently | C1,C5 | crash at each commit step; repeated reconciliation, no duplicate/lost registration | IMPL |
+| INV-18 | Offline storage ≠ mass deletion | C1,C7 | offline root → Unavailable, no mass Missing/cleanup; safe reconnect reconcile | IMPL |
 | INV-19 | Backups contain no sessions/passwords/tokens | C7 | inspect Library + Full contents/manifests for all exclusions | NS |
 | INV-20 | Export never silently modifies library | C7 | state diff before/after normal export | NS |
 | INV-21 | Download Missing Then Export requires explicit notice | C7 | disclosure required; normal validated commit then export | NS |
@@ -332,7 +332,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | INV-27 | Search results represent Works | C4 | Work-level results with selectable provenance, no duplicated source cards | NS |
 | INV-28 | Covers never identity evidence | C4 | matching ignores covers; test with identical/different covers | NS |
 | INV-29 | Matching diagnostics never telemetry | C4,C6,C9 | review persistent records, diagnostics, network calls, cleanup | NS |
-| INV-30 | Remote passkey/session/CSRF boundaries; genuine LAN trusted per config | C1,C8 | passkey/session/CSRF/Origin + LAN/trusted-proxy/forged-header tests | NS |
+| INV-30 | Remote passkey/session/CSRF boundaries; genuine LAN trusted per config | C1,C8 | passkey/session/CSRF/Origin + LAN/trusted-proxy/forged-header tests | IMPL |
 
 ## §42 Defaults (single defaults registry, D2)
 
@@ -352,9 +352,9 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | DEF-diagnostics | 7 d or 100 MB | C3 | both-limit test | NS |
 | DEF-retry | initial + up to 3 retries | C5 | retry count test | NS |
 | DEF-remote-session | 30 d (options shorter/90 d/1 y/manual) | C8 | session expiry test | NS |
-| DEF-storage-reserve | 5% capped 5 GB; warning ~2× reserve | C1 | guard tests | NS |
+| DEF-storage-reserve | 5% capped 5 GB; warning ~2× reserve | C1 | guard tests | IMPL |
 | DEF-catalog-suspicious | ≥~50% loss and ≥5 units; complete snapshots only; not sole truth | C4 | heuristic boundary tests | NS |
-| DEF-staging | successful leftovers ~24 h; resumable failed ~7 d | C1,C5 | retention tests | NS |
+| DEF-staging | successful leftovers ~24 h; resumable failed ~7 d | C1,C5 | retention tests | IMPL |
 | DEF-other | Preferred + Ask; settings precedence; classification precedence; remember per-Work Reader settings ON; preload ~7/4; folder export default; Copy import default; local/LAN auth OFF; metadata/format identity behavior (Meta Prompt D2) | C1→C8 | registry consistency test across UI/API/runtime/migrations | NS |
 
 ## §49 Exclusions (negative verification)
@@ -407,3 +407,33 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | MPG-3 | Complete catalogs with completion evidence; preserve raw unit fields/order; no numeric gap/duplicate inference; formats don't create Works; reject non-content resources | C4,C9 | catalog/content tests | NS |
 | MPG-4 | Recipes return descriptors; Core executes; scoped credentials; no header forwarding to CDN/redirect; expiring URL refresh bounded; error-class separation; Smart Retry/fallback semantics | C3,C5 | runtime tests | NS |
 | MPG-5 | Verify through application services with isolated data; sanitized dated fixtures; Test Source synthetic faults; open/parse actual artifacts; record revision/plugin/source/conditions/checksums; no runtime telemetry | C3→C9 | evidence ledger | NS |
+
+---
+
+## Phase progress log
+
+### C1 — 2026-09-17 (gate passed; see `docs/c1/verification.md`)
+
+Rows moved to `IMPL` have their C1 backend portion implemented and tested; UI surfaces and later-phase behavior in the same row remain outstanding, so none are `VER` yet.
+
+| ID | C1 implementation | Evidence | Remaining |
+|---|---|---|---|
+| M4, M4.1–M4.6, M4.4a | `db/schema/0001_initial.sql`, `domain/ids.py` | `tests/unit/test_schema.py` | matching (C4), listings (C3), UI (C2) |
+| M17 | `storage/commit.py` | `tests/unit/test_commit_journal.py` | download packaging commits (C5) |
+| M18 | `db/connection.py`, `db/migrate.py` | `tests/unit/test_db_migrations.py` | backup snapshots (C7) |
+| M24.1–M24.7 | `storage/roots.py`, `paths.py`, `layout.py`, `staging.py`, `scanner.py` | `test_roots.py`, `test_paths.py`, `test_scanner.py` | Storage UI (C2), low-storage notifications (C6), migration copy flow (C7) |
+| M25 | `storage/staging_cleanup.py`, `services/startup.py` | `tests/integration/test_startup_recovery.py` | download job recovery (C5) |
+| M28.1, M28.2 | `api/access.py`, `api/middleware.py` | `test_access.py`, `test_app.py` | trusted-network setup + warning (C8, A2), LAN admin actions (C8) |
+| M36 | `events/bus.py`, `GET /api/events` | `tests/unit/test_events.py`, smoke test | domain events + UI client (C2–C6) |
+| M37 | `importer/service.py` | `tests/integration/test_local_import.py` | confident association (C4/C7), import UI/drag & drop (C2/C7) |
+| M38 | `storage/scanner.py` | `tests/integration/test_scanner.py` | scanner UI, missing-plugin readability (C2/C3) |
+| M42, DEF-staging, DEF-storage-reserve | `settings/defaults.py` | `test_defaults.py`, `test_roots.py`, `test_startup_recovery.py` | runtime use of remaining defaults in their phases |
+| M52 | package layout per `docs/c0/architecture.md` §2 | code review | continues each phase |
+| INV-08 | `DEFAULTS.auto_download.enabled = False` | `test_defaults.py` | runtime behavior (C5) |
+| INV-14 | Core-only path generation and containment | `test_paths.py` | plugin path payload rejection (C3) |
+| INV-16 | validation before commit; unverified finals never registered | `test_integrity.py`, `test_commit_journal.py` | download pipeline (C5) |
+| INV-17 | idempotent journal recovery at every boundary | `test_commit_journal.py` | download commits (C5) |
+| INV-18 | offline root → unavailable, no mass missing | `test_scanner.py`, `test_roots.py` | root migration (C7) |
+| INV-30 | real-peer classification; trusted-proxy-only forwarding; remote denied | `test_access.py`, `test_app.py` | passkeys, sessions, CSRF/Origin (C8) |
+
+Carried forward from C1 (still `NS`): M41.2 OneShelf Test Source skeleton → C3; M24.8 migration copy flow → C7 (remap done); M28.7 Origin/CSRF → C8; M39 packaging → C5.

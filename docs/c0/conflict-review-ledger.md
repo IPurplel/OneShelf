@@ -86,3 +86,24 @@ ECC/Superpowers: no conflict found. Their recommendations (e.g. coverage targets
 - U04, U06, U07, U09, U10, U11 (above).
 
 New items found during implementation get appended here with source location, Master reference and disposition.
+
+---
+
+## 7. Engineering decisions recorded during C1 (2026-09-17)
+
+Routine choices made under Meta Prompt §C0.7 ("make routine engineering choices autonomously"). None changes product semantics; items marked **Review** are flagged for the user.
+
+| ID | Decision | Rationale / Master refs | Disposition |
+|---|---|---|---|
+| D-C1-01 | Backend deps: FastAPI/Starlette + uvicorn, Pillow, pypdf, defusedxml; tests with pytest + httpx2. Pinned in `backend/requirements.lock`. | UD-1; image decode validation (§16.5), PDF open check, hardened XML (§27, §48) | Adopted |
+| D-C1-02 | uvicorn runs with `proxy_headers=False`; OneShelf alone decides forwarded-header trust. | uvicorn defaults to trusting `X-Forwarded-For` from 127.0.0.1, which would bypass §28.2 | Adopted |
+| D-C1-03 | Default trusted networks = loopback only; LAN CIDRs must be configured (`ONESHELF_TRUSTED_NETWORKS`) until First Run sets them. | Approved A2 | Adopted |
+| D-C1-04 | Root identity marker `<root>/.oneshelf/root.json`; missing/foreign marker ⇒ Storage Location Unavailable. | §24.1, §24.6, INV-18 (unmounted mount points look empty) | Adopted |
+| D-C1-05 | Managed filenames embed short IDs for both Work and Reading Unit: `Family/Title [work-id]/lang/source/Unit [unit-id].ext`. Scanner recovers manual moves only by ID-bearing name **plus** checksum match. | §24.2 collisions/recovery, §24.7; checksums never used as Work identity (§38) | Adopted |
+| D-C1-06 | C1 import requires an explicit Choose Work / Create Local Work decision; no automatic association yet. | §22, §37 "never aggressively merge"; confident association needs C4 matching | Adopted |
+| D-C1-07 | Importing adds the Work to My Shelf by default (`add_to_shelf=True`, caller can opt out). | §22 places import within My Shelf; not stated explicitly | **Review** |
+| D-C1-08 | An interrupted **Move** import keeps the original file (deletion happens only in the live call after the commit completes and the original is unchanged). | §3.4 no hidden destructive behavior | Adopted |
+| D-C1-09 | Staging retention: completed owner 24 h; failed non-resumable owner 24 h; resumable partials 7 d; areas without metadata or with unknown owners 7 d; never while a commit or owner is open or root unavailable. | §25, §42 Staging, A4 | Adopted |
+| D-C1-10 | Commit recovery isolates per-entry failures (records error on the journal row) so one bad entry cannot block startup. | §17 "recovery must be safe to repeat" | Adopted |
+| D-C1-11 | Test config treats warnings as errors, with one targeted ignore for an anyio alias deprecation raised inside `starlette.testclient`. | keep output pristine without hiding OneShelf warnings | Adopted |
+| D-C1-12 | CBZ page images: jpg/jpeg/png/webp/gif/bmp, plus avif when Pillow reports codec support; other entries are not treated as pages. | §16.5 decodability must be verifiable | Adopted |
