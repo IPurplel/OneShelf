@@ -62,6 +62,9 @@ Scenarios are controlled with `POST /__control` on the Test Source (e.g. `{"big_
 | Library identity | `POST /api/listings/bind`, `POST /api/mappings/{merge,split,unlink,never-match}` |
 | Catalog trust | `GET /api/tracks/{id}/catalog`, `POST /api/tracks/{id}/catalog/refresh`, `POST /api/tracks/{id}/catalog/trust` |
 | Downloads | `POST /api/downloads`, `GET /api/downloads[/{batch}]`, `POST /api/downloads/{batch}/{pause,resume,retry-failed,cancel,reorder}`, `POST /api/downloads/jobs/{job}/{retry,cancel}`, `DELETE /api/downloads/history` |
+| Shelf | `GET /api/shelf` (views and `q=` local search), `POST /api/shelf/{work}`, `GET /api/shelf/{work}/removal-summary`, `DELETE /api/shelf/{work}`, `DELETE /api/works/{work}/files` |
+| Follow | `GET /api/follows`, `POST /api/follows/{work}`, `POST /api/follows/{work}/{check,preferred-source}`, `POST /api/follows/check-all`, `DELETE /api/follows/{work}`, `POST /api/follows/undo` |
+| Notifications / health | `GET /api/notifications[?attention=true]`, `POST /api/notifications/{mark-all-seen,clear-seen,cleanup}`, `GET /api/sources/{id}/health/state` |
 | Reader | `GET /api/reader/units/{id}/pages`, `GET /api/reader/units/{id}/pages/{index}` (sandboxed bytes), `POST /api/reader/units/{id}/progress`, `POST /api/reader/units/{id}/{mark-read,mark-unread,engagement}`, `POST /api/reader/works/{id}/leave` |
 
 Remote clients are refused until C8; LAN and loopback clients are served per `ONESHELF_TRUSTED_NETWORKS`.

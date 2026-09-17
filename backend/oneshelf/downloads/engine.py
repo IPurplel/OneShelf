@@ -85,7 +85,7 @@ def registrars() -> dict:
 class DownloadEngine:
     def __init__(self, conn: sqlite3.Connection, sources, plugins, governor: TrafficGovernor, *,
                  settings: Settings | None = None, events=None, fault=None, concurrency: int | None = None,
-                 backoff_base_seconds: float = BACKOFF_BASE_SECONDS) -> None:
+                 backoff_base_seconds: float = BACKOFF_BASE_SECONDS, notifications=None) -> None:
         self.conn = conn
         self.sources = sources
         self.plugins = plugins
@@ -96,6 +96,7 @@ class DownloadEngine:
         self.concurrency = concurrency or DEFAULTS.downloads.http_concurrency
         self.retry_budget = DEFAULTS.downloads.max_retries
         self.backoff_base_seconds = backoff_base_seconds
+        self.notifications = notifications
 
     # -- enqueue -----------------------------------------------------------------------------------
 
@@ -503,6 +504,18 @@ class DownloadEngine:
             self.conn.execute("UPDATE download_jobs SET staging_relpath = NULL WHERE id = ?", (job_id,))
         self._emit("download.job", {"job_id": job_id, "state": "COMPLETED"})
 
+    def _notify_failure(self, job_id: str, context: sqlite3.Row, category: str) -> None:
+        """Only final failures notify; Smart Retry stays silent (§30.4)."""
+        if self.notifications is None:
+            return
+        title = context["display_title"] or context["raw_title"] or context["source_unit_key"]
+        if category == "auth_failure":
+            self.notifications.reconnect_required(context["source_id"])
+        elif category in ("storage_full", "storage_unavailable"):
+            self.notifications.low_storage(self.job(job_id)["storage_root_id"] or "default", free_bytes=0)
+        else:
+            self.notifications.download_failed(context["unit_id"], title, category=category)
+
     def _record_history(self, job: sqlite3.Row, outcome: str, category: str | None = None) -> None:
         context = self._unit_context(job["reading_unit_id"])
         contract = ExtractionContract.from_json(job["extraction_contract_json"])
@@ -544,6 +557,7 @@ class DownloadEngine:
             self._set_state(job_id, "FAILED", last_error=message, error_category=category, finished_at=utcnow_iso(),
                             pending_decision_json=pending)
             self._record_history(self.job(job_id), "failed", category)
+            self._notify_failure(job_id, context, category)
             report.failed += 1
             report.errors.append(f"{job_id}: {category}: {message}")
 

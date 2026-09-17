@@ -172,3 +172,22 @@ Routine choices made under Meta Prompt §C0.7 ("make routine engineering choices
 | D-C5-11 | Auto-download while reading queues the current unit plus up to 5 existing following units of the same track; leaving the Work cancels only queued jobs other than the unit being read. | §19 | Adopted |
 | D-C5-12 | Downloaded content is read from the local archive with no network and no cache entry; the Reader Cache is only for online reading. | §3.3, §26.20 | Adopted |
 | D-C5-13 | Reader page bytes are served from a dedicated route with `Content-Security-Policy: sandbox`, `nosniff` and `no-store`, ahead of the C2 isolated viewer. | §27, §48 | Adopted |
+
+---
+
+## 11. Engineering decisions recorded during C6 (2026-09-17)
+
+| ID | Decision | Rationale / Master refs | Disposition |
+|---|---|---|---|
+| D-C6-01 | Shelf views: `saved` means on the Shelf with no reading progress and not Completed; `reading` means any partial/read progress and not Completed. | §22 lists the views without defining the split | **Review** |
+| D-C6-02 | "N releases since completion" counts release events detected after `completed_at`; Completed is never cleared automatically. | §5.6 | Adopted |
+| D-C6-03 | Delete Files removes managed files and their asset rows but keeps Shelf, Follow and reading progress; Remove from Shelf offers a removal summary first (files, bytes, progress, followed). | §22, §23, §47 | Adopted |
+| D-C6-04 | Follow baselines are stored as unit-key sets (first_follow or source_change). Detection = trusted catalog − baseline − already-reported events, so reappearing units are never "new". | §20 | Adopted |
+| D-C6-05 | A suspicious or missing trusted catalog produces no release events and surfaces as the Follow state instead. | §5.4, §20 | Adopted |
+| D-C6-06 | Unfollow keeps its undo token in memory for the session only. | §20 "immediate with Undo"; nothing else is touched, so a lost token is harmless | **Review** |
+| D-C6-07 | Health thresholds: 3 consecutive failures → Degraded, 6 → Unavailable, 2 consecutive successes → Healthy; rate limit and auth failures map to their own states; `content_missing` never degrades. | §21 thresholds/hysteresis without fixed numbers | **Review** |
+| D-C6-08 | Health active checks are an explicit service call at HEALTH priority and refuse capabilities that need the browser. | §21 "do not periodically spin up browser solely for health" | Adopted |
+| D-C6-09 | Notification dedupe keys follow the Master's examples (`source-auth:`, `storage-low:`, `catalog-suspicious:`, `new-release:`, plus `download-failed:<unit>`); Needs Attention is a filter over unresolved keys with those prefixes. | §30.13, §32.2, §44 | Adopted |
+| D-C6-10 | New-release summaries use a numeric range only when the numbers are contiguous integers ("Ch. 209–211"); otherwise they list labels ("Chapter 209, Special, Extra Story"). | §30.2 | Adopted |
+| D-C6-11 | Only final download failures notify; Smart Retry, page repairs, health probes and cache work never do (`should_notify` blocklist). | §30.1, §30.4 | Adopted |
+| D-C6-12 | API route ordering is enforced by a test: a literal path may never be registered after a parameterized path that would shadow it (this bug shipped twice during C5/C6). | defensive; no Master rule | Adopted |

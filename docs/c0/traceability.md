@@ -1,6 +1,6 @@
 # Requirement Traceability Matrix
 
-Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3, C4, C5) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
+Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3, C4, C5, C6) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
 
 **Coverage:** every Master heading from §0 to §56 (57 sections, 152 numbered subsections, and the unnumbered sub-headings in §4.4, §20, §26.3, §26.22), all 30 §51 invariants (INV), all 17 §42 default groups (DEF), all 30 §49 exclusions (EX), Meta Prompt §D3 deliverables (MPD) and §G investigation rules (MPG).
 
@@ -45,7 +45,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M5.3 | Suspicious → Trusted after two consecutive complete matching checks or explicit Trust This Catalog | C4 | be/catalog/trust | Sources advanced action | snapshot state | recovery sequence tests; Trust action rejects incomplete | IMPL |
 | M5.4 | Download Missing, Follow comparison, missing inference, automation use last Trusted only | C4,C5,C6 | be/catalog, be/downloads, be/follow | Download Missing, Follow | — | trusted-only tests | IMPL |
 | M5.5 | Temporarily missing units keep local content, last_seen, missing_since; no deletion | C4,C6 | be/catalog | unit list state | last_seen, missing_since | disappear/reappear tests | IMPL |
-| M5.6 | Completed stays Completed; show "N releases since completion" | C6 | be/services/shelf | My Shelf, Work Details | shelf.completed_at + release events | completion preservation test | NS |
+| M5.6 | Completed stays Completed; show "N releases since completion" | C6 | be/services/shelf | My Shelf, Work Details | shelf.completed_at + release events | completion preservation test | IMPL |
 
 ## §6–§8 Search, matching, discovery cache, URL entry
 
@@ -108,14 +108,14 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
-| M20 | Follow binds Work+Language+Preferred Source+Track; no auto switch; alternatives informational (View Alternatives/Change Preferred Source); independent of Shelf; Unfollow immediate + Undo, non-destructive; detect vs Trusted Catalog baseline, not max number/gaps; first Follow baselines; New ≠ auto-download | C6 | be/follow | Following, Work Details | follows, baselines | first-Follow baseline; INV-09; Unfollow independence | NS |
-| M20a | NEW_RELEASE vs NEWLY_AVAILABLE internal distinction; UI may group | C6 | be/follow/events | Following | release_events.kind | event-kind tests | NS |
-| M20b | Metadata change of same unit updates, not new; reordering not new; disappear→return not new; duplicate notifications suppressed; Seen separate from Read | C6 | be/follow/detect | Following | — | rename/reorder/reappear tests | NS |
-| M20c | Preferred Source change: fetch catalog, Source Change Baseline, no flood, preserve progress | C6 | be/follow | Change Preferred Source | baselines | source-change tests | NS |
-| M20d | Schedule ~12 h + jitter; Check Now / Check All Now; plugin Update Now / Update All separate; group by source; API/HTML preferred, browser only if declared; Last Attempted + Last Successful (emphasized) | C6 | be/follow/schedule | Following | follow check timestamps | scheduler jitter/grouping tests | NS |
+| M20 | Follow binds Work+Language+Preferred Source+Track; no auto switch; alternatives informational (View Alternatives/Change Preferred Source); independent of Shelf; Unfollow immediate + Undo, non-destructive; detect vs Trusted Catalog baseline, not max number/gaps; first Follow baselines; New ≠ auto-download | C6 | be/follow | Following, Work Details | follows, baselines | first-Follow baseline; INV-09; Unfollow independence | IMPL |
+| M20a | NEW_RELEASE vs NEWLY_AVAILABLE internal distinction; UI may group | C6 | be/follow/events | Following | release_events.kind | event-kind tests | IMPL |
+| M20b | Metadata change of same unit updates, not new; reordering not new; disappear→return not new; duplicate notifications suppressed; Seen separate from Read | C6 | be/follow/detect | Following | — | rename/reorder/reappear tests | IMPL |
+| M20c | Preferred Source change: fetch catalog, Source Change Baseline, no flood, preserve progress | C6 | be/follow | Change Preferred Source | baselines | source-change tests | IMPL |
+| M20d | Schedule ~12 h + jitter; Check Now / Check All Now; plugin Update Now / Update All separate; group by source; API/HTML preferred, browser only if declared; Last Attempted + Last Successful (emphasized) | C6 | be/follow/schedule | Following | follow check timestamps | scheduler jitter/grouping tests | IMPL |
 | M21 | Capability-level health (Search/Work/Catalog/Reader/Download/Auth); states Healthy/Degraded/Unavailable/Rate Limited/Reconnect Required/Catalog Suspicious; internal categories; thresholds + hysteresis; trusted recovery; 404 ≠ failure; parser failures signal update; plugin version recorded; passive first; no periodic browser probes; active checks low priority; describes only; UI in Sources (A3); Search shows only concise progress | C6 | be/health | Sources; Search progress | health_signals | hysteresis/flap tests; no browser probe test | IMPL |
-| M22 | My Shelf: immediate save without files; views All/Saved/Reading/Completed/Favorites; Pin separate; Remove confirms Keep/Delete Files; Completed rules + optional delete keeping metadata; progress in SQLite; local-only Shelf search; formats (CBZ per unit, original images; PDF/EPUB coexist); per-unit local record; import CBZ/PDF/EPUB with confident association or Choose Work/Create Local Work | C6,C7 | be/services/shelf, fe/shelf | My Shelf, Work Details | shelf_entries, assets, progress | Shelf state tests; local-only search (no network) | NS |
-| M23 | Remove from Shelf ≠ Unfollow; Unfollow keeps Shelf + files; Delete Files keeps Follow + progress unless separately requested | C6 | be/services | dialogs | — | INV-10 matrix test | NS |
+| M22 | My Shelf: immediate save without files; views All/Saved/Reading/Completed/Favorites; Pin separate; Remove confirms Keep/Delete Files; Completed rules + optional delete keeping metadata; progress in SQLite; local-only Shelf search; formats (CBZ per unit, original images; PDF/EPUB coexist); per-unit local record; import CBZ/PDF/EPUB with confident association or Choose Work/Create Local Work | C6,C7 | be/services/shelf, fe/shelf | My Shelf, Work Details | shelf_entries, assets, progress | Shelf state tests; local-only search (no network) | IMPL |
+| M23 | Remove from Shelf ≠ Unfollow; Unfollow keeps Shelf + files; Delete Files keeps Follow + progress unless separately requested | C6 | be/services | dialogs | — | INV-10 matrix test | IMPL |
 
 ## §24–§25 Storage and staging
 
@@ -185,22 +185,22 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
-| M30 | In-app notifications only; no browser notifications | C6 | be/notifications, fe/notifications | Notifications drawer | notifications | EX-12 check | NS |
-| M30.1 | Important: New Releases, Download Failed, Reconnect Required, Low Storage, Catalog Suspicious; Informational: Plugin Update, Source Recovered, Backup/Import; background events don't notify; not a log viewer | C6 | be/notifications/classes | drawer | class column | no-noise tests | NS |
-| M30.2 | Group releases per Work; safe numeric range "Ch. 209–211"; mixed lists; cross-Work summary | C6 | be/notifications/grouping | drawer | — | grouping tests incl. mixed/specials | NS |
-| M30.3 | Seen/Unseen independent of Read/Unread/Partial; "Mark All as Seen" not "Read"; Clear Seen; never changes reading state | C6 | be/notifications | drawer | seen flag | INV-22 test | NS |
-| M30.4 | No per-item success spam; grouped batch success; final failures; Smart Retry silent until exhausted | C6 | be/notifications | drawer | — | download notification tests | NS |
-| M30.5 | Reconnect dedupe per Source | C6 | be/notifications/dedupe | drawer | dedupe key | 20 Works → 1 notice test | NS |
-| M30.6 | Rate limit status-only; one concise notice if prolonged and blocking | C6 | be/notifications | drawer | — | prolonged rate limit test | NS |
-| M30.7 | Low Storage dedupe per root; re-notify only after recovery+recurrence or escalation | C6 | be/notifications | drawer | — | recurrence tests | NS |
-| M30.8 | Catalog Suspicious warning states last trusted catalog kept | C6 | be/notifications | drawer | — | copy test | NS |
-| M30.9 | Plugin updates informational; new permissions need explicit review; never silent auto-update | C6,C3 | be/notifications, be/plugins | Review Update | — | permission update test | NS |
-| M30.10 | Source Recovered optional/silent by default | C6 | be/notifications | — | setting | default test | NS |
-| M30.11 | Backup failure important; success silent; large import may notify for review | C6,C7 | be/notifications | drawer | — | tests | NS |
-| M30.12 | One or two focused actions (View Releases, Retry, Reconnect, Manage Storage, Review Update) | C6 | fe/notifications | drawer | — | UI test | NS |
-| M30.13 | Mandatory logical dedupe keys (`source-auth:`, `storage-low:`, `catalog-suspicious:`, `new-release:`); repeats update existing | C6 | be/notifications/dedupe | — | unique dedupe_key | dedupe tests | NS |
-| M30.14 | Persistent while action required; transient may expire; resolved lingers ~1 h | C6 | be/notifications/lifecycle | drawer | state timestamps | lifecycle tests | NS |
-| M30.15 | Bounded history 30 d or 500, whichever first; subsystem state stays authoritative | C6 | be/notifications/cleanup | — | — | both-limit tests (D2) | NS |
+| M30 | In-app notifications only; no browser notifications | C6 | be/notifications, fe/notifications | Notifications drawer | notifications | EX-12 check | IMPL |
+| M30.1 | Important: New Releases, Download Failed, Reconnect Required, Low Storage, Catalog Suspicious; Informational: Plugin Update, Source Recovered, Backup/Import; background events don't notify; not a log viewer | C6 | be/notifications/classes | drawer | class column | no-noise tests | IMPL |
+| M30.2 | Group releases per Work; safe numeric range "Ch. 209–211"; mixed lists; cross-Work summary | C6 | be/notifications/grouping | drawer | — | grouping tests incl. mixed/specials | IMPL |
+| M30.3 | Seen/Unseen independent of Read/Unread/Partial; "Mark All as Seen" not "Read"; Clear Seen; never changes reading state | C6 | be/notifications | drawer | seen flag | INV-22 test | IMPL |
+| M30.4 | No per-item success spam; grouped batch success; final failures; Smart Retry silent until exhausted | C6 | be/notifications | drawer | — | download notification tests | IMPL |
+| M30.5 | Reconnect dedupe per Source | C6 | be/notifications/dedupe | drawer | dedupe key | 20 Works → 1 notice test | IMPL |
+| M30.6 | Rate limit status-only; one concise notice if prolonged and blocking | C6 | be/notifications | drawer | — | prolonged rate limit test | IMPL |
+| M30.7 | Low Storage dedupe per root; re-notify only after recovery+recurrence or escalation | C6 | be/notifications | drawer | — | recurrence tests | IMPL |
+| M30.8 | Catalog Suspicious warning states last trusted catalog kept | C6 | be/notifications | drawer | — | copy test | IMPL |
+| M30.9 | Plugin updates informational; new permissions need explicit review; never silent auto-update | C6,C3 | be/notifications, be/plugins | Review Update | — | permission update test | IMPL |
+| M30.10 | Source Recovered optional/silent by default | C6 | be/notifications | — | setting | default test | IMPL |
+| M30.11 | Backup failure important; success silent; large import may notify for review | C6,C7 | be/notifications | drawer | — | tests | IMPL |
+| M30.12 | One or two focused actions (View Releases, Retry, Reconnect, Manage Storage, Review Update) | C6 | fe/notifications | drawer | — | UI test | IMPL |
+| M30.13 | Mandatory logical dedupe keys (`source-auth:`, `storage-low:`, `catalog-suspicious:`, `new-release:`); repeats update existing | C6 | be/notifications/dedupe | — | unique dedupe_key | dedupe tests | IMPL |
+| M30.14 | Persistent while action required; transient may expire; resolved lingers ~1 h | C6 | be/notifications/lifecycle | drawer | state timestamps | lifecycle tests | IMPL |
+| M30.15 | Bounded history 30 d or 500, whichever first; subsystem state stays authoritative | C6 | be/notifications/cleanup | — | — | both-limit tests (D2) | IMPL |
 | M31 | Home discovery semantics | C2,C4,C6 | fe/home, be/services/home | Home | — | rows below | IMPL |
 | M31.1 | Trending only from trusted getTrending data; no fake global score; hide if none | C4 | be/services/home | Home Trending | cache.db | hide-without-data test | IMPL |
 | M31.2 | Latest Releases = getLatest discovery feed, distinct from Following New Releases | C4 | be/services/home | Home | cache.db | separation test | IMPL |
@@ -256,7 +256,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M34.9 | Persistent resumable jobs; streaming; destination-local staging; checksum verify; per-file failure isolation; Retry Failed; always Copy | C7 | be/export/jobs | Export activity | export_jobs, export_items | interruption resume; per-file failure tests | NS |
 | M34.10 | Local Source Track exports; missing plugin doesn't block | C7 | be/export | — | — | INV-11 export test | NS |
 | M34.11 | Export activity 30 d or 100 jobs; cleanup never deletes exported files | C7 | be/export/cleanup | activity | — | both-limit + file-preservation tests | NS |
-| M35 | Notifications / Download History / Export activity / Backup history / Diagnostics kept separate | C6,C7 | respective modules | respective screens | separate tables/files | separation audit | NS |
+| M35 | Notifications / Download History / Export activity / Backup history / Diagnostics kept separate | C6,C7 | respective modules | respective screens | separate tables/files | separation audit | IMPL |
 | M36 | Real-time event channel (SSE/WebSocket) for downloads, notifications, progress, source/job state; polling fallback; no cloud | C1,C6 | be/events, be/api/sse, fe/events | all live screens | — | multi-client update + reconnect fallback tests | IMPL |
 | M37 | Import CBZ/PDF/EPUB; Copy default; Move explicit; Leave in Place advanced/future *(optional)*; confident associate / Choose Existing / Create Local Work; no aggressive merge; drag & drop optional | C1,C7 | be/importer | Import flow | imports, assets | import uncertainty tests; Copy leaves source intact | IMPL |
 | M38 | Scanner reconciles; manual delete → Missing Local File; offline → Unavailable; missing plugin still readable; OneShelf IDs aid recovery; per-asset checksum/size/path/integrity; checksums never matching evidence; no dedup | C1,C7 | be/storage/scanner | Storage | assets | scanner tests | IMPL |
@@ -280,7 +280,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
-| M44 | Top-right Needs Attention + Notifications bell with counts; Needs Attention secondary to Hero, hidden at zero, actionable only; grouped popover with Reconnect/Manage Storage/Retry/View Source | C2,C6 | fe/shell/header | header | derived | UI tests | NS |
+| M44 | Top-right Needs Attention + Notifications bell with counts; Needs Attention secondary to Hero, hidden at zero, actionable only; grouped popover with Reconnect/Manage Storage/Retry/View Source | C2,C6 | fe/shell/header | header | derived | UI tests | IMPL |
 | M45 | Progressive disclosure: normal vs advanced for Downloads, Reader, Sources as listed | C2→C8 | fe/settings, fe/sources | Settings, Sources | — | UI audit per list | NS |
 | M46 | Errors answer what happened / what OneShelf did safely / what user can do; raw errors only in expandable details | C2→C8 | fe/components/error | all | — | copy audit | NS |
 | M47 | Destructive actions state what is removed, what remains, effects on files/progress/Follow/Shelf (Remove from Shelf, Delete Files, Replace Library, Reset Remote Passkeys, Uninstall Plugin) | C2,C6,C7,C8,C3 | fe/components/dialog | dialogs | — | dialog copy tests | NS |
@@ -311,8 +311,8 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | INV-06 | Unknown quality never blocks content | C4,C5 | Unknown quality doesn't hide/reject/mark unavailable | NS |
 | INV-07 | Reading never implies permanent download unless enabled | C5 | ordinary reading makes no permanent download | IMPL |
 | INV-08 | Auto-download OFF by default | C1,C5 | defaults registry + fresh install assertion; enabled engagement per spec | IMPL |
-| INV-09 | Follow never auto-downloads | C6 | new-release events enqueue nothing | NS |
-| INV-10 | Remove from Shelf / Unfollow / Delete Files independent | C6 | separate assertions on files, Shelf, Follow, read state, progress | NS |
+| INV-09 | Follow never auto-downloads | C6 | new-release events enqueue nothing | IMPL |
+| INV-10 | Remove from Shelf / Unfollow / Delete Files independent | C6 | separate assertions on files, Shelf, Follow, read state, progress | IMPL |
 | INV-11 | Local content readable without source/plugin/network | C2,C7 | read + export CBZ/PDF/EPUB with source offline, plugin disabled/uninstalled, session disconnected | NS |
 | INV-12 | Reader content can't execute privileged actions | C2 | malicious HTML/EPUB/SVG/PDF can't reach privileged actions, auth context or prohibited network | NS |
 | INV-13 | Community plugins can't execute arbitrary code | C3 | malicious `.osp` code payloads rejected | IMPL |
@@ -324,7 +324,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | INV-19 | Backups contain no sessions/passwords/tokens | C7 | inspect Library + Full contents/manifests for all exclusions | NS |
 | INV-20 | Export never silently modifies library | C7 | state diff before/after normal export | NS |
 | INV-21 | Download Missing Then Export requires explicit notice | C7 | disclosure required; normal validated commit then export | NS |
-| INV-22 | Notifications never alter reading state | C6 | Seen / Clear Seen / cleanup leave reading untouched | NS |
+| INV-22 | Notifications never alter reading state | C6 | Seen / Clear Seen / cleanup leave reading untouched | IMPL |
 | INV-23 | Clearing history never deletes content/state | C5,C6,C7 | download/export/notification history cleanup preserves content + progress | IMPL |
 | INV-24 | Navigation follows Source Track order | C2 | prologue, Special, Extra, 3.5 navigate by track order | NS |
 | INV-25 | Cross-source progress approximate/manual | C2,C5 | Start This Unit / Try Approximate Position; no guessed unit or exact-page claim | NS |
@@ -346,8 +346,8 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | DEF-auto-mark-read | 97% | C2 | threshold test | IMPL |
 | DEF-reader-smart-controls | auto-hide ~3 s | C2 | timing test | NS |
 | DEF-download-concurrency | HTTP 4; Browser 1 (independent) | C3,C5 | governor limit tests | IMPL |
-| DEF-follow | ~12 h + jitter | C6 | scheduler test | NS |
-| DEF-notifications | resolved visible ~1 h; history 30 d or 500 | C6 | lifecycle + both-limit tests | NS |
+| DEF-follow | ~12 h + jitter | C6 | scheduler test | IMPL |
+| DEF-notifications | resolved visible ~1 h; history 30 d or 500 | C6 | lifecycle + both-limit tests | IMPL |
 | DEF-export-activity | 30 d or 100 jobs | C7 | both-limit test | NS |
 | DEF-diagnostics | 7 d or 100 MB | C3 | both-limit test | NS |
 | DEF-retry | initial + up to 3 retries | C5 | retry count test | IMPL |
@@ -372,7 +372,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | EX-09 | Title stemming | no-stemming tests (C09) | NS |
 | EX-10 | Cover/image matching | INV-28 | NS |
 | EX-11 | AI matching requirement | dependency/architecture audit | NS |
-| EX-12 | Browser notifications | no Notification API / push usage audit | NS |
+| EX-12 | Browser notifications | no Notification API / push usage audit | IMPL |
 | EX-13 | Automatic new-release downloads | INV-09 | NS |
 | EX-14 | Complex storage deduplication | architecture audit | NS |
 | EX-15 | Full note/drawing/annotation system | Reader scope audit (bookmarks/highlights only) | NS |
@@ -490,3 +490,17 @@ Also improved in C3 without changing status: INV-14 now also covers plugin-suppl
 | DEF-retry, DEF-reader-cache, DEF-read-ahead, DEF-auto-download, DEF-auto-mark-read | defaults applied at runtime | contract, engine and reader suites | remaining defaults in their phases |
 
 Also strengthened without status change: INV-16 (invalid media never registered), INV-17 (download commits replay through the journal), INV-26 (Reader stays responsive under download saturation).
+
+### C6 — 2026-09-17 (gate passed; see `docs/c6/verification.md`)
+
+| ID | C6 implementation | Evidence | Remaining |
+|---|---|---|---|
+| M5.6, M22, M23 | `library/shelf.py` | `tests/integration/library/test_shelf_and_follow.py`, `test_shelf_api.py` | My Shelf screen (C2) |
+| M20, M20a–M20d | `follow/service.py`, `follow/runner.py`, migration 0008 | follow suite + API follow tests | Following screen (C2), View Alternatives (C2) |
+| M21 | `health/service.py` | health suite + `/api/sources/{id}/health/state` | Sources screen (C2), scheduled active checks (C2 settings) |
+| M30, M30.1–M30.15, M35, M44 | `notifications/service.py`, engine failure hooks | notification suite + API tests | Notification drawer and Needs Attention UI (C2) |
+| INV-09 | release detection never enqueues downloads | follow suite + API test | — |
+| INV-10 | Shelf, Follow, files and progress independent | shelf suite + API test | — |
+| INV-22 | Seen/Clear Seen never touch reading state | notification suite + API test | — |
+| EX-12 | no browser notification or push APIs | `tests/unit/test_no_browser_notifications.py` | — |
+| DEF-follow, DEF-notifications | ~12 h + jitter; 1 h resolved, 30 d / 500 retention | follow and notification suites | — |
