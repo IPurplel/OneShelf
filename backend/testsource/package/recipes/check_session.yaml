@@ -1,0 +1,9 @@
+capability: check_session
+request:
+  url: "{base_url}/account"
+  auth: optional
+response:
+  format: html
+extract:
+  fields:
+    logged_in: {css: "a.logout", exists: true}

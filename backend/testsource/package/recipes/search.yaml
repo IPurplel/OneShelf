@@ -1,0 +1,23 @@
+capability: search
+inputs: [query, page]
+request:
+  url: "{base_url}/search?q={query}&page={page}"
+response:
+  format: html
+extract:
+  items: {css: "li.result"}
+  fields:
+    listing_key:
+      css: "a.title::attr(href)"
+      transforms: [{regex_extract: {pattern: '/work/([a-z0-9-]+)', group: 1}}]
+      required: true
+    title: {css: "a.title::text", transforms: [trim], required: true}
+    url: {css: "a.title::attr(href)", transforms: [normalize_url]}
+    cover_url: {css: "img.cover::attr(src)", transforms: [normalize_url]}
+    content_type: {css: ".type::text", transforms: [trim]}
+    language: {css: ".lang::text", transforms: [trim]}
+pagination:
+  mode: page_number
+  start: 1
+  max_pages: 20
+  stop_when: empty_items

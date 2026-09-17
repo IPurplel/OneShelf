@@ -1,0 +1,59 @@
+{
+ "total": 9,
+ "units": [
+  {
+   "id": "irr-prologue",
+   "title": "Prologue",
+   "label": "Prologue",
+   "type": "prologue"
+  },
+  {
+   "id": "irr-1",
+   "title": "Chapter 1",
+   "label": "Chapter 1",
+   "type": "chapter"
+  },
+  {
+   "id": "irr-2",
+   "title": "Chapter 2",
+   "label": "Chapter 2",
+   "type": "chapter"
+  },
+  {
+   "id": "irr-special",
+   "title": "Special: Beach Day",
+   "label": "Special",
+   "type": "special"
+  },
+  {
+   "id": "irr-3-5",
+   "title": "Chapter 3.5",
+   "label": "Chapter 3.5",
+   "type": "chapter"
+  },
+  {
+   "id": "irr-3",
+   "title": "Chapter 3",
+   "label": "Chapter 3",
+   "type": "chapter"
+  },
+  {
+   "id": "irr-10a",
+   "title": "Chapter 10 (part A)",
+   "label": "Chapter 10",
+   "type": "chapter"
+  },
+  {
+   "id": "irr-10b",
+   "title": "Chapter 10 (part B)",
+   "label": "Chapter 10",
+   "type": "chapter"
+  },
+  {
+   "id": "irr-extra",
+   "title": "Extra Story",
+   "label": "Extra",
+   "type": "extra"
+  }
+ ]
+}

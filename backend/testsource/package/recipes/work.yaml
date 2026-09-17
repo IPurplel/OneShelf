@@ -1,0 +1,12 @@
+capability: work
+inputs: [listing_key]
+request:
+  url: "{base_url}/work/{listing_key:path}"
+response:
+  format: html
+extract:
+  fields:
+    title: {css: "h1.title::text", transforms: [trim]}
+    aliases: {css: "ul.aliases li", all: true}
+    content_type: {css: ".type::text", transforms: [trim]}
+    language: {css: ".lang::text", transforms: [trim]}

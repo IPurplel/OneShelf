@@ -1,0 +1,28 @@
+cases:
+  - capability: search
+    inputs: {query: chronicle, page: 1}
+    fixtures:
+      - {url: "http://testsource.example/search?q=chronicle&page=1", file: fixtures/search.html}
+    expect:
+      min_items: 1
+      fields_present: [listing_key, title, url]
+      first: {listing_key: irregular, title: The Irregular Chronicle, content_type: manga}
+  - capability: catalog
+    inputs: {listing_key: irregular}
+    fixtures:
+      - {url: "http://testsource.example/api/works/irregular/units?page=1", file: fixtures/irregular-units.json}
+    expect:
+      min_items: 9
+      complete: true
+      fields_present: [unit_key, title]
+      first: {unit_key: irr-prologue, number: null, unit_type: prologue}
+  - capability: reader
+    inputs: {unit_key: irr-1}
+    fixtures:
+      - {url: "http://testsource.example/api/units/irr-1/pages", file: fixtures/pages.json}
+    expect: {min_items: 3, complete: true}
+  - capability: check_session
+    fixtures:
+      - {url: "http://testsource.example/account", file: fixtures/account-logged-out.html}
+    expect:
+      first: {logged_in: "False"}

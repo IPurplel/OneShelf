@@ -11,7 +11,17 @@ from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 
 from oneshelf.api.access import AccessConfig
+from oneshelf.api.guard import RequestGuardMiddleware
 from oneshelf.api.middleware import AccessBoundaryMiddleware
+from oneshelf.api.sources import router as sources_router
+from oneshelf.net.governor import TrafficGovernor
+from oneshelf.net.lazy_browser import LazyBrowser
+from oneshelf.plugins.manager import PluginManager
+from oneshelf.plugins.registry import parse_trusted_keys, registry_from_config
+from oneshelf.sessions.login import LoginController
+from oneshelf.sessions.manager import SessionManager
+from oneshelf.sessions.store import SecretsStore, load_or_create_key
+from oneshelf.sources.service import SourceService
 from oneshelf.db.connection import open_database
 from oneshelf.db.migrate import current_version, migrate
 from oneshelf.db.schema import MIGRATIONS
@@ -21,10 +31,27 @@ from oneshelf.services.startup import run_startup_recovery
 DEFAULT_DATA_DIR = ".oneshelf-dev"
 
 
+@dataclass
+class Services:
+    conn: object
+    plugins: PluginManager
+    sessions: SessionManager
+    governor: TrafficGovernor
+    source_service: SourceService
+    logins: LoginController
+    registry: object | None = None
+
+
 @dataclass(frozen=True)
 class AppConfig:
     data_dir: str
     access: AccessConfig
+    allowed_hosts: tuple[str, ...] = ()
+    session_key_file: str | None = None
+    dev_test_source: bool = False
+    dev_test_source_address: str | None = None
+    registry_url: str | None = None
+    registry_trusted_keys: str | None = None
 
     @property
     def db_path(self) -> Path:
@@ -32,13 +59,26 @@ class AppConfig:
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> AppConfig:
+        data_dir = env.get("ONESHELF_DATA_DIR", DEFAULT_DATA_DIR)
         return cls(
-            data_dir=env.get("ONESHELF_DATA_DIR", DEFAULT_DATA_DIR),
+            data_dir=data_dir,
             access=AccessConfig.from_strings(
                 trusted_networks=env.get("ONESHELF_TRUSTED_NETWORKS", ""),
                 trusted_proxies=env.get("ONESHELF_TRUSTED_PROXIES", ""),
             ),
+            allowed_hosts=tuple(h.strip() for h in env.get("ONESHELF_ALLOWED_HOSTS", "").split(",") if h.strip()),
+            session_key_file=env.get("ONESHELF_SESSION_KEY_FILE") or str(Path(data_dir) / "keys" / "session.key"),
+            dev_test_source=env.get("ONESHELF_DEV_TEST_SOURCE", "").lower() in ("1", "true", "yes"),
+            dev_test_source_address=env.get("ONESHELF_DEV_TEST_SOURCE_ADDRESS"),
+            registry_url=env.get("ONESHELF_REGISTRY_URL") or None,
+            registry_trusted_keys=env.get("ONESHELF_REGISTRY_TRUSTED_KEYS") or None,
         )
+
+    def dev_hosts(self) -> dict[str, tuple[str, int]]:
+        if not (self.dev_test_source and self.dev_test_source_address):
+            return {}
+        host, _, port = self.dev_test_source_address.rpartition(":")
+        return {name: (host, int(port)) for name in ("testsource.example", "cdn.testsource.example")}
 
 
 def create_app(config: AppConfig) -> FastAPI:
@@ -46,9 +86,29 @@ def create_app(config: AppConfig) -> FastAPI:
     async def lifespan(app: FastAPI):
         Path(config.data_dir).mkdir(parents=True, exist_ok=True)
         migrate(config.db_path, MIGRATIONS, snapshot_dir=Path(config.data_dir) / "snapshots")
-        with open_database(config.db_path) as conn:
-            app.state.startup_report = run_startup_recovery(conn)
-        yield
+        conn = open_database(config.db_path)
+        app.state.startup_report = run_startup_recovery(conn)
+        plugins = PluginManager(conn, store_dir=Path(config.data_dir) / "plugins",
+                                trusted_keys=parse_trusted_keys(config.registry_trusted_keys))
+        registry = registry_from_config(config.registry_url)
+        plugins.reconcile_store()
+        store = SecretsStore(Path(config.data_dir) / "secrets.db", load_or_create_key(config.session_key_file))
+        sessions = SessionManager(conn, store, events=app.state.bus)
+        governor = TrafficGovernor()
+        browser = LazyBrowser()
+        source_service = SourceService(conn, plugins, governor, sessions, dev_test_source=config.dev_test_source,
+                                       dev_hosts=config.dev_hosts(), browser=browser)
+        logins = LoginController(source_service, browser, sessions, governor)
+        app.state.services = Services(conn, plugins, sessions, governor, source_service, logins, registry)
+        try:
+            yield
+        finally:
+            for login in list(logins._active.values()):
+                await login.cancel()
+            await source_service.aclose()
+            await browser.aclose()
+            store.close()
+            conn.close()
 
     app = FastAPI(title="OneShelf", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.config = config
@@ -70,7 +130,9 @@ def create_app(config: AppConfig) -> FastAPI:
             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
         )
 
+    app.include_router(sources_router)
     app.add_middleware(AccessBoundaryMiddleware, config=config.access)
+    app.add_middleware(RequestGuardMiddleware, allowed_hosts=config.allowed_hosts)
     return app
 
 

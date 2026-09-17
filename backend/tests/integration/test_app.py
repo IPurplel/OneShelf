@@ -14,6 +14,8 @@ def config(tmp_path):
         "ONESHELF_DATA_DIR": str(tmp_path / "data"),
         "ONESHELF_TRUSTED_NETWORKS": "192.168.1.0/24",
         "ONESHELF_TRUSTED_PROXIES": "10.0.0.2/32",
+        "ONESHELF_ALLOWED_HOSTS": "testserver",
+        "ONESHELF_SESSION_KEY_FILE": str(tmp_path / "keys" / "session.key"),
     })
 
 

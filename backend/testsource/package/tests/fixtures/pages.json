@@ -1,0 +1,16 @@
+{
+ "pages": [
+  {
+   "url": "http://cdn.testsource.example/img/irr-1/1.png",
+   "label": "1"
+  },
+  {
+   "url": "http://cdn.testsource.example/img/irr-1/2.png",
+   "label": "2"
+  },
+  {
+   "url": "http://cdn.testsource.example/img/irr-1/3.png",
+   "label": "3"
+  }
+ ]
+}

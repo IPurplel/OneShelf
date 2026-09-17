@@ -1,6 +1,6 @@
 # Requirement Traceability Matrix
 
-Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
+Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
 
 **Coverage:** every Master heading from §0 to §56 (57 sections, 152 numbered subsections, and the unnumbered sub-headings in §4.4, §20, §26.3, §26.22), all 30 §51 invariants (INV), all 17 §42 default groups (DEF), all 30 §49 exclusions (EX), Meta Prompt §D3 deliverables (MPD) and §G investigation rules (MPG).
 
@@ -69,29 +69,29 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
-| M9 | Source adapter/plugin architecture | C3 | be/plugins | — | — | rows below | NS |
-| M9.1 | Capabilities search/getWork/getChapters/getPages/getTrending/getLatest/getDownloads/checkSession/healthCheck; missing metadata allowed | C3 | be/plugins/contracts | — | capability states | adapter contract tests | NS |
-| M9.2 | Classification precedence user override > source classification > plugin default > Unknown | C3 | be/plugins, be/domain | Work details edit | classification_overrides | precedence tests | NS |
-| M9.3 | Community plugins declarative `.osp` (manifest/source/recipes/tests/icon); no py/JS/shell/eval/exec; Core owns HTTP/Scrapling/browser/sessions/downloads/DB/FS/paths/network | C3 | be/plugins/schema, validator | Sources upload | plugin store | INV-13 malicious package rejection | NS |
-| M9.4 | Bounded safe transform library incl. bounded regex, with resource limits | C3 | be/plugins/transforms | — | — | ReDoS/size/time limit tests | NS |
-| M9.5 | Trust labels Official/Verified Community/Community/Local indicate review only, not access | C3 | be/plugins | Sources list | plugin.trust_label | label doesn't widen policy test | NS |
-| M9.6 | Native adapters only as rare reviewed official exceptions; WASM not v1 | C3,C9 | be/plugins/native (registry of reviewed) | — | — | review record per native adapter; none by default | NS |
+| M9 | Source adapter/plugin architecture | C3 | be/plugins | — | — | rows below | IMPL |
+| M9.1 | Capabilities search/getWork/getChapters/getPages/getTrending/getLatest/getDownloads/checkSession/healthCheck; missing metadata allowed | C3 | be/plugins/contracts | — | capability states | adapter contract tests | IMPL |
+| M9.2 | Classification precedence user override > source classification > plugin default > Unknown | C3 | be/plugins, be/domain | Work details edit | classification_overrides | precedence tests | IMPL |
+| M9.3 | Community plugins declarative `.osp` (manifest/source/recipes/tests/icon); no py/JS/shell/eval/exec; Core owns HTTP/Scrapling/browser/sessions/downloads/DB/FS/paths/network | C3 | be/plugins/schema, validator | Sources upload | plugin store | INV-13 malicious package rejection | IMPL |
+| M9.4 | Bounded safe transform library incl. bounded regex, with resource limits | C3 | be/plugins/transforms | — | — | ReDoS/size/time limit tests | IMPL |
+| M9.5 | Trust labels Official/Verified Community/Community/Local indicate review only, not access | C3 | be/plugins | Sources list | plugin.trust_label | label doesn't widen policy test | IMPL |
+| M9.6 | Native adapters only as rare reviewed official exceptions; WASM not v1 | C3,C9 | be/plugins/native (registry of reviewed) | — | — | review record per native adapter; none by default | IMPL |
 | M9.7 | Restricted RPC excluded | C3 | — | — | — | EX-04 | NS |
-| M10 | Install via Registry (A1) or local upload; atomic 8-step install; Configure/Update/Disable/Uninstall/Health/Rollback; new permissions need approval; no auto-publish; uninstall keeps Shelf/content; missing plugin keeps provenance + reinstall; backups store names/versions only; account connection optional | C3 | be/plugins/lifecycle, registry | Sources install/review/manage | plugins, plugin_versions, permissions | install rollback; permission-change review; uninstall preserves content; fixture registry tests | NS |
-| M11 | Allowlists + redirect revalidation + DNS revalidation + block loopback/private/link-local/unsafe; same for browser; Test Source dev-only exception | C3 | be/net/policy, be/net/browser_proxy | — | policy config | INV-15 HTTP + browser SSRF/rebinding tests | NS |
+| M10 | Install via Registry (A1) or local upload; atomic 8-step install; Configure/Update/Disable/Uninstall/Health/Rollback; new permissions need approval; no auto-publish; uninstall keeps Shelf/content; missing plugin keeps provenance + reinstall; backups store names/versions only; account connection optional | C3 | be/plugins/lifecycle, registry | Sources install/review/manage | plugins, plugin_versions, permissions | install rollback; permission-change review; uninstall preserves content; fixture registry tests | IMPL |
+| M11 | Allowlists + redirect revalidation + DNS revalidation + block loopback/private/link-local/unsafe; same for browser; Test Source dev-only exception | C3 | be/net/policy, be/net/browser_proxy | — | policy config | INV-15 HTTP + browser SSRF/rebinding tests | IMPL |
 | M12 | Scrapling discovery and adapter generator | C3,C9 | be/generator | Settings → Developer | drafts | rows below | NS |
-| M12.1 | Scrapling: static first, dynamic only if needed, CSS/XPath, APIs/XHR, adaptive selectors; doesn't own queue/retry/Shelf/packaging/priority/policy; no stealth | C3,C9 | be/generator, be/plugins/runtime | — | — | K1 guard test (no stealth fetchers) | NS |
+| M12.1 | Scrapling: static first, dynamic only if needed, CSS/XPath, APIs/XHR, adaptive selectors; doesn't own queue/retry/Shelf/packaging/priority/policy; no stealth | C3,C9 | be/generator, be/plugins/runtime | — | — | K1 guard test (no stealth fetchers) | IMPL |
 | M12.2 | Pipeline URL→static→mapping→capabilities→optional dynamic→XHR/DOM/media→confidence→draft→domain/permission review→tests→dev review→validation→local install→optional submission | C9 | be/generator/pipeline | Developer generator UI | draft state | pipeline e2e on Test Source | NS |
 | M12.3 | Generator features list (route mapping, Arabic test queries, unit discovery preserving raw fields, resource discovery not screenshots, Confirmed/Probable/Unknown/Unsupported, manifest/recipe generation, safe transforms, adaptive fallback after failure+validation, CDN vs ads separation, capability-level auth testing, sanity tests, multiple sample Works, preview, Recipe Inspector, Test/Edit/confidence, Generate≠Install, Repair with diffs, validate before replace, atomic activation+rollback, community export/submit, no Shelf/progress/unrelated session access, scoped Use My Session, no raw passwords, no auto-publish) | C9 | be/generator, fe/developer | Developer UI | drafts, repair diffs | per-feature tests; MPG rows | NS |
 | M12.4 | Unsupported declarative sites → "Unsupported by Declarative Adapter" / "Native Adapter Review Required"; no hacks | C9 | be/generator | generator result | — | proprietary-signing fixture test | NS |
-| M13 | Use My Session: user logs in; no passwords; per-source isolation; plugins never get raw material; encrypted at rest, key separate; backup exclusions; cookies/localStorage/IndexedDB/sessionStorage handling; states + actions; auth failure pauses → WAITING_FOR_SESSION, no blind retry; atomic reconnect + resume; disconnect deletes immediately; never log secrets; install doesn't force auth; attach only to needed capabilities/domains | C3 | be/sessions, be/net | Sources → account/session | secrets.db + separate key | same-source isolation; cross-source/CDN leak; reconnect wait/resume; disconnect deletion; log scan | NS |
+| M13 | Use My Session: user logs in; no passwords; per-source isolation; plugins never get raw material; encrypted at rest, key separate; backup exclusions; cookies/localStorage/IndexedDB/sessionStorage handling; states + actions; auth failure pauses → WAITING_FOR_SESSION, no blind retry; atomic reconnect + resume; disconnect deletes immediately; never log secrets; install doesn't force auth; attach only to needed capabilities/domains | C3 | be/sessions, be/net | Sources → account/session | secrets.db + separate key | same-source isolation; cross-source/CDN leak; reconnect wait/resume; disconnect deletion; log scan | IMPL |
 
 ## §14–§19 Extraction, governor, downloads, commit, SQLite, auto-download
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
 | M14 | Methods Direct/HTML-API/Reader Media/Browser; Extraction Contract (source, language, unit, output, method); precedence one-time > source > global > plugin; Preferred + Ask default; Strict/Locked; optional Automatic Fallback; Smart Retry first; no fallback on auth/CAPTCHA/rate limit/outage; explicit public-reader alternative; no auth bypass; health doesn't rewrite; no mixed methods per unit; switch = full temp redownload + validate + atomic replace; method-specific resume; plugin update doesn't change method; history records methods locally | C3,C5 | be/downloads/extraction | download dialogs, Settings → Downloads advanced | extraction_contracts, history | contract-preservation + mode semantics tests | NS |
-| M15 | Global Source Traffic Governor: priority Reader > interactive > manual/downloads > read-ahead > Follow > Health; browser same priority; low-priority browser never blocks Reader; per-source/global concurrency, rate limits, Retry-After, backoff, fairness | C3,C5 | be/net/governor | — | in-memory + persisted rate state | INV-26 saturation test; fairness tests | NS |
+| M15 | Global Source Traffic Governor: priority Reader > interactive > manual/downloads > read-ahead > Follow > Health; browser same priority; low-priority browser never blocks Reader; per-source/global concurrency, rate limits, Retry-After, backoff, fairness | C3,C5 | be/net/governor | — | in-memory + persisted rate state | INV-26 saturation test; fairness tests | IMPL |
 | M16 | Download Engine: persistent SQLite queue/state machine + scheduler + workers + governor + staging + integrity + packaging + commit + recovery + history; grouped UI states | C5 | be/downloads | Downloads | jobs, batches | state machine tests | NS |
 | M16.1 | Per-unit jobs under batch; partial failure ≠ batch failure; Completed / Completed with Issues / Retry All Failed; windowed queue; pause/resume/cancel/retry/reorder | C5 | be/downloads/scheduler | Downloads batch cards | batches, jobs | partial success; huge queue memory bound | NS |
 | M16.2 | Concurrency HTTP 4, Browser 1 independent; advanced may raise | C5 | be/settings/defaults, be/net | Settings advanced | settings | DEF-concurrency test | NS |
@@ -113,7 +113,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M20b | Metadata change of same unit updates, not new; reordering not new; disappear→return not new; duplicate notifications suppressed; Seen separate from Read | C6 | be/follow/detect | Following | — | rename/reorder/reappear tests | NS |
 | M20c | Preferred Source change: fetch catalog, Source Change Baseline, no flood, preserve progress | C6 | be/follow | Change Preferred Source | baselines | source-change tests | NS |
 | M20d | Schedule ~12 h + jitter; Check Now / Check All Now; plugin Update Now / Update All separate; group by source; API/HTML preferred, browser only if declared; Last Attempted + Last Successful (emphasized) | C6 | be/follow/schedule | Following | follow check timestamps | scheduler jitter/grouping tests | NS |
-| M21 | Capability-level health (Search/Work/Catalog/Reader/Download/Auth); states Healthy/Degraded/Unavailable/Rate Limited/Reconnect Required/Catalog Suspicious; internal categories; thresholds + hysteresis; trusted recovery; 404 ≠ failure; parser failures signal update; plugin version recorded; passive first; no periodic browser probes; active checks low priority; describes only; UI in Sources (A3); Search shows only concise progress | C6 | be/health | Sources; Search progress | health_signals | hysteresis/flap tests; no browser probe test | NS |
+| M21 | Capability-level health (Search/Work/Catalog/Reader/Download/Auth); states Healthy/Degraded/Unavailable/Rate Limited/Reconnect Required/Catalog Suspicious; internal categories; thresholds + hysteresis; trusted recovery; 404 ≠ failure; parser failures signal update; plugin version recorded; passive first; no periodic browser probes; active checks low priority; describes only; UI in Sources (A3); Search shows only concise progress | C6 | be/health | Sources; Search progress | health_signals | hysteresis/flap tests; no browser probe test | IMPL |
 | M22 | My Shelf: immediate save without files; views All/Saved/Reading/Completed/Favorites; Pin separate; Remove confirms Keep/Delete Files; Completed rules + optional delete keeping metadata; progress in SQLite; local-only Shelf search; formats (CBZ per unit, original images; PDF/EPUB coexist); per-unit local record; import CBZ/PDF/EPUB with confident association or Choose Work/Create Local Work | C6,C7 | be/services/shelf, fe/shelf | My Shelf, Work Details | shelf_entries, assets, progress | Shelf state tests; local-only search (no network) | NS |
 | M23 | Remove from Shelf ≠ Unfollow; Unfollow keeps Shelf + files; Delete Files keeps Follow + progress unless separately requested | C6 | be/services | dialogs | — | INV-10 matrix test | NS |
 
@@ -269,12 +269,12 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M40 | API documentation: endpoint groups, auth expectations, events, plugin APIs, job interfaces; no cloud API; no secret exposure | C3→C9 | docs/api | — | — | docs review vs implemented routes | NS |
 | M41 | Initial test source suite | C3→C9 | plugins/official, test_source | — | — | rows below; source-capability evidence ledger | NS |
 | M41.1 | Real sources: MangaDex, 3asq/Al-Aasheq, WEBTOON, Tapas, Safahat/Hindawi (A5), Project Gutenberg, arXiv, Standard Ebooks | C3→C9 | plugins/official | Sources | plugins | per-source G5 evidence (EB-3) | NS |
-| M41.2 | Controlled OneShelf Test Source for deterministic failure testing | C1,C3 | test_source/ | dev only | — | fault fixture suite | NS |
+| M41.2 | Controlled OneShelf Test Source for deterministic failure testing | C1,C3 | test_source/ | dev only | — | fault fixture suite | IMPL |
 | M41.3 | Roles: foundation (Gutenberg, Hindawi, arXiv), sequential (MangaDex, 3asq), difficult web (WEBTOON, Tapas), format stress (Standard Ebooks: one Work, many formats, no duplicate Works) | C3→C9 | plugins/official | — | — | role-specific workflow tests | NS |
 | M41.4 | Correctness/reference vs real-world stress sources; 3asq public parser testing only, not official/licensed default | C9 | docs/evidence | — | — | evidence ledger labels | NS |
-| M41.5 | Local deterministic cases: irregular order/numbers, Special, Prologue, 3.5, 300→7, 429 Retry-After, 500, session expiry, HTML-as-media, corrupt media, interruption, changed ETag, unapproved redirect, malformed metadata, incomplete pagination, other recovery | C1→C5 | test_source/ | — | — | one scenario test each | NS |
+| M41.5 | Local deterministic cases: irregular order/numbers, Special, Prologue, 3.5, 300→7, 429 Retry-After, 500, session expiry, HTML-as-media, corrupt media, interruption, changed ETag, unapproved redirect, malformed metadata, incomplete pagination, other recovery | C1→C5 | test_source/ | — | — | one scenario test each | IMPL |
 | M42 | Single source of approved defaults, consistent across UI/API/runtime/migrations (D2) | C1 | be/settings/defaults | Settings | settings | DEF rows | IMPL |
-| M43 | Diagnostics: parser/network/job/health operational data only; 7 d or 100 MB rotating; never passwords/cookies/tokens/auth headers/sensitive bodies; no matcher telemetry | C3,C6 | be/diagnostics | Settings → Advanced | rotating files | redaction scan; retention both-limit test | NS |
+| M43 | Diagnostics: parser/network/job/health operational data only; 7 d or 100 MB rotating; never passwords/cookies/tokens/auth headers/sensitive bodies; no matcher telemetry | C3,C6 | be/diagnostics | Settings → Advanced | rotating files | redaction scan; retention both-limit test | IMPL |
 
 ## §44–§50 UX rules, security, exclusions, non-goals
 
@@ -284,7 +284,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M45 | Progressive disclosure: normal vs advanced for Downloads, Reader, Sources as listed | C2→C8 | fe/settings, fe/sources | Settings, Sources | — | UI audit per list | NS |
 | M46 | Errors answer what happened / what OneShelf did safely / what user can do; raw errors only in expandable details | C2→C8 | fe/components/error | all | — | copy audit | NS |
 | M47 | Destructive actions state what is removed, what remains, effects on files/progress/Follow/Shelf (Remove from Shelf, Delete Files, Replace Library, Reset Remote Passkeys, Uninstall Plugin) | C2,C6,C7,C8,C3 | fe/components/dialog | dialogs | — | dialog copy tests | NS |
-| M48 | Security boundaries summary (declarative plugins, Core-owned capabilities, allowlists, redirect/DNS, SSRF, genuine LAN, trusted proxies, Origin/CSRF, secure cookies, no Web Storage tokens, document isolation, path safety, no plugin FS, no raw sessions, no secrets in logs/backups/export) | C1→C8 | see architecture.md §6 | — | — | INV-12–15, 19, 30 + security review | NS |
+| M48 | Security boundaries summary (declarative plugins, Core-owned capabilities, allowlists, redirect/DNS, SSRF, genuine LAN, trusted proxies, Origin/CSRF, secure cookies, no Web Storage tokens, document isolation, path safety, no plugin FS, no raw sessions, no secrets in logs/backups/export) | C1→C8 | see architecture.md §6 | — | — | INV-12–15, 19, 30 + security review | IMPL |
 | M49 | Explicit v1 exclusions stay out of scope | all | — | — | — | EX rows | NS |
 | M50 | Non-goals don't delay v1 (multi-user, cloud sync, annotation suite, AI recs, automation marketplace, WASM, conversion, dedup, push) | all | — | — | — | scope review per phase | NS |
 
@@ -315,9 +315,9 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | INV-10 | Remove from Shelf / Unfollow / Delete Files independent | C6 | separate assertions on files, Shelf, Follow, read state, progress | NS |
 | INV-11 | Local content readable without source/plugin/network | C2,C7 | read + export CBZ/PDF/EPUB with source offline, plugin disabled/uninstalled, session disconnected | NS |
 | INV-12 | Reader content can't execute privileged actions | C2 | malicious HTML/EPUB/SVG/PDF can't reach privileged actions, auth context or prohibited network | NS |
-| INV-13 | Community plugins can't execute arbitrary code | C3 | malicious `.osp` code payloads rejected | NS |
+| INV-13 | Community plugins can't execute arbitrary code | C3 | malicious `.osp` code payloads rejected | IMPL |
 | INV-14 | Plugins can't access arbitrary paths | C1,C3 | path payloads rejected; Core-only path generation | IMPL |
-| INV-15 | Plugins can't SSRF into LAN/internal | C3 | HTTP + browser redirect/DNS SSRF cases blocked | NS |
+| INV-15 | Plugins can't SSRF into LAN/internal | C3 | HTTP + browser redirect/DNS SSRF cases blocked | IMPL |
 | INV-16 | Incomplete downloads never appear as completed | C1,C5 | incomplete/corrupt artifacts stay out of local content | IMPL |
 | INV-17 | Commit crash recoverable idempotently | C1,C5 | crash at each commit step; repeated reconciliation, no duplicate/lost registration | IMPL |
 | INV-18 | Offline storage ≠ mass deletion | C1,C7 | offline root → Unavailable, no mass Missing/cleanup; safe reconnect reconcile | IMPL |
@@ -328,7 +328,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | INV-23 | Clearing history never deletes content/state | C5,C6,C7 | download/export/notification history cleanup preserves content + progress | NS |
 | INV-24 | Navigation follows Source Track order | C2 | prologue, Special, Extra, 3.5 navigate by track order | NS |
 | INV-25 | Cross-source progress approximate/manual | C2,C5 | Start This Unit / Try Approximate Position; no guessed unit or exact-page claim | NS |
-| INV-26 | Browser background work can't starve Reader/direct work | C3,C5 | saturated low-priority work; bounded Reader responsiveness | NS |
+| INV-26 | Browser background work can't starve Reader/direct work | C3,C5 | saturated low-priority work; bounded Reader responsiveness | IMPL |
 | INV-27 | Search results represent Works | C4 | Work-level results with selectable provenance, no duplicated source cards | NS |
 | INV-28 | Covers never identity evidence | C4 | matching ignores covers; test with identical/different covers | NS |
 | INV-29 | Matching diagnostics never telemetry | C4,C6,C9 | review persistent records, diagnostics, network calls, cleanup | NS |
@@ -345,7 +345,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | DEF-read-ahead | next 5 existing Reading Units | C5 | bounded read-ahead test | NS |
 | DEF-auto-mark-read | 97% | C2 | threshold test | NS |
 | DEF-reader-smart-controls | auto-hide ~3 s | C2 | timing test | NS |
-| DEF-download-concurrency | HTTP 4; Browser 1 (independent) | C3,C5 | governor limit tests | NS |
+| DEF-download-concurrency | HTTP 4; Browser 1 (independent) | C3,C5 | governor limit tests | IMPL |
 | DEF-follow | ~12 h + jitter | C6 | scheduler test | NS |
 | DEF-notifications | resolved visible ~1 h; history 30 d or 500 | C6 | lifecycle + both-limit tests | NS |
 | DEF-export-activity | 30 d or 100 jobs | C7 | both-limit test | NS |
@@ -363,7 +363,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 |---|---|---|---|
 | EX-01 | Cloud OneShelf account | no account endpoints/UI; offline operation | NS |
 | EX-02 | Multi-user | single-user model audit | NS |
-| EX-03 | Arbitrary executable community plugin code | INV-13 | NS |
+| EX-03 | Arbitrary executable community plugin code | INV-13 | IMPL |
 | EX-04 | Restricted-RPC plugin design | architecture review | NS |
 | EX-05 | Matcher telemetry / central collector / shared dataset | INV-29 | NS |
 | EX-06 | Automatic source switching | INV-02 | NS |
@@ -383,14 +383,14 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | EX-20 | Ads | UI/dependency audit | NS |
 | EX-21 | Subscriptions/payments | UI/API audit | NS |
 | EX-22 | Gaming/achievement systems | UI/API audit | NS |
-| EX-23 | Anti-bot stealth/bypass | K1 guard test; config audit | NS |
+| EX-23 | Anti-bot stealth/bypass | K1 guard test; config audit | IMPL |
 | EX-24 | CAPTCHA bypass | action-required reporting test | NS |
 | EX-25 | Paywall bypass | Use My Session scope tests | NS |
 | EX-26 | DRM bypass | code audit | NS |
 | EX-27 | Screenshot-based normal extraction | extraction method audit | NS |
 | EX-28 | Hidden destructive cleanup | cleanup audits (M3.4, M25, INV-18/23) | NS |
 | EX-29 | Implicit format conversion subsystem | export/packaging audit | NS |
-| EX-30 | Uncontrolled plugin access to LAN/internal services | INV-15 | NS |
+| EX-30 | Uncontrolled plugin access to LAN/internal services | INV-15 | IMPL |
 
 ## Meta Prompt deliverables and source-investigation rules
 
@@ -405,7 +405,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | MPG-1 | Investigate actual source before recipes; static first; justified browser escalation; no guessed selectors; no eval; no stealth/CAPTCHA/paywall/DRM; Use My Session only | C3→C9 | per-source investigation notes | NS |
 | MPG-2 | Generate declarative packages with reviewed permissions; multi-Work/multi-query incl. Arabic; genuine empty queries; CDN vs ads domains; bounded transforms; adaptive only after failure; Unsupported instead of hacks | C9 | generator tests | NS |
 | MPG-3 | Complete catalogs with completion evidence; preserve raw unit fields/order; no numeric gap/duplicate inference; formats don't create Works; reject non-content resources | C4,C9 | catalog/content tests | NS |
-| MPG-4 | Recipes return descriptors; Core executes; scoped credentials; no header forwarding to CDN/redirect; expiring URL refresh bounded; error-class separation; Smart Retry/fallback semantics | C3,C5 | runtime tests | NS |
+| MPG-4 | Recipes return descriptors; Core executes; scoped credentials; no header forwarding to CDN/redirect; expiring URL refresh bounded; error-class separation; Smart Retry/fallback semantics | C3,C5 | runtime tests | IMPL |
 | MPG-5 | Verify through application services with isolated data; sanitized dated fixtures; Test Source synthetic faults; open/parse actual artifacts; record revision/plugin/source/conditions/checksums; no runtime telemetry | C3→C9 | evidence ledger | NS |
 
 ---
@@ -437,3 +437,24 @@ Rows moved to `IMPL` have their C1 backend portion implemented and tested; UI su
 | INV-30 | real-peer classification; trusted-proxy-only forwarding; remote denied | `test_access.py`, `test_app.py` | passkeys, sessions, CSRF/Origin (C8) |
 
 Carried forward from C1 (still `NS`): M41.2 OneShelf Test Source skeleton → C3; M24.8 migration copy flow → C7 (remap done); M28.7 Origin/CSRF → C8; M39 packaging → C5.
+
+### C3 — 2026-09-17 (gate passed; see `docs/c3/verification.md`)
+
+| ID | C3 implementation | Evidence | Remaining |
+|---|---|---|---|
+| M9, M9.1–M9.6 | `plugins/package.py`, `schema.py`, `runtime.py`, `transforms.py` | `tests/unit/plugins/*` | native adapter review process (C9) |
+| M10 | `plugins/manager.py`, `plugins/registry.py`, `api/sources.py` | `test_lifecycle.py`, `test_registry_sources.py`, `test_sources_api.py` | Sources UI (C2), plugin update notifications (C6) |
+| M11 | `net/policy.py`, `net/http.py`, `net/egress_proxy.py`, `net/browser.py` | `test_policy.py`, `test_egress_proxy.py`, `test_browser.py` | — |
+| M12.1 | Scrapling parser-only runtime; K1 guard | `test_runtime.py`, `test_no_stealth.py` | adaptive selectors + generator (C9) |
+| M13 | `sessions/*`, login API | `test_sessions.py`, pipeline + browser + API login tests | Connect Account UI (C2); job WAITING_FOR_SESSION (C5) |
+| M15 | `net/governor.py` wired into fetchers | `test_governor.py`, pipeline rate-limit test | Reader/download/Follow callers (C5/C6) |
+| M21 | passive signals with plugin version | pipeline health test | states, hysteresis, active checks, UI (C6) |
+| M41.2, M41.5 | `backend/testsource/` scenarios and package | pipeline tests | media/ETag/interruption scenarios exercised by downloads (C5) |
+| M43 | `diagnostics/redact.py` | `test_redact.py` | persistent rotating diagnostics store (C6/C9) |
+| M48 | declarative plugins, Core-owned capabilities, allowlists, redirect/DNS, SSRF, no raw session exposure | C3 suites | remote auth parts (C8), document isolation (C2) |
+| INV-13, INV-15, INV-26 | package validation; policy + proxy + Chromium flags; governor | see gate checklist | — |
+| EX-03, EX-23, EX-30 | no executable plugins; no stealth tooling; no plugin LAN access | validation, K1 guard, SSRF suites | — |
+| DEF-download-concurrency | governor defaults 4 HTTP / 1 browser | `test_governor.py` | download engine use (C5) |
+| MPG-4 | recipes return descriptors; Core executes; per-hop credential scoping; error-class separation | runtime, pipeline, session tests | expiring-URL refresh (C5) |
+
+Also improved in C3 without changing status: INV-14 now also covers plugin-supplied paths (packages cannot express filesystem paths).

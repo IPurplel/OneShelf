@@ -1,0 +1,22 @@
+capability: catalog
+inputs: [listing_key, page]
+request:
+  url: "{base_url}/api/works/{listing_key:path}/units?page={page}"
+  headers: {Accept: application/json}
+  auth: optional
+response:
+  format: json
+extract:
+  items: {json: "$.units[*]"}
+  order: source_listed
+  fields:
+    unit_key: {json: "$.id", required: true}
+    title: {json: "$.title"}
+    number: {json: "$.label", transforms: [extract_number]}
+    unit_type: {json: "$.type"}
+pagination:
+  mode: page_number
+  start: 1
+  max_pages: 50
+  stop_when: total_count
+  total: {json: "$.total"}
