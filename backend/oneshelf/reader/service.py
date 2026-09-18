@@ -46,6 +46,12 @@ class PageData:
 
 
 @dataclass(frozen=True)
+class LocalArtefact:
+    format: str
+    data: bytes
+
+
+@dataclass(frozen=True)
 class ProgressState:
     read_state: str
     fraction: float | None
@@ -133,6 +139,16 @@ class ReaderService:
             raise ValueError(f"page {index}: {problem}")
         self.cache.put(unit["source_id"], unit["source_unit_key"], descriptor.url, response.body)
         return PageData(index, response.body, "online")
+
+    def local_file(self, unit_id: str) -> LocalArtefact:
+        """The downloaded artefact itself, for readers that render a whole document (§26.22)."""
+        asset = self._local_asset(unit_id)
+        if asset is None:
+            raise FileNotFoundError("this reading unit has no downloaded file on this device")
+        path = self._local_path(asset)
+        if not path.is_file():
+            raise FileNotFoundError("the local file is missing; run a storage scan or download it again")
+        return LocalArtefact(asset["format"], path.read_bytes())
 
     def set_open_units(self, unit_ids: list[str]) -> None:
         keys = [self._unit(u)["source_unit_key"] for u in unit_ids]

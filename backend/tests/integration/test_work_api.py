@@ -3,7 +3,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from oneshelf.api.app import AppConfig, create_app
-from tests.fixtures.builders import make_cbz
+from tests.fixtures.builders import make_cbz, make_pdf
 
 
 @pytest.fixture
@@ -86,3 +86,33 @@ def test_unknown_work_is_a_plain_404(api):
     client, _ = api
     response = client.get("/api/works/does-not-exist")
     assert response.status_code == 404 and response.json()["error"]["code"] == "WORK_NOT_FOUND"
+
+
+def test_a_local_book_file_is_served_for_the_isolated_viewer(api):
+    """Master §26.22, §27: EPUB and PDF bytes reach a sandboxed viewer, never the app origin."""
+    client, tmp_path = api
+    pdf = make_pdf(tmp_path / "book.pdf", pages=2)
+    review = client.post("/api/import/uploads?filename=book.pdf", content=pdf.read_bytes(),
+                         headers={"Content-Type": "application/octet-stream"}).json()
+    assert review["format"] == "pdf"
+    imported = client.post("/api/import", json={"upload_id": review["upload_id"], "title": "A Book",
+                                                "content_type": "book", "language": "en"}).json()
+
+    response = client.get(f"/api/reader/units/{imported['reading_unit_id']}/file")
+    assert response.status_code == 200
+    assert response.content.startswith(b"%PDF-")
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.headers["content-security-policy"] == "sandbox; default-src 'none'"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["content-disposition"].startswith("inline")
+    assert response.headers["cache-control"] == "no-store"
+
+
+def test_asking_for_a_file_that_is_not_downloaded_says_so(api):
+    client, tmp_path = api
+    imported = import_work(client, tmp_path)
+    missing = client.get("/api/reader/units/does-not-exist/file")
+    assert missing.status_code == 404 and missing.json()["error"]["code"] == "FILE_NOT_AVAILABLE"
+    # A CBZ is read page by page rather than handed over whole.
+    cbz = client.get(f"/api/reader/units/{imported['reading_unit_id']}/file")
+    assert cbz.status_code == 200 and cbz.headers["content-type"] == "application/vnd.comicbook+zip"

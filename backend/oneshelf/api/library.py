@@ -142,6 +142,29 @@ async def reader_page(request: Request, unit_id: str, index: int):
                     headers={**CONTENT_HEADERS, "X-OneShelf-Origin": page.origin})
 
 
+MEDIA_TYPES = {"pdf": "application/pdf", "epub": "application/epub+zip", "cbz": "application/vnd.comicbook+zip"}
+
+
+@router.get("/reader/units/{unit_id}/file")
+async def reader_file(request: Request, unit_id: str):
+    """The whole local artefact, for the isolated Book Reader (§26.22, §27).
+
+    It is served with a sandbox CSP and nosniff so the document can never reach the application origin,
+    its session, or any privileged action.
+    """
+    s = services(request)
+    try:
+        artefact = s.reader.local_file(unit_id)
+    except FileNotFoundError as exc:
+        return error(404, "FILE_NOT_AVAILABLE", str(exc))
+    media_type = MEDIA_TYPES.get(artefact.format, "application/octet-stream")
+    return Response(artefact.data, media_type=media_type, headers={
+        **CONTENT_HEADERS,
+        "Content-Security-Policy": "sandbox; default-src 'none'",
+        "Content-Disposition": f'inline; filename="{unit_id}.{artefact.format}"',
+    })
+
+
 class ProgressBody(BaseModel):
     locator: dict | None = None
     fraction: float | None = Field(default=None, ge=0, le=1)
