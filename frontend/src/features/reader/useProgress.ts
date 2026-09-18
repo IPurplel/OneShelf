@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError, api } from "@/api/client";
 
@@ -15,6 +15,7 @@ const DEBOUNCE_MS = 1200;
  */
 export function useProgress(unitId: string) {
   const revision = useRef(0);
+  const [stored, setStored] = useState<ProgressState | null>(null);
   const pending = useRef<{ fraction: number; locator: unknown } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -45,16 +46,21 @@ export function useProgress(unitId: string) {
   }, [unitId]);
 
   // A reader opening a unit it has read before must start from the revision the library holds, or its
-  // very first write is stale and progress silently stops being kept (§26.23).
+  // very first write is stale and progress silently stops being kept (§26.23). The same read carries the
+  // position the reader resumes from (§26.15); reading it writes nothing.
   useEffect(() => {
     let live = true;
     revision.current = 0;
+    setStored(null);
     void (async () => {
       try {
         const current = await api.get<ProgressState>(`/api/reader/units/${unitId}/progress`);
-        if (live) revision.current = current.revision;
+        if (!live) return;
+        revision.current = current.revision;
+        setStored(current);
       } catch {
-        // An unreachable library leaves the revision at 0; the first write is then rejected, not lost.
+        // An unreachable library leaves the revision at 0; the first write is then rejected, not lost,
+        // and the reader opens at the beginning rather than guessing a position.
       }
     })();
     return () => { live = false; };
@@ -81,5 +87,5 @@ export function useProgress(unitId: string) {
 
   const setRevision = useCallback((value: number) => { revision.current = value; }, []);
 
-  return { record, flush, setRevision };
+  return { record, flush, setRevision, stored };
 }

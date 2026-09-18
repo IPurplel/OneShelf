@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ApiError } from "@/api/client";
@@ -29,7 +29,8 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
   const [panel, setPanel] = useState<null | "contents" | "search" | "highlight">(null);
   const [chapterText, setChapterText] = useState("");
   const marks = useBookMarks(unitId);
-  const { record, flush } = useProgress(unitId);
+  const { record, flush, stored } = useProgress(unitId);
+  const resumed = useRef<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -80,6 +81,15 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
     return () => { live = false; };
   }, [book, chapterIndex, direction, record]);
 
+  /** Resume the chapter this book was left on (§26.15); reading the position writes nothing. */
+  useEffect(() => {
+    if (book === null || stored === null || resumed.current === unitId) return;
+    resumed.current = unitId;
+    const locator = stored.locator as { chapter?: number } | null;
+    if (typeof locator?.chapter !== "number") return;
+    setChapterIndex(Math.min(Math.max(0, locator.chapter), book.spine.length - 1));
+  }, [book, stored, unitId]);
+
   const move = useCallback((delta: number) => {
     setChapterIndex((current) => {
       const target = current + delta;
@@ -98,7 +108,8 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
   }
 
   if (format === "pdf") {
-    return <PdfView unitId={unitId} data={bytes} workId={workId} onProgress={record} onLeave={flush} />;
+    return <PdfView unitId={unitId} data={bytes} workId={workId} onProgress={record} onLeave={flush}
+                    storedPage={(stored?.locator as { page?: number } | null)?.page ?? null} />;
   }
 
   return (

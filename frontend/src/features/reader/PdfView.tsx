@@ -35,12 +35,14 @@ async function pageText(document_: PdfDocument, page: number): Promise<string> {
  * Search reads the text layer the document carries; a scan without one is said to carry no text rather
  * than searched with invented content. Bookmarks and highlights are kept with the library (§26.22).
  */
-export function PdfView({ unitId, data, workId, onProgress, onLeave }: {
+export function PdfView({ unitId, data, workId, onProgress, onLeave, storedPage = null }: {
   unitId: string;
   data: ArrayBuffer | null;
   workId: string;
   onProgress: (fraction: number, locator: unknown) => void;
   onLeave: () => void;
+  /** The page the library says this document was left on (§26.15); null resumes nothing. */
+  storedPage?: number | null;
 }) {
   const { t } = useI18n();
   const canvas = useRef<HTMLCanvasElement | null>(null);
@@ -50,6 +52,7 @@ export function PdfView({ unitId, data, workId, onProgress, onLeave }: {
   const [panel, setPanel] = useState<null | "search" | "highlight" | "marks">(null);
   const [failure, setFailure] = useState<string | null>(null);
   const marks = useBookMarks(unitId);
+  const resumed = useRef<string | null>(null);
 
   useEffect(() => {
     if (data === null) return;
@@ -95,6 +98,12 @@ export function PdfView({ unitId, data, workId, onProgress, onLeave }: {
     })();
     return () => { live = false; };
   }, [document_, page, onProgress]);
+
+  useEffect(() => {
+    if (document_ === null || storedPage === null || resumed.current === unitId) return;
+    resumed.current = unitId;
+    setPage(Math.min(Math.max(1, storedPage), document_.numPages));
+  }, [document_, storedPage, unitId]);
 
   const move = useCallback((delta: number) => {
     setPage((current) => {

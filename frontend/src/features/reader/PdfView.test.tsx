@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { BookReader } from "./BookReader";
 import { PdfView } from "./PdfView";
 import { renderWithProviders } from "@/test/render";
 
@@ -29,7 +30,7 @@ vi.mock("pdfjs-dist", () => ({
 
 type Call = { url: string; method: string; body: unknown };
 
-function stubMarks(): Call[] {
+function stubMarks(progress?: Record<string, unknown>): Call[] {
   const calls: Call[] = [];
   const marks: { bookmarks: unknown[]; highlights: unknown[] } = { bookmarks: [], highlights: [] };
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -40,6 +41,10 @@ function stubMarks(): Call[] {
     const json = (payload: unknown) => new Response(JSON.stringify(payload), {
       status: 200, headers: { "Content-Type": "application/json" },
     });
+    if (url.endsWith("/file")) {
+      return new Response(new Uint8Array([37, 80, 68, 70]) as BodyInit,
+                          { status: 200, headers: { "Content-Type": "application/pdf" } });
+    }
     if (url.endsWith("/marks")) return json(marks);
     if (url.endsWith("/bookmarks") && method === "POST") {
       const made = { id: "b1", locator: body.locator, label: body.label, created_at: "2026-09-18T10:00:00+00:00" };
@@ -52,7 +57,7 @@ function stubMarks(): Call[] {
       marks.highlights.push(made);
       return json(made);
     }
-    return json({ read_state: "unread", fraction: 0, locator: null, revision: 0 });
+    return json(progress ?? { read_state: "unread", fraction: 0, locator: null, revision: 0 });
   }));
   return calls;
 }
@@ -132,5 +137,21 @@ describe("Book Reader (PDF)", () => {
     const panel = await screen.findByRole("dialog", { name: /search/i });
     await user.type(within(panel).getByRole("searchbox"), "zzzz");
     expect(await within(panel).findByText(/nothing in this document matches/i)).toBeInTheDocument();
+  });
+
+  it("opens the document at the page it is given", async () => {
+    stubMarks();
+    renderWithProviders(
+      <PdfView unitId="u9" data={new ArrayBuffer(8)} workId="w1" storedPage={2}
+               onProgress={() => {}} onLeave={() => {}} />);
+
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/2 of 2/i));
+  });
+
+  it("is given the page the library holds, through the Book Reader that renders it", async () => {
+    stubMarks({ read_state: "partial", fraction: 0.5, locator: { page: 2 }, revision: 3 });
+    renderWithProviders(<BookReader unitId="u9" format="pdf" workId="w1" />);
+
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/2 of 2/i));
   });
 });

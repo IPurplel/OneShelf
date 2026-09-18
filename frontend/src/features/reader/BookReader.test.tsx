@@ -30,7 +30,7 @@ function epubBytes(): Uint8Array {
 type Call = { url: string; method: string; body: unknown };
 
 /** The file, the marks the library holds, and progress — the three things the Book Reader talks to. */
-function stubFile(bytes: Uint8Array, contentType: string): Call[] {
+function stubFile(bytes: Uint8Array, contentType: string, progress?: Record<string, unknown>): Call[] {
   const calls: Call[] = [];
   const marks: { bookmarks: unknown[]; highlights: unknown[] } = { bookmarks: [], highlights: [] };
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -57,7 +57,7 @@ function stubFile(bytes: Uint8Array, contentType: string): Call[] {
       marks.highlights.push(made);
       return json(made);
     }
-    return json({ read_state: "unread", fraction: 0, locator: null, revision: 0 });
+    return json(progress ?? { read_state: "unread", fraction: 0, locator: null, revision: 0 });
   }));
   return calls;
 }
@@ -175,5 +175,16 @@ describe("Book Reader (EPUB)", () => {
       { status: 404, headers: { "Content-Type": "application/json" } })));
     renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
     expect(await screen.findByRole("alert")).toHaveTextContent(/no downloaded file/i);
+  });
+
+  it("opens the book at the chapter it was left on", async () => {
+    stubFile(epubBytes(), "application/epub+zip",
+             { read_state: "partial", fraction: 0.5, locator: { chapter: 1 }, revision: 3 });
+    renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
+    await screen.findByTitle(/book content/i);
+
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/2 of 2/i));
+    await waitFor(() =>
+      expect(screen.getByTitle(/book content/i).getAttribute("srcdoc")).toContain("Rain on the window"));
   });
 });

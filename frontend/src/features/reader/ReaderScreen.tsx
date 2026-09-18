@@ -54,7 +54,9 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
   const indexRef = useRef(0);
   const stage = useRef<HTMLDivElement | null>(null);
   const touch = useRef<{ x: number; y: number; spread: number | null } | null>(null);
-  const { record, flush } = useProgress(id);
+  const { record, flush, stored } = useProgress(id);
+  const resumed = useRef<string | null>(null);
+  const [scrollTo, setScrollTo] = useState<number | null>(null);
 
   const units = useMemo(() => details?.units ?? [], [details]);
   const unit = units.find((candidate) => candidate.id === id) ?? null;
@@ -82,6 +84,33 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
     const timer = setTimeout(() => setControlsVisible(false), IDLE_MS);
     return () => clearTimeout(timer);
   }, [panel, more, controlsVisible, index]);
+
+  /**
+   * Resume where this unit was left (§26.15).
+   *
+   * The position comes from the library, so it is the same on every device; it is read once per unit and
+   * writes nothing, which is what keeps a resume from overwriting a newer tab (§26.23). A locator from an
+   * older catalog can point past the end, so it is clamped rather than trusted.
+   */
+  useEffect(() => {
+    if (stored === null || pages.length === 0 || resumed.current === id) return;
+    resumed.current = id;
+    const locator = stored.locator as { page?: number } | null;
+    const page = typeof locator?.page === "number" ? locator.page : 1;
+    const slot = Math.min(Math.max(0, page - 1), pages.length - 1);
+    if (slot === 0) return;
+    indexRef.current = slot;
+    setIndex(slot);
+    setScrollTo(slot);
+  }, [stored, pages.length, id]);
+
+  // In Long Strip every page is on screen, so resuming means bringing that page into view.
+  useEffect(() => {
+    if (scrollTo === null) return;
+    const target = stage.current?.querySelector(`[data-page-slot="${scrollTo}"]`);
+    (target as HTMLElement | null)?.scrollIntoView?.({ block: "start" });
+    setScrollTo(null);
+  }, [scrollTo, index]);
 
   const show = useCallback(() => setControlsVisible(true), []);
 
@@ -197,6 +226,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
   }, [zoom, settings.mode, settings.direction, step, show]);
 
   const visible = visiblePages(pages, index, settings);
+  const firstSlot = settings.mode === "long_strip" ? 0 : index;
 
   return (
     <div className={`reader reader--${settings.background}`} onMouseMove={show}>
@@ -247,7 +277,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
            style={{ "--reader-zoom": zoom, "--reader-pan-x": `${pan.x}px`,
                     "--reader-pan-y": `${pan.y}px` } as React.CSSProperties}>
         {pageError !== null && <p className="notice notice--problem" role="alert">{t("state.offline")}</p>}
-        {visible.map((page) => (
+        {visible.map((page, offset) => (
           failed.has(page.index) ? (
             <div key={page.index} className="reader__failed" role="group" aria-label={t("reader.pageFailed")}>
               <p>{t("reader.pageFailed")}</p>
@@ -258,7 +288,8 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
               })}>{t("reader.retry")}</button>
             </div>
           ) : (
-            <img key={page.index} className="reader__page" src={`/api/reader/units/${id}/pages/${page.index}`}
+            <img key={page.index} className="reader__page" data-page-slot={firstSlot + offset}
+                 src={`/api/reader/units/${id}/pages/${page.index}`}
                  alt={t("reader.page", { index: page.label ?? page.index })} loading="lazy"
                  onError={() => setFailed((set) => new Set(set).add(page.index))} />
           )

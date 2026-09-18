@@ -8,8 +8,8 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 
 | WP | Scope | Rows | Status |
 |---|---|---|---|
-| WP-R1 | Reading progress restoration | M26.15 | **IN_PROGRESS** |
-| WP-L1 | Shelf lifecycle | M22, M47 (INV-10, M23 hold) | NOT_STARTED |
+| WP-R1 | Reading progress restoration | M26.15 | **VERIFIED** — M26.15 verified, committed |
+| WP-L1 | Shelf lifecycle | M22, M47 (INV-10, M23 hold) | NOT_STARTED — next, awaiting approval |
 | WP-R2 | Long Strip virtualization and preload | M26.6, M26.18 | NOT_STARTED |
 | WP-R3 | Book reader comfort | M26.22a, M26.22b | NOT_STARTED |
 | WP-S1 | Settings completion | M32.14, M45 | NOT_STARTED |
@@ -22,15 +22,21 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1, M36, M26.6).
 
-## WP-R1 — current tasks
+## WP-R1 — done
 
 | # | Task | Status |
 |---|---|---|
-| 1 | `useProgress` returns the progress it read, without writing | TODO |
-| 2 | `ReaderScreen` opens at the stored page; Long Strip scrolls to it | TODO |
-| 3 | `BookReader` opens at the stored chapter; `PdfView` at the stored page | TODO |
-| 4 | An outdated locator is clamped, never an error | TODO |
-| 5 | Restoring records no progress | TODO |
+| 1 | `useProgress` returns the progress it read, without writing | DONE |
+| 2 | `ReaderScreen` opens at the stored page; Long Strip scrolls to it | DONE |
+| 3 | `BookReader` opens at the stored chapter; `PdfView` at the stored page | DONE |
+| 4 | An outdated locator is clamped, never an error | DONE |
+| 5 | Restoring records no progress | DONE |
+
+**Outstanding confirmation, not a claim:** the in-browser leg of WP-R1's verification criteria did not
+run. This host's cgroup sits at ~1993 of 2048 PIDs with ~1560 zombies that its PID 1 (a `sleep`) never
+reaps, so Chromium cannot start. What did run: the eight named tests, and a live round-trip of the
+locator against the running API, which is the contract the browser leg would exercise. Worth re-running
+in a session where a browser can start.
 
 ## Log
 

@@ -1,5 +1,5 @@
 /** Master §26.1–26.24, §27: the Sequential Reader. Local reading needs no source, plugin or network. */
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -39,10 +39,10 @@ const WORK = {
 
 const PROGRESS = { read_state: "unread", fraction: 0, locator: null, revision: 0 };
 
-function stub(extra: ReturnType<typeof get>[] = []) {
+function stub(extra: ReturnType<typeof get>[] = [], progress: Record<string, unknown> = PROGRESS) {
   return mockApi([
     get("/api/reader/units/u2/pages", PAGES),
-    get("/api/reader/units/u2/progress", PROGRESS),
+    get("/api/reader/units/u2/progress", progress),
     get("/api/works/w1", WORK),
     post("/api/reader/units/u2/progress", { ...PROGRESS, revision: 1, read_state: "partial" }),
     post("/api/reader/units/u2/mark-read", { ...PROGRESS, revision: 1, read_state: "read" }),
@@ -50,8 +50,15 @@ function stub(extra: ReturnType<typeof get>[] = []) {
   ]);
 }
 
+let restoreScroll: (() => void) | null = null;
+
 beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  restoreScroll?.();
+  restoreScroll = null;
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("Sequential Reader", () => {
   it("reads local pages without asking any source", async () => {
@@ -321,5 +328,59 @@ describe("Sequential Reader", () => {
     const stage = screen.getByTestId("reader-stage");
     expect(stage).toHaveAttribute("tabindex", "0");
     expect(stage).toHaveAccessibleName();
+  });
+
+  it("opens a unit where it was left rather than at the beginning", async () => {
+    stub([], { ...PROGRESS, read_state: "partial", fraction: 0.66, locator: { page: 2 }, revision: 4 });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    await waitFor(() =>
+      expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("2 / 3"));
+  });
+
+  it("brings the stored page into view in Long Strip, where every page is on screen", async () => {
+    const scrollIntoView = vi.fn();
+    const previous = Object.getOwnPropertyDescriptor(Element.prototype, "scrollIntoView");
+    Object.defineProperty(Element.prototype, "scrollIntoView", { value: scrollIntoView, configurable: true });
+    restoreScroll = () => {
+      if (previous) Object.defineProperty(Element.prototype, "scrollIntoView", previous);
+      else delete (Element.prototype as unknown as Record<string, unknown>).scrollIntoView;
+    };
+    stub([], { ...PROGRESS, read_state: "partial", fraction: 0.66, locator: { page: 3 }, revision: 2 });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+    const scrolled = scrollIntoView.mock.instances[0] as HTMLElement;
+    expect(scrolled.getAttribute("src")).toBe("/api/reader/units/u2/pages/3");
+  });
+
+  it("clamps a stored position that is past the end of the unit", async () => {
+    stub([], { ...PROGRESS, read_state: "partial", fraction: 1, locator: { page: 99 }, revision: 1 });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    await waitFor(() =>
+      expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("3 / 3"));
+  });
+
+  it("starts at the beginning when the library holds no position", async () => {
+    stub();
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("1 / 3");
+  });
+
+  it("writes nothing merely by resuming, so a newer tab is never overwritten", async () => {
+    const calls = stub([], { ...PROGRESS, read_state: "partial", fraction: 0.66, locator: { page: 2 },
+                             revision: 4 });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    await waitFor(() =>
+      expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("2 / 3"));
+
+    act(() => { vi.advanceTimersByTime(4000); });
+    expect(calls.some((call) => call.method === "POST" && call.url.endsWith("/progress"))).toBe(false);
   });
 });

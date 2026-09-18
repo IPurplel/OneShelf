@@ -9,13 +9,17 @@ file is the link between a requirement and the test that holds it, kept current 
 
 | # | Test | File | State |
 |---|---|---|---|
-| 1 | opens a unit at the stored page rather than at the beginning | `SequentialReader.test.tsx` | planned |
-| 2 | brings the stored page into view in Long Strip | `SequentialReader.test.tsx` | planned |
-| 3 | clamps a stored page that is past the end of the unit | `SequentialReader.test.tsx` | planned |
-| 4 | starts at the beginning when the library has no position | `SequentialReader.test.tsx` | planned |
-| 5 | restoring a position writes no progress | `SequentialReader.test.tsx` | planned |
-| 6 | the Book Reader opens at the stored chapter | `BookReader.test.tsx` | planned |
-| 7 | the PDF viewer opens at the stored page | `PdfView.test.tsx` | planned |
+| 1 | `opens a unit where it was left rather than at the beginning` | `SequentialReader.test.tsx` | **passing** |
+| 2 | `brings the stored page into view in Long Strip, where every page is on screen` | `SequentialReader.test.tsx` | **passing** |
+| 3 | `clamps a stored position that is past the end of the unit` | `SequentialReader.test.tsx` | **passing** |
+| 4 | `starts at the beginning when the library holds no position` | `SequentialReader.test.tsx` | **passing** |
+| 5 | `writes nothing merely by resuming, so a newer tab is never overwritten` | `SequentialReader.test.tsx` | **passing** |
+| 6 | `opens the book at the chapter it was left on` | `BookReader.test.tsx` | **passing** |
+| 7 | `opens the document at the page it is given` | `PdfView.test.tsx` | **passing** |
+| 8 | `is given the page the library holds, through the Book Reader that renders it` | `PdfView.test.tsx` | **passing** |
+
+Test 8 was added during the package: tests 1–7 as planned would have covered the PDF component's own
+contract but not the wiring that hands it the library's position, which is where the defect actually was.
 
 Existing tests that must keep passing: `writes progress once the reader settles, carrying the revision it
 last saw`, `carries the revision the library already holds, so the first write is not stale`, `flushes
