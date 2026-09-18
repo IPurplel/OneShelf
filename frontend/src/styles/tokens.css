@@ -1,0 +1,56 @@
+/* OneShelf visual identity (Master §32): personal library + classic reading room + modern web app.
+   Deep forest green, warm ivory canvas, muted olive accents, natural wood, restrained shadows. */
+:root {
+  --forest-900: #16281f;
+  --forest-800: #1d3427;
+  --forest-700: #244030;
+  --forest-600: #2f5240;
+  --forest-500: #3d6a53;
+  --olive-600: #6b7a4a;
+  --olive-500: #7f9257;
+  --olive-300: #b7c48f;
+  --ivory-50: #fdfaf3;
+  --ivory-100: #f7f1e4;
+  --ivory-200: #efe6d3;
+  --paper: #fffdf8;
+  --wood-700: #6b4a2c;
+  --wood-500: #8a6238;
+  --wood-300: #b98b56;
+  --ink-900: #1c1b18;
+  --ink-700: #3a372f;
+  --ink-500: #6b665a;
+  --ink-300: #9c968a;
+  --danger-600: #8c3b2e;
+  --warning-600: #97701f;
+
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Noto Naskh Arabic", serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", "Noto Sans Arabic", sans-serif;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --shadow-card: 0 1px 2px rgba(28, 27, 24, 0.06), 0 6px 16px rgba(28, 27, 24, 0.06);
+  --shadow-raised: 0 2px 4px rgba(28, 27, 24, 0.08), 0 12px 28px rgba(28, 27, 24, 0.10);
+
+  --sidebar-width: 248px;
+  --header-height: 64px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Motion stays subtle: a 2–4px cover lift, a soft drawer slide, a hero crossfade (§32.20). */
+  --motion-fast: 120ms;
+  --motion-slow: 260ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-slow: 0ms;
+  }
+}

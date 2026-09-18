@@ -1,0 +1,136 @@
+.layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  min-height: 100%;
+}
+
+.layout__sidebar { grid-row: 1 / -1; }
+.layout__body { display: flex; flex-direction: column; min-width: 0; }
+
+.layout__main {
+  flex: 1;
+  padding: var(--space-6) var(--space-7) var(--space-7);
+  background:
+    radial-gradient(1200px 400px at 50% -200px, rgba(127, 146, 87, 0.08), transparent),
+    var(--ivory-100);
+}
+.layout__main:focus { outline: none; }
+
+/* Sidebar: deep forest green, the logo at the top, a leaf used sparingly (§32.1). */
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-4);
+  background: linear-gradient(180deg, var(--forest-800), var(--forest-900));
+  color: var(--ivory-100);
+}
+
+.sidebar__brand { display: flex; align-items: center; gap: var(--space-3); padding-inline: var(--space-2); }
+.sidebar__leaf { color: var(--olive-300); display: flex; }
+.sidebar__name { font-size: 20px; }
+
+.sidebar__nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3);
+  border-radius: var(--radius-md);
+  color: rgba(247, 241, 228, 0.82);
+  text-decoration: none;
+  transition: background var(--motion-fast) var(--ease), color var(--motion-fast) var(--ease);
+}
+.sidebar__link:hover { background: rgba(255, 255, 255, 0.06); color: var(--ivory-50); }
+.sidebar__link.is-active { background: rgba(183, 196, 143, 0.16); color: var(--ivory-50); }
+.sidebar__link.is-active::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  width: 3px; height: 22px;
+  background: var(--olive-300);
+  border-radius: 0 3px 3px 0;
+}
+.sidebar__link { position: relative; }
+
+/* Header: controls only. No profile, no avatar (§32.2). */
+.header {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: var(--space-6);
+  gap: var(--space-4);
+}
+.header__spacer { flex: 1; }
+.header__controls { display: flex; align-items: center; gap: var(--space-2); }
+
+.header__button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink-700);
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease);
+}
+.header__button:hover { background: var(--ivory-200); }
+.header__button--attention { color: var(--warning-600); border-color: rgba(151, 112, 31, 0.35); }
+.header__count { font-variant-numeric: tabular-nums; font-weight: 600; }
+.header__dot {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--olive-500);
+}
+
+.screen { max-width: 1180px; }
+.screen__title { font-size: clamp(28px, 3vw, 38px); margin: 0 0 var(--space-2); }
+.screen__subtitle { margin: 0 0 var(--space-6); color: var(--ink-500); }
+
+/* Mobile: bottom navigation, safe-area aware (§32.21). */
+.bottomnav {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: var(--space-2) var(--space-2) calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+  background: var(--forest-800);
+  color: rgba(247, 241, 228, 0.85);
+}
+.bottomnav__link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 64px;
+  min-height: 48px;
+  padding: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+}
+.bottomnav__link.is-active { color: var(--ivory-50); background: rgba(183, 196, 143, 0.16); }
+
+@media (max-width: 899px) {
+  .layout { grid-template-columns: 1fr; }
+  .layout__main { padding: var(--space-4) var(--space-4) calc(var(--space-7) + 56px); }
+  .header { padding-inline: var(--space-4); }
+}

@@ -1,0 +1,47 @@
+@import "./tokens.css";
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--ivory-100);
+  color: var(--ink-900);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .display { font-family: var(--font-display); font-weight: 600; letter-spacing: 0.01em; }
+
+a { color: inherit; }
+
+:focus-visible {
+  outline: 3px solid var(--olive-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%);
+  white-space: nowrap; border: 0;
+}
+
+/* Skip link: the first thing keyboard users meet. */
+.skip-link {
+  position: absolute;
+  inset-inline-start: var(--space-4);
+  top: -64px;
+  z-index: 100;
+  background: var(--paper);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+  transition: top var(--motion-fast) var(--ease);
+}
+.skip-link:focus { top: var(--space-4); }
