@@ -144,3 +144,12 @@
   user-select: text;
 }
 .book__passage::selection { background: #f6e6a8; }
+
+/* Zoom and pan live on the stage, so the page itself is never rewritten (§26.10). */
+.reader__stage .reader__page {
+  transform: translate(var(--reader-pan-x, 0), var(--reader-pan-y, 0)) scale(var(--reader-zoom, 1));
+  transform-origin: center center;
+  transition: transform var(--motion-fast, 120ms) ease-out;
+}
+.reader__stage[data-zoom="1"] .reader__page { transform: none; }
+.reader__stage:not([data-zoom="1"]) { overflow: hidden; touch-action: none; cursor: grab; }

@@ -9,10 +9,15 @@ export type ReaderSettings = {
   fit: ReaderFit;
   background: ReaderBackground;
   gap: number;
+  /** §26.8: the first page stands alone, so every spread after it lines up. */
+  coverAlone: boolean;
+  /** §26.8: manual Shift Pairing, for a book with an extra single page somewhere in the middle. */
+  shiftPairing: boolean;
 };
 
 export const DEFAULT_SETTINGS: ReaderSettings = {
   mode: "long_strip", direction: "ltr", fit: "smart", background: "black", gap: 8,
+  coverAlone: true, shiftPairing: false,
 };
 
 /**

@@ -48,6 +48,28 @@ export function SettingsPanel({ settings, onChange, onClose }: {
         ))}
       </fieldset>
 
+      {settings.mode === "double" && (
+        <fieldset className="panel__group" aria-label={t("reader.pairing")}>
+          <legend>{t("reader.pairing")}</legend>
+          <label className="panel__choice">
+            <input type="checkbox" checked={settings.coverAlone}
+                   onChange={() => onChange({ coverAlone: !settings.coverAlone })} />
+            <span>
+              <span className="panel__choiceTitle">{t("reader.coverAlone")}</span>
+              <span className="panel__choiceHelp">{t("reader.coverAloneHelp")}</span>
+            </span>
+          </label>
+          <label className="panel__choice">
+            <input type="checkbox" checked={settings.shiftPairing}
+                   onChange={() => onChange({ shiftPairing: !settings.shiftPairing })} />
+            <span>
+              <span className="panel__choiceTitle">{t("reader.shiftPairing")}</span>
+              <span className="panel__choiceHelp">{t("reader.shiftPairingHelp")}</span>
+            </span>
+          </label>
+        </fieldset>
+      )}
+
       <fieldset className="panel__group" role="radiogroup" aria-label={t("reader.background")}>
         <legend>{t("reader.background")}</legend>
         {(["black", "dark", "white"] as const).map((background) => (
