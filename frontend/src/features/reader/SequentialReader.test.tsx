@@ -266,4 +266,60 @@ describe("Sequential Reader", () => {
     await user.keyboard("f");
     expect(exit).toHaveBeenCalled();
   });
+
+  it("keeps the reading controls to three layers, with the rest behind More", async () => {
+    stub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    const bar = screen.getByRole("toolbar", { name: /reading controls/i });
+    expect(within(bar).queryByRole("button", { name: /mark as read/i })).not.toBeInTheDocument();
+    expect(within(bar).queryByRole("button", { name: /zoom in/i })).not.toBeInTheDocument();
+
+    const more = within(bar).getByRole("button", { name: /more/i });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    await user.click(more);
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    expect(within(bar).getByRole("button", { name: /mark as read/i })).toBeInTheDocument();
+    expect(within(bar).getByRole("button", { name: /zoom in/i })).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(within(bar).queryByRole("button", { name: /mark as read/i })).not.toBeInTheDocument();
+  });
+
+  it("fits a page to the reading area rather than leaving it at its own pixel size", async () => {
+    stub();
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    expect(screen.getByTestId("reader-stage")).toHaveAttribute("data-fit", "smart");
+  });
+
+  it("carries the revision the library already holds, so the first write is not stale", async () => {
+    const calls = mockApi([
+      get("/api/reader/units/u2/pages", PAGES),
+      get("/api/reader/units/u2/progress", { ...PROGRESS, revision: 3, fraction: 0.4, read_state: "partial" }),
+      get("/api/works/w1", WORK),
+      post("/api/reader/units/u2/progress", { ...PROGRESS, revision: 4, read_state: "partial" }),
+    ]);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    await user.keyboard("{ArrowRight}");
+    act(() => { vi.advanceTimersByTime(1500); });
+
+    const write = calls.find((call) => call.method === "POST" && call.url.endsWith("/progress"));
+    expect((write!.body as { revision: number }).revision).toBe(3);
+  });
+
+  it("lets the keyboard reach the pages themselves, which scroll", async () => {
+    stub();
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    const stage = screen.getByTestId("reader-stage");
+    expect(stage).toHaveAttribute("tabindex", "0");
+    expect(stage).toHaveAccessibleName();
+  });
 });

@@ -44,6 +44,22 @@ export function useProgress(unitId: string) {
     }
   }, [unitId]);
 
+  // A reader opening a unit it has read before must start from the revision the library holds, or its
+  // very first write is stale and progress silently stops being kept (§26.23).
+  useEffect(() => {
+    let live = true;
+    revision.current = 0;
+    void (async () => {
+      try {
+        const current = await api.get<ProgressState>(`/api/reader/units/${unitId}/progress`);
+        if (live) revision.current = current.revision;
+      } catch {
+        // An unreachable library leaves the revision at 0; the first write is then rejected, not lost.
+      }
+    })();
+    return () => { live = false; };
+  }, [unitId]);
+
   const record = useCallback((fraction: number, locator: unknown) => {
     pending.current = { fraction, locator };
     if (timer.current !== null) clearTimeout(timer.current);

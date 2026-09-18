@@ -171,6 +171,15 @@ class ProgressBody(BaseModel):
     revision: int | None = Field(default=None, ge=0)
 
 
+@router.get("/reader/units/{unit_id}/progress")
+async def read_progress(request: Request, unit_id: str):
+    """A tab must be able to read the revision it has to carry, or every later write is stale (§26.23)."""
+    try:
+        return asdict(services(request).reader.progress(unit_id))
+    except ValueError as exc:
+        return error(404, "UNIT_NOT_FOUND", str(exc))
+
+
 @router.post("/reader/units/{unit_id}/progress")
 async def set_progress(request: Request, unit_id: str, body: ProgressBody):
     try:

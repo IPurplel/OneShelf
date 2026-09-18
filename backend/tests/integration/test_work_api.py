@@ -116,3 +116,25 @@ def test_asking_for_a_file_that_is_not_downloaded_says_so(api):
     # A CBZ is read page by page rather than handed over whole.
     cbz = client.get(f"/api/reader/units/{imported['reading_unit_id']}/file")
     assert cbz.status_code == 200 and cbz.headers["content-type"] == "application/vnd.comicbook+zip"
+
+
+def test_progress_can_be_read_back_so_a_reader_knows_the_revision_it_must_carry(api):
+    client, tmp_path = api
+    imported = import_work(client, tmp_path)
+    unit = imported["reading_unit_id"]
+
+    fresh = client.get(f"/api/reader/units/{unit}/progress")
+    assert fresh.status_code == 200, fresh.text
+    assert fresh.json() == {"read_state": "unread", "fraction": None, "locator": None, "revision": 0}
+
+    client.post(f"/api/reader/units/{unit}/progress", json={"fraction": 0.4, "revision": 0, "locator": {"page": 2}})
+    again = client.get(f"/api/reader/units/{unit}/progress").json()
+    assert again["revision"] == 1 and again["locator"] == {"page": 2}
+
+    # A tab that carries the revision it just read is accepted; a stale one is not (§26.23).
+    assert client.post(f"/api/reader/units/{unit}/progress",
+                       json={"fraction": 0.6, "revision": again["revision"]}).status_code == 200
+    stale = client.post(f"/api/reader/units/{unit}/progress", json={"fraction": 0.5, "revision": 1})
+    assert stale.status_code == 409 and stale.json()["error"]["code"] == "STALE_PROGRESS"
+
+    assert client.get("/api/reader/units/nope/progress").status_code == 404

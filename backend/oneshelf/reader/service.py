@@ -181,6 +181,7 @@ class ReaderService:
     # -- progress ----------------------------------------------------------------------------------
 
     def progress(self, unit_id: str) -> ProgressState:
+        self._unit(unit_id)          # a unit that does not exist has no progress, rather than empty progress
         row = self.conn.execute("SELECT * FROM reading_state WHERE reading_unit_id = ?", (unit_id,)).fetchone()
         if row is None:
             return ProgressState("unread", None, None, 0)

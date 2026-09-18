@@ -64,6 +64,12 @@
 .reader__stage[data-direction="vertical"] { flex-direction: column; }
 
 .reader__page { display: block; max-inline-size: 100%; }
+/* Smart fit is one rule for every page, so it cannot oscillate from page to page (§26.9). */
+.reader__stage[data-fit="smart"] .reader__page { inline-size: min(100%, 900px); block-size: auto; }
+.reader__stage[data-mode="single"][data-fit="smart"] .reader__page,
+.reader__stage[data-mode="double"][data-fit="smart"] .reader__page {
+  inline-size: auto; block-size: auto; max-inline-size: 100%; max-block-size: calc(100vh - 112px);
+}
 .reader__stage[data-fit="width"] .reader__page { inline-size: 100%; block-size: auto; }
 .reader__stage[data-fit="height"] .reader__page { block-size: calc(100vh - 112px); inline-size: auto; }
 .reader__stage[data-fit="original"] .reader__page { max-inline-size: none; }
@@ -153,3 +159,20 @@
 }
 .reader__stage[data-zoom="1"] .reader__page { transform: none; }
 .reader__stage:not([data-zoom="1"]) { overflow: hidden; touch-action: none; cursor: grab; }
+
+/* More holds the actions that are not reading itself (§26.2). */
+.reader__more {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-end: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: rgba(20, 20, 20, 0.96);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+  z-index: 5;
+}
+.reader__bar { position: relative; }

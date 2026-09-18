@@ -50,6 +50,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [fullscreen, setFullscreen] = useState(false);
+  const [more, setMore] = useState(false);
   const indexRef = useRef(0);
   const stage = useRef<HTMLDivElement | null>(null);
   const touch = useRef<{ x: number; y: number; spread: number | null } | null>(null);
@@ -73,14 +74,14 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
 
   // Controls auto-hide when idle, and never while a panel is open (§26.3).
   useEffect(() => {
-    if (panel !== null) {
+    if (panel !== null || more) {
       setControlsVisible(true);
       return;
     }
     if (!controlsVisible) return;
     const timer = setTimeout(() => setControlsVisible(false), IDLE_MS);
     return () => clearTimeout(timer);
-  }, [panel, controlsVisible, index]);
+  }, [panel, more, controlsVisible, index]);
 
   const show = useCallback(() => setControlsVisible(true), []);
 
@@ -131,7 +132,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { setPanel(null); return; }
+      if (event.key === "Escape") { setPanel(null); setMore(false); return; }
       if (panel !== null) return;
       const forward = settings.direction === "rtl" ? "ArrowLeft" : "ArrowRight";
       const back = settings.direction === "rtl" ? "ArrowRight" : "ArrowLeft";
@@ -212,23 +213,34 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
         <button type="button" className="reader__button" onClick={() => setPanel("settings")}>
           {t("reader.settings")}
         </button>
-        <button type="button" className="reader__button"
-                onClick={() => void api.post(`/api/reader/units/${id}/mark-read`, {})}>
-          {t("reader.markRead")}
-        </button>
-        <button type="button" className="reader__button" onClick={() => changeZoom(ZOOM_STEP)}>
-          {t("reader.zoomIn")}
-        </button>
-        <button type="button" className="reader__button" onClick={() => changeZoom(1 / ZOOM_STEP)}>
-          {t("reader.zoomOut")}
-        </button>
-        <button type="button" className="reader__button" onClick={resetZoom}>{t("reader.zoomReset")}</button>
         <button type="button" className="reader__button" onClick={toggleFullscreen}>
           {fullscreen ? t("reader.fullscreenExit") : t("reader.fullscreen")}
         </button>
+        {/* §26.2: content, reading controls, and everything else behind More. */}
+        <button type="button" className="reader__button" aria-expanded={more} aria-controls="reader-more"
+                onClick={() => setMore((open) => !open)}>
+          {t("reader.more")}
+        </button>
+        {more && (
+          <div className="reader__more" id="reader-more">
+            <button type="button" className="reader__button"
+                    onClick={() => { void api.post(`/api/reader/units/${id}/mark-read`, {}); setMore(false); }}>
+              {t("reader.markRead")}
+            </button>
+            <button type="button" className="reader__button" onClick={() => changeZoom(ZOOM_STEP)}>
+              {t("reader.zoomIn")}
+            </button>
+            <button type="button" className="reader__button" onClick={() => changeZoom(1 / ZOOM_STEP)}>
+              {t("reader.zoomOut")}
+            </button>
+            <button type="button" className="reader__button" onClick={resetZoom}>{t("reader.zoomReset")}</button>
+          </div>
+        )}
       </div>
 
-      <div className="reader__stage" data-testid="reader-stage" data-mode={settings.mode}
+      {/* The pages scroll, so the keyboard must be able to reach them (WCAG 2.1.1). */}
+      <div className="reader__stage" data-testid="reader-stage" tabIndex={0} aria-label={t("reader.pages")}
+           data-mode={settings.mode}
            data-direction={settings.direction} data-fit={settings.fit} data-zoom={zoom}
            ref={stage} onWheel={onWheel} onDoubleClick={() => (zoom > 1 ? resetZoom() : changeZoom(ZOOM_STEP * 1.6))}
            onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
