@@ -1,6 +1,6 @@
 # Requirement Traceability Matrix
 
-Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3, C4, C5, C6, C7, C8) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
+Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3, C4, C5, C6, C7, C8, C9) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
 
 **Coverage:** every Master heading from §0 to §56 (57 sections, 152 numbered subsections, and the unnumbered sub-headings in §4.4, §20, §26.3, §26.22), all 30 §51 invariants (INV), all 17 §42 default groups (DEF), all 30 §49 exclusions (EX), Meta Prompt §D3 deliverables (MPD) and §G investigation rules (MPG).
 
@@ -79,11 +79,11 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M9.7 | Restricted RPC excluded | C3 | — | — | — | EX-04 | NS |
 | M10 | Install via Registry (A1) or local upload; atomic 8-step install; Configure/Update/Disable/Uninstall/Health/Rollback; new permissions need approval; no auto-publish; uninstall keeps Shelf/content; missing plugin keeps provenance + reinstall; backups store names/versions only; account connection optional | C3 | be/plugins/lifecycle, registry | Sources install/review/manage | plugins, plugin_versions, permissions | install rollback; permission-change review; uninstall preserves content; fixture registry tests | IMPL |
 | M11 | Allowlists + redirect revalidation + DNS revalidation + block loopback/private/link-local/unsafe; same for browser; Test Source dev-only exception | C3 | be/net/policy, be/net/browser_proxy | — | policy config | INV-15 HTTP + browser SSRF/rebinding tests | IMPL |
-| M12 | Scrapling discovery and adapter generator | C3,C9 | be/generator | Settings → Developer | drafts | rows below | NS |
+| M12 | Scrapling discovery and adapter generator | C3,C9 | be/generator | Settings → Developer | drafts | rows below | IMPL |
 | M12.1 | Scrapling: static first, dynamic only if needed, CSS/XPath, APIs/XHR, adaptive selectors; doesn't own queue/retry/Shelf/packaging/priority/policy; no stealth | C3,C9 | be/generator, be/plugins/runtime | — | — | K1 guard test (no stealth fetchers) | IMPL |
-| M12.2 | Pipeline URL→static→mapping→capabilities→optional dynamic→XHR/DOM/media→confidence→draft→domain/permission review→tests→dev review→validation→local install→optional submission | C9 | be/generator/pipeline | Developer generator UI | draft state | pipeline e2e on Test Source | NS |
-| M12.3 | Generator features list (route mapping, Arabic test queries, unit discovery preserving raw fields, resource discovery not screenshots, Confirmed/Probable/Unknown/Unsupported, manifest/recipe generation, safe transforms, adaptive fallback after failure+validation, CDN vs ads separation, capability-level auth testing, sanity tests, multiple sample Works, preview, Recipe Inspector, Test/Edit/confidence, Generate≠Install, Repair with diffs, validate before replace, atomic activation+rollback, community export/submit, no Shelf/progress/unrelated session access, scoped Use My Session, no raw passwords, no auto-publish) | C9 | be/generator, fe/developer | Developer UI | drafts, repair diffs | per-feature tests; MPG rows | NS |
-| M12.4 | Unsupported declarative sites → "Unsupported by Declarative Adapter" / "Native Adapter Review Required"; no hacks | C9 | be/generator | generator result | — | proprietary-signing fixture test | NS |
+| M12.2 | Pipeline URL→static→mapping→capabilities→optional dynamic→XHR/DOM/media→confidence→draft→domain/permission review→tests→dev review→validation→local install→optional submission | C9 | be/generator/pipeline | Developer generator UI | draft state | pipeline e2e on Test Source | IMPL |
+| M12.3 | Generator features list (route mapping, Arabic test queries, unit discovery preserving raw fields, resource discovery not screenshots, Confirmed/Probable/Unknown/Unsupported, manifest/recipe generation, safe transforms, adaptive fallback after failure+validation, CDN vs ads separation, capability-level auth testing, sanity tests, multiple sample Works, preview, Recipe Inspector, Test/Edit/confidence, Generate≠Install, Repair with diffs, validate before replace, atomic activation+rollback, community export/submit, no Shelf/progress/unrelated session access, scoped Use My Session, no raw passwords, no auto-publish) | C9 | be/generator, fe/developer | Developer UI | drafts, repair diffs | per-feature tests; MPG rows | IMPL |
+| M12.4 | Unsupported declarative sites → "Unsupported by Declarative Adapter" / "Native Adapter Review Required"; no hacks | C9 | be/generator | generator result | — | proprietary-signing fixture test | IMPL |
 | M13 | Use My Session: user logs in; no passwords; per-source isolation; plugins never get raw material; encrypted at rest, key separate; backup exclusions; cookies/localStorage/IndexedDB/sessionStorage handling; states + actions; auth failure pauses → WAITING_FOR_SESSION, no blind retry; atomic reconnect + resume; disconnect deletes immediately; never log secrets; install doesn't force auth; attach only to needed capabilities/domains | C3 | be/sessions, be/net | Sources → account/session | secrets.db + separate key | same-source isolation; cross-source/CDN leak; reconnect wait/resume; disconnect deletion; log scan | IMPL |
 
 ## §14–§19 Extraction, governor, downloads, commit, SQLite, auto-download
@@ -266,12 +266,12 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
-| M40 | API documentation: endpoint groups, auth expectations, events, plugin APIs, job interfaces; no cloud API; no secret exposure | C3→C9 | docs/api | — | — | docs review vs implemented routes | NS |
-| M41 | Initial test source suite | C3→C9 | plugins/official, test_source | — | — | rows below; source-capability evidence ledger | NS |
-| M41.1 | Real sources: MangaDex, 3asq/Al-Aasheq, WEBTOON, Tapas, Safahat/Hindawi (A5), Project Gutenberg, arXiv, Standard Ebooks | C3→C9 | plugins/official | Sources | plugins | per-source G5 evidence (EB-3) | NS |
+| M40 | API documentation: endpoint groups, auth expectations, events, plugin APIs, job interfaces; no cloud API; no secret exposure | C3→C9 | docs/api | — | — | docs review vs implemented routes | IMPL |
+| M41 | Initial test source suite | C3→C9 | plugins/official, test_source | — | — | rows below; source-capability evidence ledger | IMPL |
+| M41.1 | Real sources: MangaDex, 3asq/Al-Aasheq, WEBTOON, Tapas, Safahat/Hindawi (A5), Project Gutenberg, arXiv, Standard Ebooks | C3→C9 | plugins/official | Sources | plugins | per-source G5 evidence (EB-3) | IMPL |
 | M41.2 | Controlled OneShelf Test Source for deterministic failure testing | C1,C3 | test_source/ | dev only | — | fault fixture suite | IMPL |
-| M41.3 | Roles: foundation (Gutenberg, Hindawi, arXiv), sequential (MangaDex, 3asq), difficult web (WEBTOON, Tapas), format stress (Standard Ebooks: one Work, many formats, no duplicate Works) | C3→C9 | plugins/official | — | — | role-specific workflow tests | NS |
-| M41.4 | Correctness/reference vs real-world stress sources; 3asq public parser testing only, not official/licensed default | C9 | docs/evidence | — | — | evidence ledger labels | NS |
+| M41.3 | Roles: foundation (Gutenberg, Hindawi, arXiv), sequential (MangaDex, 3asq), difficult web (WEBTOON, Tapas), format stress (Standard Ebooks: one Work, many formats, no duplicate Works) | C3→C9 | plugins/official | — | — | role-specific workflow tests | IMPL |
+| M41.4 | Correctness/reference vs real-world stress sources; 3asq public parser testing only, not official/licensed default | C9 | docs/evidence | — | — | evidence ledger labels | IMPL |
 | M41.5 | Local deterministic cases: irregular order/numbers, Special, Prologue, 3.5, 300→7, 429 Retry-After, 500, session expiry, HTML-as-media, corrupt media, interruption, changed ETag, unapproved redirect, malformed metadata, incomplete pagination, other recovery | C1→C5 | test_source/ | — | — | one scenario test each | IMPL |
 | M42 | Single source of approved defaults, consistent across UI/API/runtime/migrations (D2) | C1 | be/settings/defaults | Settings | settings | DEF rows | IMPL |
 | M43 | Diagnostics: parser/network/job/health operational data only; 7 d or 100 MB rotating; never passwords/cookies/tokens/auth headers/sensitive bodies; no matcher telemetry | C3,C6 | be/diagnostics | Settings → Advanced | rotating files | redaction scan; retention both-limit test | IMPL |
@@ -398,15 +398,15 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 |---|---|---|---|---|
 | MPD-01 | Traceability + updated conflict/review ledger | C0→C9 | this file; conflict-review-ledger.md | C0 |
 | MPD-02 | Architecture, persistent-state/state-transition, migration/recovery docs | C0→C9 | architecture.md (baseline); updated per phase | C0 |
-| MPD-03 | API/auth/event and declarative plugin/generator documentation | C3→C9 | docs/api, docs/plugins | NS |
-| MPD-04 | Deployment/startup/storage/backup/restore/upgrade instructions matching behavior | C9 | docs/ops | NS |
-| MPD-05 | Dated source-capability evidence ledger (verified/unverified/unavailable/action-required/unsupported) | C3→C9 | docs/evidence/sources.md | NS |
-| MPD-06 | Final verification report: commands, outcomes, workflows, artifact checks, UI/RTL/a11y screenshots, blocked gates | C9 | docs/evidence/verification.md | NS |
-| MPG-1 | Investigate actual source before recipes; static first; justified browser escalation; no guessed selectors; no eval; no stealth/CAPTCHA/paywall/DRM; Use My Session only | C3→C9 | per-source investigation notes | NS |
-| MPG-2 | Generate declarative packages with reviewed permissions; multi-Work/multi-query incl. Arabic; genuine empty queries; CDN vs ads domains; bounded transforms; adaptive only after failure; Unsupported instead of hacks | C9 | generator tests | NS |
+| MPD-03 | API/auth/event and declarative plugin/generator documentation | C3→C9 | docs/api, docs/plugins | IMPL |
+| MPD-04 | Deployment/startup/storage/backup/restore/upgrade instructions matching behavior | C9 | docs/ops | IMPL |
+| MPD-05 | Dated source-capability evidence ledger (verified/unverified/unavailable/action-required/unsupported) | C3→C9 | docs/evidence/sources.md | IMPL |
+| MPD-06 | Final verification report: commands, outcomes, workflows, artifact checks, UI/RTL/a11y screenshots, blocked gates | C9 | docs/evidence/verification.md | IMPL |
+| MPG-1 | Investigate actual source before recipes; static first; justified browser escalation; no guessed selectors; no eval; no stealth/CAPTCHA/paywall/DRM; Use My Session only | C3→C9 | per-source investigation notes | IMPL |
+| MPG-2 | Generate declarative packages with reviewed permissions; multi-Work/multi-query incl. Arabic; genuine empty queries; CDN vs ads domains; bounded transforms; adaptive only after failure; Unsupported instead of hacks | C9 | generator tests | IMPL |
 | MPG-3 | Complete catalogs with completion evidence; preserve raw unit fields/order; no numeric gap/duplicate inference; formats don't create Works; reject non-content resources | C4,C9 | catalog/content tests | IMPL |
 | MPG-4 | Recipes return descriptors; Core executes; scoped credentials; no header forwarding to CDN/redirect; expiring URL refresh bounded; error-class separation; Smart Retry/fallback semantics | C3,C5 | runtime tests | IMPL |
-| MPG-5 | Verify through application services with isolated data; sanitized dated fixtures; Test Source synthetic faults; open/parse actual artifacts; record revision/plugin/source/conditions/checksums; no runtime telemetry | C3→C9 | evidence ledger | NS |
+| MPG-5 | Verify through application services with isolated data; sanitized dated fixtures; Test Source synthetic faults; open/parse actual artifacts; record revision/plugin/source/conditions/checksums; no runtime telemetry | C3→C9 | evidence ledger | IMPL |
 
 ---
 
@@ -536,3 +536,20 @@ Carried forward from C7 (still `NS`): M32.15 Backup/Restore screens and M32.16 E
 | INV-30 (completed) | real-peer classification plus session authentication at the boundary | `tests/unit/test_access.py`, `test_auth_api.py` | — |
 
 Carried forward from C8 (still `NS`): M32.17 Remote Access screen and M47 destructive-action wording → C2; M45, M46 UX rules → C2; M2, M2.1 Docker → C9.
+
+### C9 — 2026-09-18 (see `docs/c9/verification.md` and `docs/c9/source-capability-ledger.md`)
+
+| ID | C9 implementation | Evidence | Remaining |
+|---|---|---|---|
+| M12, M12.2–M12.4 | `generator/{discovery,structure,draft,repair,service}.py`, `api/generator.py`, migration `0012_generator.sql` | `tests/integration/generator/` (25 tests, including a generated adapter run through the real runtime and a full repair cycle) | Developer UI (C2) |
+| M41, M41.1, M41.3, M41.4 | `plugins/official/` — MangaDex, Gutenberg, arXiv, Standard Ebooks, WEBTOON; `plugins/build.py` | `test_official_packages.py` offline, `tests/live/test_source_suite.py` live (4 passed) | 3asq (unavailable), Tapas and Safahat/Hindawi (browser escalation), WEBTOON reader — all recorded in the capability ledger |
+| M40, MPD-03 | `docs/api.md` (107 routes), `docs/plugins.md` | route-by-route review against the routers | kept in step with C2's additions |
+| MPD-04 | `docs/operations.md` | matches `db/migrate.py`, `services/startup.py`, `backup/`, `restore/` | Docker verification (EB-1) |
+| MPD-05 | `docs/c9/source-capability-ledger.md` | dated live probes, 2026-09-18 | re-run when sources change |
+| MPD-06 | `docs/c9/verification.md` | commands, versions, commit, blocked gates | UI/RTL/a11y screenshots (C2) |
+| MPG-1, MPG-2, MPG-5 | static-first discovery, reviewed permissions, CDN vs ads separation, artefacts opened and parsed | `test_discovery.py`, `test_draft.py`, live suite | Arabic multi-query checks once an Arabic source ships |
+| M2.1 (partial) | `deploy/Dockerfile`, `deploy/compose.yaml`, `GET /api/ready` | `test_readiness_reports_what_startup_actually_did`; module smoke-run | **Blocked EB-1**: build, restart, recreation |
+
+Carried forward from C9 (still `NS`): M2.1 Docker verification → EB-1; M53 full test categories and INV-29 telemetry
+audit → after C2; M41.2 and M41.5 remain `IMPL` from C1/C3 and gained the generator-facing static pages and the
+markup switch used to exercise repair.

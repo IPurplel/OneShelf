@@ -225,3 +225,20 @@ Routine choices made under Meta Prompt §C0.7 ("make routine engineering choices
 | D-C8-08 | The single-gateway warning appears once the first 20 non-loopback requests have all come from one address, naming that address and suggesting narrower networks or a trusted-proxy entry. | ledger A2 ("a startup/Settings warning when every client arrives from one gateway address") | Adopted |
 | D-C8-09 | `POST /api/auth/sign-in/options` and `POST /api/auth/sign-in` are the only routes a signed-out remote client may reach; both do nothing but verify a passkey. | §28.3 | Adopted |
 | D-C8-10 | Passkey re-authentication for sensitive remote operations is not implemented in v1. | §28.6 "may require"; LAN Recovery already needs genuine LAN and revocation needs the session | Adopted |
+
+---
+
+## 14. Engineering decisions recorded during C9 (2026-09-18)
+
+| ID | Decision | Rationale / Master refs | Disposition |
+|---|---|---|---|
+| D-C9-01 | The `.osp` schema gains a declarative `template` field and document-level `extract.values`, still inside `api: '1.0'`. A template composes a value from values, the current item and recipe inputs, and yields nothing when a part is missing. | §9, §41.1: MangaDex serves a base URL, a hash and bare filenames, so page URLs cannot be expressed otherwise | **Review** |
+| D-C9-02 | `language` is an allowed recipe input; the core passes the track's language to catalog, reader and downloads, and drops inputs a recipe does not declare. | §4 Language Track, §41.3; older packages keep working unchanged | Adopted |
+| D-C9-03 | A recipe may use `{url}` as its entire request URL to follow a link its own catalogue produced. Nothing may be appended to it, and the egress policy still decides whether the fetch is allowed. | §8 direct URLs, §11; needed by sources whose unit pages have unpredictable paths | Adopted |
+| D-C9-04 | Markup responses are parsed after stripping an XML declaration, so Atom and OPDS feeds work under `format: html`. A separate `xml` format was not introduced. | arXiv and Standard Ebooks; one fewer concept in the plugin model | Adopted |
+| D-C9-05 | WEBTOON ships without `search` (its robots.txt disallows `/*/search`) and without `reader` (the viewer builds images with JavaScript), rather than not shipping or faking either. | §41.3 "partial web availability", §12.1 no stealth | **Review** |
+| D-C9-06 | Generated and repaired packages are installed through the generator's own endpoints, which accept only files from the generator work directory; the upload path remains for packages from elsewhere. | §12.3 Generate ≠ Install, §48 path safety | **Review** |
+| D-C9-07 | Discovery's development loopback exception is enabled only when dev hosts are supplied, which only happens when `ONESHELF_DEV_TEST_SOURCE` is set. | §11 dev-only exception | Adopted |
+| D-C9-08 | Generated drafts are conservative by default: 30 requests per minute, one connection, and a `generated.<host>` id that a developer renames before publishing anywhere. | §12.3 developer review | Adopted |
+| D-C9-09 | The Test Source gained conventional static search, work and chapter pages plus a markup-version switch, so discovery and repair can be exercised deterministically offline. | §41.2, §41.5 | Adopted |
+| D-C9-10 | Live source checks are an opt-in suite (`-m live`, `ONESHELF_LIVE_SOURCES=1`); the default run is offline and deterministic against fixtures captured from the same responses. | Meta Prompt C9 "separate offline deterministic tests from live source integration" | Adopted |

@@ -54,7 +54,8 @@ Scenarios are controlled with `POST /__control` on the Test Source (e.g. `{"big_
 
 | Area | Endpoints |
 |---|---|
-| Health / events | `GET /api/health`, `GET /api/events` (SSE) |
+| Health / events | `GET /api/health`, `GET /api/ready`, `GET /api/events` (SSE) |
+| Generator | `POST|GET /api/generator/drafts`, `GET /api/generator/drafts/{id}`, `POST /api/generator/drafts/{id}/{test,generate,install,submission}`, `POST /api/generator/repair/{plugin}[/diagnose|/activate]` |
 | Sources | `GET /api/sources`, `POST /api/sources/uploads`, `POST /api/sources/install`, `POST /api/sources/{id}/approve`, `POST /api/sources/{id}/{disable,enable,rollback}`, `DELETE /api/sources/{id}`, `GET /api/sources/{id}/health` |
 | Registry | `GET /api/registry`, `POST /api/registry/install` |
 | Sessions / login | `GET|DELETE /api/sources/{id}/session`, `POST /api/sources/{id}/session/validate`, `POST /api/sources/{id}/login`, `GET /api/logins/{id}/frame`, `POST /api/logins/{id}/{input,complete}`, `DELETE /api/logins/{id}` |
