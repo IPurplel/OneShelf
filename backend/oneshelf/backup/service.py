@@ -34,7 +34,7 @@ SUFFIX = ".osbackup"
 EXCLUDED_TABLES = ("source_session_refs", "commit_journal", "download_jobs", "download_batches", "search_index",
                    "source_health_signals", "source_health_state", "storage_migrations", "storage_migration_files")
 COUNTED_TABLES = ("works", "source_tracks", "reading_units", "assets", "shelf_entries", "follows", "reading_state",
-                  "work_mappings", "user_overrides", "settings")
+                  "work_mappings", "user_overrides", "settings", "reading_bookmarks", "reading_highlights")
 
 
 class BackupError(RuntimeError):

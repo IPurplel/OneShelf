@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n/i18n";
 import { Drawer } from "@/components/Drawer";
 import { openEpub } from "./epub";
 import type { Epub } from "./epub";
+import { HighlightPane } from "./HighlightPane";
 import { PdfView } from "./PdfView";
 import { useBookMarks } from "./useBookMarks";
 import { useProgress } from "./useProgress";
@@ -25,7 +26,8 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
   const [book, setBook] = useState<Epub | null>(null);
   const [chapterIndex, setChapterIndex] = useState(0);
   const [html, setHtml] = useState("");
-  const [panel, setPanel] = useState<null | "contents" | "search">(null);
+  const [panel, setPanel] = useState<null | "contents" | "search" | "highlight">(null);
+  const [chapterText, setChapterText] = useState("");
   const marks = useBookMarks(unitId);
   const { record, flush } = useProgress(unitId);
 
@@ -71,6 +73,7 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
       const chapter = await book.chapter(chapterIndex);
       if (!live) return;
       setHtml(frameDocument(chapter.html, direction));
+      setChapterText(chapter.text);
       const read = book.spine.slice(0, chapterIndex + 1).reduce((total, item) => total + item.characters, 0);
       record(book.characters === 0 ? 0 : read / book.characters, { chapter: chapterIndex });
     })();
@@ -112,8 +115,12 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
           {t("book.search")}
         </button>
         <button type="button" className="reader__button"
-                onClick={() => marks.addBookmark({ chapter: chapterIndex, label: chapterLabel(book, chapterIndex) })}>
+                onClick={() => void marks.addBookmark({ chapter: chapterIndex },
+                                                      chapterLabel(book, chapterIndex))}>
           {t("book.bookmark")}
+        </button>
+        <button type="button" className="reader__button" onClick={() => setPanel("highlight")}>
+          {t("book.highlight")}
         </button>
       </div>
 
@@ -136,6 +143,14 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
       {panel === "search" && (
         <BookSearch book={book} onGo={(index) => { setChapterIndex(index); setPanel(null); }}
                     onClose={() => setPanel(null)} />
+      )}
+      {panel === "highlight" && (
+        <HighlightPane text={chapterText} onClose={() => setPanel(null)}
+                       onKeep={(selection) => {
+                         void marks.addHighlight({ chapter: chapterIndex, start: selection.start,
+                                                   end: selection.end }, selection.text);
+                         setPanel(null);
+                       }} />
       )}
     </div>
   );
@@ -200,9 +215,12 @@ function BookContents({ book, current, marks, onGo, onClose }: {
       {tab === "bookmarks" && (
         <ul className="drawer__units">
           {marks.bookmarks.map((bookmark) => (
-            <li key={`${bookmark.chapter}-${bookmark.label}`}>
-              <button type="button" className="drawer__unit" onClick={() => onGo(bookmark.chapter)}>
+            <li key={bookmark.id}>
+              <button type="button" className="drawer__unit" onClick={() => onGo(bookmark.locator.chapter ?? 0)}>
                 <span className="drawer__unitTitle">{bookmark.label}</span>
+              </button>
+              <button type="button" className="chip" onClick={() => void marks.removeBookmark(bookmark.id)}>
+                {t("book.removeMark")}
               </button>
             </li>
           ))}
@@ -214,8 +232,11 @@ function BookContents({ book, current, marks, onGo, onClose }: {
         <ul className="drawer__units">
           {marks.highlights.map((highlight) => (
             <li key={highlight.id}>
-              <button type="button" className="drawer__unit" onClick={() => onGo(highlight.chapter)}>
+              <button type="button" className="drawer__unit" onClick={() => onGo(highlight.locator.chapter ?? 0)}>
                 <span className="drawer__unitTitle">{highlight.text}</span>
+              </button>
+              <button type="button" className="chip" onClick={() => void marks.removeHighlight(highlight.id)}>
+                {t("book.removeMark")}
               </button>
             </li>
           ))}

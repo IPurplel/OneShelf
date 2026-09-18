@@ -198,6 +198,54 @@ async def leave_work(request: Request, work_id: str):
     return {"work_id": work_id, "canceled": await services(request).reader.leaving_work(work_id)}
 
 
+class BookmarkBody(BaseModel):
+    locator: dict
+    label: str | None = Field(default=None, max_length=200)
+
+
+class HighlightBody(BaseModel):
+    locator: dict
+    text: str = Field(min_length=1, max_length=4000)
+    colour: Literal["yellow", "green", "blue", "pink"] = "yellow"
+
+
+@router.get("/reader/units/{unit_id}/marks")
+async def marks(request: Request, unit_id: str):
+    """Bookmarks and highlights live with the library, so they survive a browser and reach every device."""
+    try:
+        state = services(request).reader.marks(unit_id)
+    except ValueError as exc:
+        return error(404, "UNIT_NOT_FOUND", str(exc))
+    return {"bookmarks": [asdict(b) for b in state.bookmarks], "highlights": [asdict(h) for h in state.highlights]}
+
+
+@router.post("/reader/units/{unit_id}/bookmarks")
+async def add_bookmark(request: Request, unit_id: str, body: BookmarkBody):
+    try:
+        return asdict(services(request).reader.add_bookmark(unit_id, locator=body.locator, label=body.label))
+    except ValueError as exc:
+        return error(404, "UNIT_NOT_FOUND", str(exc))
+
+
+@router.post("/reader/units/{unit_id}/highlights")
+async def add_highlight(request: Request, unit_id: str, body: HighlightBody):
+    try:
+        return asdict(services(request).reader.add_highlight(unit_id, locator=body.locator, text=body.text,
+                                                             colour=body.colour))
+    except ValueError as exc:
+        return error(404, "UNIT_NOT_FOUND", str(exc))
+
+
+@router.delete("/reader/bookmarks/{mark_id}")
+async def remove_bookmark(request: Request, mark_id: str):
+    return {"removed": services(request).reader.remove_mark("bookmark", mark_id)}
+
+
+@router.delete("/reader/highlights/{mark_id}")
+async def remove_highlight(request: Request, mark_id: str):
+    return {"removed": services(request).reader.remove_mark("highlight", mark_id)}
+
+
 @router.post("/reader/units/{unit_id}/{action}")
 async def reading_state_action(request: Request, unit_id: str, action: str):
     reader = services(request).reader

@@ -27,16 +27,50 @@ function epubBytes(): Uint8Array {
   });
 }
 
-function stubFile(bytes: Uint8Array, contentType: string) {
-  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+type Call = { url: string; method: string; body: unknown };
+
+/** The file, the marks the library holds, and progress — the three things the Book Reader talks to. */
+function stubFile(bytes: Uint8Array, contentType: string): Call[] {
+  const calls: Call[] = [];
+  const marks: { bookmarks: unknown[]; highlights: unknown[] } = { bookmarks: [], highlights: [] };
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString();
+    const method = (init?.method ?? "GET").toUpperCase();
+    const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+    calls.push({ url, method, body });
     if (url.endsWith("/file")) {
       return new Response(bytes as BodyInit, { status: 200, headers: { "Content-Type": contentType } });
     }
-    return new Response(JSON.stringify({ read_state: "unread", fraction: 0, locator: null, revision: 0 }), {
+    const json = (payload: unknown) => new Response(JSON.stringify(payload), {
       status: 200, headers: { "Content-Type": "application/json" },
     });
+    if (url.endsWith("/marks")) return json(marks);
+    if (url.endsWith("/bookmarks") && method === "POST") {
+      const made = { id: `b${marks.bookmarks.length + 1}`, locator: body.locator, label: body.label,
+                     created_at: "2026-09-18T10:00:00+00:00" };
+      marks.bookmarks.push(made);
+      return json(made);
+    }
+    if (url.endsWith("/highlights") && method === "POST") {
+      const made = { id: `h${marks.highlights.length + 1}`, locator: body.locator, text: body.text,
+                     colour: "yellow", created_at: "2026-09-18T10:00:00+00:00" };
+      marks.highlights.push(made);
+      return json(made);
+    }
+    return json({ read_state: "unread", fraction: 0, locator: null, revision: 0 });
   }));
+  return calls;
+}
+
+/** A real DOM selection over one text node, the way a reader makes one with the pointer. */
+function selectWithin(element: HTMLElement, start: number, end: number) {
+  const node = element.firstChild!;
+  const range = document.createRange();
+  range.setStart(node, start);
+  range.setEnd(node, end);
+  const selection = window.getSelection()!;
+  selection.removeAllRanges();
+  selection.addRange(range);
 }
 
 afterEach(() => vi.unstubAllGlobals());
@@ -80,18 +114,59 @@ describe("Book Reader (EPUB)", () => {
     expect(hits.length).toBeGreaterThan(0);
   });
 
-  it("keeps bookmarks and highlights for this book", async () => {
-    stubFile(epubBytes(), "application/epub+zip");
+  it("keeps a bookmark with the library rather than in this browser", async () => {
+    const calls = stubFile(epubBytes(), "application/epub+zip");
     const user = userEvent.setup();
     renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
     await screen.findByTitle(/book content/i);
 
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/1 of 2/i));
     await user.click(screen.getByRole("button", { name: /bookmark/i }));
+
+    const made = calls.find((c) => c.url.endsWith("/bookmarks") && c.method === "POST");
+    expect(made?.body).toEqual({ locator: { chapter: 0 }, label: "Chapter One" });
+
     await user.click(screen.getByRole("button", { name: /contents/i }));
     const drawer = await screen.findByRole("dialog", { name: /contents/i });
     await user.click(within(drawer).getByRole("tab", { name: /bookmarks/i }));
-    expect(within(drawer).getByText(/chapter one/i)).toBeInTheDocument();
+    expect(await within(drawer).findByText(/chapter one/i)).toBeInTheDocument();
+  });
+
+  it("captures a highlight from the chapter's own text, and keeps it with the library", async () => {
+    const calls = stubFile(epubBytes(), "application/epub+zip");
+    const user = userEvent.setup();
+    renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
+    await screen.findByTitle(/book content/i);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/1 of 2/i));
+
+    await user.click(screen.getByRole("button", { name: /highlight/i }));
+    const panel = await screen.findByRole("dialog", { name: /highlight/i });
+    // The pane holds the chapter as text the app itself extracted — never the document's own markup.
+    const passage = await within(panel).findByText(/the quiet begins/i);
+    expect(passage.querySelector("script")).toBeNull();
+
+    const start = passage.textContent!.indexOf("quiet");
+    selectWithin(passage, start, start + "quiet".length);
+    await user.click(within(panel).getByRole("button", { name: /keep this highlight/i }));
+
+    const made = calls.find((c) => c.url.endsWith("/highlights") && c.method === "POST");
+    expect(made?.body).toMatchObject({ text: "quiet",
+                                       locator: { chapter: 0, start, end: start + "quiet".length } });
+  });
+
+  it("says when nothing is selected rather than keeping an empty highlight", async () => {
+    const calls = stubFile(epubBytes(), "application/epub+zip");
+    const user = userEvent.setup();
+    renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
+    await screen.findByTitle(/book content/i);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/1 of 2/i));
+
+    await user.click(screen.getByRole("button", { name: /highlight/i }));
+    const panel = await screen.findByRole("dialog", { name: /highlight/i });
+    await user.click(within(panel).getByRole("button", { name: /keep this highlight/i }));
+
+    expect(within(panel).getByRole("alert")).toHaveTextContent(/select the words/i);
+    expect(calls.some((c) => c.url.endsWith("/highlights") && c.method === "POST")).toBe(false);
   });
 
   it("says plainly when the file is not on this device", async () => {

@@ -15,6 +15,7 @@ from pathlib import Path
 
 from oneshelf.db.connection import transaction
 from oneshelf.domain.clock import utcnow_iso
+from oneshelf.domain.ids import new_id
 from oneshelf.downloads.contract import Settings
 from oneshelf.integrity.validators import IMAGE_EXTENSIONS, _natural_key, _validate_image
 from oneshelf.net.governor import Priority
@@ -49,6 +50,29 @@ class PageData:
 class LocalArtefact:
     format: str
     data: bytes
+
+
+@dataclass(frozen=True)
+class Bookmark:
+    id: str
+    locator: dict
+    label: str | None
+    created_at: str
+
+
+@dataclass(frozen=True)
+class Highlight:
+    id: str
+    locator: dict
+    text: str
+    colour: str
+    created_at: str
+
+
+@dataclass(frozen=True)
+class Marks:
+    bookmarks: list[Bookmark]
+    highlights: list[Highlight]
 
 
 @dataclass(frozen=True)
@@ -194,6 +218,57 @@ class ReaderService:
 
     def mark_unread(self, unit_id: str, *, revision: int | None = None) -> ProgressState:
         return self._write(unit_id, "unread", None, None, revision)
+
+    # -- bookmarks and highlights (§26.22) ---------------------------------------------------------
+
+    @staticmethod
+    def _locator_key(locator: dict) -> str:
+        """Two bookmarks are the same place when their locator is the same, however it was written."""
+        return json.dumps(locator, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+    def marks(self, unit_id: str) -> Marks:
+        self._unit(unit_id)
+        bookmarks = [Bookmark(r["id"], json.loads(r["locator_json"]), r["label"], r["created_at"])
+                     for r in self.conn.execute(
+                         "SELECT * FROM reading_bookmarks WHERE reading_unit_id = ? ORDER BY created_at, id",
+                         (unit_id,))]
+        highlights = [Highlight(r["id"], json.loads(r["locator_json"]), r["text"], r["colour"], r["created_at"])
+                      for r in self.conn.execute(
+                          "SELECT * FROM reading_highlights WHERE reading_unit_id = ? ORDER BY created_at, id",
+                          (unit_id,))]
+        return Marks(bookmarks, highlights)
+
+    def add_bookmark(self, unit_id: str, *, locator: dict, label: str | None = None) -> Bookmark:
+        self._unit(unit_id)
+        key = self._locator_key(locator)
+        existing = self.conn.execute(
+            "SELECT * FROM reading_bookmarks WHERE reading_unit_id = ? AND locator_key = ?", (unit_id, key)).fetchone()
+        if existing is not None:      # the same place is never bookmarked twice
+            return Bookmark(existing["id"], json.loads(existing["locator_json"]), existing["label"],
+                            existing["created_at"])
+        record = Bookmark(new_id(), locator, label, utcnow_iso())
+        with transaction(self.conn):
+            self.conn.execute(
+                "INSERT INTO reading_bookmarks (id, reading_unit_id, locator_json, locator_key, label, created_at)"
+                " VALUES (?,?,?,?,?,?)",
+                (record.id, unit_id, json.dumps(locator), key, label, record.created_at))
+        return record
+
+    def add_highlight(self, unit_id: str, *, locator: dict, text: str, colour: str = "yellow") -> Highlight:
+        self._unit(unit_id)
+        record = Highlight(new_id(), locator, text, colour, utcnow_iso())
+        with transaction(self.conn):
+            self.conn.execute(
+                "INSERT INTO reading_highlights (id, reading_unit_id, locator_json, text, colour, created_at)"
+                " VALUES (?,?,?,?,?,?)",
+                (record.id, unit_id, json.dumps(locator), text, colour, record.created_at))
+        return record
+
+    def remove_mark(self, kind: str, mark_id: str) -> bool:
+        table = "reading_bookmarks" if kind == "bookmark" else "reading_highlights"
+        with transaction(self.conn):
+            cursor = self.conn.execute(f"DELETE FROM {table} WHERE id = ?", (mark_id,))
+        return cursor.rowcount > 0
 
     # -- auto-download while reading (§19) ---------------------------------------------------------
 

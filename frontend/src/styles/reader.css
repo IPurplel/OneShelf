@@ -129,3 +129,18 @@
 .book__frame { flex: 1; inline-size: 100%; border: 0; background: #fffdf8; }
 .book__pdf { flex: 1; display: grid; place-items: center; overflow: auto; padding: 56px 0; }
 .book__pdf canvas { max-inline-size: 100%; box-shadow: var(--shadow-raised); background: #fff; }
+
+/* The highlight pane: the text OneShelf extracted, set for reading and selecting (§26.22). */
+.book__passage {
+  margin: var(--space-3) 0;
+  padding: var(--space-4);
+  max-block-size: 46vh;
+  overflow: auto;
+  background: var(--ivory-100);
+  border-radius: var(--radius-md);
+  font: 16px/1.7 var(--font-display);
+  color: var(--ink-900);
+  white-space: pre-wrap;
+  user-select: text;
+}
+.book__passage::selection { background: #f6e6a8; }
