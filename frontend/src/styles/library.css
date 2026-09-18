@@ -437,6 +437,25 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 .restore__plugins li { display: flex; gap: var(--space-3); align-items: baseline; }
 .import__review { display: grid; gap: var(--space-4); margin-top: var(--space-4); }
 .install__review { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+
+/* The generator's draft: states, then the Recipe Inspector, read like a page rather than a console. */
+.gen__draft { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+.gen__draft h3, .gen__repair h4, .gen__recipe h4 { margin: var(--space-2) 0 0;
+                                                   font-family: var(--font-display); font-size: 17px; }
+.gen__states { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.gen__states li { display: flex; align-items: center; gap: var(--space-2); }
+.chip--confirmed { background: var(--olive-600); color: var(--ivory-100); }
+.chip--probable { background: var(--wood-500); color: var(--ivory-100); }
+.chip--unsupported { background: var(--ink-300); color: var(--ivory-100); }
+.gen__inspector { display: grid; gap: var(--space-4); margin-top: var(--space-3);
+                  padding: var(--space-4); background: var(--ivory-100); border-radius: var(--radius-2); }
+.gen__fields { inline-size: 100%; border-collapse: collapse; font-size: 14px; }
+.gen__fields th { text-align: start; color: var(--ink-500); font-weight: 600; padding-block: var(--space-1); }
+.gen__fields td { padding-block: var(--space-1); vertical-align: top; word-break: break-all; }
+.gen__changes { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.gen__changes li { display: grid; gap: 2px; }
+.gen__before { color: var(--ink-500); text-decoration: line-through; }
+.gen__after { color: var(--forest-600); }
 .install__review h3 { margin: var(--space-2) 0 0; font-family: var(--font-display); font-size: 17px; }
 .install__permissions { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
 .install__permissions li { display: grid; gap: 2px; }

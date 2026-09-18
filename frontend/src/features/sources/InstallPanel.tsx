@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { ApiError, api } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
-import type { StringKey } from "@/i18n/strings";
+import { explain } from "./permissions";
 
 type Review = {
   upload_id: string;
@@ -20,25 +20,6 @@ type Review = {
 };
 
 type Outcome = { plugin_id: string; version: string; state: string; added_permissions: string[] };
-
-/**
- * A permission read back in the reader's own words (Master §11.4). The token is kept beside it, so a
- * careful reader can still see exactly what was granted.
- */
-type Translate = (key: StringKey, values?: Record<string, string | number>) => string;
-
-function explain(permission: string, t: Translate): string {
-  const [group, kind = "", rest] = permission.split(":");
-  const domain = rest ?? kind;
-  if (group === "network" && kind === "domain") return t("install.perm.domain", { domain });
-  if (group === "network" && kind === "cdn") return t("install.perm.cdn", { domain });
-  if (group === "network" && kind === "http") return t("install.perm.http");
-  if (group === "browser" && kind === "login") return t("install.perm.login");
-  if (group === "browser") return t("install.perm.browser", { what: kind });
-  if (group === "session" && kind === "required") return t("install.perm.sessionRequired", { what: domain });
-  if (group === "session") return t("install.perm.sessionOptional", { what: domain });
-  return permission;
-}
 
 /**
  * Installing a source from a file (Master §10.2, §11, §32.12).

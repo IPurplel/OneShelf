@@ -4,6 +4,7 @@ import { StoragePanel } from "@/features/storage/StoragePanel";
 import { ImportPanel } from "@/features/storage/ImportPanel";
 import { BackupPanel } from "@/features/backup/BackupPanel";
 import { RemotePanel } from "@/features/remote/RemotePanel";
+import { GeneratorPanel } from "@/features/generator/GeneratorPanel";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
 
@@ -58,12 +59,7 @@ export function SettingsScreen() {
 
           {category === "backup" && <BackupPanel />}
 
-          {category === "developer" && (
-            <section className="paper">
-              <h2 className="display">{t("settings.developer.generator")}</h2>
-              <p>{t("settings.developer.body")}</p>
-            </section>
-          )}
+          {category === "developer" && <GeneratorPanel />}
 
           {!["general", "storage", "remote", "developer", "backup"].includes(category) && (
             <section className="paper"><p>{t("settings.soon")}</p></section>

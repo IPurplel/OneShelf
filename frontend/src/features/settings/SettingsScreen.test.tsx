@@ -57,7 +57,7 @@ describe("Settings", () => {
   });
 
   it("keeps developer tools out of the way until asked", async () => {
-    mockApi([get("/api/auth/state", AUTH), get("/api/storage", STORAGE)]);
+    mockApi([get("/api/auth/state", AUTH), get("/api/storage", STORAGE), get("/api/sources", { sources: [] })]);
     const user = userEvent.setup();
     renderWithProviders(<SettingsScreen />);
     await screen.findByRole("tablist", { name: /settings/i });
