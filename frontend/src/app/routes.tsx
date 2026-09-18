@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 
 import { HomeScreen } from "@/features/home/HomeScreen";
 import { DownloadsScreen } from "@/features/downloads/DownloadsScreen";
+import { FirstRunScreen } from "@/features/firstrun/FirstRunScreen";
 import { FollowingScreen } from "@/features/following/FollowingScreen";
 import { SearchScreen } from "@/features/search/SearchScreen";
 import { SettingsScreen } from "@/features/settings/SettingsScreen";
@@ -21,6 +22,7 @@ export const routes: AppRoute[] = [
   { path: "/sources", element: <SourcesScreen /> },
   { path: "/settings", element: <SettingsScreen /> },
   { path: "/settings/:section", element: <SettingsScreen /> },
+  { path: "/first-run", element: <FirstRunScreen /> },
   { path: "/works/:workId", element: <WorkScreen /> },
   { path: "/read/:unitId", element: <ReadRoute /> },
 ];

@@ -1,6 +1,6 @@
 # Requirement Traceability Matrix
 
-Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3, C4, C5, C6, C7, C8, C9) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
+Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C2, C3, C4, C5, C6, C7, C8, C9) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
 
 **Coverage:** every Master heading from §0 to §56 (57 sections, 152 numbered subsections, and the unnumbered sub-headings in §4.4, §20, §26.3, §26.22), all 30 §51 invariants (INV), all 17 §42 default groups (DEF), all 30 §49 exclusions (EX), Meta Prompt §D3 deliverables (MPD) and §G investigation rules (MPG).
 
@@ -16,15 +16,15 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
 | M0 | Master is authoritative; no redesign/simplification; flag external ideas; no revival of removed scope | C0→all | docs/c0 | — | — | conflict-review-ledger.md; each phase review | C0 |
-| M1 | Self-hosted single-user reading library; feels like personal library, not scraper dashboard; progressive disclosure | C2→all | fe/ | all screens | — | UX review vs §32/§45; screenshots | NS |
+| M1 | Self-hosted single-user reading library; feels like personal library, not scraper dashboard; progressive disclosure | C2→all | fe/ | all screens | — | UX review vs §32/§45; screenshots | IMPL |
 | M2 | Deployment & core platform | C1,C8,C9 | — | — | — | rows M2.1–M2.3 | NS |
 | M2.1 | Docker first-class; persistent storage; optional separate mounts; no cloud backend/account | C1,C9 | deploy/, be/settings | env/config | app data volume | Docker restart/recreate test on isolated mounts (EB-1) | NS |
 | M2.2 | Single user; no username/password account, cloud profile or roles; remote = passkeys; LAN trusted | C1,C8 | be/auth, be/api | first run, Remote Access | remote_auth tables | auth tests; no account/profile UI | IMPL |
-| M2.3 | Arabic/English, RTL/LTR UI + reading; Arabic normalization for search preserving original text | C2,C4 | fe/i18n, be/search/normalize | all UI; search | normalized key columns | RTL/LTR screenshots; normalization unit tests | NS |
+| M2.3 | Arabic/English, RTL/LTR UI + reading; Arabic normalization for search preserving original text | C2,C4 | fe/i18n, be/search/normalize | all UI; search | normalized key columns | RTL/LTR screenshots; normalization unit tests | IMPL |
 | M3 | Foundational rules | C1→C7 | — | — | — | rows M3.1–M3.4 | NS |
 | M3.1 | Never silently switch/mix source, language, tracks, or substitute units; fallback changes method only | C4,C5,C6,C7 | be/downloads/extraction, be/reader, be/follow, be/export | Reader, Downloads, Follow, Export | extraction_contracts, follows | INV-02 tests | NS |
 | M3.2 | UNKNOWN is valid; never coerced to No/False/Unavailable/Unsupported/Bad/Missing; unknown quality ≠ unavailable | C1,C4,C5 | be/domain (Unknown-aware types) | cards, details, plugin capabilities | nullable tri-state columns | INV-05, INV-06 tests | NS |
-| M3.3 | Local content readable without source/plugin/internet/session/catalog | C2,C7 | be/reader, be/storage | Reader | assets | INV-11 test | NS |
+| M3.3 | Local content readable without source/plugin/internet/session/catalog | C2,C7 | be/reader, be/storage | Reader | assets | INV-11 test | IMPL |
 | M3.4 | No hidden destructive behavior (listed cases) | C1,C4,C6,C7 | be/storage, be/catalog, be/services | destructive dialogs | — | INV-01/10/18 tests; cleanup audits | NS |
 | M4 | Core domain model | C1 | be/domain, be/db | — | schema | rows M4.1–M4.6 | IMPL |
 | M4.1 | Work: logical title aggregating listings/languages/formats with provenance; not title equality | C1,C4 | be/domain/work | Work Details | works, work_aliases | domain tests; same-title distinct Works | IMPL |
@@ -136,36 +136,36 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
-| M26 | Two reader families (Sequential, Book); core v1 | C2,C5 | fe/reader, be/reader | Reader | — | rows below | NS |
-| M26.1 | Content first; layers Content / Controls / Advanced-Recovery; not a dashboard | C2 | fe/reader | Reader | — | UX review | NS |
-| M26.2 | Auto-hiding top/bottom bars; top: Back, Work title, unit, TOC, compact download, More (Mark Read/Unread, Change Source, Settings, Repair, Work Details, advanced); Back returns context + flushes progress | C2 | fe/reader/shell | Reader | progress flush | e2e back-context + flush test | NS |
-| M26.3 | Distraction-Free modes; controls don't auto-hide while menu/drawer/settings open; Always Visible *(optional)* | C2 | fe/reader/controls | Reader | reader settings | panel-open no-hide test | NS |
+| M26 | Two reader families (Sequential, Book); core v1 | C2,C5 | fe/reader, be/reader | Reader | — | rows below | IMPL |
+| M26.1 | Content first; layers Content / Controls / Advanced-Recovery; not a dashboard | C2 | fe/reader | Reader | — | UX review | IMPL |
+| M26.2 | Auto-hiding top/bottom bars; top: Back, Work title, unit, TOC, compact download, More (Mark Read/Unread, Change Source, Settings, Repair, Work Details, advanced); Back returns context + flushes progress | C2 | fe/reader/shell | Reader | progress flush | e2e back-context + flush test | IMPL |
+| M26.3 | Distraction-Free modes; controls don't auto-hide while menu/drawer/settings open; Always Visible *(optional)* | C2 | fe/reader/controls | Reader | reader settings | panel-open no-hide test | IMPL |
 | M26.3a | Smart: controls on interaction, auto-hide ~3 s | C2 | fe/reader/controls | Reader | — | timing test | NS |
 | M26.3b | Hidden by Default/Minimal: bars hidden unless summoned; navigate by keys/mouse zones/gestures | C2 | fe/reader/controls | Reader | — | e2e navigation test | NS |
-| M26.4 | Long Strip, Single, Double; LTR/RTL/Vertical | C2 | fe/reader/sequential | Reader | — | mode/direction tests | NS |
-| M26.5 | Edge zones/center; direction-aware; keyboard set (prev/next, Space/Shift+Space, fullscreen, TOC, download, zoom, reset, Esc); touch (center tap, swipe, vertical scroll, pinch, double-tap); remapping *(optional)* | C2 | fe/reader/input | Reader | — | input tests desktop + touch emulation | NS |
-| M26.6 | Long Strip bounded render window; not fully decoded; percentage progress; optional page detail; restore approximate scroll | C2 | fe/reader/long_strip | Reader | progress.position | memory-bound + restore tests | NS |
-| M26.7 | Single Page centered; Fit Smart/Width/Height/Original | C2 | fe/reader/single | Reader | — | fit tests | NS |
+| M26.4 | Long Strip, Single, Double; LTR/RTL/Vertical | C2 | fe/reader/sequential | Reader | — | mode/direction tests | IMPL |
+| M26.5 | Edge zones/center; direction-aware; keyboard set (prev/next, Space/Shift+Space, fullscreen, TOC, download, zoom, reset, Esc); touch (center tap, swipe, vertical scroll, pinch, double-tap); remapping *(optional)* | C2 | fe/reader/input | Reader | — | input tests desktop + touch emulation | IMPL |
+| M26.6 | Long Strip bounded render window; not fully decoded; percentage progress; optional page detail; restore approximate scroll | C2 | fe/reader/long_strip | Reader | progress.position | memory-bound + restore tests | IMPL |
+| M26.7 | Single Page centered; Fit Smart/Width/Height/Original | C2 | fe/reader/single | Reader | — | fit tests | IMPL |
 | M26.8 | Double Page LTR/RTL pairing, first-page cover, Shift Pairing, wide spreads; no AI/destructive crop | C2 | fe/reader/double | Reader | per-Work pairing offset | pairing tests | NS |
-| M26.9 | Auto Fit Smart/Width/Height/Original; Smart stable | C2 | fe/reader/fit | Reader | — | no-oscillation test | NS |
+| M26.9 | Auto Fit Smart/Width/Height/Original; Smart stable | C2 | fe/reader/fit | Reader | — | no-oscillation test | IMPL |
 | M26.10 | Zoom keyboard/Ctrl+wheel/pinch/double-tap; drag pans; no accidental advance | C2 | fe/reader/zoom | Reader | — | zoomed-pan tests | NS |
-| M26.11 | Minimal bottom UI; page-based (manga/PDF), position (Long Strip), logical (EPUB); scrubber | C2 | fe/reader/progress | Reader | progress | model tests | NS |
-| M26.12 | TOC drawer (desktop side, tablet side sheet, mobile full/bottom sheet); unit states; filters All/Unread/Downloaded/New; subtle current highlight | C2 | fe/reader/toc | Reader | — | responsive TOC tests | NS |
-| M26.13 | End-of-unit uses Source Track order, never chapter+1; card with completed state, next actual unit (Special/Extra), Back to Work | C2 | fe/reader, be/reader/navigation | Reader | — | INV-24 irregular order test | NS |
-| M26.14 | Auto Read 97%; always Mark Read/Unread; manual change doesn't eject | C2 | be/reader/progress | Reader More | read_state | threshold + manual tests | NS |
-| M26.15 | Continue Reading restores exact same-source progress; Long Strip approximate | C2 | be/reader, fe/home | Home, Work Details | progress | restore tests | NS |
+| M26.11 | Minimal bottom UI; page-based (manga/PDF), position (Long Strip), logical (EPUB); scrubber | C2 | fe/reader/progress | Reader | progress | model tests | IMPL |
+| M26.12 | TOC drawer (desktop side, tablet side sheet, mobile full/bottom sheet); unit states; filters All/Unread/Downloaded/New; subtle current highlight | C2 | fe/reader/toc | Reader | — | responsive TOC tests | IMPL |
+| M26.13 | End-of-unit uses Source Track order, never chapter+1; card with completed state, next actual unit (Special/Extra), Back to Work | C2 | fe/reader, be/reader/navigation | Reader | — | INV-24 irregular order test | IMPL |
+| M26.14 | Auto Read 97%; always Mark Read/Unread; manual change doesn't eject | C2 | be/reader/progress | Reader More | read_state | threshold + manual tests | IMPL |
+| M26.15 | Continue Reading restores exact same-source progress; Long Strip approximate | C2 | be/reader, fe/home | Home, Work Details | progress | restore tests | IMPL |
 | M26.16 | Subtle source indicator; manual switching only; same-language alternatives; layout warning; Start This Unit / Try Approximate Position; never fake page equivalence; uncertain → say so, open target track, don't guess | C2,C5 | fe/reader/source_switch, be/reader | Reader Change Source | — | INV-25 test | NS |
-| M26.17 | Settings precedence Session > Work > Content-Type > Global; remember per-Work ON; normal vs advanced settings; backgrounds Black/Dark Gray/White | C2 | be/settings, fe/reader/settings | Reader Settings | reader_settings scoped | precedence tests | NS |
+| M26.17 | Settings precedence Session > Work > Content-Type > Global; remember per-Work ON; normal vs advanced settings; backgrounds Black/Dark Gray/White | C2 | be/settings, fe/reader/settings | Reader Settings | reader_settings scoped | precedence tests | IMPL |
 | M26.18 | Preload ~next 7 / previous 4; Long Strip bounded window; advanced only | C2,C5 | fe/reader/preload | advanced settings | — | DEF preload test | NS |
 | M26.19 | Compact download state (not downloaded/progress/downloaded); quiet auto-download; Download Entire Work on Work page/More | C2,C5 | fe/reader | Reader top bar | — | UI test | NS |
 | M26.20 | Reader Cache ≠ download; no noisy Cached badges; details distinguish; cache key source + unit identity + resource validator, never title/number | C5 | be/reader/cache | Reader details | cache.db, blobs | key tests; eviction protections | IMPL |
 | M26.21 | Page failure Retry/Repair/Skip; corrupt local Repair from Source/Skip; never silently delete; source unavailable keeps local/cached readable, no switch; inline Reconnect resuming same unit; calm rate-limit auto retry; offline Downloaded vs Online-only | C2,C5 | fe/reader/errors, be/reader | Reader | — | error-state tests | NS |
-| M26.22 | Book Reader; no full notes/drawing/annotations; only bookmarks + highlights; sequential page bookmarks not required | C2 | fe/reader/book | Reader | bookmarks, highlights | EX-15 check | NS |
+| M26.22 | Book Reader; no full notes/drawing/annotations; only bookmarks + highlights; sequential page bookmarks not required | C2 | fe/reader/book | Reader | bookmarks, highlights | EX-15 check | IMPL |
 | M26.22a | EPUB: font family/size, line height, margins, theme, TOC, search, bookmarks, highlights, logical progress; TOC tabs; no fake page count | C2 | fe/reader/epub | Reader | bookmarks, highlights, progress | EPUB gate tests (isolated renderer) | NS |
 | M26.22b | PDF: navigation, zoom, fit width/page, text-layer search, bookmarks, highlights, progress, optional sidebar | C2 | fe/reader/pdf | Reader | bookmarks, highlights, progress | PDF gate tests | NS |
 | M26.23 | Multi-tab: no stale regression; debounced writes; force flush on unit change/hidden/exit/lifecycle | C2 | be/reader/progress, fe/reader | — | progress.revision | multi-tab stale-write tests; Mark Unread/reread still work | IMPL |
-| M26.24 | Layout-preserving skeletons; one-time "Tap/click center" hint | C2 | fe/reader | Reader | local hint flag | UI test | NS |
-| M27 | Never inject untrusted HTML/EPUB/document content into app origin/DOM; sanitize, sandbox, CSP, script blocking, isolated viewer, safe SVG; no auth/privileged/network escape (K3) | C2 | be/reader/content_routes, fe/reader/isolation | Reader | — | INV-12 malicious HTML/EPUB/SVG/PDF tests | NS |
+| M26.24 | Layout-preserving skeletons; one-time "Tap/click center" hint | C2 | fe/reader | Reader | local hint flag | UI test | IMPL |
+| M27 | Never inject untrusted HTML/EPUB/document content into app origin/DOM; sanitize, sandbox, CSP, script blocking, isolated viewer, safe SVG; no auth/privileged/network escape (K3) | C2 | be/reader/content_routes, fe/reader/isolation | Reader | — | INV-12 malicious HTML/EPUB/SVG/PDF tests | IMPL |
 
 ## §28–§29 Authentication and first run
 
@@ -206,28 +206,28 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M31.2 | Latest Releases = getLatest discovery feed, distinct from Following New Releases | C4 | be/services/home | Home | cache.db | separation test | IMPL |
 | M31.3 | Recently Added = recently added to My Shelf | C6 | be/services/home | Home | shelf_entries.added_at | test | IMPL |
 | M31.4 | Hero contextual but stable; no network request to choose; priority Continue Reading > pinned/new-release > cached discovery | C2,C6 | be/services/home | Home Hero | — | no-network Hero test | IMPL |
-| M32 | Approved visual identity (forest-green sidebar, cream canvas, olive, wood, restrained shadows, serif headings, clean UI type; calm/premium; not SaaS/Netflix) | C2 | fe/theme | all | — | visual checks vs reference V (EB-2) | NS |
-| M32.1 | Fixed forest-green sidebar with Home/Search/My Shelf/Following/Downloads/Sources/Settings; logo top-left; sparse botanical motif | C2 | fe/shell | sidebar | — | nav test; screenshot | NS |
-| M32.2 | No avatar; Notifications + Needs Attention (hidden at 0; Reconnect/Low Storage/Download Failed/Catalog Suspicious; grouped popover); filtered shortcut, no duplication | C2,C6 | fe/shell/header | header | derived | zero-hidden + filter tests | NS |
-| M32.3 | Home close to reference: welcome, subtitle, Hero, Continue Reading, Trending, Latest, Recently Added, others when useful; adaptive; not dashboard | C2 | fe/home | Home | — | empty-state + adaptive tests; screenshot | NS |
-| M32.4 | Large rounded Hero with cover/title/type/description/Continue/atmospheric art | C2 | fe/home/hero | Home | — | screenshot | NS |
-| M32.5 | Wooden shelves on Home, My Shelf, selected Discover; paper/card for system; none in Settings/Downloads/Sources/Backup; premium subtle wood | C2 | fe/components/shelf | Home, My Shelf | — | screenshot audit | NS |
-| M32.6 | Work cards Compact/Standard/Detailed; one logical Work; dominant cover; concise availability; no internal states | C2 | fe/components/work_card | cards | — | INV-27 UI test | NS |
-| M32.7 | Search UI: warm canvas, serif title, large field, filter chips, Grid/List, cover results, no mandatory shelves | C2,C4 | fe/search | Search | — | screenshot | NS |
-| M32.8 | Work Details: small Hero header (cover/title/original/type/creator/description); actions Continue/Read, Add to Shelf, Follow, Favorite, Pin; tabs Read/Details/Sources; elegant index unit list | C2 | fe/work | Work Details | — | UI tests | NS |
-| M32.9 | My Shelf bookshelf motif; Pinned/Reading/Completed/Favorites sections; search/sort/filter/Grid-List | C2,C6 | fe/shelf | My Shelf | — | UI tests | NS |
-| M32.10 | Following as reading journal; paper rows; New Releases / Needs Attention / Up to Date; no charts | C2,C6 | fe/following | Following | — | UI tests | NS |
-| M32.11 | Downloads operational: no shelves, paper panels, olive progress, green controls, batch cards, expandable units; not analytics | C2,C5 | fe/downloads | Downloads | — | UI tests | NS |
-| M32.12 | Sources elegant catalog-card list: source, type/language, status, last successful check, Configure/More; advanced hidden (A3) | C2,C3 | fe/sources | Sources | — | UI tests | NS |
-| M32.13 | Notifications warm right drawer; Mark All as Seen / Clear Seen / View All | C2,C6 | fe/notifications | drawer | — | UI tests | NS |
-| M32.14 | Settings paper aesthetic; categories left / panel right; General, Reader, Downloads, Storage, Sources, Notifications, Backup, Remote Access, Advanced, Developer; progressive disclosure | C2 | fe/settings | Settings | — | UI tests | NS |
+| M32 | Approved visual identity (forest-green sidebar, cream canvas, olive, wood, restrained shadows, serif headings, clean UI type; calm/premium; not SaaS/Netflix) | C2 | fe/theme | all | — | visual checks vs reference V (EB-2) | IMPL |
+| M32.1 | Fixed forest-green sidebar with Home/Search/My Shelf/Following/Downloads/Sources/Settings; logo top-left; sparse botanical motif | C2 | fe/shell | sidebar | — | nav test; screenshot | IMPL |
+| M32.2 | No avatar; Notifications + Needs Attention (hidden at 0; Reconnect/Low Storage/Download Failed/Catalog Suspicious; grouped popover); filtered shortcut, no duplication | C2,C6 | fe/shell/header | header | derived | zero-hidden + filter tests | IMPL |
+| M32.3 | Home close to reference: welcome, subtitle, Hero, Continue Reading, Trending, Latest, Recently Added, others when useful; adaptive; not dashboard | C2 | fe/home | Home | — | empty-state + adaptive tests; screenshot | IMPL |
+| M32.4 | Large rounded Hero with cover/title/type/description/Continue/atmospheric art | C2 | fe/home/hero | Home | — | screenshot | IMPL |
+| M32.5 | Wooden shelves on Home, My Shelf, selected Discover; paper/card for system; none in Settings/Downloads/Sources/Backup; premium subtle wood | C2 | fe/components/shelf | Home, My Shelf | — | screenshot audit | IMPL |
+| M32.6 | Work cards Compact/Standard/Detailed; one logical Work; dominant cover; concise availability; no internal states | C2 | fe/components/work_card | cards | — | INV-27 UI test | IMPL |
+| M32.7 | Search UI: warm canvas, serif title, large field, filter chips, Grid/List, cover results, no mandatory shelves | C2,C4 | fe/search | Search | — | screenshot | IMPL |
+| M32.8 | Work Details: small Hero header (cover/title/original/type/creator/description); actions Continue/Read, Add to Shelf, Follow, Favorite, Pin; tabs Read/Details/Sources; elegant index unit list | C2 | fe/work | Work Details | — | UI tests | IMPL |
+| M32.9 | My Shelf bookshelf motif; Pinned/Reading/Completed/Favorites sections; search/sort/filter/Grid-List | C2,C6 | fe/shelf | My Shelf | — | UI tests | IMPL |
+| M32.10 | Following as reading journal; paper rows; New Releases / Needs Attention / Up to Date; no charts | C2,C6 | fe/following | Following | — | UI tests | IMPL |
+| M32.11 | Downloads operational: no shelves, paper panels, olive progress, green controls, batch cards, expandable units; not analytics | C2,C5 | fe/downloads | Downloads | — | UI tests | IMPL |
+| M32.12 | Sources elegant catalog-card list: source, type/language, status, last successful check, Configure/More; advanced hidden (A3) | C2,C3 | fe/sources | Sources | — | UI tests | IMPL |
+| M32.13 | Notifications warm right drawer; Mark All as Seen / Clear Seen / View All | C2,C6 | fe/notifications | drawer | — | UI tests | IMPL |
+| M32.14 | Settings paper aesthetic; categories left / panel right; General, Reader, Downloads, Storage, Sources, Notifications, Backup, Remote Access, Advanced, Developer; progressive disclosure | C2 | fe/settings | Settings | — | UI tests | IMPL |
 | M32.15 | Backup/Restore archival feel; multi-step restore, not casual modal | C7 | fe/backup | Backup | — | UI tests | NS |
 | M32.16 | Export wizard Content → Format → Destination → Review; small covers | C7 | fe/export | Export | — | UI tests | NS |
-| M32.17 | First Run "Welcome to OneShelf" / "Your stories, one library."; subtle botanical | C8 | fe/first_run | First Run | — | copy test ar/en | NS |
-| M32.18 | Reader strips decoration; Black/Dark Gray/White; controls keep icon/type quality | C2 | fe/reader | Reader | — | screenshot | NS |
-| M32.19 | Paper drawers/dialogs; no heavy glassmorphism; destructive dialogs explain what happens and what remains | C2 | fe/components/dialog | dialogs | — | copy audit (M47) | NS |
-| M32.20 | Subtle motion (2–4 px lift, soft slide, Hero crossfade); no bounce/elastic/flashy/parallax; reduced motion | C2 | fe/theme/motion | all | — | reduced-motion test | NS |
-| M32.21 | Mobile not shrunk desktop; bottom nav Home/Search/Shelf/Following/More (Downloads/Sources/Notifications/Settings); touch-first Reader | C2 | fe/shell/mobile | mobile | — | mobile viewport e2e | NS |
+| M32.17 | First Run "Welcome to OneShelf" / "Your stories, one library."; subtle botanical | C8 | fe/first_run | First Run | — | copy test ar/en | IMPL |
+| M32.18 | Reader strips decoration; Black/Dark Gray/White; controls keep icon/type quality | C2 | fe/reader | Reader | — | screenshot | IMPL |
+| M32.19 | Paper drawers/dialogs; no heavy glassmorphism; destructive dialogs explain what happens and what remains | C2 | fe/components/dialog | dialogs | — | copy audit (M47) | IMPL |
+| M32.20 | Subtle motion (2–4 px lift, soft slide, Hero crossfade); no bounce/elastic/flashy/parallax; reduced motion | C2 | fe/theme/motion | all | — | reduced-motion test | IMPL |
+| M32.21 | Mobile not shrunk desktop; bottom nav Home/Search/Shelf/Following/More (Downloads/Sources/Notifications/Settings); touch-first Reader | C2 | fe/shell/mobile | mobile | — | mobile viewport e2e | IMPL |
 
 ## §33–§39 Backup, export, separation, events, import, scanner, packaging
 
@@ -281,8 +281,8 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
 | M44 | Top-right Needs Attention + Notifications bell with counts; Needs Attention secondary to Hero, hidden at zero, actionable only; grouped popover with Reconnect/Manage Storage/Retry/View Source | C2,C6 | fe/shell/header | header | derived | UI tests | IMPL |
-| M45 | Progressive disclosure: normal vs advanced for Downloads, Reader, Sources as listed | C2→C8 | fe/settings, fe/sources | Settings, Sources | — | UI audit per list | NS |
-| M46 | Errors answer what happened / what OneShelf did safely / what user can do; raw errors only in expandable details | C2→C8 | fe/components/error | all | — | copy audit | NS |
+| M45 | Progressive disclosure: normal vs advanced for Downloads, Reader, Sources as listed | C2→C8 | fe/settings, fe/sources | Settings, Sources | — | UI audit per list | IMPL |
+| M46 | Errors answer what happened / what OneShelf did safely / what user can do; raw errors only in expandable details | C2→C8 | fe/components/error | all | — | copy audit | IMPL |
 | M47 | Destructive actions state what is removed, what remains, effects on files/progress/Follow/Shelf (Remove from Shelf, Delete Files, Replace Library, Reset Remote Passkeys, Uninstall Plugin) | C2,C6,C7,C8,C3 | fe/components/dialog | dialogs | — | dialog copy tests | NS |
 | M48 | Security boundaries summary (declarative plugins, Core-owned capabilities, allowlists, redirect/DNS, SSRF, genuine LAN, trusted proxies, Origin/CSRF, secure cookies, no Web Storage tokens, document isolation, path safety, no plugin FS, no raw sessions, no secrets in logs/backups/export) | C1→C8 | see architecture.md §6 | — | — | INV-12–15, 19, 30 + security review | IMPL |
 | M49 | Explicit v1 exclusions stay out of scope | all | — | — | — | EX rows | NS |
@@ -313,8 +313,8 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | INV-08 | Auto-download OFF by default | C1,C5 | defaults registry + fresh install assertion; enabled engagement per spec | IMPL |
 | INV-09 | Follow never auto-downloads | C6 | new-release events enqueue nothing | IMPL |
 | INV-10 | Remove from Shelf / Unfollow / Delete Files independent | C6 | separate assertions on files, Shelf, Follow, read state, progress | IMPL |
-| INV-11 | Local content readable without source/plugin/network | C2,C7 | read + export CBZ/PDF/EPUB with source offline, plugin disabled/uninstalled, session disconnected | NS |
-| INV-12 | Reader content can't execute privileged actions | C2 | malicious HTML/EPUB/SVG/PDF can't reach privileged actions, auth context or prohibited network | NS |
+| INV-11 | Local content readable without source/plugin/network | C2,C7 | read + export CBZ/PDF/EPUB with source offline, plugin disabled/uninstalled, session disconnected | IMPL |
+| INV-12 | Reader content can't execute privileged actions | C2 | malicious HTML/EPUB/SVG/PDF can't reach privileged actions, auth context or prohibited network | IMPL |
 | INV-13 | Community plugins can't execute arbitrary code | C3 | malicious `.osp` code payloads rejected | IMPL |
 | INV-14 | Plugins can't access arbitrary paths | C1,C3 | path payloads rejected; Core-only path generation | IMPL |
 | INV-15 | Plugins can't SSRF into LAN/internal | C3 | HTTP + browser redirect/DNS SSRF cases blocked | IMPL |
@@ -326,7 +326,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | INV-21 | Download Missing Then Export requires explicit notice | C7 | disclosure required; normal validated commit then export | IMPL |
 | INV-22 | Notifications never alter reading state | C6 | Seen / Clear Seen / cleanup leave reading untouched | IMPL |
 | INV-23 | Clearing history never deletes content/state | C5,C6,C7 | download/export/notification history cleanup preserves content + progress | IMPL |
-| INV-24 | Navigation follows Source Track order | C2 | prologue, Special, Extra, 3.5 navigate by track order | NS |
+| INV-24 | Navigation follows Source Track order | C2 | prologue, Special, Extra, 3.5 navigate by track order | IMPL |
 | INV-25 | Cross-source progress approximate/manual | C2,C5 | Start This Unit / Try Approximate Position; no guessed unit or exact-page claim | NS |
 | INV-26 | Browser background work can't starve Reader/direct work | C3,C5 | saturated low-priority work; bounded Reader responsiveness | IMPL |
 | INV-27 | Search results represent Works | C4 | Work-level results with selectable provenance, no duplicated source cards | IMPL |
@@ -553,3 +553,17 @@ Carried forward from C8 (still `NS`): M32.17 Remote Access screen and M47 destru
 Carried forward from C9 (still `NS`): M2.1 Docker verification → EB-1; M53 full test categories and INV-29 telemetry
 audit → after C2; M41.2 and M41.5 remain `IMPL` from C1/C3 and gained the generator-facing static pages and the
 markup switch used to exercise repair.
+
+### C2 — 2026-09-18 (gate passed for the surfaces built; see `docs/c2/verification.md`)
+
+| ID | C2 implementation | Evidence | Remaining |
+|---|---|---|---|
+| M1, M32–M32.21 | the shell, the visual identity and every library and operational surface | `frontend/src/**` with 78 tests; screenshots against the approved reference (EB-2 cleared) | Backup/Restore/Export wizards, remote-access and generator screens (§5 of the C2 record) |
+| M2.3, M45, M46 | Arabic and English as peers, direction independent of content, focus and keyboard behaviour | `a11y.test.tsx`, axe-core zero violations on six screens in both languages | more screenshot coverage |
+| M22, M31–M31.4 | My Shelf views and search; Home's adaptive sections and stable hero | `ShelfScreen.test.tsx`, `HomeScreen.test.tsx` | — |
+| M26–M26.24 | both reader families, modes, controls, progress, contents, end-of-unit | `SequentialReader.test.tsx`, `BookReader.test.tsx`, `epub.test.ts` | PDF text search and highlights, pairing controls, zoom and gestures |
+| M27, INV-12 | untrusted content isolated: sanitised EPUB in an empty-sandbox frame under its own CSP; pdf.js with no annotation layer | `epub.test.ts`, `BookReader.test.tsx`, `pdf-isolation.test.ts` | — |
+| INV-11, M3.3 | local reading with no source, plugin or network | `reads local pages without asking any source`, `GET /api/reader/units/{id}/file` | export-without-plugin already covered in C7 |
+| INV-24 | irregular units keep Source Track order | `ends the unit with the next unit in source order, never chapter plus one` | — |
+
+Carried forward from C2: the outstanding reader and wizard screens listed in `docs/c2/verification.md` §5.

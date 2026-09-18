@@ -403,3 +403,29 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
   .shelf--compactRow .shelf__plank { top: 150px; }
   .shelf__title { font-size: 22px; }
 }
+
+/* Notifications: warm paper rows, unseen marked quietly (§32.13). */
+.notes { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.notes__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--ivory-100);
+}
+.notes__row[data-seen="false"] { background: var(--ivory-200); }
+.notes__title { font-family: var(--font-display); }
+.notes__count { color: var(--olive-600); font-variant-numeric: tabular-nums; }
+.notes__summary { grid-column: 1 / -1; color: var(--ink-500); font-size: 14px; }
+
+/* First run: a warm welcome, one decision at a time (§32.17). */
+.firstrun { display: grid; place-items: center; min-height: 70vh; }
+.firstrun__panel { inline-size: min(560px, 92vw); display: grid; gap: var(--space-4); }
+.firstrun__title { margin: 0; font-size: clamp(26px, 3vw, 34px); }
+.firstrun__lede { margin: 0; color: var(--ink-500); }
+.firstrun__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); }
+.field__label { display: grid; gap: var(--space-2); color: var(--ink-700); }
+.field--area { min-block-size: 84px; padding: var(--space-3); font: inherit; }
+.panel__choiceTitle { display: block; }
+.panel__choiceHelp { display: block; color: var(--ink-500); font-size: 14px; }

@@ -6,6 +6,7 @@ import { MOBILE_QUERY, useMediaQuery } from "./useMediaQuery";
 import { BottomNav } from "./BottomNav";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
+import { NotificationsDrawer } from "@/features/notifications/NotificationsDrawer";
 import { routes } from "./routes";
 
 function Layout() {
@@ -28,7 +29,9 @@ function Layout() {
         </main>
       </div>
       {mobile && <BottomNav onOpenMore={() => setPanel("more")} />}
-      {panel !== null && <div className="visually-hidden" data-panel={panel} />}
+      {(panel === "notifications" || panel === "attention") && (
+        <NotificationsDrawer attentionOnly={panel === "attention"} onClose={() => setPanel(null)} />
+      )}
     </div>
   );
 }
