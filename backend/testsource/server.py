@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 import io
 import json
 from collections import defaultdict
@@ -340,3 +341,53 @@ class TestSourceServer:
 
     def hosts(self) -> dict[str, tuple[str, int]]:
         return {HOST: ("127.0.0.1", self.port), CDN_HOST: ("127.0.0.1", self.port)}
+
+
+class BackgroundTestSource:
+    """Runs the Test Source on its own thread and loop, for tests that drive the app through a client."""
+
+    __test__ = False
+
+    def __init__(self, scenario: Scenario | None = None) -> None:
+        self.scenario = scenario or Scenario()
+        self.port: int | None = None
+        self._thread: threading.Thread | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._ready = threading.Event()
+        self._stop: asyncio.Event | None = None
+
+    def __enter__(self) -> BackgroundTestSource:
+        self._thread = threading.Thread(target=self._run, daemon=True, name="oneshelf-test-source")
+        self._thread.start()
+        if not self._ready.wait(timeout=20):
+            raise RuntimeError("the Test Source did not start")
+        return self
+
+    def __exit__(self, *exc) -> None:
+        if self._loop is not None and self._stop is not None:
+            self._loop.call_soon_threadsafe(self._stop.set)
+        if self._thread is not None:
+            self._thread.join(timeout=20)
+
+    def _run(self) -> None:
+        asyncio.run(self._serve())
+
+    async def _serve(self) -> None:
+        self._loop = asyncio.get_running_loop()
+        self._stop = asyncio.Event()
+        runner = web.AppRunner(create_app(self.scenario), access_log=None)
+        await runner.setup()
+        site = web.TCPSite(runner, "127.0.0.1", 0)
+        await site.start()
+        self.port = site._server.sockets[0].getsockname()[1]
+        self._ready.set()
+        try:
+            await self._stop.wait()
+        finally:
+            await runner.cleanup()
+
+    def hosts(self) -> dict[str, tuple[str, int]]:
+        return {HOST: ("127.0.0.1", self.port), CDN_HOST: ("127.0.0.1", self.port)}
+
+    def address(self) -> str:
+        return f"127.0.0.1:{self.port}"

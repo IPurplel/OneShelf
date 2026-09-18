@@ -17,6 +17,7 @@ from oneshelf.api.middleware import AccessBoundaryMiddleware
 from oneshelf.api.auth import PUBLIC_REMOTE_PATHS, router as auth_router
 from oneshelf.api.discovery import router as discovery_router
 from oneshelf.api.firstrun import router as firstrun_router
+from oneshelf.api.generator import router as generator_router
 from oneshelf.api.library import router as library_router
 from oneshelf.api.shelf import router as shelf_router
 from oneshelf.api.storage import router as storage_router
@@ -29,6 +30,7 @@ from oneshelf.export.service import ExportService
 from oneshelf.restore.service import RestoreService
 from oneshelf.storage.migration import StorageMigration
 from oneshelf.follow.runner import FollowRunner
+from oneshelf.generator.service import GeneratorService
 from oneshelf.follow.service import FollowService
 from oneshelf.health.service import HealthService
 from oneshelf.library.shelf import ShelfService
@@ -89,6 +91,7 @@ class Services:
     exports: ExportService | None = None
     remote_auth: RemoteAuth | None = None
     access_policy: AccessPolicy | None = None
+    generator: GeneratorService | None = None
 
 
 @dataclass(frozen=True)
@@ -206,7 +209,9 @@ def create_app(config: AppConfig) -> FastAPI:
             shelf, follows, follow_runner, notifications, HealthService(conn, events=app.state.bus),
             StorageMigration(conn), backups, RestoreService(conn, config.db_path, backups=backups),
             ExportService(conn, downloads=engine), RemoteAuth(conn),
-            AccessPolicy(conn, base=config.access))
+            AccessPolicy(conn, base=config.access),
+            GeneratorService(conn, work_dir=Path(config.data_dir) / "generator", dev_hosts=config.dev_hosts(),
+                             dev_test_source=config.dev_test_source))
         runner = DownloadRunner(engine)
         await runner.start()
         await follow_runner.start()
@@ -254,6 +259,7 @@ def create_app(config: AppConfig) -> FastAPI:
     app.include_router(storage_router)
     app.include_router(auth_router)
     app.include_router(firstrun_router)
+    app.include_router(generator_router)
     app.add_middleware(AccessBoundaryMiddleware, config=config.access,
                        remote_authenticator=_remote_session_authenticator,
                        config_provider=_effective_access_config, observer=_observe_client)

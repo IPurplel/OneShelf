@@ -49,7 +49,19 @@ class Draft:
         """What the developer sees before Generate (§12.3 preview and Recipe Inspector)."""
         return {"manifest": self.manifest, "source": self.source, "recipes": self.recipes,
                 "confidence": self.confidence, "unsupported": self.unsupported, "notes": self.notes,
-                "fetches": self.site.fetches if self.site else [], "tests": self.tests}
+                "fetches": self.site.fetches if self.site else [], "tests": self.tests,
+                "permissions": self.permissions,
+                "rejected_domains": list(self.site.rejected_domains) if self.site else []}
+
+    @property
+    def permissions(self) -> list[str]:
+        """The exact permissions installing this draft would ask for (§12.2 domain/permission review)."""
+        network = self.manifest["network"]
+        permissions = [f"network:domain:{d}" for d in network["domains"]]
+        permissions += [f"network:cdn:{d}" for d in network["cdn_domains"]]
+        if network.get("allow_http"):
+            permissions.append("network:http")
+        return sorted(permissions)
 
 
 def _plugin_id(host: str) -> str:

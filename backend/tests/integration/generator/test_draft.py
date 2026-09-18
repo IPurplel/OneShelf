@@ -67,3 +67,13 @@ def test_unsupported_capabilities_are_left_out_rather_than_guessed():
     draft = build_draft(site, name="JavaScript only")
     assert "search" not in draft.manifest["capabilities"]
     assert draft.unsupported and "search" in draft.unsupported
+
+
+def test_the_generated_package_passes_its_own_packaged_tests(tmp_path):
+    """The Tested stage of install must pass on a freshly generated draft (§10 lifecycle, §12.3)."""
+    from oneshelf.plugins.runtime import run_packaged_tests
+
+    draft = build_draft(mapped(), name="Generated Test Source")
+    package = load_package(write_package(draft, tmp_path / "gen.osp"))
+    report = run(run_packaged_tests(package))
+    assert report.passed, report.failures
