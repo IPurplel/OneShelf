@@ -550,8 +550,10 @@ Carried forward from C8 (still `NS`): M32.17 Remote Access screen and M47 destru
 | MPG-1, MPG-2, MPG-5 | static-first discovery, reviewed permissions, CDN vs ads separation, artefacts opened and parsed | `test_discovery.py`, `test_draft.py`, live suite | Arabic multi-query checks once an Arabic source ships |
 | M2.1 (partial) | `deploy/Dockerfile`, `deploy/compose.yaml`, `GET /api/ready` | `test_readiness_reports_what_startup_actually_did`; module smoke-run | **Blocked EB-1**: build, restart, recreation |
 
-Carried forward from C9 (still `NS`): M2.1 Docker verification → EB-1; M53 full test categories and INV-29 telemetry
-audit → after C2; M41.2 and M41.5 remain `IMPL` from C1/C3 and gained the generator-facing static pages and the
+Carried forward from C9: M2.1 Docker verification → EB-1 (still `NS`). **M53 and INV-29 are now `Verified`**
+(2026-09-18, `docs/c9/test-categories.md`): all twenty-six §53 categories audited against the suite, the
+queue-restart gap filled, and the telemetry audit held by `tests/unit/test_no_matcher_telemetry.py` and
+`tests/unit/test_suite_is_isolated.py`. M41.2 and M41.5 remain `IMPL` from C1/C3 and gained the generator-facing static pages and the
 markup switch used to exercise repair.
 
 ### C2 — 2026-09-18 (gate passed for the surfaces built; see `docs/c2/verification.md`)

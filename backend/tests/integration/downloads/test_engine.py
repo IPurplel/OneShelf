@@ -277,3 +277,33 @@ def test_enqueueing_a_unit_that_is_already_downloaded_is_skipped(environment):
 
     batch, report, assets = run(scenario())
     assert batch["skipped"] == 1 and report.completed == 0 and len(assets) == 1
+
+
+def test_the_queue_survives_a_restart_and_a_new_engine_finishes_it(environment):
+    """§53 queue persistence: the queue lives in SQLite, so a fresh process picks it up (§17, INV-16)."""
+    class Crash(BaseException):
+        pass
+
+    async def interrupted():
+        async with environment(fault=lambda point: (_ for _ in ()).throw(Crash(point))
+                               if point == "after_pages_downloaded" else None) as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            batch = env.engine.enqueue([env.unit_id("irr-1")])
+            with pytest.raises(Crash):
+                await env.engine.run_until_idle()
+            return batch, env.job_rows(batch)[0]["state"]
+
+    async def after_restart(batch):
+        # A new SourceService, governor and DownloadEngine: nothing is carried over in memory.
+        async with environment() as env:
+            recovered = await env.engine.recover()
+            report = await env.engine.run_until_idle()
+            return recovered, report, env.job_rows(batch)[0], env.assets(), env.files()
+
+    batch, state = run(interrupted())
+    assert state == "DOWNLOADING"
+
+    recovered, report, final, assets, files = run(after_restart(batch))
+    assert recovered == 1 and report.completed == 1
+    assert final["state"] == "COMPLETED"
+    assert len(assets) == 1 and len(files) == 1

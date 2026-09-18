@@ -70,12 +70,13 @@ Each was written test-first and is covered by its own test:
 | ID | Gate | Why | What would clear it |
 |---|---|---|---|
 | EB-1 | Docker build, restart and recreation against isolated mounts | No container runtime on this host | Run `docker compose up -d --build` on a host with Docker or Podman, then restart and recreate the container and confirm the library survives on the mounts |
-| EB-2 | C2 visual checks (Arabic/English, RTL, mobile, screenshots) | The approved visual reference is still missing from `docs/reference/`, and the frontend is not built | Supply the image; C2 then delivers the UI and its checks |
+| ~~EB-2~~ | ~~C2 visual checks~~ | **Cleared 2026-09-18**: the reference was supplied, the UI was corrected against it, and C2's checks ran — see `docs/c2/verification.md` | — |
 | §41 suite | 3asq / Al-Aasheq | `3asq.org` does not resolve from this environment | Network access to that host, then generate and verify an adapter |
 | §41 suite | Tapas | Episode data sits in script state, and `/search` is disallowed by robots | Browser escalation or the underlying XHR, then a package with the capabilities that are genuinely available |
 | §41 suite | Safahat / Hindawi | Book pages render with JavaScript; canonical domain resolved as `safahat.org` | Browser escalation or an API, then a package |
 | §41 suite | WEBTOON reader | The viewer builds its images with JavaScript; only thumbnails are in the HTML | Browser escalation for the reader capability |
-| §53 | Full UI, accessibility and RTL test categories | Frontend not built (C2) | C2 |
+| ~~§53~~ | ~~Full UI, accessibility and RTL test categories~~ | **Cleared 2026-09-18**: all twenty-six categories audited against the suite in `docs/c9/test-categories.md`; one gap (queue restart recovery) was filled | — |
+| ~~INV-29~~ | ~~Telemetry audit of records, diagnostics, network calls and cleanup~~ | **Cleared 2026-09-18**: audited and now held by `tests/unit/test_no_matcher_telemetry.py`; see `docs/c9/test-categories.md` | — |
 
 None of these are worked around, and none are claimed as passing.
 
