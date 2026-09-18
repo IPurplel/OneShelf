@@ -2,13 +2,14 @@
 
 Recorded: 2026-09-18 · Branch: `c9/generator-sources-deploy` · Authority: Meta Prompt §C2
 Status: **C2 gate passed for the surfaces built so far**, with reader behaviour verified by test and the
-visual items verified against the approved reference. What is not yet built is named in §5.
+visual items verified against the approved reference. Every screen the Master asks for now exists; the
+reader features still outstanding are named in §5.
 
 ## 1. Commands and results
 
 ```sh
 cd frontend
-npx vitest run     # → 78 passed
+npx vitest run     # → 122 passed
 npx tsc --noEmit   # → clean
 npx vite build     # → builds; pdf.js is a separate chunk
 
@@ -19,12 +20,23 @@ cd ../backend
 Live checks, against the running application with a seeded library
 (`backend/tests/tools/seed_dev_library.py`, development only):
 
-- Every screen renders real content with **no console errors** (Home, My Shelf, Search, Following,
-  Downloads, Sources, Settings, First Run).
-- **axe-core, WCAG 2.0/2.1 A and AA: zero violations** on Home (English and Arabic), My Shelf, Settings,
-  First Run and Downloads, colour contrast included.
+- Every screen renders real content with **no console errors**: Home, My Shelf, Search, Following,
+  Downloads, Sources (with source install), Settings — General, Storage, Backup, Remote access,
+  Developer — First Run, Work Details and the Export wizard.
+- **axe-core, WCAG 2.0/2.1 A and AA: zero violations across sixteen page states**, both languages,
+  colour contrast included.
 - Screenshots in `screenshots/`: `home-desktop-en.png`, `home-desktop-ar.png`, `home-mobile-en.png`,
-  `shelf-desktop-en.png`.
+  `shelf-desktop-en.png`, `sources-install-en.png`, `settings-storage-en.png`, `settings-backup-en.png`,
+  `settings-remote-en.png`, `settings-remote-ar.png`, `settings-developer-en.png`,
+  `export-wizard-en.png`.
+
+### Defects the live run exposed (all fixed, commit `9721407`)
+
+| Defect | Why the unit tests missed it |
+|---|---|
+| The backup list crashed on every row and could never show "verified" | The panel's tests encoded `size_bytes`/`verified`; the API returns neither. `GET /api/backups` now reports `size_bytes` and `present`, and the panel reads the real record. |
+| The seven-day backup schedule drifted from its own archives | `create()` stamped `created_at` from the wall clock while `due()` compared against the injected clock. Both now read one clock. |
+| Olive, amber and the wizard's step labels failed AA as small text | Contrast is not visible in jsdom. `--olive-700`, `--wood-600` and a darker `--warning-600` now carry text; the lighter tones stay decoration. |
 
 ## 2. The approved reference (EB-2 is cleared)
 
@@ -72,6 +84,10 @@ giving it an Arabic face directly.
 | Visual identity | `styles/{tokens,base,shell,library,reader}.css`, self-hosted Noto Serif and Noto Naskh Arabic |
 | Home, My Shelf, Work Details | `features/{home,shelf,work}`, `components/{Shelf,WorkCard}` |
 | Search, Following, Downloads, Sources, Settings | `features/{search,following,downloads,sources,settings}` |
+| Storage, Import, Backup and Restore, Export | `features/storage/{StoragePanel,ImportPanel}`, `features/backup/BackupPanel`, `features/export/ExportWizard` |
+| Remote access (hostname, passkeys, sessions, Recovery Code, LAN reset) | `features/remote/RemotePanel` |
+| Source install review and Use My Session | `features/sources/{InstallPanel,LoginSession,permissions}` |
+| Adapter Generator, Recipe Inspector and repair | `features/generator/GeneratorPanel` |
 | Sequential Reader | `features/reader/{ReaderScreen,ContentsDrawer,SettingsPanel,settings,useProgress}` |
 | Book Reader and isolation | `features/reader/{BookReader,epub,PdfView,useBookMarks}` |
 | Notifications and Needs Attention | `features/notifications/NotificationsDrawer` |
@@ -85,16 +101,27 @@ giving it an Arabic face directly.
 | PDF text-layer search, PDF highlights, EPUB highlight capture | The reader renders and navigates; these two features of §26.22 are outstanding. |
 | Double-page pairing controls (Shift Pairing, cover as single) | Double-page mode renders pairs; the manual correction controls are outstanding. |
 | Reader zoom, touch gestures, fullscreen | Keyboard and pointer navigation work; pinch and double-tap zoom and fullscreen are outstanding. |
-| Backup, Restore and Export wizards; import flow; generator screens | The backend is complete and documented; these screens are outstanding, and Settings says so rather than pretending. |
-| Remote access screens (passkey enrolment, sessions) | The backend is complete; Settings reports remote state honestly but cannot yet enrol a passkey. |
-| Source install and Use My Session screens | The backend is complete; Sources manages installed sources only. |
-| Screenshot coverage | Four screenshots are recorded; a fuller set (reader families, drawers, RTL mobile) would strengthen the record. |
+| Screenshot coverage | Eleven screenshots are recorded; the reader families, drawers and RTL mobile would strengthen the record further. |
 
 None of these are claimed as passing, and none are worked around.
 
-## 6. Notes
+## 6. What the new screens promise, and where it is enforced
+
+| Screen | The Master's rule | Where it is kept |
+|---|---|---|
+| Export | Export copies; missing content is disclosed and downloading it is acknowledged explicitly (INV-21) | `ExportWizard` sends `missing_policy` and `acknowledge_permanent_download`; `ExportWizard.test.tsx` |
+| Restore | Merge never moves progress backwards; Replace takes a Safety Snapshot; an archive that cannot be accepted says why | `BackupPanel` preflight workflow; `BackupPanel.test.tsx` |
+| Remote access | A passkey is bound to the canonical hostname; the Recovery Code is shown once; LAN reset touches authentication only | `RemotePanel` (hostname first, ceremony in the browser, code held in memory only); `RemotePanel.test.tsx` |
+| Source install | Permissions reviewed in plain words before installing; a package whose own tests failed cannot be installed | `InstallPanel` + `permissions.ts`; `InstallPanel.test.tsx` |
+| Use My Session | OneShelf relays a window; it never sees the password, and captures the session only when you say so | `LoginSession`; `LoginSession.test.tsx` |
+| Generator | Capability states as the Master names them; the Recipe Inspector; tests before install; a submission bundle that goes nowhere | `GeneratorPanel`; `GeneratorPanel.test.tsx` |
+| Repair | The selector diff is read before a validated package is activated | `GeneratorPanel` repair section; same test file |
+
+## 7. Notes
 
 - `backend/tests/tools/seed_dev_library.py` exists only to make a library to look at. It uses OneShelf's own
   fixture titles; the product itself never fabricates content.
 - One earlier commit body (`c1ca966`) says "779 passed" where the run reported 778. The hook blocked the
   amend, so the correction is recorded here.
+- The backend count is unchanged at 778 because the backup contract was checked by strengthening an
+  existing test rather than adding one.

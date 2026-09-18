@@ -558,12 +558,19 @@ markup switch used to exercise repair.
 
 | ID | C2 implementation | Evidence | Remaining |
 |---|---|---|---|
-| M1, M32–M32.21 | the shell, the visual identity and every library and operational surface | `frontend/src/**` with 78 tests; screenshots against the approved reference (EB-2 cleared) | Backup/Restore/Export wizards, remote-access and generator screens (§5 of the C2 record) |
-| M2.3, M45, M46 | Arabic and English as peers, direction independent of content, focus and keyboard behaviour | `a11y.test.tsx`, axe-core zero violations on six screens in both languages | more screenshot coverage |
+| M1, M32–M32.21 | the shell, the visual identity and every library and operational surface | `frontend/src/**` with 122 tests; screenshots against the approved reference (EB-2 cleared) | — |
+| M11.4, M10.2 | source install from a file: permissions in plain words, packaged tests before install | `InstallPanel.test.tsx` | registry install screen (the API is covered in C3) |
+| M13 | Use My Session: a relayed window, no password seen, the session captured only on request | `LoginSession.test.tsx` | — |
+| M12–M12.6 | generator drafts, capability states, Recipe Inspector, submission bundle, repair with selector diff | `GeneratorPanel.test.tsx` | — |
+| M28, M32.14 | remote access: canonical hostname, passkeys, sessions, Recovery Code shown once, LAN reset | `RemotePanel.test.tsx` | — |
+| M33, M34, M37 | Backup and Restore as a workflow, Export as a wizard, Import with review | `BackupPanel.test.tsx`, `ExportWizard.test.tsx`, `ImportPanel` | — |
+| M2.3, M45, M46 | Arabic and English as peers, direction independent of content, focus and keyboard behaviour | `a11y.test.tsx`, axe-core zero violations across sixteen page states in both languages | more screenshot coverage |
 | M22, M31–M31.4 | My Shelf views and search; Home's adaptive sections and stable hero | `ShelfScreen.test.tsx`, `HomeScreen.test.tsx` | — |
 | M26–M26.24 | both reader families, modes, controls, progress, contents, end-of-unit | `SequentialReader.test.tsx`, `BookReader.test.tsx`, `epub.test.ts` | PDF text search and highlights, pairing controls, zoom and gestures |
 | M27, INV-12 | untrusted content isolated: sanitised EPUB in an empty-sandbox frame under its own CSP; pdf.js with no annotation layer | `epub.test.ts`, `BookReader.test.tsx`, `pdf-isolation.test.ts` | — |
 | INV-11, M3.3 | local reading with no source, plugin or network | `reads local pages without asking any source`, `GET /api/reader/units/{id}/file` | export-without-plugin already covered in C7 |
 | INV-24 | irregular units keep Source Track order | `ends the unit with the next unit in source order, never chapter plus one` | — |
 
-Carried forward from C2: the outstanding reader and wizard screens listed in `docs/c2/verification.md` §5.
+Carried forward from C2: the outstanding reader features listed in `docs/c2/verification.md` §5 — PDF
+text-layer search and highlights, EPUB highlight capture, pairing controls, zoom, gestures and fullscreen.
+Every screen the Master asks for now exists.
