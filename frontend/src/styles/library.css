@@ -222,3 +222,66 @@ a.workcard:hover { transform: translateY(-3px); }        /* a 2–4px lift, noth
   .units__row { grid-template-columns: 44px 1fr auto; }
   .units__state { grid-column: 2 / -1; }
 }
+
+/* Search: warm canvas, serif title, a large field, cover-focused results (§32.7). */
+.search__form { margin-bottom: var(--space-5); }
+.field--large { min-inline-size: min(560px, 100%); min-height: 52px; font-size: 17px; }
+.search__status { color: var(--ink-500); margin: 0 0 var(--space-3); }
+.search__retries { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); }
+.search__results { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-5); }
+
+.screen__head { display: flex; align-items: baseline; gap: var(--space-4); }
+.screen__head .button { margin-inline-start: auto; }
+
+/* Following: a reading journal on warm paper rows (§32.10). */
+.journal { margin-bottom: var(--space-6); }
+.journal__title { font-size: 19px; margin: 0 0 var(--space-3); }
+.journal__rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.journal__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--paper);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+.journal__work { font-family: var(--font-display); color: inherit; }
+.journal__source, .journal__when, .journal__state { color: var(--ink-500); font-size: 14px; }
+.journal__badge { color: var(--olive-600); font-weight: 600; }
+.journal__row .chip { margin-inline-start: auto; }
+
+/* Downloads: operational panels, muted olive progress, no shelves (§32.11). */
+.batches { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.batches__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--paper);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+.batches__state { text-transform: capitalize; color: var(--ink-700); }
+.batches__state--failed { color: var(--danger-600); }
+.batches__state--completed_with_issues { color: var(--warning-600); }
+.batches__counts { display: flex; gap: var(--space-3); color: var(--ink-500); font-size: 14px; }
+.batches__actions { margin-inline-start: auto; display: flex; gap: var(--space-2); }
+
+.confirm {
+  position: fixed;
+  inset-block-start: 12vh;
+  inset-inline: 0;
+  z-index: 20;
+  margin-inline: auto;
+  inline-size: min(520px, 92vw);
+  padding: var(--space-6);
+  background: var(--paper);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-raised);
+}
+.confirm h2 { margin: 0 0 var(--space-3); font-size: 21px; }
+.confirm p { margin: 0 0 var(--space-5); color: var(--ink-700); }
+.confirm__actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
