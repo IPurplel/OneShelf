@@ -8,6 +8,7 @@ import { I18nProvider } from "@/i18n/i18n";
 import "@/styles/base.css";
 import "@/styles/shell.css";
 import "@/styles/library.css";
+import "@/styles/reader.css";
 
 const container = document.getElementById("root");
 if (container === null) throw new Error("missing #root");
