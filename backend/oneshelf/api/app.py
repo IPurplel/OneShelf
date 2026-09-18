@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
+from http.cookies import SimpleCookie
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,10 +14,15 @@ from fastapi.responses import StreamingResponse
 from oneshelf.api.access import AccessConfig
 from oneshelf.api.guard import RequestGuardMiddleware
 from oneshelf.api.middleware import AccessBoundaryMiddleware
+from oneshelf.api.auth import PUBLIC_REMOTE_PATHS, router as auth_router
 from oneshelf.api.discovery import router as discovery_router
+from oneshelf.api.firstrun import router as firstrun_router
 from oneshelf.api.library import router as library_router
 from oneshelf.api.shelf import router as shelf_router
 from oneshelf.api.storage import router as storage_router
+from oneshelf.auth.policy import AccessPolicy
+from oneshelf.auth.service import RemoteAuth
+from oneshelf.auth.sessions import COOKIE_NAME
 from oneshelf.backup.runner import BackupRunner
 from oneshelf.backup.service import BackupService
 from oneshelf.export.service import ExportService
@@ -81,6 +87,8 @@ class Services:
     backups: BackupService | None = None
     restore: RestoreService | None = None
     exports: ExportService | None = None
+    remote_auth: RemoteAuth | None = None
+    access_policy: AccessPolicy | None = None
 
 
 @dataclass(frozen=True)
@@ -122,6 +130,45 @@ class AppConfig:
         return {name: (host, int(port)) for name in ("testsource.example", "cdn.testsource.example")}
 
 
+def _services_of(scope) -> Services | None:
+    return getattr(scope.get("app").state, "services", None) if scope.get("app") is not None else None
+
+
+def _effective_access_config(scope) -> AccessConfig | None:
+    """Trusted networks configured in First Run or Settings apply without a restart."""
+    services = _services_of(scope)
+    return services.access_policy.current() if services and services.access_policy else None
+
+
+def _observe_client(scope) -> None:
+    services = _services_of(scope)
+    access = scope["state"]["access"]
+    if services and services.access_policy and access.kind != "loopback":
+        services.access_policy.note_client(access.client_ip)   # ledger A2: notice a single gateway address
+
+
+def _configured_hostname(scope) -> str | None:
+    """The canonical hostname set in First Run or Settings is a valid Host without extra configuration."""
+    services = _services_of(scope)
+    return services.remote_auth.canonical_hostname if services and services.remote_auth else None
+
+
+def _remote_session_authenticator(scope) -> bool:
+    """A remote client is admitted only with a valid session cookie; sign-in itself stays reachable."""
+    services = _services_of(scope)
+    if services is None or services.remote_auth is None:
+        return False
+    if scope["type"] == "http" and scope.get("path") in PUBLIC_REMOTE_PATHS:
+        return True
+    headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
+    token = SimpleCookie(headers.get("cookie", "")).get(COOKIE_NAME)
+    session = services.remote_auth.sessions.validate(token.value if token else None)
+    if session is None:
+        return False
+    scope["state"]["remote_session"] = session
+    return True
+
+
 def create_app(config: AppConfig) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -158,7 +205,8 @@ def create_app(config: AppConfig) -> FastAPI:
             UrlResolver(conn, plugins, source_service), catalog, engine, reader, reader_cache,
             shelf, follows, follow_runner, notifications, HealthService(conn, events=app.state.bus),
             StorageMigration(conn), backups, RestoreService(conn, config.db_path, backups=backups),
-            ExportService(conn, downloads=engine))
+            ExportService(conn, downloads=engine), RemoteAuth(conn),
+            AccessPolicy(conn, base=config.access))
         runner = DownloadRunner(engine)
         await runner.start()
         await follow_runner.start()
@@ -204,8 +252,13 @@ def create_app(config: AppConfig) -> FastAPI:
     app.include_router(library_router)
     app.include_router(shelf_router)
     app.include_router(storage_router)
-    app.add_middleware(AccessBoundaryMiddleware, config=config.access)
-    app.add_middleware(RequestGuardMiddleware, allowed_hosts=config.allowed_hosts)
+    app.include_router(auth_router)
+    app.include_router(firstrun_router)
+    app.add_middleware(AccessBoundaryMiddleware, config=config.access,
+                       remote_authenticator=_remote_session_authenticator,
+                       config_provider=_effective_access_config, observer=_observe_client)
+    app.add_middleware(RequestGuardMiddleware, allowed_hosts=config.allowed_hosts,
+                       extra_hosts=_configured_hostname)
     return app
 
 

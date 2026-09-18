@@ -69,6 +69,11 @@ Scenarios are controlled with `POST /__control` on the Test Source (e.g. `{"big_
 | Import | `POST /api/import/uploads?filename=` (review + association suggestions), `POST /api/import` |
 | Backup / restore | `GET|POST /api/backups`, `POST /api/backups/verify`, `POST /api/restore/preflight`, `POST /api/restore` |
 | Export | `POST /api/export/preview`, `POST /api/export` (one work or `works[]`), `GET /api/export/{job}`, `POST /api/export/{job}/retry-failed`, `DELETE /api/export/history` |
+| Remote access | `GET /api/auth/state`, `POST /api/auth/{hostname,networks}`, `POST /api/auth/passkeys/register[/options]`, `DELETE /api/auth/passkeys/{id}`, `POST /api/auth/sign-in[/options]`, `POST /api/auth/sign-out`, `GET /api/auth/sessions`, `DELETE /api/auth/sessions/{id}`, `POST /api/auth/sessions/revoke-others`, `POST /api/auth/recovery/regenerate`, `POST /api/auth/lan-recovery` |
+| First run | `GET /api/first-run`, `POST /api/first-run/{storage,access-mode,finish}` |
 | Reader | `GET /api/reader/units/{id}/pages`, `GET /api/reader/units/{id}/pages/{index}` (sandboxed bytes), `POST /api/reader/units/{id}/progress`, `POST /api/reader/units/{id}/{mark-read,mark-unread,engagement}`, `POST /api/reader/works/{id}/leave` |
 
-Remote clients are refused until C8; LAN and loopback clients are served per `ONESHELF_TRUSTED_NETWORKS`.
+Remote clients need a passkey session cookie (`oneshelf_remote`); loopback and genuine trusted-LAN clients are
+unauthenticated. `ONESHELF_TRUSTED_NETWORKS` and `ONESHELF_TRUSTED_PROXIES` seed the trust configuration, and
+First Run or Settings can extend it at runtime without a restart. Forwarded client addresses are read only from
+configured trusted proxies.

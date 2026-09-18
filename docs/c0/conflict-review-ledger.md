@@ -208,3 +208,20 @@ Routine choices made under Meta Prompt §C0.7 ("make routine engineering choices
 | D-C7-08 | A storage migration is planned and verified against the destination before any file is copied, and the old copy is deleted only by an explicit later request (`discard_old_copy`). | §24.8 "never auto-delete old" | Adopted |
 | D-C7-09 | Export chooses among existing files only: CBZ is preferred for sequential content, books export as they are, and an explicit format list is honoured exactly. Nothing is ever converted. | §34.4, EX-29 | Adopted |
 | D-C7-10 | Selected Works export as one job carrying one contract per work (shared destination, output and conflict policy), so sources and languages are never mixed. | §34.1 | Adopted |
+
+---
+
+## 13. Engineering decisions recorded during C8 (2026-09-18)
+
+| ID | Decision | Rationale / Master refs | Disposition |
+|---|---|---|---|
+| D-C8-01 | Session lifetimes are 7 d / 30 d / 90 d / 1 y / manual, defaulting to 30 d; "shorter" is read as 7 days. | §28.6 names 30 d, "shorter", 90 d, 1 y and manual without fixing "shorter" | **Review** |
+| D-C8-02 | The session cookie is `oneshelf_remote`, HttpOnly and `SameSite=Lax`, `Secure` whenever the request is HTTPS (directly or via a trusted proxy's `X-Forwarded-Proto`). The token is returned in the cookie only, never in a response body. | §28.6, §48 | Adopted |
+| D-C8-03 | Only the session's SHA-256 hash is stored, and the Recovery Code only as a scrypt verifier with a per-code salt. | §28.5 "stored only as verifier/hash" | Adopted |
+| D-C8-04 | A genuine trusted-LAN device may register a passkey with no further proof; remote clients need a valid Recovery Code or an existing remote session. | §28.1 trusted-LAN model, §28.5 | **Review** |
+| D-C8-05 | WebAuthn challenges live in the database, expire after five minutes and are consumed on first use whatever the outcome. | §28.3; no timeout is specified | Adopted |
+| D-C8-06 | First Run refuses to finish in Remote mode until the canonical hostname and one passkey exist (409). Local and LAN modes finish immediately. | §29 lists the conditional remote step; finishing a half-configured remote setup would lock the user out | **Review** |
+| D-C8-07 | Trusted networks and proxies are stored in settings and merged with the environment values, and the access boundary re-reads them per request, so First Run and Settings take effect without a restart. Public ranges are refused as a trusted LAN. | §28.2, ledger A2 | Adopted |
+| D-C8-08 | The single-gateway warning appears once the first 20 non-loopback requests have all come from one address, naming that address and suggesting narrower networks or a trusted-proxy entry. | ledger A2 ("a startup/Settings warning when every client arrives from one gateway address") | Adopted |
+| D-C8-09 | `POST /api/auth/sign-in/options` and `POST /api/auth/sign-in` are the only routes a signed-out remote client may reach; both do nothing but verify a passkey. | §28.3 | Adopted |
+| D-C8-10 | Passkey re-authentication for sensitive remote operations is not implemented in v1. | §28.6 "may require"; LAN Recovery already needs genuine LAN and revocation needs the session | Adopted |

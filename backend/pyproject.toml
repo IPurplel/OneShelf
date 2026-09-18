@@ -12,6 +12,8 @@ dependencies = [
     "PyYAML>=6.0.3",
     "google-re2>=1.1.20251105",
     "cryptography>=50.0.1",
+    # WebAuthn/passkeys for remote access (Master §28.3); verified on Python 3.14.
+    "webauthn>=3.0.0",
     "aiohttp>=3.14.3",
     "playwright>=1.63.0",
     # Parser only. Never install the "fetchers" extra (stealth/fingerprint stack; ledger K1).

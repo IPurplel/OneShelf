@@ -1,6 +1,6 @@
 # Requirement Traceability Matrix
 
-Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3, C4, C5, C6, C7) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
+Recorded: 2026-09-17 (C0) · Updated: 2026-09-17 (C1, C3, C4, C5, C6, C7, C8) · Authority: Meta Prompt §C0.6, §D1–D3 · Architecture: `architecture.md`
 
 **Coverage:** every Master heading from §0 to §56 (57 sections, 152 numbered subsections, and the unnumbered sub-headings in §4.4, §20, §26.3, §26.22), all 30 §51 invariants (INV), all 17 §42 default groups (DEF), all 30 §49 exclusions (EX), Meta Prompt §D3 deliverables (MPD) and §G investigation rules (MPG).
 
@@ -19,7 +19,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | M1 | Self-hosted single-user reading library; feels like personal library, not scraper dashboard; progressive disclosure | C2→all | fe/ | all screens | — | UX review vs §32/§45; screenshots | NS |
 | M2 | Deployment & core platform | C1,C8,C9 | — | — | — | rows M2.1–M2.3 | NS |
 | M2.1 | Docker first-class; persistent storage; optional separate mounts; no cloud backend/account | C1,C9 | deploy/, be/settings | env/config | app data volume | Docker restart/recreate test on isolated mounts (EB-1) | NS |
-| M2.2 | Single user; no username/password account, cloud profile or roles; remote = passkeys; LAN trusted | C1,C8 | be/auth, be/api | first run, Remote Access | remote_auth tables | auth tests; no account/profile UI | NS |
+| M2.2 | Single user; no username/password account, cloud profile or roles; remote = passkeys; LAN trusted | C1,C8 | be/auth, be/api | first run, Remote Access | remote_auth tables | auth tests; no account/profile UI | IMPL |
 | M2.3 | Arabic/English, RTL/LTR UI + reading; Arabic normalization for search preserving original text | C2,C4 | fe/i18n, be/search/normalize | all UI; search | normalized key columns | RTL/LTR screenshots; normalization unit tests | NS |
 | M3 | Foundational rules | C1→C7 | — | — | — | rows M3.1–M3.4 | NS |
 | M3.1 | Never silently switch/mix source, language, tracks, or substitute units; fallback changes method only | C4,C5,C6,C7 | be/downloads/extraction, be/reader, be/follow, be/export | Reader, Downloads, Follow, Export | extraction_contracts, follows | INV-02 tests | NS |
@@ -171,15 +171,15 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 
 | ID | Requirement | Phase | Location | Surface | Persistence | Evidence | Status |
 |---|---|---|---|---|---|---|---|
-| M28 | Web UI authentication | C1,C8 | be/auth, be/api | Settings → Remote Access | remote_auth | rows below | NS |
+| M28 | Web UI authentication | C1,C8 | be/auth, be/api | Settings → Remote Access | remote_auth | rows below | IMPL |
 | M28.1 | Localhost + LAN auth OFF by default; genuine LAN fully trusted incl. passkey reset / session revoke | C1,C8 | be/api/access | — | trusted networks config (A2) | LAN admin tests | IMPL |
 | M28.2 | LAN origin from real connection + explicit config; X-Forwarded-For only from trusted proxies; remote proxy traffic gets no LAN trust | C1,C8 | be/api/access | — | trusted proxies config | forged header + proxy tests (INV-30) | IMPL |
-| M28.3 | Remote: passkey-only built-in auth; advanced VPN/proxy setups; canonical HTTPS hostname; LAN IP stays unauthenticated | C8 | be/auth/webauthn | Remote setup | passkeys | passkey register/authenticate tests | NS |
-| M28.4 | Single fixed internal WebAuthn identity; never exposed as account/profile | C8 | be/auth | — | constant user handle | UI audit | NS |
-| M28.5 | Recovery code at first passkey; not for login; stored as verifier; regeneration invalidates; can authorize new passkey; LAN Recovery resets passkeys + revokes sessions + allows registration; explicit confirmation affecting only remote auth | C8 | be/auth/recovery | Remote Access, LAN Recovery dialog | recovery verifier | regeneration invalidation; recovery scope test (library untouched) | NS |
-| M28.6 | Session list (label, current, created, last active, expiration); Revoke / Revoke All Other; no invasive fingerprinting; default 30 d, options shorter/90 d/1 y/manual; HttpOnly, Secure on HTTPS, SameSite; no tokens in Web Storage; sensitive ops may re-auth | C8 | be/auth/sessions | Remote Access sessions | ui_sessions | session defaults; Web Storage scan | NS |
-| M28.7 | Remote state-changing APIs: Origin validation, CSRF, secure cookies; proxy auth only from configured proxy | C1,C8 | be/api/csrf | — | — | CSRF/Origin rejection tests | NS |
-| M29 | Short first run: Welcome → Storage → Access Mode (Local/LAN/Remote) → Remote hostname/passkey/recovery → optional sources → Finish; no forced advanced config | C8 | fe/first_run, be/services/first_run | First Run | settings | first-run e2e ar/en + mobile | NS |
+| M28.3 | Remote: passkey-only built-in auth; advanced VPN/proxy setups; canonical HTTPS hostname; LAN IP stays unauthenticated | C8 | be/auth/webauthn | Remote setup | passkeys | passkey register/authenticate tests | IMPL |
+| M28.4 | Single fixed internal WebAuthn identity; never exposed as account/profile | C8 | be/auth | — | constant user handle | UI audit | IMPL |
+| M28.5 | Recovery code at first passkey; not for login; stored as verifier; regeneration invalidates; can authorize new passkey; LAN Recovery resets passkeys + revokes sessions + allows registration; explicit confirmation affecting only remote auth | C8 | be/auth/recovery | Remote Access, LAN Recovery dialog | recovery verifier | regeneration invalidation; recovery scope test (library untouched) | IMPL |
+| M28.6 | Session list (label, current, created, last active, expiration); Revoke / Revoke All Other; no invasive fingerprinting; default 30 d, options shorter/90 d/1 y/manual; HttpOnly, Secure on HTTPS, SameSite; no tokens in Web Storage; sensitive ops may re-auth | C8 | be/auth/sessions | Remote Access sessions | ui_sessions | session defaults; Web Storage scan | IMPL |
+| M28.7 | Remote state-changing APIs: Origin validation, CSRF, secure cookies; proxy auth only from configured proxy | C1,C8 | be/api/csrf | — | — | CSRF/Origin rejection tests | IMPL |
+| M29 | Short first run: Welcome → Storage → Access Mode (Local/LAN/Remote) → Remote hostname/passkey/recovery → optional sources → Finish; no forced advanced config | C8 | fe/first_run, be/services/first_run | First Run | settings | first-run e2e ar/en + mobile | IMPL |
 
 ## §30–§32 Notifications, home semantics, UI direction
 
@@ -351,7 +351,7 @@ Required rows may not be relabeled deferred. Optional/future items keep their Ma
 | DEF-export-activity | 30 d or 100 jobs | C7 | both-limit test | IMPL |
 | DEF-diagnostics | 7 d or 100 MB | C3 | both-limit test | NS |
 | DEF-retry | initial + up to 3 retries | C5 | retry count test | IMPL |
-| DEF-remote-session | 30 d (options shorter/90 d/1 y/manual) | C8 | session expiry test | NS |
+| DEF-remote-session | 30 d (options shorter/90 d/1 y/manual) | C8 | session expiry test | IMPL |
 | DEF-storage-reserve | 5% capped 5 GB; warning ~2× reserve | C1 | guard tests | IMPL |
 | DEF-catalog-suspicious | ≥~50% loss and ≥5 units; complete snapshots only; not sole truth | C4 | heuristic boundary tests | IMPL |
 | DEF-staging | successful leftovers ~24 h; resumable failed ~7 d | C1,C5 | retention tests | IMPL |
@@ -521,3 +521,18 @@ Also strengthened without status change: INV-16 (invalid media never registered)
 | INV-21 | `ExportBlocked` unless the disclosure is acknowledged | `test_download_missing_requires_an_explicit_permanent_download_notice` | wizard wording (C2) |
 
 Carried forward from C7 (still `NS`): M32.15 Backup/Restore screens and M32.16 Export wizard → C2; INV-11 and M3.3 need the C2 Reader half before they can be marked; M47 destructive-action wording → C2/C8.
+
+### C8 — 2026-09-18 (gate passed; see `docs/c8/verification.md`)
+
+| ID | C8 implementation | Evidence | Remaining |
+|---|---|---|---|
+| M2.2, M28, M28.3, M28.4 | `auth/passkeys.py`, `auth/service.py`, `api/auth.py`, migration `0011_remote_auth.sql` | `tests/integration/auth/test_passkeys.py`, `test_auth_api.py` | Remote Access screens (C2) |
+| M28.1, M28.2 (completed) | `auth/policy.py` merges configured and environment networks per request | `tests/unit/auth/test_policy.py`, `test_a_trusted_proxy_never_lends_its_own_lan_trust_to_remote_visitors` | trusted-network Settings UI (C2) |
+| M28.5 | `auth/recovery.py`, `RemoteAuth.lan_recovery_reset` | `tests/unit/auth/test_recovery.py`, `test_lan_recovery_resets_remote_auth_only` | confirmation wording in the UI (C2, M47) |
+| M28.6 | `auth/sessions.py`, `api/auth.py` sessions routes | `tests/unit/auth/test_sessions.py`, `test_sessions_can_be_listed_and_revoked` | session list UI (C2) |
+| M28.7 | `api/guard.py` (Host allowlist follows the canonical hostname), secure cookies | `tests/unit/test_request_guard.py`, `test_cross_site_requests_are_refused`, `tests/unit/test_no_token_storage.py` | — |
+| M29 | `api/firstrun.py`, `first_run` table | `test_first_run_is_short_and_never_blocks_home`, `test_first_run_remote_mode_needs_a_hostname_and_a_passkey` | wizard UI, Arabic/English and mobile checks (C2, EB-2) |
+| DEF-remote-session | `auth/sessions.py::LIFETIMES` (30 d default) | `test_default_lifetime_is_thirty_days`, `test_configurable_lifetimes` | — |
+| INV-30 (completed) | real-peer classification plus session authentication at the boundary | `tests/unit/test_access.py`, `test_auth_api.py` | — |
+
+Carried forward from C8 (still `NS`): M32.17 Remote Access screen and M47 destructive-action wording → C2; M45, M46 UX rules → C2; M2, M2.1 Docker → C9.

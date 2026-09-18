@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+from collections.abc import Callable
 
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
@@ -33,9 +34,17 @@ def _is_ip(host: str) -> bool:
 
 
 class RequestGuardMiddleware:
-    def __init__(self, app, allowed_hosts: tuple[str, ...] | list[str] = ()) -> None:
+    def __init__(self, app, allowed_hosts: tuple[str, ...] | list[str] = (),
+                 extra_hosts: Callable[[dict], str | None] | None = None) -> None:
         self.app = app
         self.allowed = {h.strip().lower().rstrip(".") for h in allowed_hosts if h.strip()} | {"localhost"}
+        self.extra_hosts = extra_hosts
+
+    def _allows(self, host: str, scope) -> bool:
+        if host in self.allowed:
+            return True
+        configured = self.extra_hosts(scope) if self.extra_hosts is not None else None
+        return bool(configured) and host == configured.strip().lower().rstrip(".")
 
     async def _deny(self, send, status: int, code: str, message: str) -> None:
         body = json.dumps({"error": {"code": code, "message": message}}).encode()
@@ -49,7 +58,7 @@ class RequestGuardMiddleware:
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
         host_header = headers.get("host", "")
         host, _port = _split_host(host_header)
-        if not host or not (_is_ip(host) or host.rstrip(".") in self.allowed):
+        if not host or not (_is_ip(host) or self._allows(host.rstrip("."), scope)):
             return await self._deny(send, 421, "HOST_NOT_ALLOWED", "This OneShelf address is not configured.")
         if scope["method"] in UNSAFE_METHODS:
             if headers.get("sec-fetch-site") == "cross-site":
