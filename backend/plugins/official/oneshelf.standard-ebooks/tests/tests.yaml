@@ -1,0 +1,25 @@
+cases:
+- capability: search
+  inputs: {query: frankenstein}
+  fixtures:
+  - url: https://standardebooks.org/feeds/opds/all?query=frankenstein
+    file: fixtures/search.xml
+  expect:
+    min_items: 1
+    fields_present: [listing_key, title, creator]
+    first: {listing_key: mary-shelley/frankenstein, title: Frankenstein}
+- capability: work
+  inputs: {listing_key: mary-shelley/frankenstein}
+  fixtures:
+  - url: https://standardebooks.org/feeds/opds/all?query=mary-shelley%2Ffrankenstein
+    file: fixtures/search.xml
+  expect:
+    fields_present: [title, creator]
+- capability: downloads
+  inputs: {unit_key: mary-shelley/frankenstein}
+  fixtures:
+  - url: https://standardebooks.org/feeds/opds/all?query=mary-shelley%2Ffrankenstein
+    file: fixtures/search.xml
+  expect:
+    min_items: 1
+    fields_present: [url, format]

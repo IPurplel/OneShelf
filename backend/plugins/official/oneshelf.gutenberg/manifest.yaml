@@ -1,0 +1,16 @@
+schema: oneshelf.osp/1
+id: oneshelf.gutenberg
+name: Project Gutenberg
+version: 1.0.0
+api: '1.0'
+description: >-
+  Project Gutenberg through the public Gutendex catalogue API, with EPUB downloads served by
+  gutenberg.org. Public domain books; no account is needed. gutenberg.org's own search pages are
+  disallowed by its robots.txt, which is why the API is used.
+publisher: OneShelf
+capabilities: [search, work, catalog, downloads]
+network:
+  domains: [gutendex.com]
+  cdn_domains: [www.gutenberg.org]
+defaults:
+  language: en

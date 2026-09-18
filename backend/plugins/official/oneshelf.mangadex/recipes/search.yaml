@@ -1,0 +1,22 @@
+capability: search
+inputs: [query, offset]
+request:
+  url: "{base_url}/manga?title={query}&limit=20&offset={offset}&order[relevance]=desc"
+  headers: {Accept: application/json}
+response:
+  format: json
+extract:
+  items: {json: "$.data[*]"}
+  fields:
+    listing_key: {json: "$.id", required: true}
+    title: {json: "$.attributes.title[*]", required: true}
+    original_title: {json: "$.attributes.altTitles[*][*]"}
+    description: {json: "$.attributes.description[*]"}
+    language: {json: "$.attributes.originalLanguage"}
+pagination:
+  mode: offset
+  start: 0
+  step: 20
+  max_pages: 5
+  stop_when: total_count
+  total: {json: "$.total"}

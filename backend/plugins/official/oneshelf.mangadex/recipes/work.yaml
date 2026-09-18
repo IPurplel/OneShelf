@@ -1,0 +1,19 @@
+capability: work
+inputs: [listing_key]
+request:
+  url: "{base_url}/manga/{listing_key:path}?includes[]=cover_art&includes[]=author"
+  headers: {Accept: application/json}
+response:
+  format: json
+extract:
+  values:
+    manga_id: {json: "$.data.id"}
+    cover_file: {json: "$.data.relationships[*].attributes.fileName"}
+  fields:
+    title: {json: "$.data.attributes.title[*]", required: true}
+    original_title: {json: "$.data.attributes.altTitles[*][*]"}
+    description: {json: "$.data.attributes.description[*]"}
+    language: {json: "$.data.attributes.originalLanguage"}
+    status: {json: "$.data.attributes.status"}
+    cover_url:
+      template: "https://uploads.mangadex.org/covers/{manga_id}/{cover_file}.256.jpg"

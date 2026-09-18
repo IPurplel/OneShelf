@@ -154,15 +154,16 @@ async def catalog_state(request: Request, track_id: str):
 async def refresh_catalog(request: Request, track_id: str):
     s = services(request)
     row = s.conn.execute(
-        "SELECT t.source_id, l.source_listing_key FROM source_tracks t LEFT JOIN source_listings l ON l.id = t.listing_id"
-        " WHERE t.id = ?", (track_id,)).fetchone()
+        "SELECT t.source_id, t.language, l.source_listing_key FROM source_tracks t"
+        " LEFT JOIN source_listings l ON l.id = t.listing_id WHERE t.id = ?", (track_id,)).fetchone()
     if row is None:
         return error(404, "TRACK_NOT_FOUND", "Unknown source track.")
     if row["source_listing_key"] is None:
         return error(409, "NO_LISTING", "This track has no source listing to refresh.")
     try:
         package = s.plugins.load_active(row["source_id"])
-        result = await s.source_service.run(row["source_id"], "catalog", {"listing_key": row["source_listing_key"]})
+        result = await s.source_service.run(row["source_id"], "catalog",
+                                            {"listing_key": row["source_listing_key"], "language": row["language"]})
     except PluginUnavailable as exc:
         return error(409, "SOURCE_UNAVAILABLE", str(exc))
     except AuthRequired:

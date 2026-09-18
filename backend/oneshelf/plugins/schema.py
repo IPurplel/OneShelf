@@ -14,6 +14,7 @@ from oneshelf.plugins.transforms import TransformError, _compile, validate_pipel
 
 API_MAJOR, API_MINOR = 1, 0
 MAX_SELECTOR = 512
+MAX_TEMPLATE = 512
 MAX_PAGES_CAP = 1000
 
 Capability = Literal["search", "work", "catalog", "reader", "downloads", "latest", "trending", "check_session", "health"]
@@ -146,6 +147,9 @@ class FieldSpec(Strict):
     css: str | None = Field(default=None, max_length=MAX_SELECTOR)
     xpath: str | None = Field(default=None, max_length=MAX_SELECTOR)
     json_: str | None = Field(default=None, alias="json", max_length=jsonpath.MAX_LENGTH)
+    # A template composes a value from document-level `values`, the current `item`, and recipe inputs.
+    # Real APIs return a base URL, a hash and bare filenames separately (Master §41.1, MangaDex).
+    template: str | None = Field(default=None, max_length=MAX_TEMPLATE)
     all: bool = False
     exists: bool = False
     required: bool = False
@@ -153,9 +157,11 @@ class FieldSpec(Strict):
 
     @model_validator(mode="after")
     def _check(self) -> FieldSpec:
-        chosen = [s for s in (self.css, self.xpath, self.json_) if s is not None]
+        chosen = [s for s in (self.css, self.xpath, self.json_, self.template) if s is not None]
         if len(chosen) != 1:
-            raise ValueError("exactly one of css, xpath or json is required")
+            raise ValueError("exactly one of css, xpath, json or template is required")
+        if self.template is not None and (self.all or self.exists):
+            raise ValueError("a template field cannot use all or exists")
         try:
             if self.css is not None:
                 _TRANSLATOR.css_to_xpath(self.css)
@@ -172,7 +178,11 @@ class FieldSpec(Strict):
 
     @property
     def kind(self) -> str:
-        return "css" if self.css is not None else "xpath" if self.xpath is not None else "json"
+        if self.css is not None:
+            return "css"
+        if self.xpath is not None:
+            return "xpath"
+        return "json" if self.json_ is not None else "template"
 
 
 class Request(Strict):
@@ -204,6 +214,8 @@ class Response(Strict):
 
 
 class Extract(Strict):
+    # Values read once per page and reusable by templates (a base URL, a hash, a token in the body).
+    values: dict[str, FieldSpec] = Field(default_factory=dict, max_length=8)
     items: FieldSpec | None = None
     order: Literal["source_listed", "reverse"] = "source_listed"
     fields: dict[str, FieldSpec] = Field(min_length=1)

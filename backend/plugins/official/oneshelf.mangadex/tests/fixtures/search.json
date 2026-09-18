@@ -1,0 +1,117 @@
+{
+ "result": "ok",
+ "response": "collection",
+ "data": [
+  {
+   "id": "0b531d71-f321-462d-b7ca-d056564bf8b3",
+   "type": "manga",
+   "attributes": {
+    "title": {
+     "en": "DUNGEON"
+    },
+    "altTitles": [],
+    "description": {
+     "en": "5 friends gather to play a tabletop RPG."
+    },
+    "isLocked": false,
+    "links": {},
+    "officialLinks": null,
+    "originalLanguage": "en",
+    "lastVolume": "",
+    "lastChapter": "",
+    "publicationDemographic": null,
+    "status": "completed",
+    "year": 2023,
+    "contentRating": "safe",
+    "tags": [],
+    "state": "published",
+    "chapterNumbersResetOnNewVolume": false,
+    "createdAt": "2023-10-28T18:06:46+00:00",
+    "updatedAt": "2023-10-28T18:06:54+00:00",
+    "version": 2,
+    "availableTranslatedLanguages": [
+     "en"
+    ],
+    "latestUploadedChapter": "dc3cbd95-c448-4996-b056-0c22752a89ae"
+   },
+   "relationships": [
+    {
+     "id": "5bfe87f2-23d9-43c1-a848-e8d22eab66cd",
+     "type": "cover_art",
+     "attributes": {
+      "description": "",
+      "volume": "1",
+      "fileName": "26dcf98a-8837-49b5-a911-702e964a5a54.png",
+      "locale": "en",
+      "createdAt": "2023-10-28T18:06:49+00:00",
+      "updatedAt": "2023-10-28T18:06:49+00:00",
+      "version": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "40a0362f-aac7-4465-bf3d-59652f7e8468",
+   "type": "manga",
+   "attributes": {
+    "title": {
+     "en": "Dungeon wo Tsukurou"
+    },
+    "altTitles": [
+     {
+      "ja": "ダンジョンを造ろう"
+     },
+     {
+      "ja-ro": "Dungeon o Tsukurou"
+     }
+    ],
+    "description": {
+     "ja": "目を覚ますと玉座の間にいた『俺』が見つけた一冊の魔導書『ダンジョンを造ろう』。その魔導書は混乱する俺に自身の正体が魔王であることと、己の使命を告げてきた。\n\n「世界を征服してください」\n\n本に導かれるままダンジョンを築造、人間の駆逐、世界征服――――とはいかず、俺こと魔王は平和に自給自足＆ちょっとグルメで快適な生活を模索し始めるのだが……。"
+    },
+    "isLocked": false,
+    "links": {
+     "al": "185464",
+     "bw": "series/514583/list",
+     "mu": "yj7b40l",
+     "amz": "https://www.amazon.co.jp/dp/B0DZ3V1LR6",
+     "ebj": "https://ebookjapan.yahoo.co.jp/books/882368",
+     "raw": "https://www.comic-valkyrie.com/dungeonwotukurou/"
+    },
+    "officialLinks": null,
+    "originalLanguage": "ja",
+    "lastVolume": "",
+    "lastChapter": "",
+    "publicationDemographic": "shounen",
+    "status": "ongoing",
+    "year": 2024,
+    "contentRating": "safe",
+    "tags": [],
+    "state": "published",
+    "chapterNumbersResetOnNewVolume": false,
+    "createdAt": "2025-03-16T22:18:14+00:00",
+    "updatedAt": "2025-04-06T07:16:24+00:00",
+    "version": 3,
+    "availableTranslatedLanguages": [],
+    "latestUploadedChapter": null
+   },
+   "relationships": [
+    {
+     "id": "06ce6c21-aa48-46dc-a248-a4006b40941d",
+     "type": "cover_art",
+     "attributes": {
+      "description": "Volume 1 Cover from BookLive",
+      "volume": "1",
+      "fileName": "b935a272-4b35-4f04-aa56-2bda71f7ccb0.jpg",
+      "locale": "ja",
+      "createdAt": "2025-03-16T22:18:30+00:00",
+      "updatedAt": "2025-03-16T22:18:30+00:00",
+      "version": 1
+     }
+    }
+   ]
+  }
+ ],
+ "limit": 2,
+ "offset": 0,
+ "total": 258
+}

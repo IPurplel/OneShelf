@@ -114,6 +114,68 @@ def parse_retry_after(value: str | None) -> float | None:
     return max(0.0, (when - datetime.now(UTC)).total_seconds())
 
 
+TEMPLATE_NAME = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
+
+
+def template_names(template: str) -> set[str]:
+    return set(TEMPLATE_NAME.findall(template))
+
+
+def render_template(template: str, values: dict[str, Any], *, item: Any = None,
+                    inputs: dict[str, Any] | None = None) -> str | None:
+    """Substitutes known names; a missing value yields nothing rather than a half-built URL."""
+    available: dict[str, Any] = {**(inputs or {}), **values}
+    if item is not None:
+        available["item"] = item
+    rendered = template
+    for name in template_names(template):
+        value = available.get(name)
+        if value is None or value == "":
+            return None
+        rendered = rendered.replace("{" + name + "}", str(value))
+    return rendered
+
+
+def _raw_for(node: Any, spec) -> list[Any]:
+    """The raw values a selector or JSON path yields on this node."""
+    if spec.kind == "template":
+        return []
+    if spec.kind == "json":
+        if isinstance(node, Selector):
+            return []
+        return jsonpath.evaluate(spec.json_, node)
+    if not hasattr(node, "css"):
+        return []
+    results = node.css(spec.css) if spec.kind == "css" else node.xpath(spec.xpath)
+    textual = (_TEXTUAL_CSS.search(spec.css) if spec.kind == "css" else _TEXTUAL_XPATH.search(spec.xpath))
+    if spec.exists:
+        return [bool(results)]
+    values = []
+    for result in results:
+        if textual or not hasattr(result, "get_all_text"):
+            values.append(str(result.get()) if hasattr(result, "get") else str(result))
+        else:
+            values.append(result.get_all_text(separator=" ", strip=True))
+    return values
+
+
+def resolve_values(document: Any, extract) -> dict[str, Any]:
+    """Document-level values a template may use; read once per page, never per item."""
+    resolved: dict[str, Any] = {}
+    for name, spec in extract.values.items():
+        raw = _raw_for(document, spec)
+        resolved[name] = raw[0] if raw else None
+    return {k: v for k, v in resolved.items() if v is not None}
+
+
+def parse_document(text: str, *, url: str) -> Selector:
+    """Markup responses include XML feeds (Atom/OPDS); lxml refuses a declaration on a str input."""
+    stripped = text.lstrip()
+    if stripped.startswith("<?xml"):
+        stripped = stripped.split("?>", 1)[-1].lstrip()
+    return Selector(stripped or "<html/>", url=url)
+
+
 class RecipeRuntime:
     def __init__(self, package: PluginPackage, fetcher: Fetcher) -> None:
         self.package = package
@@ -129,7 +191,8 @@ class RecipeRuntime:
         if capability in LIST_CAPABILITIES:
             return await self._run_list(recipe, values)
         response, document = await self._fetch_page(recipe, self._render(recipe, values), page=None)
-        fields = self._extract_fields(recipe, document, response.url, recipe.extract.fields)
+        fields = self._extract_fields(recipe, document, response.url, recipe.extract.fields,
+                                      values=resolve_values(document, recipe.extract))
         missing = [name for name, required in FIELDS[capability].items() if required and fields.get(name) in (None, "")]
         if missing:
             raise CapabilityError("selector_missing", f"required fields missing: {missing}")
@@ -185,7 +248,7 @@ class RecipeRuntime:
             if recipe.response.format == "json":
                 document: Any = json.loads(response.body)
             else:
-                document = Selector(response.body.decode("utf-8", errors="replace"), url=response.url)
+                document = parse_document(response.body.decode("utf-8", errors="replace"), url=response.url)
         except (ValueError, UnicodeDecodeError) as exc:
             raise _PageFailure("parser_failure", f"could not parse {recipe.response.format}: {exc}") from exc
         return response, document
@@ -193,21 +256,7 @@ class RecipeRuntime:
     # -- extraction -----------------------------------------------------------------------------
 
     def _raw_values(self, node: Any, spec: FieldSpec) -> list[Any]:
-        if spec.kind == "json":
-            if isinstance(node, Selector):
-                return []
-            return jsonpath.evaluate(spec.json_, node)
-        results = node.css(spec.css) if spec.kind == "css" else node.xpath(spec.xpath)
-        textual = (_TEXTUAL_CSS.search(spec.css) if spec.kind == "css" else _TEXTUAL_XPATH.search(spec.xpath))
-        if spec.exists:
-            return [bool(results)]
-        values = []
-        for result in results:
-            if textual or not hasattr(result, "get_all_text"):
-                values.append(str(result.get()) if hasattr(result, "get") else str(result))
-            else:
-                values.append(result.get_all_text(separator=" ", strip=True))
-        return values
+        return _raw_for(node, spec)
 
     @staticmethod
     def _scalar(value: Any) -> str | None:
@@ -217,7 +266,11 @@ class RecipeRuntime:
             return "true" if value else "false"
         return str(value)
 
-    def _field(self, node: Any, spec: FieldSpec, base_url: str, issues: list[Issue]) -> Any:
+    def _field(self, node: Any, spec: FieldSpec, base_url: str, issues: list[Issue],
+               values: dict[str, Any] | None = None, item: Any = None) -> Any:
+        if spec.template is not None:
+            rendered = render_template(spec.template, values or {}, item=self._scalar(item) if item is not None else None)
+            return apply_pipeline(rendered, spec.transforms, base_url=base_url) if rendered else None
         raw = self._raw_values(node, spec)
         if spec.exists:
             return bool(raw and raw[0]) if spec.kind != "json" else bool(raw)
@@ -235,9 +288,9 @@ class RecipeRuntime:
         return value
 
     def _extract_fields(self, recipe: Recipe, node: Any, base_url: str, specs: dict[str, FieldSpec],
-                        issues: list[Issue] | None = None) -> dict[str, Any]:
+                        issues: list[Issue] | None = None, values: dict[str, Any] | None = None) -> dict[str, Any]:
         issues = issues if issues is not None else []
-        out = {name: self._field(node, spec, base_url, issues) for name, spec in specs.items()}
+        out = {name: self._field(node, spec, base_url, issues, values, item=node) for name, spec in specs.items()}
         for name in _URL_FIELDS & out.keys():
             if isinstance(out[name], str):
                 out[name] = _normalize_url(out[name], base_url)
@@ -318,9 +371,11 @@ class RecipeRuntime:
             evidence.pages += 1
 
             item_nodes = self._raw_items(recipe, document)[:MAX_ITEMS_PER_PAGE]
+            page_values = resolve_values(document, recipe.extract)
             page_fields = []
             for node in item_nodes:
-                fields = self._extract_fields(recipe, node, response.url, recipe.extract.fields, evidence.issues)
+                fields = self._extract_fields(recipe, node, response.url, recipe.extract.fields, evidence.issues,
+                                              page_values)
                 missing = [n for n, req in FIELDS[capability].items() if req and fields.get(n) in (None, "")]
                 if missing:
                     evidence.skipped += 1

@@ -4,7 +4,8 @@ from __future__ import annotations
 import re
 from urllib.parse import quote
 
-ALLOWED_INPUTS = frozenset({"query", "page", "offset", "cursor", "listing_key", "unit_key", "url"})
+# `language` is the Language Track's language, supplied by the core (Master §4, §41.3).
+ALLOWED_INPUTS = frozenset({"query", "page", "offset", "cursor", "listing_key", "unit_key", "url", "language"})
 ENCODERS = {
     "url": lambda v: quote(str(v), safe=""),
     "path": lambda v: quote(str(v), safe=""),
@@ -41,6 +42,10 @@ def validate_url_template(template: str, declared_inputs: set[str]) -> None:
             continue
         if name not in ALLOWED_INPUTS or name not in declared_inputs:
             raise TemplateError(f"undeclared template input: {name!r}")
+    # A recipe may follow a URL the source itself produced (a unit's canonical page, §8). It must be the
+    # whole template — nothing may be appended to it — and the egress policy still gates the fetch.
+    if len(items) == 1 and items[0][0] == "url" and re.fullmatch(r"\{url(?::[a-z]+)?\}", template):
+        return
     if template.startswith("{base_url}"):
         if any(name == "base_url" for name, _ in items[1:]):
             raise TemplateError("base_url may only appear at the start")

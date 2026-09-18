@@ -1,0 +1,21 @@
+# One ebook is one Reading Unit; its formats are handled by the downloads capability (Master §41.3).
+capability: catalog
+inputs: [listing_key]
+request:
+  url: "{base_url}/feeds/opds/all?query={listing_key}"
+response:
+  format: html
+extract:
+  items: {css: "entry"}
+  order: source_listed
+  fields:
+    unit_key:
+      css: "id::text"
+      transforms: [{regex_extract: {pattern: 'standardebooks\.org/ebooks/(.+)$', group: 1}}]
+      required: true
+    title: {css: "title::text", transforms: [trim]}
+    release_date: {css: "updated::text", transforms: [trim]}
+    unit_type: {template: "book"}
+pagination:
+  mode: none
+  complete_when: single_response

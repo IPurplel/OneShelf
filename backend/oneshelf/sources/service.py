@@ -133,6 +133,11 @@ class SourceService:
     async def run(self, plugin_id: str, capability: str, inputs: dict[str, Any], *,
                   priority: Priority = Priority.INTERACTIVE):
         package, fetcher = await self._fetcher(plugin_id, priority)
+        recipe = package.recipes.get(capability)
+        if recipe is not None:
+            # The core offers context (a track's language, for instance); a source that does not declare
+            # an input simply does not receive it, instead of failing the call.
+            inputs = {name: value for name, value in inputs.items() if name in recipe.inputs}
         try:
             result = await RecipeRuntime(package, fetcher).run(capability, inputs)
         except AuthRequired:

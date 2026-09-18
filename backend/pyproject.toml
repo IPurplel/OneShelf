@@ -32,8 +32,8 @@ include = ["oneshelf*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --strict-markers"
-markers = ["browser: requires Playwright Chromium"]
+addopts = "-q --strict-markers -m 'not live'"
+markers = ["browser: requires Playwright Chromium", "live: hits real sources (ONESHELF_LIVE_SOURCES=1)"]
 filterwarnings = [
     "error",
     # Third-party: starlette.testclient still references a deprecated anyio alias (not OneShelf code).

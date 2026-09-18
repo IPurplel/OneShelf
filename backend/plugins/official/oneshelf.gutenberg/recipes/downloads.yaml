@@ -1,0 +1,16 @@
+capability: downloads
+inputs: [unit_key]
+request:
+  url: "{base_url}/books/{unit_key:path}"
+  headers: {Accept: application/json}
+response:
+  format: json
+extract:
+  items: {json: "$.formats['application/epub+zip']"}
+  fields:
+    url: {json: "$", required: true}
+    format: {template: "epub", required: true}
+    language: {json: "$"}
+pagination:
+  mode: none
+  complete_when: single_response

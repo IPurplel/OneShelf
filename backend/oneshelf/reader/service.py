@@ -69,8 +69,8 @@ class ReaderService:
 
     def _unit(self, unit_id: str) -> sqlite3.Row:
         row = self.conn.execute(
-            "SELECT u.id AS unit_id, u.source_unit_key, u.track_id, u.source_order, t.source_id, t.language,"
-            " t.work_id FROM reading_units u JOIN source_tracks t ON t.id = u.track_id WHERE u.id = ?",
+            "SELECT u.id AS unit_id, u.source_unit_key, u.url_hint, u.track_id, u.source_order, t.source_id,"
+            " t.language, t.work_id FROM reading_units u JOIN source_tracks t ON t.id = u.track_id WHERE u.id = ?",
             (unit_id,)).fetchone()
         if row is None:
             raise ValueError(f"unknown reading unit {unit_id}")
@@ -105,7 +105,9 @@ class ReaderService:
     async def _online_descriptors(self, unit_id: str) -> list:
         unit = self._unit(unit_id)
         if unit_id not in self._descriptors:
-            result = await self.sources.run(unit["source_id"], "reader", {"unit_key": unit["source_unit_key"]},
+            result = await self.sources.run(unit["source_id"], "reader",
+                                            {"unit_key": unit["source_unit_key"], "url": unit["url_hint"],
+                                             "language": unit["language"]},
                                             priority=Priority.READER)
             self._descriptors[unit_id] = list(result.entries)
         return self._descriptors[unit_id]

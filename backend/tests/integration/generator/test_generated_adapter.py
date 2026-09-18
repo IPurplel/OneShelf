@@ -83,3 +83,42 @@ def test_the_generated_package_only_requests_the_domains_it_uses(outcome):
     assert [str(d) for d in network.domains] == [HOST]
     assert "tracker.example" not in [str(d) for d in network.cdn_domains]
     assert outcome["package"].permissions  # domain permissions are explicit and reviewable
+
+
+def test_templates_compose_resource_urls_from_document_values(tmp_path):
+    """A base URL, a hash and bare filenames become real page URLs (Master §41.1 shape)."""
+    import yaml
+
+    from oneshelf.generator.draft import write_package
+    from oneshelf.generator.draft import Draft
+
+    manifest = {"schema": "oneshelf.osp/1", "id": "test.split-pages", "name": "Split pages", "version": "1.0.0",
+                "api": "1.0", "capabilities": ["reader"],
+                "network": {"domains": [HOST], "cdn_domains": ["cdn.testsource.example"], "allow_http": True}}
+    reader = {"capability": "reader", "inputs": ["unit_key"],
+              "request": {"url": "{base_url}/api/units/{unit_key:path}/pages-split"},
+              "response": {"format": "json"},
+              "extract": {"values": {"base": {"json": "$.base"}, "hash": {"json": "$.hash"}},
+                          "items": {"json": "$.files[*]"},
+                          "fields": {"url": {"template": "{base}/img/{hash}/{item}", "required": True}}},
+              "pagination": {"mode": "none", "complete_when": "single_response"}}
+    tests = {"cases": [{"capability": "reader", "inputs": {"unit_key": "irr-1"},
+                        "fixtures": [{"url": f"http://{HOST}/api/units/irr-1/pages-split", "file": "fixtures/pages.json"}],
+                        "expect": {"min_items": 3, "fields_present": ["url"]}}]}
+    fixture = ('{"base": "http://cdn.testsource.example", "hash": "irr-1", '
+               '"files": ["1.png", "2.png", "3.png"]}').encode()
+    draft = Draft(manifest=manifest, source={"base_url": f"http://{HOST}"}, recipes={"reader": reader},
+                  tests=tests, fixtures={"tests/fixtures/pages.json": fixture})
+    package = load_package(write_package(draft, tmp_path / "split.osp"))
+
+    async def go():
+        async with TestSourceServer() as server:
+            client, _ = runtime_for(package, server)
+            async with client:
+                fetcher = SourceFetcher(package, client, TrafficGovernor(), None, Priority.INTERACTIVE)
+                return await RecipeRuntime(package, fetcher).run("reader", {"unit_key": "irr-1"})
+
+    result = run(go())
+    assert [p.url for p in result.items] == [
+        f"http://cdn.testsource.example/img/irr-1/{i}.png" for i in (1, 2, 3)]
+    assert yaml.safe_load(yaml.safe_dump(reader))["extract"]["values"]["base"] == {"json": "$.base"}

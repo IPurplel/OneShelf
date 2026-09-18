@@ -1,0 +1,22 @@
+capability: search
+inputs: [query, page]
+request:
+  url: "{base_url}/books?search={query}&page={page}"
+  headers: {Accept: application/json}
+response:
+  format: json
+extract:
+  items: {json: "$.results[*]"}
+  fields:
+    listing_key: {json: "$.id", required: true}
+    title: {json: "$.title", transforms: [trim], required: true}
+    creator: {json: "$.authors[0].name"}
+    description: {json: "$.summaries[0]"}
+    language: {json: "$.languages[0]"}
+    cover_url: {json: "$.formats['image/jpeg']"}
+pagination:
+  mode: page_number
+  start: 1
+  max_pages: 5
+  stop_when: total_count
+  total: {json: "$.count"}

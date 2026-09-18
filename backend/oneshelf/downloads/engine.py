@@ -102,7 +102,8 @@ class DownloadEngine:
 
     def _unit_context(self, unit_id: str) -> sqlite3.Row:
         row = self.conn.execute(
-            "SELECT u.id AS unit_id, u.source_unit_key, u.display_title, u.raw_title, u.unit_type, u.source_number,"
+            "SELECT u.id AS unit_id, u.source_unit_key, u.url_hint, u.display_title, u.raw_title, u.unit_type,"
+            " u.source_number,"
             " t.id AS track_id, t.source_id, t.language, w.id AS work_id, w.display_title AS work_title,"
             " w.content_type FROM reading_units u JOIN source_tracks t ON t.id = u.track_id"
             " JOIN works w ON w.id = t.work_id WHERE u.id = ?", (unit_id,)).fetchone()
@@ -335,7 +336,9 @@ class DownloadEngine:
 
     async def _resources(self, contract: ExtractionContract, context: sqlite3.Row) -> list:
         capability = "downloads" if contract.method == "direct" else "reader"
-        result = await self.sources.run(contract.source_id, capability, {"unit_key": context["source_unit_key"]},
+        result = await self.sources.run(contract.source_id, capability,
+                                        {"unit_key": context["source_unit_key"], "url": context["url_hint"],
+                                         "language": contract.language},
                                         priority=Priority.MANUAL)
         if not result.complete or not result.entries:
             raise CapabilityError("resource_missing", f"{capability} returned no usable resources")

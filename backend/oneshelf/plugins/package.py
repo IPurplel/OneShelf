@@ -126,6 +126,22 @@ def _derive_permissions(manifest: Manifest) -> frozenset[str]:
     return frozenset(perms)
 
 
+def validate_templates(extract, *, capability: str, inputs: list[str]) -> None:
+    """A template may only use document values, the current item and the recipe's own inputs."""
+    from oneshelf.plugins.runtime import template_names
+
+    known = set(extract.values) | {"item"} | set(inputs)
+    for name, spec in extract.fields.items():
+        if spec.template is None:
+            continue
+        unknown = sorted(template_names(spec.template) - known)
+        if unknown:
+            raise PackageError(f"recipes/{capability}: template for {name!r} uses unknown names {unknown}")
+    for value_name, spec in extract.values.items():
+        if spec.template is not None:
+            raise PackageError(f"recipes/{capability}: value {value_name!r} must read the document, not a template")
+
+
 def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str, Recipe], tests: TestSuite,
                     files: dict[str, bytes]) -> None:
     declared = set(manifest.capabilities)
@@ -162,7 +178,10 @@ def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str,
                                       set(recipe.inputs))
         except TemplateError as exc:
             raise PackageError(f"recipes/{capability}: {exc}") from exc
-        if not recipe.request.url.startswith("{base_url}") and not _url_allowed(
+        # A recipe may follow a URL the source's own catalog produced (§8); the egress policy still
+        # decides whether that URL may be fetched, so nothing is widened here.
+        follows_source_url = recipe.request.url.startswith("{url}")
+        if not recipe.request.url.startswith("{base_url}") and not follows_source_url and not _url_allowed(
             recipe.request.url.split("{", 1)[0] or "x", manifest, include_cdn=True
         ):
             raise PackageError(f"recipes/{capability}: request origin is not allowlisted")

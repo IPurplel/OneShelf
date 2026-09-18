@@ -1,0 +1,24 @@
+cases:
+- capability: search
+  inputs: {query: diffusion, offset: 0}
+  fixtures:
+  - url: http://export.arxiv.org/api/query?search_query=all:diffusion&start=0&max_results=20
+    file: fixtures/search.xml
+  expect:
+    min_items: 2
+    fields_present: [listing_key, title, creator]
+- capability: work
+  inputs: {listing_key: 1109.2262v1}
+  fixtures:
+  - url: http://export.arxiv.org/api/query?id_list=1109.2262v1
+    file: fixtures/work.xml
+  expect:
+    fields_present: [title, creator]
+- capability: downloads
+  inputs: {unit_key: 1109.2262v1}
+  fixtures:
+  - url: http://export.arxiv.org/api/query?id_list=1109.2262v1
+    file: fixtures/work.xml
+  expect:
+    min_items: 1
+    fields_present: [url, format]

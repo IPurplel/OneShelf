@@ -1,0 +1,25 @@
+cases:
+- capability: search
+  inputs: {query: frankenstein, page: 1}
+  fixtures:
+  - url: https://gutendex.com/books?search=frankenstein&page=1
+    file: fixtures/search.json
+  expect:
+    min_items: 1
+    fields_present: [listing_key, title, creator]
+    first: {listing_key: '84', title: 'Frankenstein; or, the modern prometheus'}
+- capability: work
+  inputs: {listing_key: 84}
+  fixtures:
+  - url: https://gutendex.com/books/84
+    file: fixtures/work.json
+  expect:
+    fields_present: [title, creator, cover_url]
+- capability: downloads
+  inputs: {unit_key: 84}
+  fixtures:
+  - url: https://gutendex.com/books/84
+    file: fixtures/work.json
+  expect:
+    min_items: 1
+    fields_present: [url, format]

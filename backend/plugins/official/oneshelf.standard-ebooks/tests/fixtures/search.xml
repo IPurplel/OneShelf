@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet href="https://standardebooks.org/feeds/opds/style" type="text/xsl"?>
+	<feed xmlns="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:schema="http://schema.org/" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">
+		<id>https://standardebooks.org/feeds/opds/all?query=frankenstein&amp;page=1&amp;per-page=12</id>
+		<link href="https://standardebooks.org/feeds/opds/all?query=frankenstein&amp;page=1&amp;per-page=12" rel="self" type="application/atom+xml;profile=opds-catalog; charset=utf-8"/>
+		<link rel="first" href="https://standardebooks.org/feeds/opds/all?query=frankenstein&amp;page=1&amp;per-page=12" type="application/atom+xml;profile=opds-catalog; charset=utf-8"/>
+						<link rel="last" href="https://standardebooks.org/feeds/opds/all?query=frankenstein&amp;page=1&amp;per-page=12" type="application/atom+xml;profile=opds-catalog; charset=utf-8"/>
+		<link rel="search" href="https://standardebooks.org/opensearch" type="application/opensearchdescription+xml" title="Standard Ebooks"/>
+		<link href="https://standardebooks.org/ebooks/ebooks?query=frankenstein&amp;page=1&amp;per-page=12" rel="alternate" type="application/xhtml+xml"/>
+		<opensearch:totalResults>1</opensearch:totalResults>
+		<opensearch:startIndex>1</opensearch:startIndex>
+		<opensearch:itemsPerPage>12</opensearch:itemsPerPage>
+		<link href="https://standardebooks.org/feeds/opds" rel="start" type="application/atom+xml;profile=opds-catalog;kind=navigation; charset=utf-8"/>
+		<link href="https://standardebooks.org/feeds/opds/all" rel="http://opds-spec.org/crawlable" type="application/atom+xml;profile=opds-catalog;kind=acquisition; charset=utf-8"/>
+		<title>Search Results</title>
+		<subtitle>Results for “frankenstein”</subtitle>
+		<icon>https://standardebooks.org/images/logo.png</icon>
+		<updated>2026-09-18T01:04:37Z</updated>
+		<author>
+			<name>Standard Ebooks</name>
+			<uri>https://standardebooks.org</uri>
+		</author>
+					<entry>
+	<id>https://standardebooks.org/ebooks/mary-shelley/frankenstein</id>
+	<dc:identifier>https://standardebooks.org/ebooks/mary-shelley/frankenstein</dc:identifier>
+	<title>Frankenstein</title>
+			<author>
+			<name>Mary Shelley</name>
+			<uri>https://standardebooks.org/ebooks/mary-shelley</uri>
+							<schema:alternateName>Mary Wollstonecraft Shelley</schema:alternateName>
+										<schema:sameAs>https://en.wikipedia.org/wiki/Mary_Shelley</schema:sameAs>
+										<schema:sameAs>https://id.loc.gov/authorities/names/n79061063.html</schema:sameAs>
+					</author>
+		<published>2015-05-12T00:01:00Z</published>
+	<dc:issued>2015-05-12T00:01:00Z</dc:issued>
+	<updated>2026-09-07T16:46:03Z</updated>
+	<dc:language>en-GB</dc:language>
+	<dc:publisher>Standard Ebooks</dc:publisher>
+	<rights>Public domain in the United States. Users located outside of the United States must check their local laws before using this ebook. Original content released to the public domain via the Creative Commons CC0 1.0 Universal Public Domain Dedication.</rights>
+	<summary type="text">A tragic scientist creates a monster in his laboratory.</summary>
+	<content type="html">&lt;p&gt;&lt;a href=&quot;https://standardebooks.org/ebooks/mary-shelley&quot;&gt;Mary Shelley&lt;/a&gt; (then Godwin) and Percy Bysshe Shelley were visiting their friend Lord Byron in Geneva one rainy summer. With the weather against them, they decided to spend their time writing ghost stories for each other. &lt;i&gt;Frankenstein&lt;/i&gt; is Mary Shelley’s submission to their contest, later published anonymously in 1818.&lt;/p&gt;
+			&lt;p&gt;Victor Frankenstein, a strange but brilliant scientist, discovers a method of imparting life to inanimate matter. The Monster is thus born: a hideous, 8-foot-tall creature of muscle, speed, and intellect. Frankenstein’s rejection of his appalling creation sends it into a spiral of despair, and Frankenstein’s life is never the same.&lt;/p&gt;
+			&lt;p&gt;Considered by many to be the first science fiction novel, &lt;i&gt;Frankenstein&lt;/i&gt; is a powerful narrative that explores complex themes of belonging, morality, and the consequences of the power over life and death. This edition is based on Shelley’s revised 1831 edition.&lt;/p&gt;</content>
+			<category scheme="http://purl.org/dc/terms/LCSH" term="Science fiction"/>
+			<category scheme="http://purl.org/dc/terms/LCSH" term="Horror tales"/>
+			<category scheme="http://purl.org/dc/terms/LCSH" term="Gothic fiction (Literary genre)"/>
+			<category scheme="http://purl.org/dc/terms/LCSH" term="Scientists--Fiction"/>
+			<category scheme="http://purl.org/dc/terms/LCSH" term="Monsters--Fiction"/>
+			<category scheme="http://purl.org/dc/terms/LCSH" term="Frankenstein, Victor (Fictitious character)--Fiction"/>
+			<category scheme="http://purl.org/dc/terms/LCSH" term="Frankenstein&apos;s monster (Fictitious character)--Fiction"/>
+				<category scheme="https://standardebooks.org/vocab/subjects" term="Horror"/>
+			<category scheme="https://standardebooks.org/vocab/subjects" term="Science Fiction"/>
+		<link href="https://standardebooks.org/ebooks/mary-shelley/frankenstein/downloads/cover.jpg" rel="http://opds-spec.org/image" type="image/jpeg"/>
+	<link href="https://standardebooks.org/ebooks/mary-shelley/frankenstein/downloads/cover-thumbnail.jpg" rel="http://opds-spec.org/image/thumbnail" type="image/jpeg"/>
+	<link href="https://standardebooks.org/ebooks/mary-shelley/frankenstein" rel="alternate" title="This ebook’s page at Standard Ebooks" type="application/xhtml+xml"/>
+			<link href="https://standardebooks.org/ebooks/mary-shelley/frankenstein/downloads/mary-shelley_frankenstein.epub?source=feed" length="685797" rel="http://opds-spec.org/acquisition/open-access" title="Recommended compatible epub" type="application/epub+zip" />
+				<link href="https://standardebooks.org/ebooks/mary-shelley/frankenstein/downloads/mary-shelley_frankenstein_advanced.epub?source=feed" length="691086" rel="http://opds-spec.org/acquisition/open-access" title="Advanced epub" type="application/epub+zip" />
+				<link href="https://standardebooks.org/ebooks/mary-shelley/frankenstein/downloads/mary-shelley_frankenstein.kepub.epub?source=feed" length="639887" rel="http://opds-spec.org/acquisition/open-access" title="Kobo Kepub epub" type="application/kepub+zip" />
+				<link href="https://standardebooks.org/ebooks/mary-shelley/frankenstein/downloads/mary-shelley_frankenstein.azw3?source=feed" length="757149" rel="http://opds-spec.org/acquisition/open-access" title="Amazon Kindle azw3" type="application/x-mobipocket-ebook" />
+				<link href="https://standardebooks.org/ebooks/mary-shelley/frankenstein/text/single-page" length="542599" rel="http://opds-spec.org/acquisition/open-access" title="XHTML" type="application/xhtml+xml" />
+	</entry>
+			</feed>

@@ -1,0 +1,11 @@
+base_url: https://api.mangadex.org
+url_patterns:
+  - pattern: '^https?://mangadex\.org/title/([0-9a-f-]{36})'
+    capability: work
+    id_group: 1
+rate_limit:
+  requests_per_minute: 60
+  concurrency: 2
+timeouts:
+  connect_seconds: 10
+  read_seconds: 30

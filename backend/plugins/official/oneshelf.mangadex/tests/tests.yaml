@@ -1,0 +1,32 @@
+cases:
+- capability: search
+  inputs: {query: dungeon}
+  fixtures:
+  - url: https://api.mangadex.org/manga?title=dungeon&limit=20&offset=0&order[relevance]=desc
+    file: fixtures/search.json
+  expect:
+    min_items: 1
+    fields_present: [listing_key, title]
+- capability: work
+  inputs: {listing_key: 0b531d71-f321-462d-b7ca-d056564bf8b3}
+  fixtures:
+  - url: https://api.mangadex.org/manga/0b531d71-f321-462d-b7ca-d056564bf8b3?includes[]=cover_art&includes[]=author
+    file: fixtures/work.json
+  expect:
+    fields_present: [title, cover_url]
+- capability: catalog
+  inputs: {listing_key: 0b531d71-f321-462d-b7ca-d056564bf8b3, language: en}
+  fixtures:
+  - url: https://api.mangadex.org/manga/0b531d71-f321-462d-b7ca-d056564bf8b3/feed?limit=100&offset=0&translatedLanguage[]=en&order[chapter]=asc&order[volume]=asc&includeExternalUrl=0
+    file: fixtures/feed.json
+  expect:
+    min_items: 1
+    fields_present: [unit_key]
+- capability: reader
+  inputs: {unit_key: dc3cbd95-c448-4996-b056-0c22752a89ae}
+  fixtures:
+  - url: https://api.mangadex.org/at-home/server/dc3cbd95-c448-4996-b056-0c22752a89ae
+    file: fixtures/at-home.json
+  expect:
+    min_items: 1
+    fields_present: [url]

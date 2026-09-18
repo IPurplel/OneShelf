@@ -29,15 +29,16 @@ class FollowRunner:
         if row is None:
             raise ValueError("this work is not followed")
         listing = self.conn.execute(
-            "SELECT l.source_listing_key FROM source_tracks t JOIN source_listings l ON l.id = t.listing_id"
-            " WHERE t.id = ?", (row["track_id"],)).fetchone()
+            "SELECT l.source_listing_key, t.language FROM source_tracks t"
+            " JOIN source_listings l ON l.id = t.listing_id WHERE t.id = ?", (row["track_id"],)).fetchone()
         if listing is None:
             self.follows.record_attempt(work_id, successful=False, category="no_listing")
             return {"work_id": work_id, "state": "degraded", "new_units": []}
         try:
             package = self.plugins.load_active(row["preferred_source_id"])
             result = await self.sources.run(row["preferred_source_id"], "catalog",
-                                            {"listing_key": listing["source_listing_key"]}, priority=Priority.FOLLOW)
+                                            {"listing_key": listing["source_listing_key"],
+                                             "language": listing["language"]}, priority=Priority.FOLLOW)
         except AuthRequired:
             self.follows.record_attempt(work_id, successful=False, category="auth_failure")
             if self.notifications:

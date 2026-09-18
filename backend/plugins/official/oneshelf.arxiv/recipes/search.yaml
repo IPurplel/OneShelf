@@ -1,0 +1,22 @@
+capability: search
+inputs: [query, offset]
+request:
+  url: "{base_url}/api/query?search_query=all:{query}&start={offset}&max_results=20"
+response:
+  format: html
+extract:
+  items: {css: "entry"}
+  fields:
+    listing_key:
+      css: "id::text"
+      transforms: [{regex_extract: {pattern: 'arxiv\.org/abs/(.+)$', group: 1}}]
+      required: true
+    title: {css: "title::text", transforms: [trim], required: true}
+    creator: {css: "author name::text", transforms: [trim]}
+    description: {css: "summary::text", transforms: [trim]}
+pagination:
+  mode: offset
+  start: 0
+  step: 20
+  max_pages: 5
+  stop_when: empty_items

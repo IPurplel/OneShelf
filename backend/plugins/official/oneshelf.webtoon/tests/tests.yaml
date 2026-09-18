@@ -1,0 +1,16 @@
+cases:
+- capability: work
+  inputs: {listing_key: '95'}
+  fixtures:
+  - url: https://www.webtoons.com/episodeList?titleNo=95
+    file: fixtures/list.html
+  expect:
+    fields_present: [title, cover_url]
+- capability: catalog
+  inputs: {listing_key: '95', page: 1}
+  fixtures:
+  - url: https://www.webtoons.com/episodeList?titleNo=95&page=1
+    file: fixtures/list.html
+  expect:
+    min_items: 3
+    fields_present: [unit_key, title, url]

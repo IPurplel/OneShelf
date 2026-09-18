@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/Ids2Tk2CRnuUXgRErellBoOKZUw</id>
+  <title>arXiv Query: search_query=&amp;id_list=1109.2262v1&amp;start=0&amp;max_results=10</title>
+  <updated>2026-09-18T01:04:36Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=&amp;start=0&amp;max_results=10&amp;id_list=1109.2262v1" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>10</opensearch:itemsPerPage>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/1109.2262v1</id>
+    <title>Diffusion in LanCoIn3n+2 phases studied by perturbed angular correlation</title>
+    <updated>2011-09-10T21:29:55Z</updated>
+    <link href="https://arxiv.org/abs/1109.2262v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1109.2262v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Jump frequencies of 111In/Cd tracer atoms were measured for a series of layered phases LanCoIn3n+2 using the technique of perturbed angular correlation of gamma rays (PAC). The frequencies were determined by analysis of nuclear quadrupole relaxation produced by fluctuating electric field gradients. Samples were synthesized having nominal values n= 1, 2, 3, 5 and \infty, with n=\infty corresponding to the L12 phase LaIn3. The phases form heuristically from LaIn3 by replacing every (n+1)th (100) mixed plane of La and In atoms with a plane of Co-atoms. For the n=1 phase, LaCoIn5, jump frequencies were too small to detect. Two signals were observed, one for indium atoms next to the Co-planes and the other for more distant indium atoms. No relaxation was observed for atoms next to the Co-planes, indicating that there is no diffusion across the Co-planes. With increasing n, jump rates for the other In-atoms increased toward values observed for LaIn3. Jump frequency activation enthalpies for n= 3 and 5 were observed to be the same as for n=\infty, suggesting the same diffusion mechanism. However, the jump-frequency prefactors were found to be smaller for small n, which is attributed to reductions in the connectivity of the diffusion sublattice. We conclude that diffusion in the layered phases is remarkably similar to diffusion in LaIn3 once the reduced connectivity is taken into account.</summary>
+    <category term="cond-mat.mtrl-sci" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2011-09-10T21:29:55Z</published>
+    <arxiv:comment>Accepted for publication in Defect and Diffusion Forum, DIMAT 2011 conference, 6 pages, 5 figures, 1 table</arxiv:comment>
+    <arxiv:primary_category term="cond-mat.mtrl-sci"/>
+    <arxiv:journal_ref>Defect and Diffusion Forum 323-325 (2012) 453-458</arxiv:journal_ref>
+    <author>
+      <name>Randal Newhouse</name>
+    </author>
+    <author>
+      <name>Gary S. Collins</name>
+    </author>
+  </entry>
+</feed>

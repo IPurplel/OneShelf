@@ -1,0 +1,20 @@
+capability: catalog
+inputs: [listing_key, page]
+request:
+  url: "{base_url}/episodeList?titleNo={listing_key}&page={page}"
+response:
+  format: html
+extract:
+  items: {css: "li._episodeItem"}
+  order: reverse           # WEBTOON lists newest first; Reading Units are stored in reading order
+  fields:
+    unit_key: {css: "::attr(data-episode-no)", required: true}
+    title: {css: "span.subj span::text", transforms: [trim]}
+    number: {css: "span.subj span::text", transforms: [extract_number]}
+    url: {css: "a.detail_list_link::attr(href)", transforms: [normalize_url]}
+    release_date: {css: "span.date::text", transforms: [trim]}
+pagination:
+  mode: page_number
+  start: 1
+  max_pages: 40
+  stop_when: empty_items

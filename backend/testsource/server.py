@@ -163,6 +163,12 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
         return web.json_response({"pages": [
             {"url": f"http://{CDN_HOST}/img/{unit}/{i}.png", "label": str(i)} for i in range(1, 4)]})
 
+    async def pages_split(request: web.Request) -> web.Response:
+        """Pages given as a base URL, a hash and bare filenames (the shape MangaDex's at-home API uses)."""
+        unit = request.match_info["unit"]
+        return web.json_response({"base": f"http://{CDN_HOST}", "hash": unit,
+                                  "files": [f"{i}.png" for i in range(1, 4)]})
+
     async def files(request: web.Request) -> web.Response:
         return web.json_response({"files": [{"url": f"http://{HOST}/files/versioned.pdf", "format": "pdf"}]})
 
@@ -304,7 +310,7 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
 
     app.add_routes([
         web.get("/search", search), web.get("/work/{work}", work), web.get("/api/works/{work}/units", catalog),
-        web.get("/api/units/{unit}/pages", pages), web.get("/api/units/{unit}/files", files), web.get("/img/{unit}/{page}.png", image),
+        web.get("/api/units/{unit}/pages", pages), web.get("/api/units/{unit}/pages-split", pages_split), web.get("/api/units/{unit}/files", files), web.get("/img/{unit}/{page}.png", image),
         web.get("/covers/{work}.png", image), web.get("/media/html-as-image.png", html_as_image),
         web.get("/media/corrupt.png", corrupt_image), web.get("/files/versioned.pdf", versioned_file),
         web.get("/files/interrupted.pdf", interrupted), web.get("/limited", limited), web.get("/flaky", flaky),
