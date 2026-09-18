@@ -123,3 +123,9 @@
 .panel__group { border: 0; margin: 0 0 var(--space-5); padding: 0; display: grid; gap: var(--space-2); }
 .panel__group legend { padding: 0 0 var(--space-2); color: var(--ink-500); }
 .panel__choice { display: flex; align-items: center; gap: var(--space-3); min-height: 36px; }
+
+/* Book readers: the document itself is isolated, the chrome is ours. */
+.book { background: #fffdf8; }
+.book__frame { flex: 1; inline-size: 100%; border: 0; background: #fffdf8; }
+.book__pdf { flex: 1; display: grid; place-items: center; overflow: auto; padding: 56px 0; }
+.book__pdf canvas { max-inline-size: 100%; box-shadow: var(--shadow-raised); background: #fff; }
