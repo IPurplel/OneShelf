@@ -285,3 +285,49 @@ a.workcard:hover { transform: translateY(-3px); }        /* a 2–4px lift, noth
 .confirm h2 { margin: 0 0 var(--space-3); font-size: 21px; }
 .confirm p { margin: 0 0 var(--space-5); color: var(--ink-700); }
 .confirm__actions { display: flex; justify-content: flex-end; gap: var(--space-3); }
+
+/* Administrative lists: catalogue-card rows on warm paper (§32.12). */
+.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.cards__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--paper);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+.cards__name { font-size: 17px; }
+.cards__meta { color: var(--ink-500); font-size: 14px; }
+.cards__state { color: var(--ink-700); font-size: 14px; }
+.cards__state--disabled, .cards__state--failed { color: var(--ink-300); }
+.cards__warn { color: var(--warning-600); font-size: 14px; }
+.cards__ok { color: var(--olive-600); font-size: 14px; }
+.cards__row .chip { margin-inline-start: auto; }
+.drawer__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
+
+/* Settings: a readable document, categories beside the panel (§32.14). */
+.settings__layout { display: grid; grid-template-columns: 220px 1fr; gap: var(--space-6); align-items: start; }
+.settings__nav { display: grid; gap: 2px; }
+.settings__tab {
+  text-align: start;
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink-700);
+  font: inherit;
+  cursor: pointer;
+}
+.settings__tab:hover { background: var(--ivory-200); }
+.settings__tab[aria-selected="true"] { background: var(--paper); box-shadow: var(--shadow-card); color: var(--ink-900); }
+
+.paper { padding: var(--space-5); background: var(--paper); border-radius: var(--radius-md); box-shadow: var(--shadow-card); }
+.paper h2 { margin: 0 0 var(--space-4); font-size: 18px; }
+
+@media (max-width: 899px) {
+  .settings__layout { grid-template-columns: 1fr; }
+  .settings__nav { grid-auto-flow: column; overflow-x: auto; }
+}
