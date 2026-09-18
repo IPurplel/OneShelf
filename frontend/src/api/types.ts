@@ -55,3 +55,54 @@ export type Notification = {
 };
 
 export type NotificationsResponse = { notifications: Notification[]; needs_attention: number };
+
+export type Track = {
+  id: string;
+  source_id: string;
+  language: string;
+  kind: "source" | "local";
+  availability: string;
+  unit_count: number;
+};
+
+export type Unit = {
+  id: string;
+  title: string | null;
+  number: string | null;
+  unit_type: string;
+  volume: string | null;
+  order: number;
+  release_date: string | null;
+  availability: string;
+  url: string | null;
+  downloaded: boolean;
+  formats: string[];
+  read_state: "unread" | "partial" | "read";
+  fraction: number;
+  read_at: string | null;
+};
+
+export type WorkDetails = {
+  work: {
+    id: string;
+    title: string;
+    original_title: string | null;
+    creator: string | null;
+    description: string | null;
+    content_type: string | null;
+    content_type_source: string;
+    aliases: string[];
+  };
+  shelf: { on_shelf: boolean; favorite: boolean; pinned: boolean; completed: boolean };
+  follow: {
+    following: boolean;
+    preferred_source_id: string | null;
+    track_id: string | null;
+    language: string | null;
+    last_successful_at: string | null;
+  };
+  tracks: Track[];
+  selected_track_id: string | null;
+  units: Unit[];
+  continue_unit_id: string | null;
+};
