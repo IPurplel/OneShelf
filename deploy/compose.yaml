@@ -1,0 +1,30 @@
+# OneShelf, single container, explicit mounts. Adjust the host paths and the trusted network.
+services:
+  oneshelf:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: oneshelf:local
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8420:8420"          # publish on the LAN only after setting ONESHELF_TRUSTED_NETWORKS
+    environment:
+      # Local-only by default: loopback is trusted, everything else must authenticate (Master §28.1).
+      ONESHELF_TRUSTED_NETWORKS: ""
+      ONESHELF_TRUSTED_PROXIES: ""
+      ONESHELF_ALLOWED_HOSTS: "localhost"
+      ONESHELF_DATA_DIR: /data
+      ONESHELF_PLUGIN_DIR: /plugins
+      ONESHELF_SESSION_KEY_FILE: /keys/session.key
+    volumes:
+      - ./volumes/data:/data           # oneshelf.db, cache.db, secrets.db, staging, diagnostics
+      - ./volumes/plugins:/plugins     # installed .osp packages
+      - ./volumes/keys:/keys           # the session key: its own volume, backed up separately
+      - ./volumes/content:/content     # a storage root for downloaded and imported content
+      - ./volumes/backups:/backups     # .osbackup archives; ideally a different physical disk
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8420/api/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

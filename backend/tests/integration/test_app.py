@@ -83,3 +83,15 @@ def test_server_does_not_trust_forwarded_headers_itself():
     from oneshelf.api.app import server_options
 
     assert server_options()["proxy_headers"] is False
+
+
+def test_readiness_reports_what_startup_actually_did(config):
+    """Deployments need a readiness probe that means something (Meta Prompt C9)."""
+    with client(config, "127.0.0.1") as c:
+        ready = c.get("/api/ready")
+    assert ready.status_code == 200
+    body = ready.json()
+    assert body["ready"] is True
+    assert body["schema_version"] >= 12 and body["migrations_pending"] == 0
+    assert body["recovery"]["order"] and body["recovery"]["commits"] is not None   # recovery ran first
+    assert "storage_roots" in body and "database" in body

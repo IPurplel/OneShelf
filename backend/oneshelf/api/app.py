@@ -5,7 +5,7 @@ import os
 from collections.abc import Mapping
 from http.cookies import SimpleCookie
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -29,6 +29,7 @@ from oneshelf.backup.service import BackupService
 from oneshelf.export.service import ExportService
 from oneshelf.restore.service import RestoreService
 from oneshelf.storage.migration import StorageMigration
+from oneshelf.storage.roots import check_availability, list_roots
 from oneshelf.follow.runner import FollowRunner
 from oneshelf.generator.service import GeneratorService
 from oneshelf.follow.service import FollowService
@@ -244,6 +245,31 @@ def create_app(config: AppConfig) -> FastAPI:
             "access": request.scope["state"]["access"].kind,
         }
 
+    @app.get("/api/ready")
+    def ready(request: Request) -> dict:
+        """Readiness means migrations are applied and startup recovery has finished (Meta Prompt C9)."""
+        report = getattr(app.state, "startup_report", None)
+        services = getattr(app.state, "services", None)
+        version = current_version(config.db_path)
+        pending = max(0, max(m.version for m in MIGRATIONS) - version)
+        roots = []
+        if services is not None:
+            roots = [{"id": r.id, "name": r.name, "available": check_availability(r).available}
+                     for r in list_roots(services.conn)]
+        return {
+            "ready": services is not None and pending == 0,
+            "schema_version": version,
+            "migrations_pending": pending,
+            "database": str(config.db_path),
+            "recovery": {"order": list(getattr(report, "order", [])),
+                         "commits": asdict(report.commits) if report is not None else None,
+                         "scan": asdict(report.scan) if report is not None else None,
+                         "downloads_recovered": getattr(report, "downloads_recovered", 0),
+                         "jobs_failed": getattr(report, "jobs_failed", 0),
+                         "staging_removed": getattr(report, "staging_removed", 0)},
+            "storage_roots": roots,
+        }
+
     @app.get("/api/events")
     async def events(request: Request) -> StreamingResponse:
         return StreamingResponse(
@@ -283,3 +309,7 @@ def main() -> None:  # pragma: no cover - thin process entry point
         port=int(os.environ.get("ONESHELF_PORT", "8420")),
         **server_options(),
     )
+
+
+if __name__ == "__main__":  # pragma: no cover - container entry point
+    main()
