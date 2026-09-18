@@ -150,7 +150,8 @@ class ReaderService:
                revision: int | None) -> ProgressState:
         current = self.progress(unit_id)
         if revision is not None and revision != current.revision:
-            raise StaleProgress(f"progress revision {revision} is behind {current.revision}")
+            raise StaleProgress(f"progress revision {revision} does not match the stored revision "
+                                f"{current.revision}; reload before writing")
         new_revision = current.revision + 1
         with transaction(self.conn):
             self.conn.execute(
