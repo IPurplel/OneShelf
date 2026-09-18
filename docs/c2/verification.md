@@ -116,6 +116,36 @@ giving it an Arabic face directly.
 
 None of these are claimed as passing, and none are worked around.
 
+### Correction, 2026-09-18 (from the traceability reconciliation)
+
+This list was incomplete. It was written from what I had just built rather than from the requirement
+matrix, and re-checking every C2 row against the code found behaviour that is genuinely missing. The
+authoritative statuses are in `docs/c0/traceability.md`; the gaps inside C2's scope are:
+
+| Requirement | What is missing |
+|---|---|
+| M26.6 | Long Strip mounts every page of the chapter — no bounded render window — and does not restore the approximate scroll position |
+| M26.18 | No preload policy (~next 7 / previous 4) |
+| M26.15 | The reader opens a unit at page 1 rather than at the stored position |
+| M26.16 | No source indicator in the reader and no in-reader source switching (so INV-25's Start This Unit / Try Approximate Position affordances do not exist either) |
+| M26.19 | No compact download state in the reader and no Download Entire Work |
+| M26.21 | Page failure offers Retry only — no Repair from Source, no Skip |
+| M26.22a | EPUB has no font family/size, line height, margin or theme settings |
+| M26.22b | PDF renders at a fixed scale — no zoom, no fit width/page |
+| M26.11 | No scrubber |
+| M26.12 | The contents drawer has no New filter |
+| M26.14 | No Mark as unread in the UI |
+| M26.2 | The reader's top bar has no compact download state; More lacks Change Source, Repair and Work Details |
+| M26.3b | No Hidden by Default / Minimal control mode |
+| M26.24 | No layout-preserving skeletons and no one-time centre-tap hint |
+| M22, M47 | No Remove from Shelf with Keep/Delete Files, and no Mark Completed — so those destructive dialogs do not exist either |
+| M32.9 | My Shelf has no sort |
+| M32.14, M45 | Reader, Downloads, Sources, Notifications and Advanced settings are placeholders, so the normal/advanced disclosure they carry is missing |
+| M36 | Nothing in the UI subscribes to `GET /api/events`; only Search opens its own stream |
+
+The gate checks recorded in §3 were run and passed as written; what is corrected here is the claim in §5
+that nothing behavioural remained.
+
 ## 6. What the new screens promise, and where it is enforced
 
 | Screen | The Master's rule | Where it is kept |
