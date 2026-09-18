@@ -436,6 +436,17 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 .restore__counts, .restore__plugins, .restore__issues { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
 .restore__plugins li { display: flex; gap: var(--space-3); align-items: baseline; }
 .import__review { display: grid; gap: var(--space-4); margin-top: var(--space-4); }
+.install__review { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+.install__review h3 { margin: var(--space-2) 0 0; font-family: var(--font-display); font-size: 17px; }
+.install__permissions { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.install__permissions li { display: grid; gap: 2px; }
+.install__permissions code { font-size: 12px; }
+
+/* The relayed sign-in window: a plain picture of a real browser, focusable so keys reach it. */
+.login__frame { inline-size: 100%; block-size: auto; aspect-ratio: 16 / 10; display: block;
+                background: var(--ink-900, #1b1b1b); border-radius: var(--radius-2);
+                border: 1px solid var(--wood-500); cursor: crosshair; }
+.login__frame:focus-visible { outline: 3px solid var(--olive-600); outline-offset: 2px; }
 
 /* A Recovery Code is shown once, so it is given room and set in a face that cannot confuse 0 and O. */
 .remote__code { margin: var(--space-4) 0; padding: var(--space-4); border: 1px solid var(--wood-500);

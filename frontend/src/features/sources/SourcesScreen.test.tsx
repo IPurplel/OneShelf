@@ -73,4 +73,28 @@ describe("Sources", () => {
     renderWithProviders(<SourcesScreen />);
     expect(await screen.findByText(/no sources are installed/i)).toBeInTheDocument();
   });
+
+  it("offers Use My Session only for a source that can sign in", async () => {
+    mockApi([get("/api/sources", SOURCES), post("/api/sources/oneshelf.webtoon/login",
+                                                { login_id: "l1", status: "open" })]);
+    const user = userEvent.setup();
+    renderWithProviders(<SourcesScreen />);
+    const rows = await screen.findAllByRole("listitem");
+
+    await user.click(within(rows[0]!).getByRole("button", { name: /more/i }));
+    expect(screen.queryByRole("button", { name: /use my session/i })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await user.click(within(rows[1]!).getByRole("button", { name: /more/i }));
+    await user.click(screen.getByRole("button", { name: /use my session/i }));
+    expect(await screen.findByRole("dialog", { name: /sign in/i })).toBeInTheDocument();
+  });
+
+  it("lets a package be reviewed and installed from this screen", async () => {
+    mockApi([get("/api/sources", SOURCES)]);
+    renderWithProviders(<SourcesScreen />);
+    await screen.findAllByRole("listitem");
+
+    expect(screen.getByLabelText(/choose an \.osp package/i)).toBeInTheDocument();
+  });
 });
