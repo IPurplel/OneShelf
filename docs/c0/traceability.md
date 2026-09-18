@@ -566,11 +566,12 @@ markup switch used to exercise repair.
 | M33, M34, M37 | Backup and Restore as a workflow, Export as a wizard, Import with review | `BackupPanel.test.tsx`, `ExportWizard.test.tsx`, `ImportPanel` | — |
 | M2.3, M45, M46 | Arabic and English as peers, direction independent of content, focus and keyboard behaviour | `a11y.test.tsx`, axe-core zero violations across sixteen page states in both languages | more screenshot coverage |
 | M22, M31–M31.4 | My Shelf views and search; Home's adaptive sections and stable hero | `ShelfScreen.test.tsx`, `HomeScreen.test.tsx` | — |
-| M26–M26.24 | both reader families, modes, controls, progress, contents, end-of-unit | `SequentialReader.test.tsx`, `BookReader.test.tsx`, `epub.test.ts` | PDF text search and highlights, pairing controls, zoom and gestures |
+| M26–M26.24 | both reader families, modes, pairing, zoom, gestures, full screen, controls, progress, contents, end-of-unit | `SequentialReader.test.tsx`, `BookReader.test.tsx`, `PdfView.test.tsx`, `epub.test.ts` | — |
+| M26.22, M22 | bookmarks and highlights as library state, counted in a backup and merged on restore | `tests/integration/reader/test_marks.py`, `useBookMarks`, `HighlightPane` | highlight overlay on the page itself is out of v1 scope (§26.22) |
+| M26.23 | a reader reads the revision it must carry before writing progress | `test_progress_can_be_read_back_so_a_reader_knows_the_revision_it_must_carry`, `carries the revision the library already holds…` | — |
 | M27, INV-12 | untrusted content isolated: sanitised EPUB in an empty-sandbox frame under its own CSP; pdf.js with no annotation layer | `epub.test.ts`, `BookReader.test.tsx`, `pdf-isolation.test.ts` | — |
 | INV-11, M3.3 | local reading with no source, plugin or network | `reads local pages without asking any source`, `GET /api/reader/units/{id}/file` | export-without-plugin already covered in C7 |
 | INV-24 | irregular units keep Source Track order | `ends the unit with the next unit in source order, never chapter plus one` | — |
 
-Carried forward from C2: the outstanding reader features listed in `docs/c2/verification.md` §5 — PDF
-text-layer search and highlights, EPUB highlight capture, pairing controls, zoom, gestures and fullscreen.
-Every screen the Master asks for now exists.
+Carried forward from C2: nothing behavioural. `docs/c2/verification.md` §5 lists only evidence depth —
+more screenshots, and touch gestures tried on physical hardware.
