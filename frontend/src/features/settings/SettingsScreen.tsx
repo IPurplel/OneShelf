@@ -1,6 +1,9 @@
 import { useState } from "react";
 
 import { useResource } from "@/api/useApi";
+import { StoragePanel } from "@/features/storage/StoragePanel";
+import { ImportPanel } from "@/features/storage/ImportPanel";
+import { BackupPanel } from "@/features/backup/BackupPanel";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
 
@@ -18,15 +21,11 @@ type AuthState = {
   network: { trusted_networks: string[]; trusted_proxies: string[]; gateway_warning: { message: string } | null };
 };
 
-type Root = { id: string; name: string; path: string; available: boolean; free: number; total: number;
-              reserve: number; is_default: boolean; state: string };
-
 /** Settings (Master §32.14): a readable document — categories beside the panel, nothing shouted. */
 export function SettingsScreen() {
   const { t, language, setLanguage } = useI18n();
   const [category, setCategory] = useState<Category>("general");
   const { data: auth } = useResource<AuthState>("/api/auth/state");
-  const { data: storage } = useResource<{ roots: Root[] }>("/api/storage");
 
   return (
     <section className="screen settings">
@@ -58,21 +57,10 @@ export function SettingsScreen() {
           )}
 
           {category === "storage" && (
-            <section className="paper">
-              <ul className="cards">
-                {(storage?.roots ?? []).map((root) => (
-                  <li key={root.id} className="cards__row">
-                    <span className="cards__name display">{root.name}</span>
-                    <span className="cards__meta">{root.path}</span>
-                    <span className="cards__meta">
-                      {t("settings.free", { free: bytes(root.free), total: bytes(root.total) })}
-                    </span>
-                    <span className="cards__meta">{t("settings.reserve", { reserve: bytes(root.reserve) })}</span>
-                    {root.is_default && <span className="cards__ok">{t("settings.default")}</span>}
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <>
+              <StoragePanel />
+              <ImportPanel />
+            </>
           )}
 
           {category === "remote" && (
@@ -92,6 +80,8 @@ export function SettingsScreen() {
             </section>
           )}
 
+          {category === "backup" && <BackupPanel />}
+
           {category === "developer" && (
             <section className="paper">
               <h2 className="display">{t("settings.developer.generator")}</h2>
@@ -99,7 +89,7 @@ export function SettingsScreen() {
             </section>
           )}
 
-          {!["general", "storage", "remote", "developer"].includes(category) && (
+          {!["general", "storage", "remote", "developer", "backup"].includes(category) && (
             <section className="paper"><p>{t("settings.soon")}</p></section>
           )}
         </div>
@@ -108,13 +98,3 @@ export function SettingsScreen() {
   );
 }
 
-function bytes(value: number): string {
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let size = value;
-  let unit = 0;
-  while (size >= 1024 && unit < units.length - 1) {
-    size /= 1024;
-    unit += 1;
-  }
-  return `${size.toFixed(size >= 10 || unit === 0 ? 0 : 1)} ${units[unit]}`;
-}

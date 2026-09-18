@@ -429,3 +429,10 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 .field--area { min-block-size: 84px; padding: var(--space-3); font: inherit; }
 .panel__choiceTitle { display: block; }
 .panel__choiceHelp { display: block; color: var(--ink-500); font-size: 14px; }
+
+.confirm--wide { inline-size: min(680px, 94vw); max-block-size: 80vh; overflow: auto; }
+.restore__step { margin-bottom: var(--space-5); }
+.restore__step h3 { margin: 0 0 var(--space-2); font-family: var(--font-display); font-size: 17px; }
+.restore__counts, .restore__plugins, .restore__issues { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.restore__plugins li { display: flex; gap: var(--space-3); align-items: baseline; }
+.import__review { display: grid; gap: var(--space-4); margin-top: var(--space-4); }

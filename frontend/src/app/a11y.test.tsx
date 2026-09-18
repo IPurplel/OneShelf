@@ -34,7 +34,6 @@ describe("Accessibility", () => {
 
   it("reaches every primary destination by keyboard alone", async () => {
     mockApi([get("/api/home", { hero: null, continue_reading: [], trending: [], latest: [], recently_added: [] })]);
-    const user = userEvent.setup();
     renderApp();
     const nav = await screen.findByRole("navigation", { name: /primary/i });
 
