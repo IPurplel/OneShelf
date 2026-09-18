@@ -65,6 +65,7 @@ class Scenario:
     retry_after: int = 2
     valid_sessions: set[str] = field(default_factory=set)
     file_version: int = 1
+    markup_version: int = 1     # 2 renames the generator-facing classes (adapter repair testing)
     cookie_log: dict[str, list[str | None]] = field(default_factory=lambda: defaultdict(list))
     request_log: list[str] = field(default_factory=list)
 
@@ -240,6 +241,44 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
         return web.Response(content_type="text/html",
                             text=f"<html><body><ul class='results'></ul><script>{script}</script></body></html>")
 
+    async def gen_search(request: web.Request) -> web.Response:
+        """Conventional static search results linking to the static work pages (generator discovery)."""
+        q = request.query.get("q", "").strip().lower()
+        hits = [(k, w) for k, w in WORKS.items() if q and (q in w["title"].lower() or q in k)]
+        items = "".join(
+            f"<li class='result'><a class='title' href='/gen/work/{k}'>{w['title']}</a>"
+            f"<span class='type'>{w['type']}</span><span class='lang'>{w['language']}</span>"
+            f"<img class='cover' src='//{CDN_HOST}/covers/{k}.png'></li>" for k, w in hits)
+        return web.Response(content_type="text/html",
+                            text=f"<html><body><ul class='results'>{items}</ul></body></html>")
+
+    async def gen_work(request: web.Request) -> web.Response:
+        """A conventional static work page: title, cover and linked chapters (generator discovery)."""
+        key = request.match_info["work"]
+        w = WORKS.get(key)
+        if w is None:
+            raise web.HTTPNotFound()
+        units = units_for(key, scenario)[:6]
+        item_class = "chapter" if scenario.markup_version == 1 else "ch-row"
+        chapters = "".join(
+            f"<li class='{item_class}'><a href='/gen/chapter/{u['id']}'>{u['title']}</a>"
+            f"<time datetime='{u.get('published_at', '2026-01-01')}'>{u.get('published_at', '2026-01-01')}</time></li>"
+            for u in units)
+        return web.Response(content_type="text/html", text=(
+            f"<html><head><meta property='og:image' content='//{CDN_HOST}/covers/{key}.png'></head><body>"
+            f"<h1 class='title'>{w['title']}</h1><div class='meta'><span class='type'>{w['type']}</span>"
+            f"<span class='lang'>{w['language']}</span></div>"
+            f"<ul class='chapters'>{chapters}</ul></body></html>"))
+
+    async def gen_chapter(request: web.Request) -> web.Response:
+        unit = request.match_info["unit"]
+        image_class = "page" if scenario.markup_version == 1 else "pg-img"
+        images = "".join(f"<img class='{image_class}' src='//{CDN_HOST}/img/{unit}/{i}.png' alt='Page {i}'>"
+                         for i in range(1, 4))
+        return web.Response(content_type="text/html",
+                            text=f"<html><body><div class='reader'>{images}</div>"
+                                 f"<script src='//tracker.example/ads.js'></script></body></html>")
+
     async def probe(request: web.Request) -> web.Response:
         targets = [t for t in request.query.getall("t", []) if t]
         tags = "".join(f"<img src='{t}'><iframe src='{t}'></iframe>" for t in targets)
@@ -271,6 +310,8 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
         web.get("/redirect-out", redirect_out), web.get("/login", login_form), web.post("/login", login_submit),
         web.get("/account", account), web.get("/health", health), web.post("/__control", control),
         web.get("/js-search", js_search), web.get("/probe", probe), web.get("/redirect-to", redirect_to),
+        web.get("/gen/search", gen_search), web.get("/gen/work/{work}", gen_work),
+        web.get("/gen/chapter/{unit}", gen_chapter),
     ])
     return app
 
