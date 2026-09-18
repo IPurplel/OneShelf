@@ -436,3 +436,14 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 .restore__counts, .restore__plugins, .restore__issues { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
 .restore__plugins li { display: flex; gap: var(--space-3); align-items: baseline; }
 .import__review { display: grid; gap: var(--space-4); margin-top: var(--space-4); }
+
+/* A Recovery Code is shown once, so it is given room and set in a face that cannot confuse 0 and O. */
+.remote__code { margin: var(--space-4) 0; padding: var(--space-4); border: 1px solid var(--wood-500);
+                border-radius: var(--radius-2); background: var(--ivory-100); display: grid; gap: var(--space-2); }
+.remote__codeValue { font-family: ui-monospace, "SFMono-Regular", "Menlo", monospace; font-size: 20px;
+                     letter-spacing: 0.08em; word-break: break-all; }
+.remote__code p { margin: 0; color: var(--ink-700); }
+
+.wizard__steps { list-style: none; display: flex; gap: var(--space-4); margin: 0 0 var(--space-5); padding: 0;
+                 color: var(--ink-300); font-size: 14px; }
+.wizard__steps li[aria-current="step"] { color: var(--forest-600); font-weight: 600; }

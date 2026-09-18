@@ -5,6 +5,7 @@ import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import type { Track, Unit, WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
+import { ExportWizard } from "@/features/export/ExportWizard";
 
 type Tab = "read" | "details" | "sources";
 
@@ -21,6 +22,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("read");
   const [trackId, setTrackId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${id}`,
     trackId ? { track_id: trackId } : undefined);
 
@@ -83,6 +85,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
                     onClick={() => toggle(api.post(`/api/shelf/${id}`, { pinned: !shelf.pinned }))}>
               {t("work.pin")}
             </button>
+            <button type="button" className="button" onClick={() => setExporting(true)}>{t("export.open")}</button>
           </div>
         </div>
       </header>
@@ -98,6 +101,8 @@ export function WorkScreen({ workId }: { workId?: string }) {
 
       {tab === "read" && <UnitIndex units={units} />}
       {tab === "details" && <Details data={data} />}
+      {exporting && <ExportWizard workId={id} onClose={() => setExporting(false)} />}
+
       {tab === "sources" && (
         <Sources tracks={tracks} selected={data.selected_track_id} onChoose={(track) => setTrackId(track.id)} />
       )}
