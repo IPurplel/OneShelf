@@ -6,7 +6,10 @@ import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
 import { bytes } from "@/lib/format";
 
-type Backup = { path: string; kind: "library" | "full"; created_at: string; size_bytes: number; verified: boolean };
+type Backup = {
+  id: string; path: string; kind: "library" | "full"; created_at: string;
+  verified_at: string | null; size_bytes: number; present: boolean;
+};
 
 type BackupsResponse = {
   backups: Backup[];
@@ -94,11 +97,17 @@ export function BackupPanel() {
           <li key={backup.path} className="cards__row">
             <span className="cards__name display">{t(`backup.kind.${backup.kind}` as StringKey)}</span>
             <span className="cards__meta">{new Date(backup.created_at).toLocaleString()}</span>
-            <span className="cards__meta">{bytes(backup.size_bytes)}</span>
-            {backup.verified && <span className="cards__ok">{t("backup.verified")}</span>}
-            <button type="button" className="chip" onClick={() => void openRestore(backup)}>
-              {t("backup.restore")}
-            </button>
+            {backup.present ? (
+              <>
+                <span className="cards__meta">{bytes(backup.size_bytes)}</span>
+                {backup.verified_at !== null && <span className="cards__ok">{t("backup.verified")}</span>}
+                <button type="button" className="chip" onClick={() => void openRestore(backup)}>
+                  {t("backup.restore")}
+                </button>
+              </>
+            ) : (
+              <span className="cards__warn">{t("backup.missing")}</span>
+            )}
           </li>
         ))}
       </ul>

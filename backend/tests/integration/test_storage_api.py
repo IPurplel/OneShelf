@@ -64,6 +64,10 @@ def test_backup_restore_round_trip(api):
     assert Path(created["path"]).exists() and created["kind"] == "full"
     listing = client.get("/api/backups").json()
     assert listing["due"] is False and listing["location_warning"]["same_device_as_library"] is True
+    # The list is read by a person: how big the archive is, and whether the file is still there (§33.4).
+    entry = listing["backups"][0]
+    assert entry["size_bytes"] == Path(created["path"]).stat().st_size
+    assert entry["present"] is True
 
     client.delete(f"/api/shelf/{outcome['work_id']}")
     assert client.get("/api/shelf").json()["entries"] == []

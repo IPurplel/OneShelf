@@ -264,7 +264,7 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 .units__number { color: var(--ink-300); font-variant-numeric: tabular-nums; text-align: end; }
 .units__title { font-family: var(--font-display); font-size: 17px; }
 .units__state { color: var(--ink-500); font-size: 14px; }
-.units__badge { color: var(--olive-600); font-size: 13px; }
+.units__badge { color: var(--olive-700); font-size: 13px; }
 .units__action { border: 0; background: transparent; color: var(--forest-600); font: inherit; cursor: pointer; }
 
 .details { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-5);
@@ -310,7 +310,7 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 }
 .journal__work { font-family: var(--font-display); color: inherit; }
 .journal__source, .journal__when, .journal__state { color: var(--ink-500); font-size: 14px; }
-.journal__badge { color: var(--olive-600); font-weight: 600; }
+.journal__badge { color: var(--olive-700); font-weight: 600; }
 .journal__row .chip { margin-inline-start: auto; }
 
 /* Downloads: operational panels, muted olive progress, no shelves (§32.11). */
@@ -341,7 +341,7 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
   padding: var(--space-6);
   background: var(--paper);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-raised);
+  box-shadow: var(--shadow-raised), 0 0 0 100vmax rgb(26 32 26 / 38%);
 }
 .confirm h2 { margin: 0 0 var(--space-3); font-size: 21px; }
 .confirm p { margin: 0 0 var(--space-5); color: var(--ink-700); }
@@ -364,7 +364,7 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 .cards__state { color: var(--ink-700); font-size: 14px; }
 .cards__state--disabled, .cards__state--failed { color: var(--ink-300); }
 .cards__warn { color: var(--warning-600); font-size: 14px; }
-.cards__ok { color: var(--olive-600); font-size: 14px; }
+.cards__ok { color: var(--olive-700); font-size: 14px; }
 .cards__row .chip { margin-inline-start: auto; }
 .drawer__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
 
@@ -416,7 +416,7 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 }
 .notes__row[data-seen="false"] { background: var(--ivory-200); }
 .notes__title { font-family: var(--font-display); }
-.notes__count { color: var(--olive-600); font-variant-numeric: tabular-nums; }
+.notes__count { color: var(--olive-700); font-variant-numeric: tabular-nums; }
 .notes__summary { grid-column: 1 / -1; color: var(--ink-500); font-size: 14px; }
 
 /* First run: a warm welcome, one decision at a time (§32.17). */
@@ -425,7 +425,12 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 .firstrun__title { margin: 0; font-size: clamp(26px, 3vw, 34px); }
 .firstrun__lede { margin: 0; color: var(--ink-500); }
 .firstrun__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); }
-.field__label { display: grid; gap: var(--space-2); color: var(--ink-700); }
+.field__label { display: grid; gap: var(--space-2); color: var(--ink-700);
+                margin-block-start: var(--space-4); }
+.field__label:first-child { margin-block-start: 0; }
+/* A panel reads as a document: its own headings keep air above them. */
+.paper > h3 { margin-block: var(--space-5) var(--space-2); font-family: var(--font-display);
+              font-size: 17px; }
 .field--area { min-block-size: 84px; padding: var(--space-3); font: inherit; }
 .panel__choiceTitle { display: block; }
 .panel__choiceHelp { display: block; color: var(--ink-500); font-size: 14px; }
@@ -444,9 +449,9 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
                                                    font-family: var(--font-display); font-size: 17px; }
 .gen__states { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .gen__states li { display: flex; align-items: center; gap: var(--space-2); }
-.chip--confirmed { background: var(--olive-600); color: var(--ivory-100); }
-.chip--probable { background: var(--wood-500); color: var(--ivory-100); }
-.chip--unsupported { background: var(--ink-300); color: var(--ivory-100); }
+.chip--confirmed { background: var(--olive-700); color: var(--ivory-100); }
+.chip--probable { background: var(--wood-600); color: var(--ivory-100); }
+.chip--unsupported { background: var(--ink-500); color: var(--ivory-100); }
 .gen__inspector { display: grid; gap: var(--space-4); margin-top: var(--space-3);
                   padding: var(--space-4); background: var(--ivory-100); border-radius: var(--radius-2); }
 .gen__fields { inline-size: 100%; border-collapse: collapse; font-size: 14px; }
@@ -475,5 +480,5 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 .remote__code p { margin: 0; color: var(--ink-700); }
 
 .wizard__steps { list-style: none; display: flex; gap: var(--space-4); margin: 0 0 var(--space-5); padding: 0;
-                 color: var(--ink-300); font-size: 14px; }
+                 color: var(--ink-500); font-size: 14px; }
 .wizard__steps li[aria-current="step"] { color: var(--forest-600); font-weight: 600; }

@@ -9,10 +9,12 @@ import { get, mockApi, post } from "@/test/http";
 
 const BACKUPS = {
   backups: [
-    { path: "/backups/library-2026-09-18.osbackup", kind: "library", created_at: "2026-09-18T03:00:00+00:00",
-      size_bytes: 24_000_000, verified: true },
-    { path: "/backups/library-2026-09-11.osbackup", kind: "library", created_at: "2026-09-11T03:00:00+00:00",
-      size_bytes: 23_500_000, verified: true },
+    { id: "b1", path: "/backups/library-2026-09-18.osbackup", kind: "library", checksum: "a".repeat(64),
+      created_at: "2026-09-18T03:00:00+00:00", verified_at: "2026-09-18T03:01:00+00:00", counts: {},
+      size_bytes: 24_000_000, present: true },
+    { id: "b2", path: "/backups/library-2026-09-11.osbackup", kind: "library", checksum: "b".repeat(64),
+      created_at: "2026-09-11T03:00:00+00:00", verified_at: null, counts: {},
+      size_bytes: 0, present: false },
   ],
   due: false,
   location_warning: { same_device_as_library: true, message: "Backups sit on the same disk as your library." },
@@ -42,7 +44,9 @@ describe("Backup", () => {
   it("makes a library backup, and a full one only when works are chosen", async () => {
     const calls = mockApi([
       get("/api/backups", BACKUPS),
-      post("/api/backups", { path: "/backups/new.osbackup", kind: "library", verified: true }),
+      post("/api/backups", { id: "b3", path: "/backups/new.osbackup", kind: "library",
+                             checksum: "c".repeat(64), created_at: "2026-09-18T12:00:00+00:00",
+                             verified_at: "2026-09-18T12:00:01+00:00", counts: {} }),
     ]);
     const user = userEvent.setup();
     renderWithProviders(<BackupPanel />);
@@ -98,5 +102,15 @@ describe("Backup", () => {
     const dialog = await screen.findByRole("dialog", { name: /restore/i });
     expect(await within(dialog).findByText(/newer OneShelf/i)).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: /^restore$/i })).not.toBeInTheDocument();
+  });
+
+  it("says when an archive's file is no longer where it was", async () => {
+    mockApi([get("/api/backups", BACKUPS)]);
+    renderWithProviders(<BackupPanel />);
+
+    const rows = await screen.findAllByRole("listitem");
+    expect(within(rows[1]!).getByText(/no longer at that location/i)).toBeInTheDocument();
+    expect(within(rows[1]!).queryByRole("button", { name: /restore/i })).not.toBeInTheDocument();
+    expect(within(rows[0]!).getByText(/23 MB/)).toBeInTheDocument();
   });
 });

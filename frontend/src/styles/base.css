@@ -49,3 +49,18 @@ a { color: inherit; }
   transition: top var(--motion-fast) var(--ease);
 }
 .skip-link:focus { top: var(--space-4); }
+
+/* Form controls wear the library's own colours rather than the browser's default blue. */
+input, select, textarea { accent-color: var(--forest-600); }
+input[type="file"] { padding: var(--space-2); }
+input[type="file"]::file-selector-button {
+  font: inherit;
+  margin-inline-end: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  color: var(--ink-700);
+  background: var(--ivory-100);
+  border: 1px solid var(--ivory-200);
+  border-radius: 999px;
+  cursor: pointer;
+}
+input[type="file"]::file-selector-button:hover { background: var(--ivory-50); }

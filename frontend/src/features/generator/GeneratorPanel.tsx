@@ -248,6 +248,9 @@ export function GeneratorPanel() {
 
       <h3 className="display">{t("gen.repair")}</h3>
       <p className="cards__meta">{t("gen.repairHelp")}</p>
+      {sources !== null && sources.sources.length === 0 && (
+        <p className="shelf__empty">{t("sources.empty")}</p>
+      )}
       <ul className="cards">
         {(sources?.sources ?? []).map((source) => (
           <li key={source.id} className="cards__row">

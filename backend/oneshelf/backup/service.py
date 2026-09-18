@@ -22,7 +22,6 @@ from pathlib import Path
 from oneshelf.db.connection import open_database, transaction
 from oneshelf.db.migrate import current_version
 from oneshelf.db.schema import MIGRATIONS
-from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.storage.paths import resolve_within
@@ -153,7 +152,9 @@ class BackupService:
                 path.unlink(missing_ok=True)
                 raise BackupError(f"backup verification failed: {result.reason}")
             checksum = hashlib.sha256(path.read_bytes()).hexdigest()
-            record_id, now = new_id(), utcnow_iso()
+            # The record is stamped from the same clock `due()` reads, so the schedule cannot drift
+            # away from the archives it is scheduling.
+            record_id, now = new_id(), self.clock().isoformat()
             with transaction(self.conn):
                 self.conn.execute(
                     "INSERT INTO backup_records (id, kind, state, location, checksum, created_at, verified_at)"

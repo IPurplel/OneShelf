@@ -173,10 +173,20 @@ class BackupBody(BaseModel):
     location: str | None = None
 
 
+def _backup_view(record) -> dict:
+    """An archive is a file on a disk: say how big it is, and say plainly when it is no longer there."""
+    view = asdict(record)
+    path = Path(record.path)
+    stat = path.stat() if path.is_file() else None
+    view["size_bytes"] = stat.st_size if stat else 0
+    view["present"] = stat is not None
+    return view
+
+
 @router.get("/backups")
 async def list_backups(request: Request):
     s = services(request)
-    return {"backups": [asdict(b) for b in s.backups.list_backups()], "due": s.backups.due(),
+    return {"backups": [_backup_view(b) for b in s.backups.list_backups()], "due": s.backups.due(),
             "location_warning": s.backups.location_warning(s.backups.backup_dir)}
 
 

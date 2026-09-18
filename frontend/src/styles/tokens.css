@@ -8,6 +8,8 @@
   --forest-600: #24402c;      /* hero panel */
   --forest-500: #2f5238;
   --olive-600: #6f8f5e;       /* primary action, progress fill */
+  --olive-700: #4c6b3c;       /* the same olive, dark enough to read as small text (WCAG AA) */
+  --wood-600: #6f5336;        /* the same wood, dark enough to carry ivory text */
   --olive-500: #7d9c62;
   --olive-300: #a8bf8e;
   --ivory-50: #faf6ec;
@@ -22,7 +24,7 @@
   --ink-500: #6b665a;
   --ink-300: #9c968a;
   --danger-600: #8c3b2e;
-  --warning-600: #97701f;
+  --warning-600: #856219;     /* amber, dark enough to read as small text on ivory as well as paper */
 
   --font-display: "Noto Serif", "Noto Naskh Arabic", "Iowan Old Style", Palatino, Georgia, ui-serif, serif;
   --font-ui: system-ui, -apple-system, "Segoe UI", "Noto Sans", "Noto Naskh Arabic", sans-serif;
