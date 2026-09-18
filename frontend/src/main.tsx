@@ -7,6 +7,7 @@ import { NotificationProvider } from "@/app/notifications";
 import { I18nProvider } from "@/i18n/i18n";
 import "@/styles/base.css";
 import "@/styles/shell.css";
+import "@/styles/library.css";
 
 const container = document.getElementById("root");
 if (container === null) throw new Error("missing #root");

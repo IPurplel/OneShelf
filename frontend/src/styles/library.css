@@ -1,0 +1,134 @@
+/* Library surfaces: wooden shelves, dominant covers, restrained shadows (Master §32.5–32.6). */
+.hero {
+  position: relative;
+  display: flex;
+  gap: var(--space-5);
+  align-items: flex-end;
+  min-height: 260px;
+  margin-bottom: var(--space-6);
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background:
+    linear-gradient(105deg, rgba(22, 40, 31, 0.92) 12%, rgba(22, 40, 31, 0.55) 55%, rgba(22, 40, 31, 0.15)),
+    linear-gradient(180deg, var(--forest-600), var(--forest-800));
+  color: var(--ivory-50);
+  box-shadow: var(--shadow-card);
+}
+.hero__art {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  z-index: -1;
+  opacity: 0.9;
+  transition: opacity var(--motion-slow) var(--ease);
+}
+.hero__body { position: relative; max-inline-size: 46ch; display: grid; gap: var(--space-3); }
+.hero__reason { margin: 0; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--olive-300); }
+.hero__title { margin: 0; font-size: clamp(26px, 3.4vw, 40px); }
+.hero__progress { margin: 0; color: rgba(247, 241, 228, 0.8); font-variant-numeric: tabular-nums; }
+
+.shelf { margin-bottom: var(--space-7); }
+.shelf__title { font-size: 20px; margin: 0 0 var(--space-4); }
+.shelf__row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 168px;
+  gap: var(--space-5);
+  overflow-x: auto;
+  padding-bottom: var(--space-4);
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.shelf__row > * { scroll-snap-align: start; }
+/* The plank: warm wood, a shadow under the covers, never cartoon skeuomorphism. */
+.shelf__plank {
+  height: 14px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--wood-300), var(--wood-500) 55%, var(--wood-700));
+  box-shadow: 0 6px 14px rgba(107, 74, 44, 0.28);
+}
+
+.workcard {
+  display: grid;
+  gap: var(--space-2);
+  text-decoration: none;
+  color: inherit;
+  transition: transform var(--motion-fast) var(--ease);
+}
+a.workcard:hover { transform: translateY(-3px); }        /* a 2–4px lift, nothing more (§32.20) */
+
+.workcard__cover {
+  position: relative;
+  display: block;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--ivory-200), var(--ivory-100));
+  box-shadow: var(--shadow-card);
+}
+.workcard__cover img { inline-size: 100%; block-size: 100%; object-fit: cover; display: block; }
+.workcard__blank {
+  display: block;
+  block-size: 100%;
+  background:
+    repeating-linear-gradient(115deg, transparent 0 18px, rgba(107, 122, 74, 0.05) 18px 20px),
+    var(--ivory-200);
+}
+.workcard__progress {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 4px;
+  background: rgba(28, 27, 24, 0.18);
+}
+.workcard__progress > span { display: block; block-size: 100%; background: var(--olive-500); }
+
+.workcard__title { font-size: 15px; line-height: 1.35; }
+.workcard__meta { display: flex; flex-wrap: wrap; gap: var(--space-2); color: var(--ink-500); font-size: 13px; }
+.workcard__meta > span + span::before { content: "·"; margin-inline-end: var(--space-2); }
+
+.workcard--compact .workcard__title { font-size: 14px; }
+.workcard--detailed { grid-template-columns: 96px 1fr; gap: var(--space-4); }
+
+/* System surfaces: warm paper, no shelves (§32.5). */
+.empty {
+  max-inline-size: 60ch;
+  margin-top: var(--space-6);
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--paper);
+  box-shadow: var(--shadow-card);
+}
+.empty__title { margin: 0 0 var(--space-2); font-size: 22px; }
+.empty__body { margin: 0 0 var(--space-5); color: var(--ink-500); }
+.empty__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 42px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--ivory-200);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink-900);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease);
+}
+.button:hover { background: var(--ivory-100); }
+.button--primary { background: var(--forest-600); border-color: var(--forest-600); color: var(--ivory-50); }
+.button--primary:hover { background: var(--forest-500); }
+
+.notice {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  box-shadow: var(--shadow-card);
+}
+.notice--problem { border-inline-start: 4px solid var(--warning-600); }

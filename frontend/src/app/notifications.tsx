@@ -18,7 +18,8 @@ export function NotificationProvider({ children, initial }: { children: ReactNod
   const refresh = useCallback(async () => {
     try {
       const payload = await api.get<NotificationsResponse>("/api/notifications");
-      setCounts({ unseen: payload.unseen, attention: payload.attention });
+      const unseen = payload.notifications.filter((item) => !item.seen).length;
+      setCounts({ unseen, attention: payload.needs_attention });
     } catch {
       // A failed refresh leaves the last known counts alone rather than clearing the badge.
     }
