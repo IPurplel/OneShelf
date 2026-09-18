@@ -43,3 +43,4 @@ in a session where a browser can start.
 | Date | Event |
 |---|---|
 | 2026-09-18 | Plan created from the reconciled matrix; WP-R1 started. |
+| 2026-09-18 | WP-R1 verified and committed (`d8a21a4`); M26.15 → VERIFIED. Stopped for approval before WP-L1. |
