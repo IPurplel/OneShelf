@@ -30,6 +30,15 @@ export function Sidebar() {
           ))}
         </ul>
       </nav>
+      <div className="sidebar__footer" aria-hidden="true">
+        <svg className="sidebar__botanical" viewBox="0 0 120 160" fill="none" stroke="currentColor" strokeWidth="1.2">
+          <path d="M60 158V54M60 92c0-18 13-32 31-36-2 20-14 33-31 36zM60 92c0-18-13-32-31-36 2 20 14 33 31 36z" />
+          <path d="M60 62c0-16 11-28 27-31-2 17-12 28-27 31zM60 62c0-16-11-28-27-31 2 17 12 28 27 31z" />
+          <path d="M60 124c0-16 11-28 27-31-2 17-12 28-27 31zM60 124c0-16-11-28-27-31 2 17 12 28 27 31z" />
+        </svg>
+        <p className="sidebar__note">{t("app.sidebarNote")}</p>
+        <span className="sidebar__rule" />
+      </div>
     </div>
   );
 }

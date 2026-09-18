@@ -1,20 +1,43 @@
 /* Library surfaces: wooden shelves, dominant covers, restrained shadows (Master §32.5–32.6). */
 .hero {
   position: relative;
-  display: flex;
-  gap: var(--space-5);
-  align-items: flex-end;
-  min-height: 260px;
-  margin-bottom: var(--space-6);
-  padding: var(--space-6);
+  min-height: 248px;
+  margin-bottom: var(--space-7);
+  padding: var(--space-5) var(--space-6);
   border-radius: var(--radius-lg);
   overflow: hidden;
   background:
-    linear-gradient(105deg, rgba(22, 40, 31, 0.92) 12%, rgba(22, 40, 31, 0.55) 55%, rgba(22, 40, 31, 0.15)),
-    linear-gradient(180deg, var(--forest-600), var(--forest-800));
+    radial-gradient(120% 140% at 85% 20%, rgba(168, 191, 142, 0.22), transparent 60%),
+    radial-gradient(90% 120% at 100% 100%, rgba(111, 143, 94, 0.18), transparent 55%),
+    var(--forest-600);
   color: var(--ivory-50);
   box-shadow: var(--shadow-card);
 }
+.hero::after {
+  /* The artwork bleeds in from the far side and fades under the text, as in the reference. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--forest-600) 34%, rgba(36, 64, 44, 0.72) 52%, rgba(36, 64, 44, 0.08));
+  pointer-events: none;
+}
+[dir="rtl"] .hero::after {
+  background: linear-gradient(270deg, var(--forest-600) 34%, rgba(36, 64, 44, 0.72) 52%, rgba(36, 64, 44, 0.08));
+}
+.hero__inner { position: relative; z-index: 1; display: flex; gap: var(--space-5); align-items: center; }
+.hero__cover {
+  flex: 0 0 auto;
+  inline-size: 150px;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: rgba(250, 246, 236, 0.12);
+  box-shadow: var(--shadow-raised);
+}
+.hero__cover img { inline-size: 100%; block-size: 100%; object-fit: cover; display: block; }
+.hero__blank { display: block; block-size: 100%; }
+.hero__action { align-self: flex-start; gap: var(--space-2); }
+.hero__play { display: inline-flex; }
 .hero__art {
   position: absolute;
   inset: 0;
@@ -25,73 +48,111 @@
   opacity: 0.9;
   transition: opacity var(--motion-slow) var(--ease);
 }
-.hero__body { position: relative; max-inline-size: 46ch; display: grid; gap: var(--space-3); }
-.hero__reason { margin: 0; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--olive-300); }
-.hero__title { margin: 0; font-size: clamp(26px, 3.4vw, 40px); }
-.hero__progress { margin: 0; color: rgba(247, 241, 228, 0.8); font-variant-numeric: tabular-nums; }
+.hero__body { max-inline-size: 46ch; display: grid; gap: var(--space-3); justify-items: start; }
+.hero__reason { margin: 0; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--olive-300); }
+.hero__title { margin: 0; font-size: clamp(28px, 3.2vw, 40px); }
+.hero__description { margin: 0; color: rgba(250, 246, 236, 0.82); max-inline-size: 44ch; }
+.hero__progress { margin: 0; color: rgba(250, 246, 236, 0.75); font-variant-numeric: tabular-nums; }
 
 .shelf { margin-bottom: var(--space-7); }
-.shelf__title { font-size: 20px; margin: 0 0 var(--space-4); }
+.shelf__head { display: flex; align-items: baseline; gap: var(--space-4); margin-bottom: var(--space-4); }
+.shelf__title { font-size: 28px; margin: 0; }
+.shelf__viewall { margin-inline-start: auto; color: var(--ink-500); text-decoration: none; font-size: 14px; }
+.shelf__viewall:hover { color: var(--forest-600); }
+
+.shelf__case { position: relative; }
+.shelf__case > .shelf__plank { position: absolute; }
+.shelf--recessed .shelf__case {
+  background: linear-gradient(180deg, rgba(250, 246, 236, 0.72), rgba(250, 246, 236, 0.35));
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-4) 0;
+}
 .shelf__row {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 168px;
-  gap: var(--space-5);
+  grid-auto-columns: 150px;
+  grid-template-rows: 214px auto;
+  column-gap: var(--space-5);
   overflow-x: auto;
-  padding-bottom: var(--space-4);
+  overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
   scrollbar-width: thin;
+  align-items: end;
+  padding-bottom: var(--space-2);
 }
+.shelf--compactRow .shelf__row { grid-auto-columns: 118px; grid-template-rows: 168px auto; }
+/* On My Shelf the rows do not scroll: they fill the width and wrap into further shelves. */
+.shelf__row--wrap { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); overflow: visible; }
+.shelfview .shelf__case { margin-bottom: var(--space-6); }
 .shelf__row > * { scroll-snap-align: start; }
-/* The plank: warm wood, a shadow under the covers, never cartoon skeuomorphism. */
+/* The plank: warm wood under the covers, a soft shadow, never cartoon skeuomorphism. */
 .shelf__plank {
-  height: 14px;
-  border-radius: 3px;
-  background: linear-gradient(180deg, var(--wood-300), var(--wood-500) 55%, var(--wood-700));
-  box-shadow: 0 6px 14px rgba(107, 74, 44, 0.28);
+  position: absolute;
+  inset-inline: 0;
+  top: 214px;                       /* the line the covers stand on */
+  height: 9px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--wood-300), var(--wood-500) 45%, var(--wood-700));
+  box-shadow: 0 8px 16px rgba(111, 83, 53, 0.22);
+  pointer-events: none;
 }
+.shelf--compactRow .shelf__plank { top: 168px; }
+.shelf--recessed .shelf__plank { inset-inline: var(--space-4); top: calc(214px + var(--space-4)); }
 
-.workcard {
-  display: grid;
-  gap: var(--space-2);
-  text-decoration: none;
-  color: inherit;
-  transition: transform var(--motion-fast) var(--ease);
-}
-a.workcard:hover { transform: translateY(-3px); }        /* a 2–4px lift, nothing more (§32.20) */
+.workcard { display: grid; gap: 0; color: inherit; text-decoration: none; align-content: start; }
+.shelf__row .workcard { display: contents; }
+.workcard__cover { transition: transform var(--motion-fast) var(--ease); }
+a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4px lift, nothing more (§32.20) */
+.workcard__caption { display: grid; gap: 2px; padding-top: var(--space-4); align-content: start; }
 
 .workcard__cover {
   position: relative;
   display: block;
+  align-self: end;
+  max-block-size: 100%;
   aspect-ratio: 2 / 3;
-  border-radius: var(--radius-md);
+  border-radius: 4px;
   overflow: hidden;
   background: linear-gradient(160deg, var(--ivory-200), var(--ivory-100));
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 10px 18px rgba(31, 29, 26, 0.18), 0 2px 4px rgba(31, 29, 26, 0.12);
+}
+/* A hint of a spine, so a cover reads as a book rather than a tile. */
+.workcard__cover::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 7px;
+  background: linear-gradient(90deg, rgba(31, 29, 26, 0.22), rgba(31, 29, 26, 0.04) 60%, transparent);
+  pointer-events: none;
 }
 .workcard__cover img { inline-size: 100%; block-size: 100%; object-fit: cover; display: block; }
 .workcard__blank {
-  display: block;
+  display: grid;
+  place-items: center;
   block-size: 100%;
+  font-family: var(--font-display);
+  font-size: 34px;
+  color: rgba(31, 29, 26, 0.18);
   background:
-    repeating-linear-gradient(115deg, transparent 0 18px, rgba(107, 122, 74, 0.05) 18px 20px),
+    repeating-linear-gradient(115deg, transparent 0 18px, rgba(111, 143, 94, 0.05) 18px 20px),
     var(--ivory-200);
 }
-.workcard__progress {
-  position: absolute;
-  inset-inline: 0;
-  inset-block-end: 0;
-  block-size: 4px;
-  background: rgba(28, 27, 24, 0.18);
-}
-.workcard__progress > span { display: block; block-size: 100%; background: var(--olive-500); }
 
 .workcard__title { font-size: 15px; line-height: 1.35; }
 .workcard__meta { display: flex; flex-wrap: wrap; gap: var(--space-2); color: var(--ink-500); font-size: 13px; }
+.workcard__kind { text-transform: capitalize; }
 .workcard__meta > span + span::before { content: "·"; margin-inline-end: var(--space-2); }
 
+.workcard__progress { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.workcard__track { flex: 1; block-size: 4px; border-radius: 2px; background: rgba(31, 29, 26, 0.12); overflow: hidden; }
+.workcard__track > span { display: block; block-size: 100%; background: var(--olive-600); }
+.workcard__percent { color: var(--ink-300); font-size: 12px; font-variant-numeric: tabular-nums; }
+
 .workcard--compact .workcard__title { font-size: 14px; }
-.workcard--detailed { grid-template-columns: 96px 1fr; gap: var(--space-4); }
+.workcard--detailed { display: grid; grid-template-columns: 96px 1fr; gap: var(--space-4); align-items: start; }
+
+.home__pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: var(--space-6); }
 
 /* System surfaces: warm paper, no shelves (§32.5). */
 .empty {
@@ -170,8 +231,8 @@ a.workcard:hover { transform: translateY(-3px); }        /* a 2–4px lift, noth
 }
 .iconbutton[aria-pressed="true"] { background: var(--ivory-200); }
 
-.shelf__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-5); }
-.shelf__list { display: grid; gap: var(--space-3); }
+.shelfview__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-6) var(--space-5); }
+.shelfview__list { display: grid; gap: var(--space-3); }
 .shelf__empty { color: var(--ink-500); }
 
 /* Work Details: a smaller hero-like header and an index, not a table (§32.8). */
@@ -330,4 +391,15 @@ a.workcard:hover { transform: translateY(-3px); }        /* a 2–4px lift, noth
 @media (max-width: 899px) {
   .settings__layout { grid-template-columns: 1fr; }
   .settings__nav { grid-auto-flow: column; overflow-x: auto; }
+}
+
+@media (max-width: 899px) {
+  .hero { min-height: 0; padding: var(--space-4); }
+  .hero__cover { inline-size: 104px; }
+  .hero__title { font-size: 24px; }
+  .shelf__row { grid-auto-columns: 124px; grid-template-rows: 178px auto; }
+  .shelf__plank { top: 178px; }
+  .shelf--compactRow .shelf__row { grid-auto-columns: 104px; grid-template-rows: 150px auto; }
+  .shelf--compactRow .shelf__plank { top: 150px; }
+  .shelf__title { font-size: 22px; }
 }

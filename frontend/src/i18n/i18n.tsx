@@ -35,6 +35,15 @@ export function I18nProvider({ children, language: preferred }: { children: Reac
     document.documentElement.dir = direction;
   }, [language, direction]);
 
+  // Load the Arabic faces before anything Arabic is painted, so no one ever sees a row of boxes.
+  useEffect(() => {
+    if (typeof document === "undefined" || !("fonts" in document)) return;
+    const faces = ['400 16px "Noto Naskh Arabic"', '600 16px "Noto Naskh Arabic"'];
+    for (const face of faces) {
+      void document.fonts.load(face, "ا").catch(() => undefined);
+    }
+  }, []);
+
   const setLanguage = useCallback((next: Language) => {
     setLanguageState(next);
     try {

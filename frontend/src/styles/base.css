@@ -18,6 +18,10 @@ h1, h2, h3, .display { font-family: var(--font-display); font-weight: 600; lette
 
 a { color: inherit; }
 
+/* Text marked as Arabic gets an Arabic face first, rather than relying on per-glyph fallback. */
+:lang(ar) { font-family: "Noto Naskh Arabic", var(--font-ui); }
+:lang(ar) h1, :lang(ar) h2, :lang(ar) h3, :lang(ar) .display { font-family: "Noto Naskh Arabic", var(--font-display); }
+
 :focus-visible {
   outline: 3px solid var(--olive-500);
   outline-offset: 2px;

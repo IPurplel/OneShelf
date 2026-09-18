@@ -23,6 +23,7 @@ class LibraryItem:
     title: str
     cover_url: str | None = None
     fraction: float | None = None
+    content_type: str | None = None
 
 
 @dataclass
@@ -39,6 +40,8 @@ class HeroChoice:
     title: str
     work_id: str | None = None
     cover_url: str | None = None
+    description: str | None = None
+    content_type: str | None = None
 
 
 class HomeService:
@@ -51,17 +54,19 @@ class HomeService:
 
     def continue_reading(self) -> list[LibraryItem]:
         rows = self.conn.execute(
-            "SELECT w.id AS work_id, w.display_title, max(rs.updated_at) AS at, rs.fraction FROM reading_state rs"
-            " JOIN reading_units u ON u.id = rs.reading_unit_id JOIN source_tracks t ON t.id = u.track_id"
-            " JOIN works w ON w.id = t.work_id WHERE rs.read_state = 'partial' GROUP BY w.id ORDER BY at DESC LIMIT ?",
+            "SELECT w.id AS work_id, w.display_title, w.content_type, max(rs.updated_at) AS at, rs.fraction"
+            " FROM reading_state rs JOIN reading_units u ON u.id = rs.reading_unit_id"
+            " JOIN source_tracks t ON t.id = u.track_id JOIN works w ON w.id = t.work_id"
+            " WHERE rs.read_state = 'partial' GROUP BY w.id ORDER BY at DESC LIMIT ?",
             (SECTION_LIMIT,)).fetchall()
-        return [LibraryItem(r["work_id"], r["display_title"], fraction=r["fraction"]) for r in rows]
+        return [LibraryItem(r["work_id"], r["display_title"], fraction=r["fraction"],
+                            content_type=r["content_type"]) for r in rows]
 
     def recently_added(self) -> list[LibraryItem]:
         rows = self.conn.execute(
-            "SELECT w.id AS work_id, w.display_title FROM shelf_entries s JOIN works w ON w.id = s.work_id"
-            " ORDER BY s.added_at DESC LIMIT ?", (SECTION_LIMIT,)).fetchall()
-        return [LibraryItem(r["work_id"], r["display_title"]) for r in rows]
+            "SELECT w.id AS work_id, w.display_title, w.content_type FROM shelf_entries s"
+            " JOIN works w ON w.id = s.work_id ORDER BY s.added_at DESC LIMIT ?", (SECTION_LIMIT,)).fetchall()
+        return [LibraryItem(r["work_id"], r["display_title"], content_type=r["content_type"]) for r in rows]
 
     # -- source feeds ------------------------------------------------------------------------------
 
@@ -95,15 +100,25 @@ class HomeService:
         return HomeSections(continue_reading=self.continue_reading(), trending=await self._feed("trending"),
                             latest=await self._feed("latest"), recently_added=self.recently_added())
 
+    def _about(self, work_id: str | None) -> dict:
+        if work_id is None:
+            return {"description": None, "content_type": None}
+        row = self.conn.execute("SELECT description, content_type FROM works WHERE id = ?", (work_id,)).fetchone()
+        return {"description": row["description"] if row else None,
+                "content_type": row["content_type"] if row else None}
+
     async def hero(self) -> HeroChoice | None:
         reading = self.continue_reading()
         if reading:
-            return HeroChoice("continue_reading", reading[0].title, reading[0].work_id, reading[0].cover_url)
+            about = self._about(reading[0].work_id)
+            return HeroChoice("continue_reading", reading[0].title, reading[0].work_id, reading[0].cover_url,
+                              about["description"], about["content_type"])
         pinned = self.conn.execute(
-            "SELECT w.id, w.display_title FROM shelf_entries s JOIN works w ON w.id = s.work_id WHERE s.is_pinned = 1"
-            " ORDER BY s.added_at DESC LIMIT 1").fetchone()
+            "SELECT w.id, w.display_title, w.description, w.content_type FROM shelf_entries s"
+            " JOIN works w ON w.id = s.work_id WHERE s.is_pinned = 1 ORDER BY s.added_at DESC LIMIT 1").fetchone()
         if pinned is not None:
-            return HeroChoice("pinned", pinned["display_title"], pinned["id"])
+            return HeroChoice("pinned", pinned["display_title"], pinned["id"], None, pinned["description"],
+                              pinned["content_type"])
         for kind in FEED_KINDS:
             listings = self._cached_feed(kind)
             if listings:

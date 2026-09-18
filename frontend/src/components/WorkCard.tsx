@@ -12,8 +12,11 @@ export type CardWork = {
 };
 
 /**
- * One logical Work, in three sizes (Master §32.6). The cover stays dominant and availability stays
- * concise: a language and a source count, never every internal state.
+ * One logical Work, in three sizes (Master §32.6, and the approved reference).
+ *
+ * The cover stays dominant and stands on the shelf; below the plank come the title, the kind of work,
+ * and — when there is progress — a slim olive bar with its percentage. Availability stays concise: a
+ * language and a source count, never every internal state.
  */
 export function WorkCard({ work, size = "standard" }: { work: CardWork; size?: "compact" | "standard" | "detailed" }) {
   const { t, language } = useI18n();
@@ -22,35 +25,46 @@ export function WorkCard({ work, size = "standard" }: { work: CardWork; size?: "
   const href = work.work_id ? `/works/${work.work_id}` : undefined;
   const percent = work.fraction === null || work.fraction === undefined ? null : Math.round(work.fraction * 100);
 
-  const body = (
-    <>
-      <span className="workcard__cover" aria-hidden={work.cover_url ? undefined : "true"}>
-        {work.cover_url ? <img src={work.cover_url} alt="" loading="lazy" /> : <span className="workcard__blank" />}
-        {percent !== null && (
-          <span className="workcard__progress" role="presentation">
-            <span style={{ inlineSize: `${percent}%` }} />
-          </span>
-        )}
-      </span>
-      <span className="workcard__title display">{work.title}</span>
+  const cover = (
+    <span className="workcard__cover">
+      {work.cover_url
+        ? <img src={work.cover_url} alt="" loading="lazy" />
+        : <span className="workcard__blank" aria-hidden="true">{work.title.slice(0, 1)}</span>}
+    </span>
+  );
+
+  const caption = (
+    <span className="workcard__caption">
+      <span className="workcard__title">{work.title}</span>
       {size !== "compact" && (
         <span className="workcard__meta">
+          {work.content_type && <span className="workcard__kind">{work.content_type}</span>}
           {languages.length > 0 && (
-            <span>
-              {languages.map(([code]) => new Intl.DisplayNames([language], { type: "language" }).of(code) ?? code)
-                .join(" · ")}
-            </span>
+            <span>{languages.map(([code]) => displayLanguage(code, language)).join(" · ")}</span>
           )}
           {sources > 0 && <span>{sources === 1 ? t("work.source") : t("work.sources", { count: sources })}</span>}
-          {percent !== null && <span>{`${percent}%`}</span>}
         </span>
       )}
-    </>
+      {percent !== null && (
+        <span className="workcard__progress">
+          <span className="workcard__track"><span style={{ inlineSize: `${percent}%` }} /></span>
+          <span className="workcard__percent">{`${percent}%`}</span>
+        </span>
+      )}
+    </span>
   );
 
   return href ? (
-    <Link to={href} className={`workcard workcard--${size}`}>{body}</Link>
+    <Link to={href} className={`workcard workcard--${size}`}>{cover}{caption}</Link>
   ) : (
-    <span className={`workcard workcard--${size}`}>{body}</span>
+    <span className={`workcard workcard--${size}`}>{cover}{caption}</span>
   );
+}
+
+function displayLanguage(code: string, uiLanguage: string): string {
+  try {
+    return new Intl.DisplayNames([uiLanguage], { type: "language" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
 }

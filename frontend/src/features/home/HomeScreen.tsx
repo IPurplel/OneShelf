@@ -45,28 +45,34 @@ export function HomeScreen() {
 
       {data.hero && <Hero hero={data.hero} fraction={data.continue_reading[0]?.fraction ?? null} />}
 
-      {data.continue_reading.length > 0 && !data.hero && (
-        <Shelf id="continue" title={t("home.continue")}>
+      {data.continue_reading.length > 0 && (
+        <Shelf id="continue" title={t("home.continue")} viewAllHref="/shelf">
           {data.continue_reading.map((item) => <WorkCard key={item.work_id} work={item} />)}
         </Shelf>
       )}
 
       {data.trending.length > 0 && (
-        <Shelf id="trending" title={t("home.trending")}>
+        <Shelf id="trending" title={t("home.trending")} viewAllHref="/search" recessed>
           {data.trending.map((result) => <WorkCard key={result.work_id ?? result.title} work={result} />)}
         </Shelf>
       )}
 
-      {data.latest.length > 0 && (
-        <Shelf id="latest" title={t("home.latest")}>
-          {data.latest.map((result) => <WorkCard key={result.work_id ?? result.title} work={result} />)}
-        </Shelf>
-      )}
+      {(data.latest.length > 0 || data.recently_added.length > 0) && (
+        <div className="home__pair">
+          {data.latest.length > 0 && (
+            <Shelf id="latest" title={t("home.latest")} viewAllHref="/search" compactRow>
+              {data.latest.map((result) => (
+                <WorkCard key={result.work_id ?? result.title} work={result} size="compact" />
+              ))}
+            </Shelf>
+          )}
 
-      {data.recently_added.length > 0 && (
-        <Shelf id="recent" title={t("home.recent")}>
-          {data.recently_added.map((item) => <WorkCard key={item.work_id} work={item} />)}
-        </Shelf>
+          {data.recently_added.length > 0 && (
+            <Shelf id="recent" title={t("home.recent")} viewAllHref="/shelf" compactRow>
+              {data.recently_added.map((item) => <WorkCard key={item.work_id} work={item} size="compact" />)}
+            </Shelf>
+          )}
+        </div>
       )}
 
       {!hasAnything && <EmptyLibrary />}
@@ -81,13 +87,26 @@ function Hero({ hero, fraction }: { hero: NonNullable<HomeResponse["hero"]>; fra
   const percent = fraction === null ? null : Math.round(fraction * 100);
 
   return (
-    <section className="hero" role="region" aria-label={label}>
+    <section className="hero" role="region" aria-label={hero.title}>
       {hero.cover_url && <img className="hero__art" src={hero.cover_url} alt="" />}
-      <div className="hero__body">
-        <p className="hero__reason">{label}</p>
-        <h2 className="hero__title display">{hero.title}</h2>
-        {percent !== null && <p className="hero__progress">{`${percent}%`}</p>}
-        {hero.work_id && <Link className="button button--primary" to={`/works/${hero.work_id}`}>{label}</Link>}
+      <div className="hero__inner">
+        <span className="hero__cover" aria-hidden="true">
+          {hero.cover_url ? <img src={hero.cover_url} alt="" /> : <span className="hero__blank" />}
+        </span>
+        <div className="hero__body">
+          <p className="hero__reason">{label}</p>
+          <h2 className="hero__title display">{hero.title}</h2>
+          {hero.description && <p className="hero__description">{hero.description}</p>}
+          {percent !== null && <p className="hero__progress">{`${percent}%`}</p>}
+          {hero.work_id && (
+            <Link className="button button--primary hero__action" to={`/works/${hero.work_id}`}>
+              <span className="hero__play" aria-hidden="true">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M3 1.5 10 6l-7 4.5z" /></svg>
+              </span>
+              {label}
+            </Link>
+          )}
+        </div>
       </div>
     </section>
   );

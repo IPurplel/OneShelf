@@ -1,21 +1,22 @@
 /* OneShelf visual identity (Master §32): personal library + classic reading room + modern web app.
    Deep forest green, warm ivory canvas, muted olive accents, natural wood, restrained shadows. */
 :root {
-  --forest-900: #16281f;
-  --forest-800: #1d3427;
-  --forest-700: #244030;
-  --forest-600: #2f5240;
-  --forest-500: #3d6a53;
-  --olive-600: #6b7a4a;
-  --olive-500: #7f9257;
-  --olive-300: #b7c48f;
-  --ivory-50: #fdfaf3;
-  --ivory-100: #f7f1e4;
-  --ivory-200: #efe6d3;
-  --paper: #fffdf8;
-  --wood-700: #6b4a2c;
-  --wood-500: #8a6238;
-  --wood-300: #b98b56;
+  /* Sampled from the approved reference. */
+  --forest-900: #14231a;
+  --forest-800: #1b2c20;
+  --forest-700: #223528;
+  --forest-600: #24402c;      /* hero panel */
+  --forest-500: #2f5238;
+  --olive-600: #6f8f5e;       /* primary action, progress fill */
+  --olive-500: #7d9c62;
+  --olive-300: #a8bf8e;
+  --ivory-50: #faf6ec;
+  --ivory-100: #f1ece1;       /* main canvas */
+  --ivory-200: #e7dfce;
+  --paper: #fbf8f0;
+  --wood-700: #6f5335;
+  --wood-500: #8a6a45;
+  --wood-300: #ab875c;
   --ink-900: #1c1b18;
   --ink-700: #3a372f;
   --ink-500: #6b665a;
@@ -23,8 +24,8 @@
   --danger-600: #8c3b2e;
   --warning-600: #97701f;
 
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Noto Naskh Arabic", serif;
-  --font-ui: system-ui, -apple-system, "Segoe UI", "Noto Sans Arabic", sans-serif;
+  --font-display: "Noto Serif", "Noto Naskh Arabic", "Iowan Old Style", Palatino, Georgia, ui-serif, serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", "Noto Sans", "Noto Naskh Arabic", sans-serif;
 
   --radius-sm: 6px;
   --radius-md: 12px;
@@ -32,7 +33,7 @@
   --shadow-card: 0 1px 2px rgba(28, 27, 24, 0.06), 0 6px 16px rgba(28, 27, 24, 0.06);
   --shadow-raised: 0 2px 4px rgba(28, 27, 24, 0.08), 0 12px 28px rgba(28, 27, 24, 0.10);
 
-  --sidebar-width: 248px;
+  --sidebar-width: 244px;
   --header-height: 64px;
   --space-1: 4px;
   --space-2: 8px;

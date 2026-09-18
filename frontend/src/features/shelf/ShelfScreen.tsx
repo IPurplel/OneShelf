@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { useResource } from "@/api/useApi";
+import { Icon } from "@/components/Icon";
 import type { ShelfResponse } from "@/api/types";
 import { WorkCard } from "@/components/WorkCard";
 import { useI18n } from "@/i18n/i18n";
@@ -47,24 +48,47 @@ export function ShelfScreen() {
           <input type="search" className="field" aria-label={t("shelf.search")} placeholder={t("shelf.search")}
                  value={query} onChange={(event) => setQuery(event.target.value)} />
           <button type="button" className="iconbutton" aria-pressed={layout === "grid"}
-                  onClick={() => setLayout("grid")} aria-label={t("shelf.layout.grid")}>▦</button>
+                  onClick={() => setLayout("grid")} aria-label={t("shelf.layout.grid")}>
+            <Icon name="grid" size={18} />
+          </button>
           <button type="button" className="iconbutton" aria-pressed={layout === "list"}
-                  onClick={() => setLayout("list")} aria-label={t("shelf.layout.list")}>☰</button>
+                  onClick={() => setLayout("list")} aria-label={t("shelf.layout.list")}>
+            <Icon name="list" size={18} />
+          </button>
         </div>
       </div>
 
       {error !== null && <p className="notice notice--problem" role="alert">{t("state.offline")}</p>}
 
-      <section className="shelf" role="region" aria-label={t("shelf.title")} data-layout={layout}>
+      <section className="shelfview" role="region" aria-label={t("shelf.title")} data-layout={layout}>
         {entries.length === 0 && data !== null && <p className="shelf__empty">{t("shelf.empty")}</p>}
-        <div className={layout === "grid" ? "shelf__grid" : "shelf__list"}>
-          {entries.map((entry) => (
-            <WorkCard key={entry.work_id} size={layout === "list" ? "detailed" : "standard"}
-                      work={{ work_id: entry.work_id, title: entry.title }} />
-          ))}
-        </div>
-        {entries.length > 0 && layout === "grid" && <div className="shelf__plank" aria-hidden="true" />}
+        {layout === "list" ? (
+          <div className="shelfview__list">
+            {entries.map((entry) => (
+              <WorkCard key={entry.work_id} size="detailed" work={{ work_id: entry.work_id, title: entry.title }} />
+            ))}
+          </div>
+        ) : (
+          /* The shelf motif belongs here too (§32.9): works stand in rows on their own planks. */
+          chunk(entries, 6).map((row, index) => (
+            <div className="shelf__case" key={row[0]?.work_id ?? index}>
+              <div className="shelf__row shelf__row--wrap">
+                {row.map((entry) => (
+                  <WorkCard key={entry.work_id} work={{ work_id: entry.work_id, title: entry.title }} />
+                ))}
+              </div>
+              <div className="shelf__plank" aria-hidden="true" />
+            </div>
+          ))
+        )}
       </section>
     </section>
   );
+}
+
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const rows: T[][] = [];
+  for (let index = 0; index < items.length; index += size) rows.push(items.slice(index, index + size));
+  return rows;
 }

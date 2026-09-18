@@ -10,13 +10,21 @@ export type ResultWork = {
   provenance: Provenance[];
 };
 
-export type LibraryItem = { work_id: string; title: string; cover_url: string | null; fraction: number | null };
+export type LibraryItem = {
+  work_id: string;
+  title: string;
+  cover_url: string | null;
+  fraction: number | null;
+  content_type?: string | null;
+};
 
 export type HeroChoice = {
   reason: "continue_reading" | "pinned" | "cached_discovery";
   title: string;
   work_id: string | null;
   cover_url: string | null;
+  description?: string | null;
+  content_type?: string | null;
 };
 
 export type HomeResponse = {

@@ -35,8 +35,9 @@ describe("Home", () => {
       continue_reading: [{ work_id: "w1", title: "The Irregular Chronicle", cover_url: null, fraction: 0.42 }],
     });
     renderWithProviders(<HomeScreen />);
-    const hero = await screen.findByRole("region", { name: /continue reading/i });
+    const hero = await screen.findByRole("region", { name: "The Irregular Chronicle" });
     expect(within(hero).getByRole("heading", { name: "The Irregular Chronicle" })).toBeInTheDocument();
+    expect(within(hero).getByText(/continue reading/i, { selector: ".hero__reason" })).toBeInTheDocument();
     expect(within(hero).getByRole("link", { name: /continue reading/i })).toHaveAttribute("href", "/works/w1");
     expect(within(hero).getByText("42%")).toBeInTheDocument();
   });

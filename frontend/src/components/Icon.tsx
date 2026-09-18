@@ -11,6 +11,8 @@ const PATHS: Record<string, string> = {
   attention: "M12 4 3 19h18zM12 10v4m0 3v.5",
   more: "M5 12h.01M12 12h.01M19 12h.01",
   close: "M6 6l12 12M18 6 6 18",
+  grid: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  list: "M4 6h16M4 12h16M4 18h16",
 };
 
 export function Icon({ name, size = 22 }: { name: string; size?: number }) {
