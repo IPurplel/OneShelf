@@ -8,8 +8,8 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 
 | WP | Scope | Rows | Status |
 |---|---|---|---|
-| WP-R1 | Reading progress restoration | M26.15 | **IMPLEMENTED** — built, tested and committed; verification incomplete (see below) |
-| WP-L1 | Shelf lifecycle | M22, M47 (INV-10, M23 hold) | NOT_STARTED — not begun |
+| WP-R1 | Reading progress restoration | M26.15 | **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)** |
+| WP-L1 | Shelf lifecycle | M22, M47 (INV-10, M23 hold) | **IN_PROGRESS** |
 | WP-R2 | Long Strip virtualization and preload | M26.6, M26.18 | NOT_STARTED |
 | WP-R3 | Book reader comfort | M26.22a, M26.22b | NOT_STARTED |
 | WP-S1 | Settings completion | M32.14, M45 | NOT_STARTED |
@@ -21,6 +21,15 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-B1 | Environment-blocked verification | M2, M2.1, M41.1 | **BLOCKED** |
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1, M36, M26.6).
+
+## WP-L1 — current tasks
+
+| # | Task | Status |
+|---|---|---|
+| 1 | Work Details: Remove from Shelf, showing what the library says will be removed | TODO |
+| 2 | The confirmation: what goes, what remains, Keep Files vs Delete Files as separate choices | TODO |
+| 3 | Mark Completed and un-complete, offering — never performing — deletion | TODO |
+| 4 | My Shelf: the same actions from a row | TODO |
 
 ## WP-R1 — done
 
@@ -46,12 +55,21 @@ wrong, and the status is withdrawn rather than the criterion softened.
 A live locator round-trip against the running API was executed and passed. It exercises the contract the
 browser step would exercise, but it is **not** a substitute for it and is not counted as one.
 
-### Blocked verification steps
+### Blocked-verification list
 
-| Step | Package | Status | Unblocked by |
-|---|---|---|---|
-| Browser re-entry: leave a unit and come back to the same page | WP-R1 | `BLOCKED_BY_ENVIRONMENT` (E-01a) | A host whose PID 1 reaps children, or a fresh container; then re-run and move M26.15 to `VERIFIED` |
-| Playwright screenshots and axe-core audits for later packages | WP-L1 onward | `BLOCKED_BY_ENVIRONMENT` (E-01a) | Same |
+**This list is the verification debt.** Nothing leaves it by being reworded. Every entry is re-run once
+E-01 is repaired, and only then may the row it belongs to reach `VERIFIED`. While an entry here belongs
+to a C-phase, that phase is not fully `VERIFIED`; while any entry remains, OneShelf is not complete.
+
+| # | Blocked check, as originally written | Package | Row | Phase | Re-run when |
+|---|---|---|---|---|---|
+| BV-01 | "Live: read to page 2 of a seeded unit, leave, re-enter — the reader opens on page 2, with no console errors." | WP-R1 | M26.15 | C2 | E-01 repaired; then M26.15 → `VERIFIED` |
+| BV-02 | "live check that a removal dialog reads correctly in both languages" | WP-L1 | M22, M47 | C2 | E-01 repaired; then the language check runs against the built UI |
+| BV-03 | Playwright screenshots and axe-core audits for every package from WP-L1 onward | WP-L1+ | M32.x, M45 | C2 | E-01 repaired |
+
+Downstream packages may still begin, under the four-part rule in `execution-plan.md`, when the blocked
+check is not a hard dependency of theirs. That judgement is recorded in each package's Definition of
+Ready. It does not discharge the debt above.
 
 Environment defects are recorded in `ISSUES.md` under **Environment defects** (E-01, E-01a, E-01b).
 
@@ -62,3 +80,4 @@ Environment defects are recorded in `ISSUES.md` under **Environment defects** (E
 | 2026-09-18 | Plan created from the reconciled matrix; WP-R1 started. |
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
+| 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |

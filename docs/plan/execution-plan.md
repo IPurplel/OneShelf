@@ -24,6 +24,31 @@ future work, no substitutes for blocked work.
    left as written, and the requirement row stays at `IMPLEMENTED`. A criterion is never rewritten,
    narrowed or dropped to let a row reach `VERIFIED`.
 
+## Definition of Ready for a downstream package (user decision, 2026-09-19)
+
+A package whose prerequisite could not be fully verified here may begin when **all four** hold of that
+prerequisite:
+
+1. it is fully implemented and committed; **and**
+2. every executable test and review for it passes; **and**
+3. every unexecuted verification criterion is explicitly recorded as `BLOCKED_BY_ENVIRONMENT`, with the
+   original criterion preserved word for word; **and**
+4. the blocked criterion is **not** a hard technical, persistence, security, migration or data-safety
+   dependency of the downstream work.
+
+If the blocked criterion could invalidate an assumption the next package relies on, the dependency stays
+blocking and the next package does not start. The judgement is recorded per package, not assumed.
+
+This changes when work may *begin*. It changes nothing about what `VERIFIED` means:
+
+- blocked evidence is never converted into `VERIFIED`;
+- verification criteria are never weakened;
+- outstanding verification debt is never removed — it is tracked in the blocked-verification list in
+  `STATUS.md` and re-run once the environment is repaired;
+- **a C-phase may not be called fully `VERIFIED` while mandatory verification belonging to that phase
+  remains blocked**;
+- **final OneShelf completion may not be claimed while any required blocked verification is unresolved.**
+
 ## Status vocabulary
 
 The five statuses of the traceability matrix, unchanged: `NOT_STARTED`, `IN_PROGRESS`, `IMPLEMENTED`,
@@ -82,7 +107,13 @@ with INV-10 and M23 as the invariants that must keep holding.
 **Definition of Ready**
 - Backend endpoints exist and are verified: `GET /api/shelf/{id}/removal-summary`, `DELETE /api/shelf/{id}`,
   `DELETE /api/works/{id}/files`, `POST /api/shelf/{id}` (favorite, pinned, completed).
-- WP-R1 is verified and committed.
+- WP-R1 meets the downstream Definition of Ready above: implemented and committed (`d8a21a4`), all eight
+  of its tests and the full suite passing, its one unexecuted criterion recorded
+  `BLOCKED_BY_ENVIRONMENT` (E-01a) with the criterion preserved. **Point 4 judgement:** the blocked
+  criterion is a browser re-entry check on where a *reader* opens a unit. Shelf lifecycle work touches
+  shelf entries, files and follow state; it shares no persistence, security, migration or data-safety
+  assumption with it, and no outcome of that check could invalidate anything WP-L1 relies on. The
+  dependency is therefore not blocking.
 
 **Implementation tasks**
 1. Work Details: Remove from Shelf, opening the removal summary.
@@ -119,7 +150,10 @@ scroll), M26.18 (preload ~next 7 / previous 4; Long Strip bounded window; advanc
 memory).
 
 **Definition of Ready**
-- WP-R1 verified, since scroll restoration lands on the same code.
+- WP-R1's scroll restoration is the code this package rebuilds, so **point 4 applies against it**: the
+  blocked browser re-entry criterion checks exactly the behaviour virtualization could break. The
+  dependency **stays blocking** unless WP-R2 carries that behaviour in its own executable tests, or the
+  environment is repaired and WP-R1's criterion runs. Recorded here rather than assumed.
 - A decision recorded here: the window is measured in pages around the current position, and the preload
   numbers come from the defaults registry rather than literals in the component.
 
