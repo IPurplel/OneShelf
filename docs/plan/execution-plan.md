@@ -19,6 +19,10 @@ future work, no substitutes for blocked work.
 5. A work package is finished only when its verification criteria pass and its commits exist. The next
    package does not start before that.
 6. Blocked work stays blocked. It is never approximated, stubbed or "verified" by a substitute.
+7. A package reaches `VERIFIED` only when **every** criterion it declared has been executed. If a
+   criterion cannot run here, it is recorded `BLOCKED_BY_ENVIRONMENT` with its blocker, the criterion is
+   left as written, and the requirement row stays at `IMPLEMENTED`. A criterion is never rewritten,
+   narrowed or dropped to let a row reach `VERIFIED`.
 
 ## Status vocabulary
 
@@ -60,6 +64,10 @@ approximate). Touches M26.23's guarantees without changing them.
 **Security / persistence implications**
 No new endpoint, no schema change, no new stored data. Restoring is read-only, so it cannot regress
 progress (M26.23, INV-25). A malformed or outdated locator must not throw or jump to a wrong unit.
+
+**Criterion state (2026-09-19):** the test and typecheck criteria are executed and passing; the browser
+re-entry criterion is **not executed** and is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a). The criterion
+above is left exactly as written. M26.15 therefore stands at `IMPLEMENTED`, not `VERIFIED`.
 
 **Expected commit(s)**
 `fix(reader): resume a unit where it was left (M26.15)`
