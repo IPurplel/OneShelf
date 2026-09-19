@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
 import { App } from "@/app/App";
+import { LiveProvider } from "@/app/live";
 import { NotificationProvider } from "@/app/notifications";
 import { I18nProvider } from "@/i18n/i18n";
 // Self-hosted so a fresh install looks right offline and reaches no third party (Master §2.1, §49).
@@ -23,11 +24,13 @@ if (container === null) throw new Error("missing #root");
 createRoot(container).render(
   <StrictMode>
     <I18nProvider>
-      <NotificationProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </NotificationProvider>
+      <LiveProvider>
+        <NotificationProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </NotificationProvider>
+      </LiveProvider>
     </I18nProvider>
   </StrictMode>,
 );

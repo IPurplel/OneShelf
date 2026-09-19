@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
+import { useLive } from "@/app/live";
 
 type Follow = {
   work_id: string;
@@ -20,6 +21,9 @@ type Follow = {
 export function FollowingScreen() {
   const { t } = useI18n();
   const { data, reload } = useResource<{ follows: Follow[] }>("/api/follows");
+
+  // §20, §36: a check that finishes elsewhere lands here without waiting for a refresh.
+  useLive(["follow.changed", "follow.releases"], reload);
   const [busy, setBusy] = useState(false);
 
   const follows = data?.follows ?? [];

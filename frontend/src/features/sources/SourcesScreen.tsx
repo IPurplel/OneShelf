@@ -6,6 +6,7 @@ import { Drawer } from "@/components/Drawer";
 import { InstallPanel } from "./InstallPanel";
 import { LoginSession } from "./LoginSession";
 import { useI18n } from "@/i18n/i18n";
+import { useLive } from "@/app/live";
 
 type Source = {
   id: string;
@@ -27,6 +28,9 @@ type Source = {
 export function SourcesScreen() {
   const { t } = useI18n();
   const { data, reload } = useResource<{ sources: Source[] }>("/api/sources");
+
+  // §21, §36: a session that connects or expires elsewhere shows here without a refresh.
+  useLive(["source.session"], reload);
   const [open, setOpen] = useState<Source | null>(null);
   const [signingIn, setSigningIn] = useState<Source | null>(null);
 

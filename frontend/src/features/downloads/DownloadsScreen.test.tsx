@@ -1,10 +1,10 @@
 /** Master §16, §32.11: Downloads is operational — batches and states, not an analytics dashboard. */
-import { screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DownloadsScreen } from "./DownloadsScreen";
-import { renderWithProviders } from "@/test/render";
+import { renderWithProviders, renderLive } from "@/test/render";
 import { del, get, mockApi, post } from "@/test/http";
 
 const BATCHES = {
@@ -72,5 +72,21 @@ describe("Downloads", () => {
     mockApi([get("/api/downloads", { batches: [] })]);
     renderWithProviders(<DownloadsScreen />);
     expect(await screen.findByText(/nothing has been downloaded yet/i)).toBeInTheDocument();
+  });
+
+  it("follows the library live, re-reading only what changed", async () => {
+    // §36: an event says something happened; the screen re-reads rather than trusting the payload.
+    const calls = mockApi([get("/api/downloads", BATCHES)]);
+    const { emit } = renderLive(<DownloadsScreen />);
+    await screen.findAllByRole("listitem");
+    const reads = () => calls.filter((call) => call.url === "/api/downloads" && call.method === "GET").length;
+    const before = reads();
+
+    act(() => { emit("download.batch", { batch_id: "b1", queued: 3 }); });
+    await waitFor(() => expect(reads()).toBe(before + 1));
+
+    act(() => { emit("shelf.changed", { work_id: "w1" }); });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(reads()).toBe(before + 1);      // someone else's event is not this screen's business
   });
 });

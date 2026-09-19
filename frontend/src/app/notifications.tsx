@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 
 import { api } from "@/api/client";
+import { useLive } from "@/app/live";
 import type { NotificationsResponse } from "@/api/types";
 
 type NotificationState = {
@@ -28,6 +29,9 @@ export function NotificationProvider({ children, initial }: { children: ReactNod
   useEffect(() => {
     if (initial === undefined) void refresh();
   }, [initial, refresh]);
+
+  // §36, §44: the bell and Needs Attention follow the library rather than waiting for a page change.
+  useLive(["notifications.changed", "follow.releases", "source.session"], () => { void refresh(); });
 
   const value = useMemo(() => ({ ...counts, refresh }), [counts, refresh]);
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;

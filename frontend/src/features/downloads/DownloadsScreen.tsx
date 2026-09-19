@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
+import { useLive } from "@/app/live";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type Batch = {
@@ -20,6 +21,9 @@ type Batch = {
 export function DownloadsScreen() {
   const { t } = useI18n();
   const { data, reload } = useResource<{ batches: Batch[] }>("/api/downloads");
+
+  // §36: the queue moves on its own, so the screen follows the library rather than a guess or a refresh.
+  useLive(["download.batch", "download.job"], reload);
   const [confirming, setConfirming] = useState(false);
 
   const act = async (call: Promise<unknown>) => {
