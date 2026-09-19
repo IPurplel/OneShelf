@@ -219,8 +219,11 @@ Named tests pass; the isolation tests still pass unchanged; M26.22a, M26.22b →
 The document must not gain any ability to affect the app: no `allow-same-origin`, no script, no new CSP
 directive beyond what already exists. Settings persist per viewer exactly like the current reader settings.
 
+**Criterion state (2026-09-19):** all criteria executed and passing, live in both formats. One defect
+found (I-13) fixed with a regression test. M26.22a and M26.22b are `VERIFIED`.
+
 **Expected commit(s)**
-`feat(reader): EPUB typography and PDF zoom and fit (M26.22a, M26.22b)`
+`feat(reader): EPUB typography and PDF zoom and fit (M26.22a, M26.22b)` — landed as `fded8e0`
 
 ---
 
@@ -230,7 +233,7 @@ directive beyond what already exists. Settings persist per viewer exactly like t
 Reader, Sources).
 
 **Definition of Ready**
-- WP-R3 verified, so the Reader panel has real settings to show.
+- WP-R3 verified ✔ (2026-09-19), so the Reader panel has real settings to show.
 - Every setting shown is one the backend already honours through the defaults registry; no new behaviour
   is invented in the UI.
 

@@ -20,6 +20,8 @@ only when its test exists and fails without the fix.
 | I-11 | A mounted page that has not loaded is zero pixels tall, so pages arriving above the viewport pushed the strip down and the reader drifted backwards: re-entry at the stored page 30 landed on page 23 | WP-R2 live check, 2026-09-19 — 163 unit tests had not caught it | `reserves each page's space before it loads, so the strip does not shift under the reader`, plus the live re-entry check | Closed |
 | I-12 | The spacer estimate lived in a ref, so a measured height could differ from what had been rendered | WP-R2 review, 2026-09-19 | same test — one estimate now drives both the spacers and the reserved page heights | Closed |
 
+| I-13 | Zooming a PDF makes its page pane scrollable, and the pane could not be reached from the keyboard (WCAG 2.1.1) — the same defect the sequential reader had in I-06 | WP-R3 live axe run, 2026-09-19 | `lets the keyboard reach the page area, which scrolls once it is zoomed` | Closed |
+
 ## Environment defects
 
 These are defects of the machine this work runs on, not of OneShelf. They are recorded separately because

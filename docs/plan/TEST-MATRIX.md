@@ -70,6 +70,18 @@ Already existing and still passing: `test_remove_from_shelf_offers_file_choices_
 Live criterion executed 2026-09-19: 12 of 120 pages mounted, window follows the scroll, page 34 stored,
 re-entry restores 34/120, no console errors.
 
+## WP-R3 — Book reader comfort (M26.22a, M26.22b)
+
+| # | Test | File | State |
+|---|---|---|---|
+| 1 | `lets the reader set type, spacing, margins and theme, without loosening the frame` | `BookReader.test.tsx` | **passing** |
+| 2 | `remembers the reading comfort for this book` | `BookReader.test.tsx` | **passing** |
+| 3 | `zooms in, out and back to the fit` | `PdfView.test.tsx` | **passing** |
+| 4 | `fits the whole page when asked, and remembers the choice` | `PdfView.test.tsx` | **passing** |
+| 5 | `lets the keyboard reach the page area, which scrolls once it is zoomed` | `PdfView.test.tsx` | **passing** (I-13) |
+
+Live criteria executed 2026-09-19, both formats; the isolation tests still pass unchanged.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.
