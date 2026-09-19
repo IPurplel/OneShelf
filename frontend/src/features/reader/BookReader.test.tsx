@@ -187,4 +187,46 @@ describe("Book Reader (EPUB)", () => {
     await waitFor(() =>
       expect(screen.getByTitle(/book content/i).getAttribute("srcdoc")).toContain("Rain on the window"));
   });
+
+  // §26.22a: the comfort settings a book reader needs — and none of them reach the book itself. The
+  // typography is OneShelf's own stylesheet inside the frame; the frame keeps its empty sandbox and its
+  // own CSP (§27, ledger K3).
+  it("lets the reader set type, spacing, margins and theme, without loosening the frame", async () => {
+    stubFile(epubBytes(), "application/epub+zip");
+    const user = userEvent.setup();
+    renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
+    const frame = await screen.findByTitle(/book content/i);
+    await waitFor(() => expect(frame.getAttribute("srcdoc") ?? "").toContain("The quiet begins."));
+
+    await user.click(screen.getByRole("button", { name: /reading comfort/i }));
+    const panel = await screen.findByRole("dialog", { name: /reading comfort/i });
+    await user.click(within(panel).getByRole("radio", { name: /larger/i }));
+    await user.click(within(panel).getByRole("radio", { name: /sepia/i }));
+    await user.click(within(panel).getByRole("radio", { name: /wide/i }));
+    await user.keyboard("{Escape}");
+
+    const html = screen.getByTitle(/book content/i).getAttribute("srcdoc") ?? "";
+    expect(html).toMatch(/font-size:\s*21px/);
+    expect(html).toMatch(/#f4ecd8/i);                       // the sepia page
+    expect(html).toMatch(/padding:\s*4vh 12vw/);
+    expect(screen.getByTitle(/book content/i)).toHaveAttribute("sandbox", "");
+    expect(html).toContain("Content-Security-Policy");
+    expect(html).not.toMatch(/<script/i);
+  });
+
+  it("remembers the reading comfort for this book", async () => {
+    stubFile(epubBytes(), "application/epub+zip");
+    const user = userEvent.setup();
+    const first = renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
+    await screen.findByTitle(/book content/i);
+    await user.click(screen.getByRole("button", { name: /reading comfort/i }));
+    await user.click(within(await screen.findByRole("dialog", { name: /reading comfort/i }))
+      .getByRole("radio", { name: /larger/i }));
+    first.unmount();
+
+    stubFile(epubBytes(), "application/epub+zip");
+    renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
+    const frame = await screen.findByTitle(/book content/i);
+    await waitFor(() => expect(frame.getAttribute("srcdoc") ?? "").toMatch(/font-size:\s*21px/));
+  });
 });

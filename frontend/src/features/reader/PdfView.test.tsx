@@ -12,13 +12,18 @@ const PAGES = [
   "Chapter Two. Rain on the window, and a long wait.",
 ];
 
+const scales: number[] = [];
+
 vi.mock("pdfjs-dist", () => ({
   GlobalWorkerOptions: { workerSrc: "" },
   getDocument: () => ({
     promise: Promise.resolve({
       numPages: PAGES.length,
       getPage: (number: number) => Promise.resolve({
-        getViewport: () => ({ width: 100, height: 140 }),
+        getViewport: ({ scale }: { scale: number }) => {
+          scales.push(scale);
+          return { width: 100 * scale, height: 140 * scale };
+        },
         render: () => ({ promise: Promise.resolve() }),
         getTextContent: () => Promise.resolve({
           items: PAGES[number - 1]!.split(" ").map((word) => ({ str: `${word} ` })),
@@ -76,7 +81,7 @@ const view = () => (
   <PdfView unitId="u9" data={new ArrayBuffer(8)} workId="w1" onProgress={() => {}} onLeave={() => {}} />
 );
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { scales.length = 0; vi.unstubAllGlobals(); });
 
 describe("Book Reader (PDF)", () => {
   it("moves through the pages it actually has", async () => {
@@ -153,5 +158,54 @@ describe("Book Reader (PDF)", () => {
     renderWithProviders(<BookReader unitId="u9" format="pdf" workId="w1" />);
 
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/2 of 2/i));
+  });
+
+  // §26.22b: a PDF is read at a size the reader chooses.
+  it("zooms in, out and back to the fit", async () => {
+    stubMarks();
+    const user = userEvent.setup();
+    renderWithProviders(view());
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/1 of 2/i));
+    const atFit = scales.at(-1)!;
+
+    await user.click(screen.getByRole("button", { name: /zoom in/i }));
+    await waitFor(() => expect(scales.at(-1)!).toBeGreaterThan(atFit));
+
+    await user.click(screen.getByRole("button", { name: /zoom out/i }));
+    await waitFor(() => expect(scales.at(-1)!).toBeCloseTo(atFit, 5));
+
+    await user.click(screen.getByRole("button", { name: /zoom in/i }));
+    await user.click(screen.getByRole("button", { name: /fit the width/i }));
+    await waitFor(() => expect(scales.at(-1)!).toBeCloseTo(atFit, 5));
+  });
+
+  it("fits the whole page when asked, and remembers the choice", async () => {
+    stubMarks();
+    const user = userEvent.setup();
+    const first = renderWithProviders(view());
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/1 of 2/i));
+
+    await user.click(screen.getByRole("button", { name: /fit the page/i }));
+    await waitFor(() => expect(scales.at(-1)!).toBeGreaterThan(0));
+    const fitted = scales.at(-1)!;
+    first.unmount();
+
+    stubMarks();
+    scales.length = 0;
+    renderWithProviders(view());
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/1 of 2/i));
+    expect(scales.at(-1)!).toBeCloseTo(fitted, 5);
+  });
+
+  it("lets the keyboard reach the page area, which scrolls once it is zoomed", async () => {
+    // Zooming makes the pane scrollable, and a scrollable region has to be reachable without a mouse
+    // (WCAG 2.1.1) — the same defect the sequential reader had (I-06, now I-13 here).
+    stubMarks();
+    renderWithProviders(view());
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/1 of 2/i));
+
+    const pane = screen.getByRole("img", { name: /book content/i }).closest(".book__pdf") as HTMLElement;
+    expect(pane).toHaveAttribute("tabindex", "0");
+    expect(pane).toHaveAccessibleName();
   });
 });

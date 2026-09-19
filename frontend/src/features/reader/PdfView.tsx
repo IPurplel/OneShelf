@@ -5,8 +5,17 @@ import { Drawer } from "@/components/Drawer";
 import { useI18n } from "@/i18n/i18n";
 import { HighlightPane } from "./HighlightPane";
 import { useBookMarks } from "./useBookMarks";
+import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "./settings";
+import type { PdfFit, ReaderSettings } from "./settings";
 
 type TextItem = { str?: string };
+const ZOOM_STEP = 1.25;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 6;
+
+/** Without layout (a fresh mount, or a test) a page still needs a scale; this is the readable default. */
+const BASE_SCALE = 1.5;
+
 type PdfPage = {
   getViewport: (options: { scale: number }) => { width: number; height: number };
   render: (options: unknown) => { promise: Promise<void> };
@@ -53,6 +62,63 @@ export function PdfView({ unitId, data, workId, onProgress, onLeave, storedPage 
   const [failure, setFailure] = useState<string | null>(null);
   const marks = useBookMarks(unitId);
   const resumed = useRef<string | null>(null);
+  const frame = useRef<HTMLDivElement | null>(null);
+  const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
+  const [viewerWidth, setViewerWidth] = useState(0);
+
+  /**
+   * The fit is measured against the space the viewer has, and that space is not known at first paint:
+   * without watching for it, a page would keep the fallback scale on a container that sizes late (a
+   * fresh mount, a window resize, a drawer opening beside it).
+   */
+  useEffect(() => {
+    const node = frame.current;
+    if (node === null) return;
+    const measure = () => setViewerWidth(node.getBoundingClientRect().width);
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => { setSettings(loadSettings(workId || null, null)); }, [workId]);
+
+  /** §26.17: how a document is scaled is remembered like every other reader setting. */
+  const changeSettings = useCallback((update: Partial<ReaderSettings>) => {
+    setSettings((current) => {
+      const merged = { ...current, ...update };
+      saveSettings(workId || null, merged);
+      return merged;
+    });
+  }, [workId]);
+
+  /**
+   * The scale a page is drawn at (§26.22b).
+   *
+   * Fit width and fit page are measured against the space the viewer actually has; zoom multiplies
+   * whatever the fit gives, so zooming never loses the fit it started from.
+   */
+  const scaleFor = useCallback((viewport: { width: number; height: number }) => {
+    const box = frame.current?.getBoundingClientRect();
+    const fitted = (() => {
+      if (settings.pdfFit === "custom" || box === undefined || box.width === 0) return BASE_SCALE;
+      const byWidth = box.width / (viewport.width / BASE_SCALE);
+      if (settings.pdfFit === "width") return byWidth;
+      const byHeight = box.height / (viewport.height / BASE_SCALE);
+      return Math.min(byWidth, byHeight);
+    })();
+    return fitted * settings.pdfZoom;
+  }, [settings.pdfFit, settings.pdfZoom, viewerWidth]);
+
+  const zoom = useCallback((factor: number) => {
+    changeSettings({ pdfZoom: Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number((settings.pdfZoom * factor).toFixed(3)))) });
+  }, [changeSettings, settings.pdfZoom]);
+
+  const fit = useCallback((pdfFit: PdfFit) => changeSettings({ pdfFit, pdfZoom: 1 }), [changeSettings]);
 
   useEffect(() => {
     if (data === null) return;
@@ -84,7 +150,9 @@ export function PdfView({ unitId, data, workId, onProgress, onLeave, storedPage 
     void (async () => {
       const rendered = await document_.getPage(page);
       if (!live) return;
-      const viewport = rendered.getViewport({ scale: 1.5 });
+      // Measure at the base scale, then draw at the scale the fit and the zoom ask for.
+      const measured = rendered.getViewport({ scale: BASE_SCALE });
+      const viewport = rendered.getViewport({ scale: scaleFor(measured) });
       const target = canvas.current;
       if (target !== null) {
         target.width = viewport.width;
@@ -97,7 +165,7 @@ export function PdfView({ unitId, data, workId, onProgress, onLeave, storedPage 
       onProgress(page / document_.numPages, { page });
     })();
     return () => { live = false; };
-  }, [document_, page, onProgress]);
+  }, [document_, page, onProgress, scaleFor]);
 
   useEffect(() => {
     if (document_ === null || storedPage === null || resumed.current === unitId) return;
@@ -135,9 +203,24 @@ export function PdfView({ unitId, data, workId, onProgress, onLeave, storedPage 
         <button type="button" className="reader__button" onClick={() => setPanel("marks")}>
           {t("pdf.marks")}
         </button>
+        <button type="button" className="reader__button" onClick={() => zoom(ZOOM_STEP)}>
+          {t("reader.zoomIn")}
+        </button>
+        <button type="button" className="reader__button" onClick={() => zoom(1 / ZOOM_STEP)}>
+          {t("reader.zoomOut")}
+        </button>
+        <button type="button" className="reader__button" aria-pressed={settings.pdfFit === "width"}
+                onClick={() => fit("width")}>
+          {t("pdf.fitWidth")}
+        </button>
+        <button type="button" className="reader__button" aria-pressed={settings.pdfFit === "page"}
+                onClick={() => fit("page")}>
+          {t("pdf.fitPage")}
+        </button>
       </div>
 
-      <div className="book__pdf">
+      {/* Zooming makes this pane scroll, so the keyboard must be able to reach it (WCAG 2.1.1). */}
+      <div className="book__pdf" ref={frame} tabIndex={0} aria-label={t("pdf.pane")}>
         <canvas ref={canvas} aria-label={t("book.content")} role="img" />
       </div>
 

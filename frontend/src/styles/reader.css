@@ -180,3 +180,4 @@
 /* The preload band and the spacers are structure, not content: no space, no sound, no interaction. */
 .reader__preload { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
 .reader__spacer { inline-size: 100%; flex: none; pointer-events: none; }
+.book__pdf:focus-visible { outline: 3px solid var(--olive-600); outline-offset: -3px; }

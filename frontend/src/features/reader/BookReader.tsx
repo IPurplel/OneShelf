@@ -6,8 +6,11 @@ import { useI18n } from "@/i18n/i18n";
 import { Drawer } from "@/components/Drawer";
 import { openEpub } from "./epub";
 import type { Epub } from "./epub";
+import { BookSettings } from "./BookSettings";
 import { HighlightPane } from "./HighlightPane";
 import { PdfView } from "./PdfView";
+import { BOOK_TYPE, DEFAULT_SETTINGS, loadSettings, saveSettings } from "./settings";
+import type { ReaderSettings } from "./settings";
 import { useBookMarks } from "./useBookMarks";
 import { useProgress } from "./useProgress";
 
@@ -26,11 +29,22 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
   const [book, setBook] = useState<Epub | null>(null);
   const [chapterIndex, setChapterIndex] = useState(0);
   const [html, setHtml] = useState("");
-  const [panel, setPanel] = useState<null | "contents" | "search" | "highlight">(null);
+  const [panel, setPanel] = useState<null | "contents" | "search" | "highlight" | "comfort">(null);
+  const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
   const [chapterText, setChapterText] = useState("");
   const marks = useBookMarks(unitId);
   const { record, flush, stored } = useProgress(unitId);
   const resumed = useRef<string | null>(null);
+
+  useEffect(() => { setSettings(loadSettings(workId || null, null)); }, [workId]);
+
+  const changeSettings = useCallback((update: Partial<ReaderSettings>) => {
+    setSettings((current) => {
+      const merged = { ...current, ...update };
+      saveSettings(workId || null, merged);      // §26.17: a book remembers how it is read
+      return merged;
+    });
+  }, [workId]);
 
   useEffect(() => {
     let live = true;
@@ -73,13 +87,13 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
     void (async () => {
       const chapter = await book.chapter(chapterIndex);
       if (!live) return;
-      setHtml(frameDocument(chapter.html, direction));
+      setHtml(frameDocument(chapter.html, direction, settings));
       setChapterText(chapter.text);
       const read = book.spine.slice(0, chapterIndex + 1).reduce((total, item) => total + item.characters, 0);
       record(book.characters === 0 ? 0 : read / book.characters, { chapter: chapterIndex });
     })();
     return () => { live = false; };
-  }, [book, chapterIndex, direction, record]);
+  }, [book, chapterIndex, direction, record, settings]);
 
   /** Resume the chapter this book was left on (§26.15); reading the position writes nothing. */
   useEffect(() => {
@@ -133,6 +147,9 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
         <button type="button" className="reader__button" onClick={() => setPanel("highlight")}>
           {t("book.highlight")}
         </button>
+        <button type="button" className="reader__button" onClick={() => setPanel("comfort")}>
+          {t("book.comfort")}
+        </button>
       </div>
 
       <iframe className="book__frame" title={t("book.content")} sandbox="" srcDoc={html} />
@@ -155,6 +172,9 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
         <BookSearch book={book} onGo={(index) => { setChapterIndex(index); setPanel(null); }}
                     onClose={() => setPanel(null)} />
       )}
+      {panel === "comfort" && (
+        <BookSettings settings={settings} onChange={changeSettings} onClose={() => setPanel(null)} />
+      )}
       {panel === "highlight" && (
         <HighlightPane text={chapterText} onClose={() => setPanel(null)}
                        onKeep={(selection) => {
@@ -175,15 +195,21 @@ function chapterLabel(book: Epub | null, index: number): string {
  * The document handed to the sandboxed frame. It carries its own CSP so that even if something survived
  * sanitisation it can neither execute nor fetch: only inline styles and the blob resources we made.
  */
-function frameDocument(body: string, direction: "ltr" | "rtl"): string {
+function frameDocument(body: string, direction: "ltr" | "rtl", settings: ReaderSettings): string {
   const csp = "default-src 'none'; img-src blob: data:; style-src 'unsafe-inline'; font-src blob:;";
+  const size = BOOK_TYPE.size[settings.bookSize];
+  const spacing = BOOK_TYPE.spacing[settings.bookSpacing];
+  const theme = BOOK_TYPE.theme[settings.bookTheme];
+  // Every one of these is OneShelf's own: the book supplies the words, never the stylesheet, and the
+  // frame keeps the empty sandbox and the CSP it always had (§27, ledger K3).
   return `<!doctype html><html dir="${direction}"><head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Security-Policy" content="${csp}">
     <style>
-      :root { color-scheme: light; }
-      body { margin: 0 auto; padding: 4vh 6vw; max-width: 42rem; font: 18px/1.7 Georgia, "Noto Naskh Arabic", serif;
-             color: #1c1b18; background: #fffdf8; }
+      :root { color-scheme: ${settings.bookTheme === "dark" ? "dark" : "light"}; }
+      body { margin: 0 auto; padding: ${BOOK_TYPE.margins[settings.bookMargins]}; max-width: 42rem;
+             font-family: ${BOOK_TYPE.font[settings.bookFont]}; font-size: ${size}px; line-height: ${spacing};
+             color: ${theme.ink}; background: ${theme.background}; }
       img { max-width: 100%; height: auto; }
       h1, h2, h3 { line-height: 1.3; }
     </style></head><body>${body}</body></html>`;
