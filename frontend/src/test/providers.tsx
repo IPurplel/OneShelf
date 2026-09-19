@@ -4,13 +4,15 @@ import type { ReactNode } from "react";
 import { NotificationProvider } from "@/app/notifications";
 import { I18nProvider } from "@/i18n/i18n";
 
-export function TestProviders({ children, route = "/", notifications = { unseen: 0, attention: 0 } }: {
+export function TestProviders({ children, route = "/", notifications = { unseen: 0, attention: 0 },
+                                language = "en" }: {
   children: ReactNode;
   route?: string;
   notifications?: { unseen: number; attention: number };
+  language?: "en" | "ar";
 }) {
   return (
-    <I18nProvider language="en">
+    <I18nProvider language={language}>
       <NotificationProvider initial={notifications}>
         <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>
       </NotificationProvider>

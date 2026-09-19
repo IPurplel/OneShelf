@@ -7,6 +7,7 @@ import { TestProviders } from "@/test/providers";
 export type TestOptions = {
   route?: string;
   notifications?: { unseen: number; attention: number };
+  language?: "en" | "ar";
 };
 
 export function renderApp(options: TestOptions = {}) {

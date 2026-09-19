@@ -31,20 +31,21 @@ export function mockApi(routes: Route[]) {
   return calls;
 }
 
-export const get = (path: string, payload: unknown, status?: number): Route => ({
-  match: (url, init) => url.startsWith(path) && (init?.method ?? "GET").toUpperCase() === "GET",
+/**
+ * A stub answers its own path and no other. Matching by prefix let `/api/shelf` answer
+ * `/api/shelf/{id}/removal-summary`, so a test could pass while the screen called something else
+ * entirely. The query string is ignored, since that is where parameters live, not identity.
+ */
+const samePath = (path: string) => (url: string) => url.split("?")[0] === path.split("?")[0];
+
+const route = (method: string) => (path: string, payload: unknown, status?: number): Route => ({
+  match: (url, init) => samePath(path)(url) && (init?.method ?? "GET").toUpperCase() === method,
   payload, status,
 });
 
-export const post = (path: string, payload: unknown, status?: number): Route => ({
-  match: (url, init) => url.startsWith(path) && (init?.method ?? "GET").toUpperCase() === "POST",
-  payload, status,
-});
-
-export const del = (path: string, payload: unknown, status?: number): Route => ({
-  match: (url, init) => url.startsWith(path) && (init?.method ?? "GET").toUpperCase() === "DELETE",
-  payload, status,
-});
+export const get = route("GET");
+export const post = route("POST");
+export const del = route("DELETE");
 
 type RouteType = Route;
 export type { RouteType as Route };

@@ -233,6 +233,10 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 
 .shelfview__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-6) var(--space-5); }
 .shelfview__list { display: grid; gap: var(--space-3); }
+/* A list row carries its own actions; the grid stays a shelf, so its covers keep their plank. */
+.shelfview__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.shelfview__row .workcard { flex: 1; }
+.shelfview__manage { flex: none; }
 .shelf__empty { color: var(--ink-500); }
 
 /* Work Details: a smaller hero-like header and an index, not a table (§32.8). */

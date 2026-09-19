@@ -6,6 +6,9 @@ import { useResource } from "@/api/useApi";
 import type { Track, Unit, WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
 import { ExportWizard } from "@/features/export/ExportWizard";
+import { RemoveFromShelf } from "@/features/shelf/RemoveFromShelf";
+import type { RemovalSummary } from "@/features/shelf/RemoveFromShelf";
+import { bytes } from "@/lib/format";
 
 type Tab = "read" | "details" | "sources";
 
@@ -23,6 +26,9 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const [tab, setTab] = useState<Tab>("read");
   const [trackId, setTrackId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [removing, setRemoving] = useState<RemovalSummary | null>(null);
+  const [completedOffer, setCompletedOffer] = useState<RemovalSummary | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${id}`,
     trackId ? { track_id: trackId } : undefined);
 
@@ -48,6 +54,54 @@ export function WorkScreen({ workId }: { workId?: string }) {
     }
   };
 
+  /**
+   * Removing from the Shelf (§22, §47). The facts come from the library, never from a guess here, and
+   * the confirmation only appears when there is something to lose — §22 asks for it when files or
+   * progress exist. Deleting the files is its own choice; Follow and progress are untouched either way
+   * (§23, INV-10).
+   */
+  const startRemoval = async () => {
+    setNotice(null);
+    try {
+      const summary = await api.get<RemovalSummary>(`/api/shelf/${id}/removal-summary`);
+      if (summary.files === 0 && !summary.has_progress) {
+        await remove(summary, false);
+        return;
+      }
+      setRemoving(summary);
+    } catch {
+      setNotice(t("state.offline"));
+    }
+  };
+
+  const remove = async (summary: RemovalSummary, deleteFiles: boolean) => {
+    setRemoving(null);
+    try {
+      await api.delete(`/api/shelf/${id}?delete_files=${deleteFiles}`);
+      setNotice(deleteFiles ? `${t("shelf.removed")} ${t("shelf.filesDeleted", { files: summary.files })}`
+                            : t("shelf.removed"));
+    } catch {
+      setNotice(t("state.offline"));
+    } finally {
+      reload();
+    }
+  };
+
+  /** Completed keeps the work, its status and its progress; deleting the files is only ever offered. */
+  const markCompleted = async (completed: boolean) => {
+    setNotice(null);
+    try {
+      await api.post(`/api/shelf/${id}`, { completed });
+      if (!completed) return;
+      const summary = await api.get<RemovalSummary>(`/api/shelf/${id}/removal-summary`);
+      if (summary.files > 0) setCompletedOffer(summary);
+    } catch {
+      setNotice(t("state.offline"));
+    } finally {
+      reload();
+    }
+  };
+
   return (
     <article className="screen work">
       <header className="work__header">
@@ -66,7 +120,15 @@ export function WorkScreen({ workId }: { workId?: string }) {
               <Link className="button button--primary" to={`/read/${continueUnit}`}>{t("work.continue")}</Link>
             )}
             {shelf.on_shelf ? (
-              <span className="chip chip--static">{t("work.onShelf")}</span>
+              <>
+                <button type="button" className="button" onClick={() => void startRemoval()}>
+                  {t("shelf.remove.action")}
+                </button>
+                <button type="button" className="button" aria-pressed={shelf.completed}
+                        onClick={() => void markCompleted(!shelf.completed)}>
+                  {shelf.completed ? t("shelf.completed.undo") : t("shelf.completed.action")}
+                </button>
+              </>
             ) : (
               <button type="button" className="button" onClick={() => toggle(api.post(`/api/shelf/${id}`))}>
                 {t("work.addShelf")}
@@ -98,6 +160,36 @@ export function WorkScreen({ workId }: { workId?: string }) {
           </button>
         ))}
       </div>
+
+      {notice !== null && <p className="notice" role="status">{notice}</p>}
+
+      {removing !== null && (
+        <RemoveFromShelf title={work.title} summary={removing}
+                         onKeep={() => void remove(removing, false)}
+                         onDelete={() => void remove(removing, true)}
+                         onCancel={() => setRemoving(null)} />
+      )}
+
+      {completedOffer !== null && (
+        <div className="confirm" role="dialog" aria-modal="true" aria-label={t("shelf.completed.title")}>
+          <h2 className="display">{t("shelf.completed.title")}</h2>
+          <p>{t("shelf.completed.body", { title: work.title })}</p>
+          <p>{t("shelf.completed.offer", { files: completedOffer.files, size: bytes(completedOffer.bytes) })}</p>
+          <div className="confirm__actions">
+            <button type="button" className="button button--primary" onClick={() => setCompletedOffer(null)}>
+              {t("shelf.completed.keep")}
+            </button>
+            <button type="button" className="button"
+                    onClick={() => {
+                      setCompletedOffer(null);
+                      void toggle(api.delete(`/api/works/${id}/files`)
+                        .then(() => setNotice(t("shelf.filesDeleted", { files: completedOffer.files }))));
+                    }}>
+              {t("shelf.completed.delete")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {tab === "read" && <UnitIndex units={units} />}
       {tab === "details" && <Details data={data} />}

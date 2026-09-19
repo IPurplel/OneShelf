@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ShelfScreen } from "./ShelfScreen";
 import { renderWithProviders } from "@/test/render";
-import { get, mockApi } from "@/test/http";
+import { del, get, mockApi } from "@/test/http";
 
 const ENTRY = {
   work_id: "w1", title: "The Irregular Chronicle", added_at: "2026-09-18T10:00:00+00:00",
@@ -63,5 +63,28 @@ describe("My Shelf", () => {
     await user.click(screen.getByRole("button", { name: /list view/i }));
     expect(within(shelf).getByRole("link", { name: /irregular chronicle/i })).toBeInTheDocument();
     expect(shelf).toHaveAttribute("data-layout", "list");
+  });
+
+  it("removes a work from a shelf row, with the same confirmation Work Details gives", async () => {
+    const summary = { work_id: "w1", files: 3, bytes: 9_000_000, has_progress: true, is_followed: false };
+    const calls = mockApi([get("/api/shelf", { view: "all", entries: [ENTRY] }),
+                           get("/api/shelf/w1/removal-summary", summary),
+                           del("/api/shelf/w1", summary)]);
+    const user = userEvent.setup();
+    renderWithProviders(<ShelfScreen />);
+    await screen.findByRole("region", { name: /my shelf/i });
+
+    // Row actions live in the list layout: the grid is the shelf motif, and a chip on every cover would
+    // collapse the plank the covers stand on (§32.9).
+    await user.click(screen.getByRole("button", { name: /list view/i }));
+    await user.click(screen.getByRole("button", { name: /manage/i }));
+    await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
+
+    const dialog = await screen.findByRole("dialog", { name: /remove from shelf/i });
+    expect(dialog).toHaveTextContent(/3 downloaded files/i);
+    expect(dialog).toHaveTextContent(/reading progress/i);
+    await user.click(within(dialog).getByRole("button", { name: /keep the files/i }));
+
+    expect(calls.find((call) => call.method === "DELETE")?.url).toBe("/api/shelf/w1?delete_files=false");
   });
 });

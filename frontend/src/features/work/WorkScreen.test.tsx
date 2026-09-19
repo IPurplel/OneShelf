@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { WorkScreen } from "./WorkScreen";
 import { renderWithProviders } from "@/test/render";
-import { get, mockApi, post } from "@/test/http";
+import { del, get, mockApi, post } from "@/test/http";
 
 const DETAILS = {
   work: {
@@ -96,5 +96,125 @@ describe("Work Details", () => {
     mockApi([get("/api/works/w1", { error: { code: "WORK_NOT_FOUND", message: "This work is not in your library." } }, 404)]);
     renderWithProviders(<WorkScreen workId="w1" />);
     expect(await screen.findByRole("alert")).toHaveTextContent(/not in your library/i);
+  });
+
+  // §22, §47, §23/INV-10: removing from the Shelf is a decision the reader makes with the facts in front
+  // of them, and it never touches Follow or progress unless they asked for that separately.
+  const SUMMARY = { work_id: "w1", files: 12, bytes: 48_000_000, has_progress: true, is_followed: true };
+
+  it("asks before removing a work that has files or progress, and says what stays", async () => {
+    const calls = mockApi([get("/api/works/w1", DETAILS), get("/api/shelf/w1/removal-summary", SUMMARY)]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+
+    await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
+    const dialog = await screen.findByRole("dialog", { name: /remove from shelf/i });
+
+    expect(dialog).toHaveTextContent(/12 downloaded files/i);
+    expect(dialog).toHaveTextContent(/reading progress/i);
+    expect(dialog).toHaveTextContent(/still following/i);
+    expect(within(dialog).getByRole("button", { name: /keep the files/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /delete the files/i })).toBeInTheDocument();
+    expect(calls.some((call) => call.method === "DELETE")).toBe(false);
+  });
+
+  it("keeps the files when that is the choice", async () => {
+    const calls = mockApi([get("/api/works/w1", DETAILS), get("/api/shelf/w1/removal-summary", SUMMARY),
+                           del("/api/shelf/w1", { ...SUMMARY })]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+
+    await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
+    const dialog = await screen.findByRole("dialog", { name: /remove from shelf/i });
+    await user.click(within(dialog).getByRole("button", { name: /keep the files/i }));
+
+    const removal = calls.find((call) => call.method === "DELETE");
+    expect(removal?.url).toBe("/api/shelf/w1?delete_files=false");
+  });
+
+  it("deletes the files only when that is the explicit choice", async () => {
+    const calls = mockApi([get("/api/works/w1", DETAILS), get("/api/shelf/w1/removal-summary", SUMMARY),
+                           del("/api/shelf/w1", { ...SUMMARY, deleted_files: 12 })]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+
+    await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
+    const dialog = await screen.findByRole("dialog", { name: /remove from shelf/i });
+    await user.click(within(dialog).getByRole("button", { name: /delete the files/i }));
+
+    const removal = calls.find((call) => call.method === "DELETE");
+    expect(removal?.url).toBe("/api/shelf/w1?delete_files=true");
+  });
+
+  it("removes at once when there is nothing to lose", async () => {
+    const calls = mockApi([
+      get("/api/works/w1", DETAILS),
+      get("/api/shelf/w1/removal-summary",
+          { work_id: "w1", files: 0, bytes: 0, has_progress: false, is_followed: false }),
+      del("/api/shelf/w1", { work_id: "w1", files: 0, bytes: 0, has_progress: false, is_followed: false }),
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+
+    await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
+    expect(screen.queryByRole("dialog", { name: /remove from shelf/i })).not.toBeInTheDocument();
+    expect(calls.some((call) => call.method === "DELETE" && call.url.startsWith("/api/shelf/w1"))).toBe(true);
+  });
+
+  it("changes nothing when the removal is cancelled", async () => {
+    const calls = mockApi([get("/api/works/w1", DETAILS), get("/api/shelf/w1/removal-summary", SUMMARY)]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+
+    await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
+    const dialog = await screen.findByRole("dialog", { name: /remove from shelf/i });
+    await user.click(within(dialog).getByRole("button", { name: /cancel/i }));
+
+    expect(screen.queryByRole("dialog", { name: /remove from shelf/i })).not.toBeInTheDocument();
+    expect(calls.some((call) => call.method === "DELETE")).toBe(false);
+    expect(screen.getByRole("button", { name: /remove from shelf/i })).toBeInTheDocument();
+  });
+
+  it("marks a work completed, and offers — never performs — deleting its files", async () => {
+    const calls = mockApi([get("/api/works/w1", DETAILS),
+                           get("/api/shelf/w1/removal-summary", SUMMARY),
+                           post("/api/shelf/w1", { work_id: "w1", favorite: false, pinned: false,
+                                                   completed: true }),
+                           del("/api/works/w1/files", { work_id: "w1", deleted_files: 12 })]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+
+    await user.click(screen.getByRole("button", { name: /mark completed/i }));
+    expect(calls.find((call) => call.method === "POST" && call.url === "/api/shelf/w1")?.body)
+      .toEqual({ completed: true });
+
+    const offer = await screen.findByRole("dialog", { name: /completed/i });
+    expect(offer).toHaveTextContent(/progress/i);
+    expect(calls.some((call) => call.method === "DELETE")).toBe(false);
+
+    await user.click(within(offer).getByRole("button", { name: /keep the files/i }));
+    expect(calls.some((call) => call.method === "DELETE")).toBe(false);
+  });
+
+  it("says the same things in Arabic, where the interface mirrors", async () => {
+    mockApi([get("/api/works/w1", DETAILS), get("/api/shelf/w1/removal-summary", SUMMARY)]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />, { language: "ar" });
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+
+    await user.click(screen.getByRole("button", { name: "أزِل من الرف" }));
+    const dialog = await screen.findByRole("dialog", { name: "أزِل من الرف" });
+
+    expect(dialog).toHaveTextContent("ما يُزال");                  // what is removed
+    expect(dialog).toHaveTextContent("ما يبقى");                   // what stays
+    expect(dialog).toHaveTextContent("يبقى تقدّم قراءتك.");         // your progress stays
+    expect(within(dialog).getByRole("button", { name: "أبقِ الملفات" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "احذف الملفات" })).toBeInTheDocument();
   });
 });

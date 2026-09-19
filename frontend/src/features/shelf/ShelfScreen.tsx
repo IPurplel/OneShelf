@@ -4,6 +4,9 @@ import { useResource } from "@/api/useApi";
 import { Icon } from "@/components/Icon";
 import type { ShelfResponse } from "@/api/types";
 import { WorkCard } from "@/components/WorkCard";
+import { RemoveFromShelf } from "./RemoveFromShelf";
+import type { RemovalSummary } from "./RemoveFromShelf";
+import { api } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
 
@@ -25,10 +28,37 @@ export function ShelfScreen() {
   const [view, setView] = useState("all");
   const [query, setQuery] = useState("");
   const [layout, setLayout] = useState<"grid" | "list">("grid");
-  const { data, error } = useResource<ShelfResponse>("/api/shelf",
+  const [managing, setManaging] = useState<{ work_id: string; title: string } | null>(null);
+  const [removing, setRemoving] = useState<{ summary: RemovalSummary; title: string } | null>(null);
+  const { data, error, reload } = useResource<ShelfResponse>("/api/shelf",
     query.trim() ? { q: query.trim() } : { view });
 
   const entries = data?.entries ?? [];
+
+  /** The same removal a work's own page offers, from a row, with the same facts and the same words. */
+  const startRemoval = async (work_id: string, title: string) => {
+    setManaging(null);
+    try {
+      const summary = await api.get<RemovalSummary>(`/api/shelf/${work_id}/removal-summary`);
+      if (summary.files === 0 && !summary.has_progress) {
+        await api.delete(`/api/shelf/${work_id}?delete_files=false`);
+        reload();
+        return;
+      }
+      setRemoving({ summary, title });
+    } catch {
+      // A library that cannot be reached removes nothing; the row stays as it is.
+    }
+  };
+
+  const remove = async (summary: RemovalSummary, deleteFiles: boolean) => {
+    setRemoving(null);
+    try {
+      await api.delete(`/api/shelf/${summary.work_id}?delete_files=${deleteFiles}`);
+    } finally {
+      reload();
+    }
+  };
 
   return (
     <section className="screen">
@@ -65,7 +95,10 @@ export function ShelfScreen() {
         {layout === "list" ? (
           <div className="shelfview__list">
             {entries.map((entry) => (
-              <WorkCard key={entry.work_id} size="detailed" work={{ work_id: entry.work_id, title: entry.title }} />
+              <div key={entry.work_id} className="shelfview__row">
+                <WorkCard size="detailed" work={{ work_id: entry.work_id, title: entry.title }} />
+                <ManageButton entry={entry} onOpen={setManaging} />
+              </div>
             ))}
           </div>
         ) : (
@@ -82,7 +115,42 @@ export function ShelfScreen() {
           ))
         )}
       </section>
+
+      {managing !== null && (
+        <div className="confirm" role="dialog" aria-modal="true"
+             aria-label={t("shelf.manage.title", { title: managing.title })}>
+          <h2 className="display">{managing.title}</h2>
+          <div className="confirm__actions">
+            <button type="button" className="button" onClick={() => setManaging(null)}>{t("common.cancel")}</button>
+            <button type="button" className="button"
+                    onClick={() => void startRemoval(managing.work_id, managing.title)}>
+              {t("shelf.remove.action")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {removing !== null && (
+        <RemoveFromShelf title={removing.title} summary={removing.summary}
+                         onKeep={() => void remove(removing.summary, false)}
+                         onDelete={() => void remove(removing.summary, true)}
+                         onCancel={() => setRemoving(null)} />
+      )}
     </section>
+  );
+}
+
+/** A row's own actions live behind one control, so the shelf keeps looking like a shelf (§32.9). */
+function ManageButton({ entry, onOpen }: {
+  entry: { work_id: string; title: string };
+  onOpen: (work: { work_id: string; title: string }) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <button type="button" className="chip shelfview__manage"
+            onClick={() => onOpen({ work_id: entry.work_id, title: entry.title })}>
+      {t("shelf.manage", { title: entry.title })}
+    </button>
   );
 }
 
