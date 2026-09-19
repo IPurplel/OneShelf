@@ -254,8 +254,13 @@ Named tests pass; axe-core clean on every category in both languages; M32.14, M4
 Settings that change network or storage behaviour (concurrency, reserve, trusted networks) must be
 validated by the backend, never trusted from the client.
 
+**Criterion state (2026-09-19):** all criteria executed and passing, including the live axe run over
+every category in both languages. Two defects found on the way (I-14, I-15) fixed with regression tests.
+M32.14, M45 and M30.10 are `VERIFIED`.
+
 **Expected commit(s)**
-`feat(settings): the remaining panels and their advanced disclosure (M32.14, M45)`
+`feat(settings): the remaining panels and their advanced disclosure (M32.14, M45)` — landed as
+`b7383d7`, with the route and settings-endpoint fixes in `9874a85`
 
 ---
 
@@ -265,7 +270,7 @@ validated by the backend, never trusted from the client.
 Source / Skip), M26.14 (Mark as unread), M26.12 (New filter), M26.11 (scrubber), M26.2 (top bar and More).
 
 **Definition of Ready**
-- WP-S1 verified.
+- WP-S1 verified ✔ (2026-09-19)
 - The backend already has: per-unit and per-work download enqueue, `mark-unread`, page repair through the
   download engine's same-method repair.
 

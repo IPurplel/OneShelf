@@ -22,6 +22,9 @@ only when its test exists and fails without the fix.
 
 | I-13 | Zooming a PDF makes its page pane scrollable, and the pane could not be reached from the keyboard (WCAG 2.1.1) — the same defect the sequential reader had in I-06 | WP-R3 live axe run, 2026-09-19 | `lets the keyboard reach the page area, which scrolls once it is zoomed` | Closed |
 
+| I-14 | The route-order guard filtered `app.routes` with `hasattr(r, "methods")`, but included routers are nested wrappers in this FastAPI version, so it saw 3 routes of 122 and passed while proving nothing | WP-S1, 2026-09-19 | `test_the_guard_sees_the_whole_api_not_a_handful_of_routes` | Closed |
+| I-15 | `POST /api/downloads/{batch_id}/reorder` was registered after `{action}` and returned 404 `UNKNOWN_ACTION`: reordering a queue (§16.1) had never worked through the API. The engine test calls the engine directly, which is why nothing noticed | Found by the repaired guard, 2026-09-19 | `test_reordering_a_queue_reaches_the_engine` | Closed |
+
 ## Environment defects
 
 These are defects of the machine this work runs on, not of OneShelf. They are recorded separately because

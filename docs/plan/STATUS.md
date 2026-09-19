@@ -12,8 +12,8 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-L1 | Shelf lifecycle | M22, M47 (INV-10, M23 hold) | **VERIFIED** — BV-02 executed 2026-09-19 |
 | WP-R2 | Long Strip virtualization and preload | M26.6, M26.18 | **VERIFIED** — live check executed 2026-09-19 |
 | WP-R3 | Book reader comfort | M26.22a, M26.22b | **VERIFIED** — live checks executed 2026-09-19 |
-| WP-S1 | Settings completion | M32.14, M45 | **IN_PROGRESS** |
-| WP-R4 | Reader affordances | M26.19, M26.21, M26.14, M26.12, M26.11, M26.2 | NOT_STARTED |
+| WP-S1 | Settings completion | M32.14, M45 | **VERIFIED** — live check executed 2026-09-19 |
+| WP-R4 | Reader affordances | M26.19, M26.21, M26.14, M26.12, M26.11, M26.2 | **IN_PROGRESS** |
 | WP-E1 | Realtime event client | M36 | NOT_STARTED |
 | WP-D1 | Diagnostics | M43, DEF-diagnostics | NOT_STARTED |
 | WP-R5 | Reader source switching and polish | M26.16, INV-25, M26.3b, M26.24 | NOT_STARTED |
@@ -22,6 +22,21 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
+
+## WP-S1 — done and verified
+
+Reader, Downloads, Sources, Notifications and Advanced replaced their placeholders; the advanced knobs
+sit behind disclosure per §45; the placeholder string is gone from both languages. Every control writes
+a setting the engine already reads — where a knob had no backend (concurrency, retry counts) it is not
+shown rather than faked.
+
+Live, 2026-09-19: ten categories × two languages, all with real controls, no placeholders, **0 axe
+violations**, advanced hidden then shown, no console errors.
+
+Found on the way, both fixed with regression tests: **I-14** (the route-order guard walked only
+`app.routes` and so saw 3 routes of 122 — it passed while proving nothing) and **I-15** (with the guard
+fixed, `POST /api/downloads/{batch_id}/reorder` turned out to be unreachable behind `{action}`, so
+reordering a queue — §16.1 — had never worked through the API).
 
 ## WP-R3 — done and verified
 
@@ -130,6 +145,7 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-19 | WP-S1 built, reviewed, verified live and committed (`b7383d7`); M32.14, M45 and M30.10 → `VERIFIED`. Route-order guard repaired (I-14) and queue reordering fixed (I-15) in `9874a85`. WP-R4 started. |
 | 2026-09-19 | WP-R3 built, reviewed, verified live and committed (`fded8e0`); M26.22a and M26.22b → `VERIFIED`. WP-S1 started. |
 | 2026-09-19 | WP-R2 built, reviewed, verified live and committed (`92b83e2`); M26.6 and M26.18 → `VERIFIED`, M56's bounded-memory clause closed. WP-R3 started. |
 | 2026-09-19 | Host rebuilt with `podman-init`. Blocker re-verified rather than assumed: the seven browser tests still failed, diagnosed fresh as **E-02** (missing `libnspr4.so`), fixed by installing the libraries — then all seven passed. BV-01 and BV-02 executed and passed. M26.15, M22, M47 → `VERIFIED`. Three defects found in the WP-L1 review (I-08, I-09, I-10) fixed with regression tests. WP-L1 closed; WP-R2 started. |

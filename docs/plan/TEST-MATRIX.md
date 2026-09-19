@@ -82,6 +82,23 @@ re-entry restores 34/120, no console errors.
 
 Live criteria executed 2026-09-19, both formats; the isolation tests still pass unchanged.
 
+## WP-S1 — Settings completion (M32.14, M45, M30.10)
+
+| # | Test | File | State |
+|---|---|---|---|
+| 1 | `has no category left saying it is coming later` | `SettingsScreen.test.tsx` | **passing** |
+| 2 | `keeps the technical knobs behind disclosure, and writes what the reader chooses` | `SettingsScreen.test.tsx` | **passing** |
+| 3 | `offers auto-download as the Master defines it: off, and with its own reach` | `SettingsScreen.test.tsx` | **passing** |
+| 4 | `turns the Source Recovered notice on, which is off until asked for` | `SettingsScreen.test.tsx` | **passing** |
+| 5 | `test_download_settings_are_the_ones_the_engine_actually_reads` | `test_library_api.py` | **passing** |
+| 6 | `test_notification_preferences_are_the_ones_the_service_honours` | `test_shelf_api.py` | **passing** |
+| 7 | `test_source_recovered_is_silent_unless_it_is_turned_on` | `test_health_and_notifications.py` | **passing** |
+| 8 | `test_the_guard_sees_the_whole_api_not_a_handful_of_routes` | `test_route_order.py` | **passing** (I-14) |
+| 9 | `test_reordering_a_queue_reaches_the_engine` | `test_library_api.py` | **passing** (I-15) |
+
+Live criterion executed 2026-09-19: ten categories in both languages, real controls everywhere, no
+placeholders, 0 axe violations.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.
