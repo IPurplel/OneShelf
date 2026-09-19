@@ -30,6 +30,8 @@ class EnqueueBody(BaseModel):
     method: Literal["direct", "html_api", "reader_media", "browser"] | None = None
     root_id: str | None = None
     label: str | None = Field(default=None, max_length=120)
+    # §26.21: a unit whose local copy is broken is downloaded again rather than left unreadable.
+    repair: bool = False
 
 
 @router.post("/downloads")
@@ -37,7 +39,7 @@ async def enqueue(request: Request, body: EnqueueBody):
     s = services(request)
     try:
         batch_id = s.downloads.enqueue(body.unit_ids, root_id=body.root_id, one_time_method=body.method,
-                                       label=body.label)
+                                       label=body.label, repair=body.repair)
     except (ValueError, PluginUnavailable) as exc:
         return error(422, "CANNOT_ENQUEUE", str(exc))
     return s.downloads.batch(batch_id)

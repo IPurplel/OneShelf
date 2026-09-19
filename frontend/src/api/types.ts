@@ -88,6 +88,10 @@ export type Unit = {
   read_state: "unread" | "partial" | "read";
   fraction: number;
   read_at: string | null;
+  /** §26.19, §26.21: whether the local copy is sound, so the reader can offer repair honestly. */
+  integrity: "ok" | "corrupt" | "missing_local_file" | "unknown" | "none";
+  /** §26.12: new since the last acknowledged release, from Follow's own record. */
+  is_new: boolean;
 };
 
 export type WorkDetails = {

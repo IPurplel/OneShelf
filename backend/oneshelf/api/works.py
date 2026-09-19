@@ -39,11 +39,21 @@ def _units(conn: sqlite3.Connection, track_id: str) -> list[dict]:
         " rs.read_state, rs.fraction, rs.updated_at AS read_at"
         " FROM reading_units u LEFT JOIN reading_state rs ON rs.reading_unit_id = u.id"
         " WHERE u.track_id = ? ORDER BY u.source_order", (track_id,)).fetchall()
+    # What Follow has recorded as new and not yet seen (§20, §26.12) — the reader's own record, not a guess.
+    new_units = {r[0] for r in conn.execute(
+        "SELECT reading_unit_id FROM release_events WHERE track_id = ? AND seen = 0"
+        " AND reading_unit_id IS NOT NULL", (track_id,))}
     units = []
     for row in rows:
         assets = conn.execute(
             "SELECT format, integrity FROM assets WHERE reading_unit_id = ? ORDER BY format", (row["id"],)).fetchall()
         formats = sorted({a["format"] for a in assets if a["integrity"] == "ok"})
+        # What the reader needs to tell "never downloaded" from "downloaded and now unreadable" (§26.21).
+        states = {a["integrity"] for a in assets}
+        integrity = ("ok" if formats else
+                     "missing_local_file" if "missing_local_file" in states else
+                     "corrupt" if "corrupt" in states else
+                     "unknown" if states else "none")
         units.append({
             "id": row["id"],
             "title": row["display_title"] or row["raw_title"],
@@ -55,6 +65,8 @@ def _units(conn: sqlite3.Connection, track_id: str) -> list[dict]:
             "availability": row["availability"],
             "url": row["url_hint"],
             "downloaded": bool(formats),
+            "integrity": integrity,
+            "is_new": row["id"] in new_units,
             "formats": formats,
             "read_state": row["read_state"] or "unread",
             "fraction": row["fraction"] if row["fraction"] is not None else 0.0,

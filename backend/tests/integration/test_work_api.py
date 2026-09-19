@@ -161,3 +161,40 @@ def test_reader_settings_come_from_the_one_defaults_registry(api):
 
     assert client.post("/api/reader/settings", json={"preload_next": 0}).status_code == 422
     assert client.post("/api/reader/settings", json={"preload_next": 500}).status_code == 422
+
+
+def test_units_say_whether_their_local_copy_is_sound(api):
+    """§26.19, §26.21: the reader distinguishes not downloaded from downloaded-but-not-readable."""
+    client, tmp_path = api
+    imported = import_work(client, tmp_path)
+
+    sound = client.get(f"/api/works/{imported['work_id']}").json()["units"][0]
+    assert sound["downloaded"] is True and sound["integrity"] == "ok"
+
+    # The real way a copy goes bad: the file leaves, and the scanner notices (§38).
+    for managed in (tmp_path / "library").rglob("*.cbz"):
+        managed.unlink()
+    assert client.post("/api/storage/scan").status_code == 200
+
+    broken = client.get(f"/api/works/{imported['work_id']}").json()["units"][0]
+    assert broken["downloaded"] is False                    # nothing sound to read
+    assert broken["integrity"] == "missing_local_file"      # but the library knows what is missing
+
+
+def test_a_local_work_has_no_source_to_repair_from(api):
+    """§26.21, INV-11: a file you imported yourself has no source behind it, and OneShelf says so
+    plainly rather than pretending it can fetch it again."""
+    client, tmp_path = api
+    imported = import_work(client, tmp_path)
+    unit = imported["reading_unit_id"]
+
+    plain = client.post("/api/downloads", json={"unit_ids": [unit]}).json()
+    assert plain["skipped"] == 1 and plain["pending"] == 0     # a sound unit is not fetched again
+
+    for managed in (tmp_path / "library").rglob("*.cbz"):
+        managed.unlink()
+    client.post("/api/storage/scan")
+
+    response = client.post("/api/downloads", json={"unit_ids": [unit], "repair": True})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "CANNOT_ENQUEUE"

@@ -307,3 +307,35 @@ def test_the_queue_survives_a_restart_and_a_new_engine_finishes_it(environment):
     assert recovered == 1 and report.completed == 1
     assert final["state"] == "COMPLETED"
     assert len(assets) == 1 and len(files) == 1
+
+
+def test_repair_downloads_a_broken_copy_again_through_the_normal_pipeline(environment):
+    """§16.5, §26.21: repair is the same contract, method and validated commit as any download."""
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            env.engine.enqueue([unit])
+            await env.engine.run_until_idle()
+            first = env.files()
+
+            # Asking again changes nothing: a sound copy is left alone.
+            again = env.engine.enqueue([unit])
+            await env.engine.run_until_idle()
+            skipped_only = env.engine.batch(again)["skipped"] == 1
+
+            # The copy goes bad the way copies do.
+            for path in first:
+                path.unlink()
+            env.db.execute("UPDATE assets SET integrity = 'missing_local_file'")
+            assert env.files() == [], f"precondition: the copy is gone, but found {env.files()}"
+
+            batch = env.engine.enqueue([unit], repair=True)
+            report = await env.engine.run_until_idle()
+            return skipped_only, env.engine.batch(batch), report, env.files(), env.assets()
+
+    skipped_only, batch, report, files, assets = run(scenario())
+    assert skipped_only, "a sound copy should not be downloaded again"
+    assert batch["skipped"] == 0 and report.completed == 1
+    assert len(files) == 1 and len(assets) == 1
+    assert {a["integrity"] for a in assets} == {"ok"}

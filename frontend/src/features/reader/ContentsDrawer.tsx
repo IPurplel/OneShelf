@@ -5,7 +5,7 @@ import type { Unit } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
 import { Drawer } from "@/components/Drawer";
 
-type Filter = "all" | "unread" | "downloaded";
+type Filter = "all" | "unread" | "downloaded" | "new";
 
 /** The contents drawer (Master §26.12): units, their states, light filters — never a separate page. */
 export function ContentsDrawer({ units, currentId, workId, onClose }: {
@@ -18,13 +18,15 @@ export function ContentsDrawer({ units, currentId, workId, onClose }: {
   const [filter, setFilter] = useState<Filter>("all");
 
   const shown = units.filter((unit) => filter === "all"
+    // §26.12: "new" is what Follow recorded and you have not acknowledged — never a guess.
+    || (filter === "new" && unit.is_new)
     || (filter === "unread" && unit.read_state !== "read")
     || (filter === "downloaded" && unit.downloaded));
 
   return (
     <Drawer title={t("reader.contents")} onClose={onClose}>
       <div className="drawer__filters" role="group" aria-label={t("reader.contents")}>
-        {(["all", "unread", "downloaded"] as Filter[]).map((candidate) => (
+        {(["all", "unread", "downloaded", "new"] as Filter[]).map((candidate) => (
           <button key={candidate} type="button" className="chip" aria-pressed={filter === candidate}
                   onClick={() => setFilter(candidate)}>
             {t(`reader.filter.${candidate}` as const)}

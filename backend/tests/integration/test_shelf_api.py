@@ -182,3 +182,26 @@ def test_notification_preferences_are_the_ones_the_service_honours(api):
     assert client.get("/api/notifications/settings").json() == {"source_recovered": False}
     assert client.post("/api/notifications/settings", json={"source_recovered": True}).status_code == 200
     assert client.get("/api/notifications/settings").json() == {"source_recovered": True}
+
+
+def test_units_say_which_of_them_are_new(api):
+    """§26.12: the contents drawer can show what arrived since you last looked, from Follow's own record."""
+    client, server, _ = api
+    bound = bind(client, "big", "A Very Long Saga")
+    work, track = bound["work_id"], bound["track_id"]
+    client.post(f"/api/tracks/{track}/catalog/refresh")
+    client.post(f"/api/follows/{work}", json={"language": "en", "source_id": TS, "track_id": track})
+    control(server, big_collapsed=False)
+    checked = client.post(f"/api/follows/{work}/check").json()
+    assert len(checked["new_units"]) > 0
+
+    units = client.get(f"/api/works/{work}").json()["units"]
+    new_ids = {u["id"] for u in units if u["is_new"]}
+    assert len(new_ids) == len(checked["new_units"])
+    assert any(not u["is_new"] for u in units), "the units that were always there are not new"
+
+    # Acknowledging the releases is what clears "new" — marking notifications seen is a different thing
+    # and must not touch reading state or this (§30.3).
+    assert client.post(f"/api/follows/{work}/seen").json()["marked"] == len(new_ids)
+    after = client.get(f"/api/works/{work}").json()["units"]
+    assert all(not u["is_new"] for u in after)

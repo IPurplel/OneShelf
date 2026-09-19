@@ -36,13 +36,13 @@ const WORK = {
   units: [
     { id: "u1", title: "Prologue", number: null, unit_type: "prologue", volume: null, order: 1, release_date: null,
       availability: "available", url: null, downloaded: true, formats: ["cbz"], read_state: "read", fraction: 1,
-      read_at: null },
+      read_at: null, integrity: "ok", is_new: false },
     { id: "u2", title: "Chapter 1", number: "1", unit_type: "chapter", volume: null, order: 2, release_date: null,
       availability: "available", url: null, downloaded: true, formats: ["cbz"], read_state: "unread", fraction: 0,
-      read_at: null },
+      read_at: null, integrity: "ok", is_new: false },
     { id: "u3", title: "Special", number: null, unit_type: "special", volume: null, order: 3, release_date: null,
       availability: "available", url: null, downloaded: true, formats: ["cbz"], read_state: "unread", fraction: 0,
-      read_at: null },
+      read_at: null, integrity: "ok", is_new: true },
   ],
   continue_unit_id: "u2",
 };
@@ -561,5 +561,85 @@ describe("Sequential Reader", () => {
     }
     const spacer = screen.getByTestId("reader-stage").querySelector<HTMLElement>('[data-spacer="before"]');
     expect(spacer!.style.blockSize).toBe(`${25 * 1200}px`);      // the same estimate, used consistently
+  });
+
+  // §26.19, §26.21, §26.14, §26.12, §26.11, §26.2: what the reader needs at hand.
+  it("says whether this unit is on the device, and can fetch the whole work", async () => {
+    const calls = stub([post("/api/downloads", { batch_id: "b1", state: "active", pending: 3 })]);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    const bar = screen.getByRole("toolbar", { name: /reading controls/i });
+    expect(within(bar).getByText(/downloaded/i)).toBeInTheDocument();
+
+    await user.click(within(bar).getByRole("button", { name: /more/i }));
+    await user.click(within(bar).getByRole("button", { name: /download the whole work/i }));
+
+    const enqueue = calls.find((call) => call.method === "POST" && call.url === "/api/downloads");
+    expect((enqueue?.body as { unit_ids: string[] }).unit_ids).toEqual(["u1", "u2", "u3"]);
+  });
+
+  it("marks a unit unread as readily as read", async () => {
+    const calls = stub([post("/api/reader/units/u2/mark-unread", { ...PROGRESS, read_state: "unread" })]);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    await user.click(screen.getByRole("button", { name: /more/i }));
+    await user.click(screen.getByRole("button", { name: /mark as unread/i }));
+    expect(calls.some((call) => call.url === "/api/reader/units/u2/mark-unread")).toBe(true);
+  });
+
+  it("offers Retry, Repair from Source and Skip when a page will not load", async () => {
+    const calls = stub([post("/api/downloads", { batch_id: "b2", state: "active", pending: 1 })]);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    const pages = await screen.findAllByRole("img", { name: /page \d/i });
+
+    fireEvent.error(pages[1]!);
+    const failure = await screen.findByRole("group", { name: /could not be loaded/i });
+    expect(within(failure).getByRole("button", { name: /try again/i })).toBeInTheDocument();
+    expect(within(failure).getByRole("button", { name: /skip this page/i })).toBeInTheDocument();
+
+    await user.click(within(failure).getByRole("button", { name: /repair from the source/i }));
+    const repair = calls.find((call) => call.method === "POST" && call.url === "/api/downloads");
+    expect(repair?.body).toEqual({ unit_ids: ["u2"], repair: true });
+  });
+
+  it("moves through the unit with a scrubber that respects reading direction", async () => {
+    stub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    const scrubber = screen.getByRole("slider", { name: /page/i });
+    expect(scrubber).toHaveAttribute("aria-valuemin", "1");
+    expect(scrubber).toHaveAttribute("aria-valuemax", "3");
+
+    fireEvent.change(scrubber, { target: { value: "3" } });
+    expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("3 / 3");
+
+    await user.click(screen.getByRole("button", { name: /reader settings/i }));
+    await user.click(within(screen.getByRole("dialog", { name: /reader settings/i }))
+      .getByRole("radio", { name: /right to left/i }));
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("slider", { name: /page/i })).toHaveAttribute("dir", "rtl");
+  });
+
+  it("filters the contents by what is new, as well as unread and downloaded", async () => {
+    stub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    await user.click(screen.getByRole("button", { name: /contents/i }));
+    const drawer = screen.getByRole("dialog", { name: /contents/i });
+    expect((await within(drawer).findAllByRole("listitem")).length).toBe(3);
+
+    await user.click(within(drawer).getByRole("button", { name: /^new$/i }));
+    const shown = within(drawer).getAllByRole("listitem");
+    expect(shown).toHaveLength(1);
+    expect(shown[0]).toHaveTextContent("Special");          // the one unit Follow recorded as new
   });
 });

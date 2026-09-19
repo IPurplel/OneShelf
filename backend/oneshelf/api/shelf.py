@@ -120,6 +120,12 @@ async def unfollow(request: Request, work_id: str):
     return {"work_id": work_id, "undo_token": token}
 
 
+@router.post("/follows/{work_id}/seen")
+async def mark_releases_seen(request: Request, work_id: str):
+    """§20, §26.12: acknowledging releases is what makes "new" stop being new."""
+    return {"work_id": work_id, "marked": services(request).follows.mark_releases_seen(work_id)}
+
+
 @router.post("/follows/{work_id}/check")
 async def check_follow(request: Request, work_id: str):
     try:

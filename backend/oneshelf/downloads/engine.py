@@ -31,6 +31,7 @@ from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.storage.commit import CommitEngine, CommitError, CommitRequest
 from oneshelf.storage.hashing import sha256_file
 from oneshelf.storage.layout import asset_relative_path, family_for
+from oneshelf.storage.paths import PathSafetyError, delete_managed_file
 from oneshelf.storage.roots import StorageRoot, check_availability, get_root, list_roots, preflight
 from oneshelf.storage.staging import new_staging_area
 
@@ -111,6 +112,30 @@ class DownloadEngine:
             raise ValueError(f"unknown reading unit {unit_id}")
         return row
 
+    def _clear_broken_copy(self, unit_id: str) -> int:
+        """Make room for a repair (§16.5, §26.21).
+
+        A copy that is not sound is being replaced, so its record goes and, if the file is still there,
+        it goes too — otherwise the commit would refuse to overwrite its own final path and the repair
+        would fail on every attempt. A sound copy is never touched: it is not what repair is for.
+        """
+        removed = 0
+        rows = self.conn.execute(
+            "SELECT * FROM assets WHERE reading_unit_id = ? AND integrity != 'ok'", (unit_id,)).fetchall()
+        for asset in rows:
+            try:
+                root = get_root(self.conn, asset["storage_root_id"])
+                delete_managed_file(root.path, asset["relative_path"])
+            except (PathSafetyError, FileNotFoundError, ValueError):
+                pass                    # already gone, or never ours to delete
+            # A finished job and its journal entry point at the asset they produced; the copy is going,
+            # so those pointers go with it rather than dangling.
+            self.conn.execute("UPDATE download_jobs SET asset_id = NULL WHERE asset_id = ?", (asset["id"],))
+            self.conn.execute("UPDATE imports SET asset_id = NULL WHERE asset_id = ?", (asset["id"],))
+            self.conn.execute("DELETE FROM assets WHERE id = ?", (asset["id"],))
+            removed += 1
+        return removed
+
     def _already_downloaded(self, unit_id: str) -> bool:
         return self.conn.execute("SELECT 1 FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'",
                                  (unit_id,)).fetchone() is not None
@@ -122,7 +147,12 @@ class DownloadEngine:
             (unit_id, *ACTIVE_STATES, *RUNNABLE_STATES)).fetchone() is not None
 
     def enqueue(self, unit_ids: list[str], *, root_id: str | None = None, one_time_method: str | None = None,
-                label: str | None = None) -> str:
+                label: str | None = None, repair: bool = False) -> str:
+        """`repair` re-downloads a unit whose local copy is broken (§16.5, §26.21).
+
+        It is the same contract, the same method and the same validated commit as any other download —
+        never a side path — so a repaired unit is sound in exactly the way a fresh one is (INV-02).
+        """
         batch_id, now = new_id(), utcnow_iso()
         skipped, queued = [], []
         with transaction(self.conn):
@@ -131,7 +161,9 @@ class DownloadEngine:
             position = self.conn.execute("SELECT coalesce(max(queue_position), 0) FROM download_jobs").fetchone()[0]
             for unit_id in unit_ids:
                 context = self._unit_context(unit_id)
-                if self._already_downloaded(unit_id) or self._active_job(unit_id):
+                if repair:
+                    self._clear_broken_copy(unit_id)
+                if (self._already_downloaded(unit_id) and not repair) or self._active_job(unit_id):
                     skipped.append(unit_id)
                     continue
                 package = self.plugins.load_active(context["source_id"])

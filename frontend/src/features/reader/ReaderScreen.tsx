@@ -55,6 +55,8 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
   const [index, setIndex] = useState(0);
   const [atEnd, setAtEnd] = useState(false);
   const [failed, setFailed] = useState<Set<number>>(new Set());
+  const [skipped, setSkipped] = useState<Set<number>>(new Set());
+  const [repairing, setRepairing] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [fullscreen, setFullscreen] = useState(false);
@@ -275,6 +277,13 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
         <button type="button" className="reader__button" onClick={() => setPanel("settings")}>
           {t("reader.settings")}
         </button>
+        {unit !== null && (
+          <span className={`reader__state reader__state--${unit.downloaded ? "downloaded" : unit.integrity}`}>
+            {unit.downloaded ? t("reader.state.downloaded")
+              : unit.integrity === "none" ? t("reader.state.notDownloaded")
+              : t("reader.state.broken")}
+          </span>
+        )}
         <button type="button" className="reader__button" onClick={toggleFullscreen}>
           {fullscreen ? t("reader.fullscreenExit") : t("reader.fullscreen")}
         </button>
@@ -296,6 +305,20 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
               {t("reader.zoomOut")}
             </button>
             <button type="button" className="reader__button" onClick={resetZoom}>{t("reader.zoomReset")}</button>
+            <button type="button" className="reader__button"
+                    onClick={() => { void api.post(`/api/reader/units/${id}/mark-unread`, {}); setMore(false); }}>
+              {t("reader.markUnread")}
+            </button>
+            <button type="button" className="reader__button"
+                    onClick={() => {
+                      void api.post("/api/downloads", { unit_ids: units.map((entry) => entry.id) });
+                      setMore(false);
+                    }}>
+              {t("reader.downloadWork")}
+            </button>
+            <Link className="reader__button" to={work ? `/works/${work}` : "/shelf"} onClick={flush}>
+              {t("reader.workDetails")}
+            </Link>
           </div>
         )}
       </div>
@@ -314,14 +337,32 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
                style={{ blockSize: `${before * pageHeight}px` }} />
         )}
         {visible.map((page, offset) => (
-          failed.has(page.index) ? (
+          skipped.has(page.index) ? (
+            <div key={page.index} className="reader__skipped" aria-hidden="true" />
+          ) : failed.has(page.index) ? (
             <div key={page.index} className="reader__failed" role="group" aria-label={t("reader.pageFailed")}>
               <p>{t("reader.pageFailed")}</p>
-              <button type="button" onClick={() => setFailed((set) => {
-                const copy = new Set(set);
-                copy.delete(page.index);
-                return copy;
-              })}>{t("reader.retry")}</button>
+              <p className="cards__meta">{t("reader.pageFailedHelp")}</p>
+              <div className="firstrun__actions">
+                <button type="button" className="button" onClick={() => setFailed((set) => {
+                  const copy = new Set(set);
+                  copy.delete(page.index);
+                  return copy;
+                })}>{t("reader.retry")}</button>
+                {/* Repair is the same download again, through the normal validated commit (§16.5). */}
+                <button type="button" className="button" disabled={repairing || unit?.integrity === "none"}
+                        onClick={() => {
+                          setRepairing(true);
+                          void api.post("/api/downloads", { unit_ids: [id], repair: true })
+                            .finally(() => setRepairing(false));
+                        }}>
+                  {t("reader.repair")}
+                </button>
+                <button type="button" className="button"
+                        onClick={() => setSkipped((set) => new Set(set).add(page.index))}>
+                  {t("reader.skip")}
+                </button>
+              </div>
             </div>
           ) : (
             <img key={page.index} className="reader__page" data-page-slot={firstSlot + offset}
@@ -358,6 +399,20 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
         <span className="reader__progress">
           {pages.length > 0 ? `${Math.min(index + 1, pages.length)} / ${pages.length}` : ""}
         </span>
+        {pages.length > 1 && (
+          <input type="range" className="reader__scrubber" aria-label={t("reader.scrubber")}
+                 dir={settings.direction === "rtl" ? "rtl" : "ltr"}
+                 min={1} max={pages.length} value={Math.min(index + 1, pages.length)}
+                 aria-valuemin={1} aria-valuemax={pages.length}
+                 aria-valuenow={Math.min(index + 1, pages.length)}
+                 onChange={(event) => {
+                   const slot = Number(event.target.value) - 1;
+                   indexRef.current = slot;
+                   setIndex(slot);
+                   setScrollTo(slot);
+                   record((slot + 1) / pages.length, { page: slot + 1 });
+                 }} />
+        )}
       </div>
 
       {panel === "contents" && <ContentsDrawer units={units} currentId={id} workId={work} onClose={() => setPanel(null)} />}
