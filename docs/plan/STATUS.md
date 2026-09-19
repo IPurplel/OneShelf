@@ -8,9 +8,9 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 
 | WP | Scope | Rows | Status |
 |---|---|---|---|
-| WP-R1 | Reading progress restoration | M26.15 | **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)** |
-| WP-L1 | Shelf lifecycle | M22, M47 (INV-10, M23 hold) | **IN_PROGRESS** |
-| WP-R2 | Long Strip virtualization and preload | M26.6, M26.18 | NOT_STARTED |
+| WP-R1 | Reading progress restoration | M26.15 | **VERIFIED** — BV-01 executed 2026-09-19 |
+| WP-L1 | Shelf lifecycle | M22, M47 (INV-10, M23 hold) | **VERIFIED** — BV-02 executed 2026-09-19 |
+| WP-R2 | Long Strip virtualization and preload | M26.6, M26.18 | **IN_PROGRESS** |
 | WP-R3 | Book reader comfort | M26.22a, M26.22b | NOT_STARTED |
 | WP-S1 | Settings completion | M32.14, M45 | NOT_STARTED |
 | WP-R4 | Reader affordances | M26.19, M26.21, M26.14, M26.12, M26.11, M26.2 | NOT_STARTED |
@@ -22,14 +22,30 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1, M36, M26.6).
 
-## WP-L1 — current tasks
+## WP-L1 — done and verified
 
 | # | Task | Status |
 |---|---|---|
-| 1 | Work Details: Remove from Shelf, showing what the library says will be removed | TODO |
-| 2 | The confirmation: what goes, what remains, Keep Files vs Delete Files as separate choices | TODO |
-| 3 | Mark Completed and un-complete, offering — never performing — deletion | TODO |
-| 4 | My Shelf: the same actions from a row | TODO |
+| 1 | Work Details: Remove from Shelf, showing what the library says will be removed | DONE |
+| 2 | The confirmation: what goes, what remains, Keep Files vs Delete Files as separate choices | DONE |
+| 3 | Mark Completed and un-complete, offering — never performing — deletion | DONE |
+| 4 | My Shelf: the same actions from a row (list layout; the grid keeps the shelf motif) | DONE |
+
+### The nine confirmations, and what carries each
+
+| Confirmation | Evidence |
+|---|---|
+| Keep Files removes Shelf membership but preserves managed files | `test_remove_from_shelf_offers_file_choices_and_keeps_other_state` |
+| Keep Files preserves Follow state | same test — `follows` count unchanged (INV-10) |
+| Keep Files preserves reading progress | same test — `read_state` still `partial` |
+| Delete Files removes only the intended managed files | `test_delete_files_touches_only_this_works_files` (added in review) |
+| Delete Files does not implicitly Unfollow | `test_delete_files_keeps_follow_shelf_and_progress` |
+| Delete Files does not erase reading progress | same test — `read_state` still `read`; §22 requires progress to survive |
+| Mark Completed persists independently of later new releases | `test_completed_survives_new_releases_and_counts_them` |
+| UI wording describes destructive vs non-destructive effects | the WP-L1 UI tests including Arabic, and BV-02 live in both languages |
+| Filesystem deletion is path-safe and cannot escape the managed root | `test_the_library_cannot_even_record_a_path_outside_its_root` (schema CHECK), `test_a_symlink_standing_in_for_a_managed_file_is_refused_and_never_counted`, `test_delete_managed_file_only_deletes_regular_files_inside_root` |
+
+Three defects found in review and fixed with regression tests: I-08, I-09, I-10 in `ISSUES.md`.
 
 ## WP-R1 — done
 
@@ -41,19 +57,19 @@ Consequential rows that close when their causes do: M51 (with INV-25), M56 (with
 | 4 | An outdated locator is clamped, never an error | DONE |
 | 5 | Restoring records no progress | DONE |
 
-### Verification state — corrected 2026-09-19
+### Verification state — BV-01 executed 2026-09-19
 
 WP-R1 was marked VERIFIED on 2026-09-18 while one of its own criteria had not been executed. That was
 wrong, and the status is withdrawn rather than the criterion softened.
 
 | Criterion (from `execution-plan.md`, unchanged) | Result |
 |---|---|
-| The named tests pass; the whole frontend suite passes; `tsc` clean | **Executed, passed** — 8 tests; frontend 144; backend 794/4 deselected; `tsc` clean |
-| Live: read to page 2, leave, re-enter — the reader opens on page 2, no console errors | **NOT EXECUTED — `BLOCKED_BY_ENVIRONMENT` (E-01a)**: Chromium cannot spawn on this host |
-| M26.15 → `VERIFIED` with its test names recorded | **Withheld** — M26.15 is `IMPLEMENTED` until the criterion above runs |
+| The named tests pass; the whole frontend suite passes; `tsc` clean | **Executed, passed** — 8 tests; frontend 155; backend 797/4 deselected; `tsc` clean |
+| Live: read to page 2, leave, re-enter — the reader opens on page 2, no console errors | **Executed 2026-09-19, passed** — "2 / 3" before leaving and after returning, the rendered element was `/pages/2`, the library held `{page: 2}`, zero console errors |
+| M26.15 → `VERIFIED` with its test names recorded | **Done** |
 
-A live locator round-trip against the running API was executed and passed. It exercises the contract the
-browser step would exercise, but it is **not** a substitute for it and is not counted as one.
+The status was withdrawn on 2026-09-18 rather than kept on a caveat, and is granted now because the
+criterion itself ran — not because the environment changed.
 
 ### Blocked-verification list
 
@@ -61,17 +77,17 @@ browser step would exercise, but it is **not** a substitute for it and is not co
 E-01 is repaired, and only then may the row it belongs to reach `VERIFIED`. While an entry here belongs
 to a C-phase, that phase is not fully `VERIFIED`; while any entry remains, OneShelf is not complete.
 
-| # | Blocked check, as originally written | Package | Row | Phase | Re-run when |
+**Nothing is currently blocked.** The list is kept because it is the ledger: entries are discharged by
+being executed, never by being reworded.
+
+| # | Blocked check, as originally written | Package | Row | Executed | Result |
 |---|---|---|---|---|---|
-| BV-01 | "Live: read to page 2 of a seeded unit, leave, re-enter — the reader opens on page 2, with no console errors." | WP-R1 | M26.15 | C2 | E-01 repaired; then M26.15 → `VERIFIED` |
-| BV-02 | "live check that a removal dialog reads correctly in both languages" | WP-L1 | M22, M47 | C2 | E-01 repaired; then the language check runs against the built UI |
-| BV-03 | Playwright screenshots and axe-core audits for every package from WP-L1 onward | WP-L1+ | M32.x, M45 | C2 | E-01 repaired |
+| BV-01 | "Live: read to page 2 of a seeded unit, leave, re-enter — the reader opens on page 2, with no console errors." | WP-R1 | M26.15 | 2026-09-19 | **PASS** — page 2 before and after, `/pages/2` rendered, `{page: 2}` stored, no console errors |
+| BV-02 | "live check that a removal dialog reads correctly in both languages" | WP-L1 | M22, M47 | 2026-09-19 | **PASS** — English and Arabic, `dir=rtl` when mirrored, what-is-removed and what-stays both present, Keep and Delete separate, 0 axe violations, no console errors. Screenshots: `shelf-remove-en.png`, `shelf-remove-ar.png` |
+| BV-03 | Playwright screenshots and axe-core audits for every package from WP-L1 onward | WP-L1+ | M32.x, M45 | ongoing | Executed per package from WP-L1 (BV-02 covers its surfaces); continues with each package |
 
-Downstream packages may still begin, under the four-part rule in `execution-plan.md`, when the blocked
-check is not a hard dependency of theirs. That judgement is recorded in each package's Definition of
-Ready. It does not discharge the debt above.
-
-Environment defects are recorded in `ISSUES.md` under **Environment defects** (E-01, E-01a, E-01b).
+Environment defects are in `ISSUES.md` under **Environment defects**: E-01, E-01a and E-01b resolved by
+the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the rebuilt host.
 
 ## Log
 
@@ -81,3 +97,4 @@ Environment defects are recorded in `ISSUES.md` under **Environment defects** (E
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-19 | Host rebuilt with `podman-init`. Blocker re-verified rather than assumed: the seven browser tests still failed, diagnosed fresh as **E-02** (missing `libnspr4.so`), fixed by installing the libraries — then all seven passed. BV-01 and BV-02 executed and passed. M26.15, M22, M47 → `VERIFIED`. Three defects found in the WP-L1 review (I-08, I-09, I-10) fixed with regression tests. WP-L1 closed; WP-R2 started. |

@@ -90,9 +90,9 @@ approximate). Touches M26.23's guarantees without changing them.
 No new endpoint, no schema change, no new stored data. Restoring is read-only, so it cannot regress
 progress (M26.23, INV-25). A malformed or outdated locator must not throw or jump to a wrong unit.
 
-**Criterion state (2026-09-19):** the test and typecheck criteria are executed and passing; the browser
-re-entry criterion is **not executed** and is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a). The criterion
-above is left exactly as written. M26.15 therefore stands at `IMPLEMENTED`, not `VERIFIED`.
+**Criterion state (2026-09-19):** all criteria executed and passing, including the browser re-entry
+criterion (BV-01), once the host was rebuilt with `podman-init` and Chromium's missing libraries were
+installed. M26.15 is `VERIFIED`.
 
 **Expected commit(s)**
 `fix(reader): resume a unit where it was left (M26.15)`
@@ -138,8 +138,13 @@ These are the product's destructive actions. Nothing may delete without an expli
 must come from the backend rather than be guessed in the UI; a failed delete must leave the library
 consistent and say so.
 
+**Criterion state (2026-09-19):** all criteria executed and passing, including the live bilingual dialog
+check (BV-02). Review against M22/M47/INV-10/M23 found three defects (I-08, I-09, I-10), each fixed with
+a regression test. M22 and M47 are `VERIFIED`; INV-10 keeps its backend evidence and gains the UI tests.
+
 **Expected commit(s)**
-`feat(shelf): remove from shelf, keep or delete files, and mark completed (M22, M47)`
+`feat(shelf): remove from shelf, keep or delete files, and mark completed (M22, M47)` — landed as
+`24605eb`, with the review fixes in `198a3b0`
 
 ---
 
@@ -150,10 +155,9 @@ scroll), M26.18 (preload ~next 7 / previous 4; Long Strip bounded window; advanc
 memory).
 
 **Definition of Ready**
-- WP-R1's scroll restoration is the code this package rebuilds, so **point 4 applies against it**: the
-  blocked browser re-entry criterion checks exactly the behaviour virtualization could break. The
-  dependency **stays blocking** unless WP-R2 carries that behaviour in its own executable tests, or the
-  environment is repaired and WP-R1's criterion runs. Recorded here rather than assumed.
+- WP-R1 is fully `VERIFIED`, BV-01 included, so the dependency that was recorded as blocking is
+  discharged: the behaviour virtualization could break is now covered by an executed live check as well
+  as by tests, and WP-R2 must keep both passing.
 - A decision recorded here: the window is measured in pages around the current position, and the preload
   numbers come from the defaults registry rather than literals in the component.
 

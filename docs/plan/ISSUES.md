@@ -13,7 +13,10 @@ only when its test exists and fails without the fix.
 | I-04 | Progress stopped being written for any unit already read: the reader began at revision 0, so its first write was stale, and the recovery path called a `GET .../progress` endpoint that did not exist (405) | Live run, 2026-09-18 | `test_progress_can_be_read_back_so_a_reader_knows_the_revision_it_must_carry`, `carries the revision the library already holds, so the first write is not stale` | Closed |
 | I-05 | Smart fit did nothing: pages rendered at their own pixel size | Live run, 2026-09-18 | `fits a page to the reading area rather than leaving it at its own pixel size` | Closed |
 | I-06 | The scrolling page area could not be reached from the keyboard (WCAG 2.1.1) | axe-core, 2026-09-18 | `lets the keyboard reach the pages themselves, which scroll` | Closed |
-| I-07 | A unit opens at page 1 rather than where it was left, although the position is stored and read back | Traceability reconciliation, 2026-09-18 | WP-R1 tests 1–8 in `TEST-MATRIX.md`, led by `opens a unit where it was left rather than at the beginning` | Fixed; **verification incomplete** — the browser re-entry check is blocked by E-01, so M26.15 stays `IMPLEMENTED` |
+| I-07 | A unit opens at page 1 rather than where it was left, although the position is stored and read back | Traceability reconciliation, 2026-09-18 | WP-R1 tests 1–8 in `TEST-MATRIX.md`, plus BV-01 executed live on 2026-09-19 | Closed — M26.15 `VERIFIED` |
+| I-08 | `delete_files()` swallowed a `PathSafetyError`, then deleted the asset row and counted the file as removed: it claimed a deletion that never happened and forgot a file still on disk. Path safety itself held | WP-L1 review, 2026-09-19 | `test_a_symlink_standing_in_for_a_managed_file_is_refused_and_never_counted`, `test_the_library_cannot_even_record_a_path_outside_its_root` | Closed |
+| I-09 | The UI reported the removal summary's forecast count instead of the number the library said it deleted | WP-L1 review, 2026-09-19 | `reports the deletions the library actually made, not the ones it predicted`, `reports the same way when Completed offers to delete the files` | Closed |
+| I-10 | Arabic used the plural for a count of one — "1 ملفات" | BV-02 live check, 2026-09-19 | `counts one file as one file, in both languages` | Closed |
 
 ## Environment defects
 
@@ -22,13 +25,15 @@ they block verification steps, and a blocked step must never be quietly dropped 
 
 | # | Defect | Measured | Effect | State |
 |---|---|---|---|---|
-| E-01 | **PID 1 does not reap children.** PID 1 on this host is `sleep infinity`, which never calls `wait()`. Every orphaned process is reparented to it and stays a zombie for the life of the container. | 2026-09-19: `pids.current` 1997 of `pids.max` 2048; 1564 zombies; all 1564 have `ppid = 1`; `ps -p 1` → `sleep infinity` | The cgroup PID limit is ~51 slots from exhaustion, so new processes and threads fail | Open — not fixable from inside this session |
-| E-01a | **Chromium cannot spawn.** Playwright launches fail during startup. | `pthread_create: Resource temporarily unavailable (11)`, then `Browser.new_page: Target crashed`, and the browser process exits on `SIGKILL` | Every browser-based verification is blocked: Playwright screenshots, axe-core audits, and WP-R1's browser re-entry check | `BLOCKED_BY_ENVIRONMENT` |
-| E-01b | **Tooling fails intermittently under the same pressure.** Reported by the user as stop hooks intermittently failing with `EAGAIN` / `SIGABRT`; observed here as Go's runtime aborting (`runtime: failed to create new OS thread (have 13 already; errno=11)` → `fatal error: newosproc`) when vitest's esbuild workers start, and as shell commands returning exit code 144 when a signal lands mid-command | Same cause as E-01 | Worked around by `vitest --no-file-parallelism`; not a fix | Open |
+| E-01 | **PID 1 did not reap children.** PID 1 was `sleep infinity`, which never calls `wait()`, so every orphan became a permanent zombie. | 2026-09-19 (old container): 1997 of 2048 PIDs; 1564 zombies, all with `ppid = 1` | The cgroup PID limit ran out; new processes and threads failed | **Resolved 2026-09-19** — ai-box recreated with Podman `--init` / `podman-init`. Re-measured: `PID 1 = /run/podman-init -- sleep infinity`, 11 processes, **0 zombies**, 60/2048 PIDs |
+| E-01a | **Chromium could not spawn** under E-01. | `pthread_create: Resource temporarily unavailable (11)` → `Target crashed` → `SIGKILL` | Blocked every browser verification | **Resolved 2026-09-19** — but see E-02: on the rebuilt host the launch failed again for a *different* reason, which was fixed rather than assumed to be this one |
+| E-01b | **Tooling failed intermittently** under the same pressure: stop hooks with `EAGAIN`/`SIGABRT` (user-reported), Go aborting with `newosproc` when vitest started workers, shells returning 144 | Same cause as E-01 | Worked around with `vitest --no-file-parallelism` | **Resolved with E-01** — the full suite now runs with default parallelism |
+| E-02 | **Chromium's system libraries were missing** from the recreated container. Diagnosed fresh rather than attributed to E-01: the launch failed in 0.8 s on a host with 0 zombies | `chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file` | The seven `-m browser` backend tests and every Playwright check failed | **Resolved 2026-09-19** — `sudo dnf install nss nspr atk at-spi2-atk cups-libs libdrm libxkbcommon libX{composite,damage,fixes,randr} mesa-libgbm alsa-lib pango cairo libxshmfence`; the seven tests then passed in 13 s |
 
-**What would clear E-01:** a host whose PID 1 reaps (a real init, `--init`, or `tini`), or a fresh
-container. Nothing inside this session can reap another process's children.
+**History kept deliberately.** E-01 and E-01a are recorded as resolved, not deleted: they explain why
+BV-01 and BV-02 sat unexecuted, and why M26.15 was withdrawn from `VERIFIED` on 2026-09-19 rather than
+kept on a caveat. Neither is a current blocker.
 
-**Rule this enforces:** while E-01a stands, any verification criterion that needs a browser is recorded
-as `BLOCKED_BY_ENVIRONMENT` and its requirement row stays at `IMPLEMENTED`. The criterion is not
-rewritten, softened or removed to let a row reach `VERIFIED`.
+**The rule they produced still stands:** a verification criterion that cannot be executed is recorded
+`BLOCKED_BY_ENVIRONMENT` with its wording preserved, and its row stays at `IMPLEMENTED`. What changed is
+that nothing is currently blocked that way.

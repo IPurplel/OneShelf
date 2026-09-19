@@ -7,8 +7,8 @@ file is the link between a requirement and the test that holds it, kept current 
 
 ## WP-R1 — Reading progress restoration (M26.15)
 
-All eight tests pass. Passing tests are not the whole of this package's verification: its browser
-re-entry criterion has not run (`BLOCKED_BY_ENVIRONMENT`, E-01a), so M26.15 stays `IMPLEMENTED`.
+All eight tests pass, **and** the package's live criterion (BV-01) was executed on 2026-09-19 and passed.
+M26.15 is `VERIFIED`.
 
 | # | Test | File | State |
 |---|---|---|---|
@@ -27,6 +27,31 @@ contract but not the wiring that hands it the library's position, which is where
 Existing tests that must keep passing: `writes progress once the reader settles, carrying the revision it
 last saw`, `carries the revision the library already holds, so the first write is not stale`, `flushes
 progress when the tab is hidden`, `test_progress_writes_reject_stale_tabs_but_allow_explicit_changes`.
+
+## WP-L1 — Shelf lifecycle (M22, M47; INV-10 and M23 hold)
+
+Eight UI tests, five backend tests (three added during the review), and BV-02 executed live.
+
+| # | Test | File | State |
+|---|---|---|---|
+| 1 | `asks before removing a work that has files or progress, and says what stays` | `WorkScreen.test.tsx` | **passing** |
+| 2 | `keeps the files when that is the choice` | `WorkScreen.test.tsx` | **passing** |
+| 3 | `deletes the files only when that is the explicit choice` | `WorkScreen.test.tsx` | **passing** |
+| 4 | `removes at once when there is nothing to lose` | `WorkScreen.test.tsx` | **passing** |
+| 5 | `changes nothing when the removal is cancelled` | `WorkScreen.test.tsx` | **passing** |
+| 6 | `marks a work completed, and offers — never performs — deleting its files` | `WorkScreen.test.tsx` | **passing** |
+| 7 | `says the same things in Arabic, where the interface mirrors` | `WorkScreen.test.tsx` | **passing** |
+| 8 | `removes a work from a shelf row, with the same confirmation Work Details gives` | `ShelfScreen.test.tsx` | **passing** |
+| 9 | `reports the deletions the library actually made, not the ones it predicted` | `WorkScreen.test.tsx` | **passing** (I-09) |
+| 10 | `reports the same way when Completed offers to delete the files` | `WorkScreen.test.tsx` | **passing** (I-09) |
+| 11 | `counts one file as one file, in both languages` | `WorkScreen.test.tsx` | **passing** (I-10) |
+| 12 | `test_delete_files_touches_only_this_works_files` | `test_shelf_and_follow.py` | **passing** |
+| 13 | `test_the_library_cannot_even_record_a_path_outside_its_root` | `test_shelf_and_follow.py` | **passing** |
+| 14 | `test_a_symlink_standing_in_for_a_managed_file_is_refused_and_never_counted` | `test_shelf_and_follow.py` | **passing** (I-08) |
+
+Already existing and still passing: `test_remove_from_shelf_offers_file_choices_and_keeps_other_state`,
+`test_delete_files_keeps_follow_shelf_and_progress`, `test_completed_survives_new_releases_and_counts_them`,
+`test_delete_managed_file_only_deletes_regular_files_inside_root`.
 
 ## Later packages
 
