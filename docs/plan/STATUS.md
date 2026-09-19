@@ -13,8 +13,8 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-R2 | Long Strip virtualization and preload | M26.6, M26.18 | **VERIFIED** — live check executed 2026-09-19 |
 | WP-R3 | Book reader comfort | M26.22a, M26.22b | **VERIFIED** — live checks executed 2026-09-19 |
 | WP-S1 | Settings completion | M32.14, M45 | **VERIFIED** — live check executed 2026-09-19 |
-| WP-R4 | Reader affordances | M26.19, M26.21, M26.14, M26.12, M26.11, M26.2 | **IN_PROGRESS** |
-| WP-E1 | Realtime event client | M36 | NOT_STARTED |
+| WP-R4 | Reader affordances | M26.19, M26.21, M26.14, M26.12, M26.11, M26.2 | **VERIFIED** — live check executed 2026-09-19 |
+| WP-E1 | Realtime event client | M36 | **IN_PROGRESS** |
 | WP-D1 | Diagnostics | M43, DEF-diagnostics | NOT_STARTED |
 | WP-R5 | Reader source switching and polish | M26.16, INV-25, M26.3b, M26.24 | NOT_STARTED |
 | WP-G1 | Exclusion regression guards | 17 EX rows, M49 | NOT_STARTED |
@@ -22,6 +22,20 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
+
+## WP-R4 — done and verified
+
+Download state in the top bar, Download Entire Work and the rest of More, page recovery
+(Retry / Repair from Source / Skip), Mark as unread, the New filter, and the scrubber.
+
+Backend needed for it: units carry `integrity` and `is_new`; `enqueue(repair=True)` clears the broken
+copy first, without which the commit refuses to overwrite its own final path and repair fails on every
+attempt; and `POST /api/follows/{id}/seen` — the service method existed with no endpoint, so "new"
+could never have stopped being new.
+
+Live, 2026-09-19: the state reads Downloaded, the scrubber moved to 3/3 in the work's direction, More
+held all four actions, the drawer offered All/Unread/Downloaded/New, 0 axe violations, no console
+errors.
 
 ## WP-S1 — done and verified
 
@@ -145,6 +159,7 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-19 | WP-R4 built, reviewed, verified live and committed (`53a3141`); M26.2, M26.11, M26.12, M26.14, M26.19, M26.21 → `VERIFIED`. WP-E1 started. |
 | 2026-09-19 | WP-S1 built, reviewed, verified live and committed (`b7383d7`); M32.14, M45 and M30.10 → `VERIFIED`. Route-order guard repaired (I-14) and queue reordering fixed (I-15) in `9874a85`. WP-R4 started. |
 | 2026-09-19 | WP-R3 built, reviewed, verified live and committed (`fded8e0`); M26.22a and M26.22b → `VERIFIED`. WP-S1 started. |
 | 2026-09-19 | WP-R2 built, reviewed, verified live and committed (`92b83e2`); M26.6 and M26.18 → `VERIFIED`, M56's bounded-memory clause closed. WP-R3 started. |

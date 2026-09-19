@@ -25,6 +25,9 @@ only when its test exists and fails without the fix.
 | I-14 | The route-order guard filtered `app.routes` with `hasattr(r, "methods")`, but included routers are nested wrappers in this FastAPI version, so it saw 3 routes of 122 and passed while proving nothing | WP-S1, 2026-09-19 | `test_the_guard_sees_the_whole_api_not_a_handful_of_routes` | Closed |
 | I-15 | `POST /api/downloads/{batch_id}/reorder` was registered after `{action}` and returned 404 `UNKNOWN_ACTION`: reordering a queue (§16.1) had never worked through the API. The engine test calls the engine directly, which is why nothing noticed | Found by the repaired guard, 2026-09-19 | `test_reordering_a_queue_reaches_the_engine` | Closed |
 
+| I-16 | `FollowService.mark_releases_seen` had no API endpoint, so release events could never be acknowledged and a "new" unit would have stayed new forever | WP-R4, 2026-09-19 | `test_units_say_which_of_them_are_new` (which now clears through `POST /api/follows/{id}/seen`) | Closed |
+| I-17 | Repairing a unit failed on every attempt: the broken asset row stayed, so the commit refused to overwrite its own final path (`final path already exists`) | WP-R4, 2026-09-19 | `test_repair_downloads_a_broken_copy_again_through_the_normal_pipeline` | Closed |
+
 ## Environment defects
 
 These are defects of the machine this work runs on, not of OneShelf. They are recorded separately because

@@ -99,6 +99,22 @@ Live criteria executed 2026-09-19, both formats; the isolation tests still pass 
 Live criterion executed 2026-09-19: ten categories in both languages, real controls everywhere, no
 placeholders, 0 axe violations.
 
+## WP-R4 — Reader affordances (M26.2, M26.11, M26.12, M26.14, M26.19, M26.21)
+
+| # | Test | File | State |
+|---|---|---|---|
+| 1 | `says whether this unit is on the device, and can fetch the whole work` | `SequentialReader.test.tsx` | **passing** |
+| 2 | `marks a unit unread as readily as read` | `SequentialReader.test.tsx` | **passing** |
+| 3 | `offers Retry, Repair from Source and Skip when a page will not load` | `SequentialReader.test.tsx` | **passing** |
+| 4 | `moves through the unit with a scrubber that respects reading direction` | `SequentialReader.test.tsx` | **passing** |
+| 5 | `filters the contents by what is new, as well as unread and downloaded` | `SequentialReader.test.tsx` | **passing** |
+| 6 | `test_units_say_whether_their_local_copy_is_sound` | `test_work_api.py` | **passing** |
+| 7 | `test_a_local_work_has_no_source_to_repair_from` | `test_work_api.py` | **passing** |
+| 8 | `test_repair_downloads_a_broken_copy_again_through_the_normal_pipeline` | `test_engine.py` | **passing** |
+| 9 | `test_units_say_which_of_them_are_new` | `test_shelf_api.py` | **passing** |
+
+Live criterion executed 2026-09-19 against a real library.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.

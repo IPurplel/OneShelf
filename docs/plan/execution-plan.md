@@ -297,8 +297,13 @@ complete (its Change Source entry may land with WP-R5).
 Repair from Source must use the same method and contract as the original download (INV-02) and go through
 the normal validated commit, never a side path.
 
+**Criterion state (2026-09-19):** all criteria executed and passing, live included. Two defects found
+(I-16, I-17) fixed with regression tests. M26.2, M26.11, M26.12, M26.14, M26.19 and M26.21 are
+`VERIFIED`.
+
 **Expected commit(s)**
-`feat(reader): download state, page recovery, unread, filters and the scrubber (M26.11–M26.21)`
+`feat(reader): download state, page recovery, unread, filters and the scrubber (M26.11–M26.21)` —
+landed as `53a3141`
 
 ---
 
@@ -307,7 +312,7 @@ the normal validated commit, never a side path.
 **Authoritative rows:** M36 (real-time channel with polling fallback; no cloud), M56's realtime clause.
 
 **Definition of Ready**
-- WP-R4 verified.
+- WP-R4 verified ✔ (2026-09-19)
 - `GET /api/events` exists and is verified (`tests/unit/test_events.py`).
 
 **Implementation tasks**
