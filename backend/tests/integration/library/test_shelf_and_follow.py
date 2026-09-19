@@ -1,4 +1,6 @@
 """Master §5.5–5.6, §20, §22, §23; INV-09, INV-10: Shelf, Follow and their independence."""
+import sqlite3
+
 import pytest
 
 from oneshelf.catalog.trust import CatalogTrust
@@ -155,6 +157,86 @@ def test_delete_files_keeps_follow_shelf_and_progress(library, shelf, follow, db
     assert db.execute("SELECT count(*) FROM follows WHERE work_id = ?", (work_id,)).fetchone()[0] == 1
     assert db.execute("SELECT read_state FROM reading_state WHERE reading_unit_id = ?", (unit,)).fetchone()[0] == "read"
     assert db.execute("SELECT count(*) FROM assets").fetchone()[0] == 0
+
+
+def _root_with_asset(db, tmp_path, work_id, track_id, unit_key, relative, *, content=b"content"):
+    """Give a work one managed file, recorded exactly as the downloader records one."""
+    CatalogTrust(db).refresh(track_id, units(unit_key), plugin_version="1.0.0")
+    unit = unit_id(db, unit_key)
+    root = db.execute("SELECT id FROM storage_roots WHERE path = ?", (str(tmp_path),)).fetchone()
+    if root is None:
+        root_id = new_id()
+        db.execute("INSERT INTO storage_roots (id, name, path, is_default, created_at, updated_at)"
+                   " VALUES (?,'L',?,1,?,?)", (root_id, str(tmp_path), NOW, NOW))
+    else:
+        root_id = root[0]
+    target = tmp_path / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(content)
+    db.execute("INSERT INTO assets (id, reading_unit_id, format, storage_root_id, relative_path, size_bytes, sha256,"
+               " integrity, created_at, updated_at) VALUES (?,?,'cbz',?,?,?,?, 'ok', ?, ?)",
+               (new_id(), unit, root_id, relative, len(content), "0" * 64, NOW, NOW))
+    return unit, target
+
+
+def test_delete_files_touches_only_this_works_files(library, shelf, db, tmp_path):
+    """§22, §23: deleting one work's files is not a cleanup pass over the library."""
+    keep_work, keep_track = library(title="Solo Leveling")
+    go_work, go_track = library(title="The Irregular Chronicle")
+    shelf.add(keep_work)
+    shelf.add(go_work)
+    _, kept_file = _root_with_asset(db, tmp_path, keep_work, keep_track, "keep-1", "Books/keep.cbz")
+    _, gone_file = _root_with_asset(db, tmp_path, go_work, go_track, "go-1", "Books/go.cbz")
+
+    assert shelf.delete_files(go_work) == 1
+
+    assert not gone_file.exists()
+    assert kept_file.exists(), "another work's file was deleted"
+    remaining = [row["relative_path"] for row in db.execute("SELECT relative_path FROM assets")]
+    assert remaining == ["Books/keep.cbz"]
+
+
+def test_the_library_cannot_even_record_a_path_outside_its_root(library, db, tmp_path):
+    """INV-14, §24.4: path safety is enforced by the schema, so an escaping asset cannot exist."""
+    work_id, track_id = library()
+    CatalogTrust(db).refresh(track_id, units("u1"), plugin_version="1.0.0")
+    unit = unit_id(db, "u1")
+    db.execute("INSERT INTO storage_roots (id, name, path, is_default, created_at, updated_at)"
+               " VALUES ('r1','L',?,1,?,?)", (str(tmp_path), NOW, NOW))
+
+    for escaping in ("../outside.cbz", "/etc/passwd", "Books/../../outside.cbz", "Books/.."):
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute(
+                "INSERT INTO assets (id, reading_unit_id, format, storage_root_id, relative_path, size_bytes,"
+                " sha256, integrity, created_at, updated_at) VALUES (?,?,'cbz','r1',?,8,?, 'ok', ?, ?)",
+                (new_id(), unit, escaping, "0" * 64, NOW, NOW))
+
+
+def test_a_symlink_standing_in_for_a_managed_file_is_refused_and_never_counted(library, shelf, db, tmp_path):
+    """§24.4, §47: the link is not followed, and OneShelf does not claim a deletion it did not make."""
+    work_id, track_id = library()
+    shelf.add(work_id)
+    outside = tmp_path / "outside.cbz"
+    outside.write_bytes(b"not ours")
+    root = tmp_path / "library"
+    root.mkdir()
+    (root / "Books").mkdir()
+    (root / "Books" / "a.cbz").symlink_to(outside)         # what a replaced file looks like on disk
+
+    CatalogTrust(db).refresh(track_id, units("u1"), plugin_version="1.0.0")
+    unit = unit_id(db, "u1")
+    db.execute("INSERT INTO storage_roots (id, name, path, is_default, created_at, updated_at)"
+               " VALUES ('r1','L',?,1,?,?)", (str(root), NOW, NOW))
+    db.execute("INSERT INTO assets (id, reading_unit_id, format, storage_root_id, relative_path, size_bytes, sha256,"
+               " integrity, created_at, updated_at) VALUES (?,?,'cbz','r1','Books/a.cbz',8,?, 'ok', ?, ?)",
+               (new_id(), unit, "0" * 64, NOW, NOW))
+
+    removed = shelf.delete_files(work_id)
+
+    assert outside.exists(), "the link was followed and a file outside the root was deleted"
+    assert removed == 0, "OneShelf counted a file it did not delete"
+    assert db.execute("SELECT count(*) FROM assets").fetchone()[0] == 1, \
+        "the record of a file that is still there was dropped"
 
 
 # -- Follow (§20) -----------------------------------------------------------------------------------

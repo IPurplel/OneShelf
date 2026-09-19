@@ -133,14 +133,22 @@ class ShelfService:
                 "has_progress": progress > 0, "is_followed": followed > 0}
 
     def delete_files(self, work_id: str) -> int:
-        """Deletes managed files only: Shelf, Follow and progress stay (§23, INV-10)."""
+        """Deletes managed files only: Shelf, Follow and progress stay (§23, INV-10).
+
+        A file OneShelf refuses to touch — a symlink standing where a managed file should be, or anything
+        else that is not a regular file inside the root — keeps its record and is not counted. Reporting
+        a deletion that did not happen would be a lie on a destructive path, and forgetting the asset
+        would leave a file on disk that the library no longer knows about (§24.4, §47).
+        """
         removed = 0
         for asset in self._assets(work_id):
             root = get_root(self.conn, asset["storage_root_id"])
             try:
                 delete_managed_file(root.path, asset["relative_path"])
-            except (PathSafetyError, FileNotFoundError):
-                pass
+            except PathSafetyError:
+                continue                    # not ours to delete: keep the record, count nothing
+            except FileNotFoundError:
+                pass                        # already gone: the record should follow it
             with transaction(self.conn):
                 self.conn.execute("DELETE FROM assets WHERE id = ?", (asset["id"],))
             removed += 1

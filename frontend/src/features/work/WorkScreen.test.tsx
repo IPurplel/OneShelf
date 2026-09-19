@@ -217,4 +217,52 @@ describe("Work Details", () => {
     expect(within(dialog).getByRole("button", { name: "أبقِ الملفات" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "احذف الملفات" })).toBeInTheDocument();
   });
+
+  it("reports the deletions the library actually made, not the ones it predicted", async () => {
+    // The summary is a forecast: a file OneShelf refuses to touch is not deleted, so the count it
+    // reports afterwards must come from the library's answer (§47 — no claimed deletion that did not
+    // happen).
+    mockApi([get("/api/works/w1", DETAILS), get("/api/shelf/w1/removal-summary", SUMMARY),
+             del("/api/shelf/w1", { ...SUMMARY, deleted_files: 9 })]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+
+    await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
+    const dialog = await screen.findByRole("dialog", { name: /remove from shelf/i });
+    await user.click(within(dialog).getByRole("button", { name: /delete the files/i }));
+
+    const notice = await screen.findByRole("status");
+    expect(notice).toHaveTextContent(/9 files deleted/i);
+    expect(notice).not.toHaveTextContent(/12 files deleted/i);
+  });
+
+  it("reports the same way when Completed offers to delete the files", async () => {
+    mockApi([get("/api/works/w1", DETAILS), get("/api/shelf/w1/removal-summary", SUMMARY),
+             post("/api/shelf/w1", { work_id: "w1", favorite: false, pinned: false, completed: true }),
+             del("/api/works/w1/files", { work_id: "w1", deleted_files: 9 })]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+
+    await user.click(screen.getByRole("button", { name: /mark completed/i }));
+    const offer = await screen.findByRole("dialog", { name: /completed/i });
+    await user.click(within(offer).getByRole("button", { name: /delete the files/i }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/9 files deleted/i);
+  });
+
+  it("counts one file as one file, in both languages", async () => {
+    const one = { work_id: "w1", files: 1, bytes: 856, has_progress: true, is_followed: false };
+    mockApi([get("/api/works/w1", DETAILS), get("/api/shelf/w1/removal-summary", one)]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />, { language: "ar" });
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+
+    await user.click(screen.getByRole("button", { name: "أزِل من الرف" }));
+    const dialog = await screen.findByRole("dialog", { name: "أزِل من الرف" });
+
+    expect(dialog).toHaveTextContent("ملف منزَّل واحد");     // one file, not "1 ملفات"
+    expect(dialog).not.toHaveTextContent("1 ملفات");
+  });
 });

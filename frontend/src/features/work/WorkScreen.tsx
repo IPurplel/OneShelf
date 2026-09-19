@@ -65,7 +65,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
     try {
       const summary = await api.get<RemovalSummary>(`/api/shelf/${id}/removal-summary`);
       if (summary.files === 0 && !summary.has_progress) {
-        await remove(summary, false);
+        await remove(false);
         return;
       }
       setRemoving(summary);
@@ -74,11 +74,14 @@ export function WorkScreen({ workId }: { workId?: string }) {
     }
   };
 
-  const remove = async (summary: RemovalSummary, deleteFiles: boolean) => {
+  const remove = async (deleteFiles: boolean) => {
     setRemoving(null);
     try {
-      await api.delete(`/api/shelf/${id}?delete_files=${deleteFiles}`);
-      setNotice(deleteFiles ? `${t("shelf.removed")} ${t("shelf.filesDeleted", { files: summary.files })}`
+      // The count comes from the library's answer, never from the forecast: a file OneShelf refuses to
+      // touch is not deleted, and claiming otherwise on a destructive path would be a lie (§47).
+      const done = await api.delete<{ deleted_files?: number }>(`/api/shelf/${id}?delete_files=${deleteFiles}`);
+      const deleted = done?.deleted_files ?? 0;
+      setNotice(deleteFiles ? `${t("shelf.removed")} ${t("shelf.filesDeleted", { files: deleted })}`
                             : t("shelf.removed"));
     } catch {
       setNotice(t("state.offline"));
@@ -165,8 +168,8 @@ export function WorkScreen({ workId }: { workId?: string }) {
 
       {removing !== null && (
         <RemoveFromShelf title={work.title} summary={removing}
-                         onKeep={() => void remove(removing, false)}
-                         onDelete={() => void remove(removing, true)}
+                         onKeep={() => void remove(false)}
+                         onDelete={() => void remove(true)}
                          onCancel={() => setRemoving(null)} />
       )}
 
@@ -182,8 +185,8 @@ export function WorkScreen({ workId }: { workId?: string }) {
             <button type="button" className="button"
                     onClick={() => {
                       setCompletedOffer(null);
-                      void toggle(api.delete(`/api/works/${id}/files`)
-                        .then(() => setNotice(t("shelf.filesDeleted", { files: completedOffer.files }))));
+                      void toggle(api.delete<{ deleted_files: number }>(`/api/works/${id}/files`)
+                        .then((done) => setNotice(t("shelf.filesDeleted", { files: done.deleted_files }))));
                     }}>
               {t("shelf.completed.delete")}
             </button>

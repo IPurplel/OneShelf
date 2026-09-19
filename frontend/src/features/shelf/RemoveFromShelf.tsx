@@ -42,7 +42,9 @@ export function RemoveFromShelf({ title, summary, onKeep, onDelete, onCancel }: 
       <section className="restore__step">
         <h3>{t("shelf.remove.stays")}</h3>
         <ul className="restore__counts">
-          {summary.files > 0 && (
+          {/* One file is one file: Arabic marks number and plural differently, and "1 ملفات" reads wrong. */}
+          {summary.files === 1 && <li>{t("shelf.remove.file", { size: bytes(summary.bytes) })}</li>}
+          {summary.files > 1 && (
             <li>{t("shelf.remove.files", { files: summary.files, size: bytes(summary.bytes) })}</li>
           )}
           {summary.has_progress && <li>{t("shelf.remove.progress")}</li>}
