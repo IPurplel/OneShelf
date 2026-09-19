@@ -7,6 +7,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
 from oneshelf.api.sources import error, services
+from oneshelf.downloads.contract import Settings
 
 router = APIRouter(prefix="/api")
 
@@ -125,6 +126,24 @@ async def check_follow(request: Request, work_id: str):
         return await services(request).follow_runner.check_work(work_id)
     except ValueError as exc:
         return error(404, "NOT_FOLLOWED", str(exc))
+
+
+class NotificationSettingsBody(BaseModel):
+    source_recovered: bool
+
+
+@router.get("/notifications/settings")
+async def notification_settings(request: Request):
+    """Declared before `/notifications/{action}`, which would otherwise swallow it (I-15)."""
+    settings = Settings(services(request).conn)
+    return {"source_recovered": settings.get("global", None, "notifications.source_recovered", False)}
+
+
+@router.post("/notifications/settings")
+async def set_notification_settings(request: Request, body: NotificationSettingsBody):
+    settings = Settings(services(request).conn)
+    settings.set("global", None, "notifications.source_recovered", body.source_recovered)
+    return {"source_recovered": body.source_recovered}
 
 
 @router.get("/notifications")

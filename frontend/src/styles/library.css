@@ -486,3 +486,8 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 .wizard__steps { list-style: none; display: flex; gap: var(--space-4); margin: 0 0 var(--space-5); padding: 0;
                  color: var(--ink-500); font-size: 14px; }
 .wizard__steps li[aria-current="step"] { color: var(--forest-600); font-weight: 600; }
+
+/* §45: advanced settings are one press away — never hidden, never in the way. */
+.panel__advanced { margin-block-start: var(--space-5); border-block-start: 1px solid var(--ivory-200);
+                   padding-block-start: var(--space-4); }
+.panel__advancedBody { display: grid; gap: var(--space-4); margin-block-start: var(--space-4); }

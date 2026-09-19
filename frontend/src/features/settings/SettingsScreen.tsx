@@ -5,6 +5,11 @@ import { ImportPanel } from "@/features/storage/ImportPanel";
 import { BackupPanel } from "@/features/backup/BackupPanel";
 import { RemotePanel } from "@/features/remote/RemotePanel";
 import { GeneratorPanel } from "@/features/generator/GeneratorPanel";
+import { AdvancedSettingsPanel } from "./AdvancedSettingsPanel";
+import { DownloadSettingsPanel } from "./DownloadSettingsPanel";
+import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
+import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
+import { SourceSettingsPanel } from "./SourceSettingsPanel";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
 
@@ -55,15 +60,23 @@ export function SettingsScreen() {
             </>
           )}
 
+          {category === "reader" && <ReaderSettingsPanel />}
+
+          {category === "downloads" && <DownloadSettingsPanel />}
+
+          {category === "sources" && <SourceSettingsPanel />}
+
+          {category === "notifications" && <NotificationSettingsPanel />}
+
+          {category === "advanced" && <AdvancedSettingsPanel />}
+
           {category === "remote" && <RemotePanel />}
 
           {category === "backup" && <BackupPanel />}
 
           {category === "developer" && <GeneratorPanel />}
 
-          {!["general", "storage", "remote", "developer", "backup"].includes(category) && (
-            <section className="paper"><p>{t("settings.soon")}</p></section>
-          )}
+
         </div>
       </div>
     </section>

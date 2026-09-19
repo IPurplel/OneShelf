@@ -173,3 +173,12 @@ def test_health_state_reflects_recorded_signals(api):
     for _ in range(2):
         client.post(f"/api/tracks/{bound['track_id']}/catalog/refresh")
     assert client.get(f"/api/sources/{TS}/health/state").json()["capabilities"]["catalog"]["state"] == "healthy"
+
+
+def test_notification_preferences_are_the_ones_the_service_honours(api):
+    """§30.10: Source Recovered is optional and silent by default, and Settings can turn it on."""
+    client = api[0] if isinstance(api, tuple) else api
+
+    assert client.get("/api/notifications/settings").json() == {"source_recovered": False}
+    assert client.post("/api/notifications/settings", json={"source_recovered": True}).status_code == 200
+    assert client.get("/api/notifications/settings").json() == {"source_recovered": True}
