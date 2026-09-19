@@ -17,6 +17,8 @@ only when its test exists and fails without the fix.
 | I-08 | `delete_files()` swallowed a `PathSafetyError`, then deleted the asset row and counted the file as removed: it claimed a deletion that never happened and forgot a file still on disk. Path safety itself held | WP-L1 review, 2026-09-19 | `test_a_symlink_standing_in_for_a_managed_file_is_refused_and_never_counted`, `test_the_library_cannot_even_record_a_path_outside_its_root` | Closed |
 | I-09 | The UI reported the removal summary's forecast count instead of the number the library said it deleted | WP-L1 review, 2026-09-19 | `reports the deletions the library actually made, not the ones it predicted`, `reports the same way when Completed offers to delete the files` | Closed |
 | I-10 | Arabic used the plural for a count of one — "1 ملفات" | BV-02 live check, 2026-09-19 | `counts one file as one file, in both languages` | Closed |
+| I-11 | A mounted page that has not loaded is zero pixels tall, so pages arriving above the viewport pushed the strip down and the reader drifted backwards: re-entry at the stored page 30 landed on page 23 | WP-R2 live check, 2026-09-19 — 163 unit tests had not caught it | `reserves each page's space before it loads, so the strip does not shift under the reader`, plus the live re-entry check | Closed |
+| I-12 | The spacer estimate lived in a ref, so a measured height could differ from what had been rendered | WP-R2 review, 2026-09-19 | same test — one estimate now drives both the spacers and the reserved page heights | Closed |
 
 ## Environment defects
 

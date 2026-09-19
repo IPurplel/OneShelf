@@ -182,8 +182,12 @@ Named tests pass; a live check on a long seeded unit shows bounded DOM nodes; M2
 None beyond memory behaviour; no new persisted state. Preload must respect the traffic governor for
 online units so read-ahead cannot starve the Reader (INV-26).
 
+**Criterion state (2026-09-19):** all criteria executed and passing, including the live check on a
+120-page unit. Two defects found there (I-11, I-12) fixed with regression tests. M26.6 and M26.18 are
+`VERIFIED`.
+
 **Expected commit(s)**
-`feat(reader): bound the Long Strip window and preload around it (M26.6, M26.18)`
+`feat(reader): bound the Long Strip window and preload around it (M26.6, M26.18)` — landed as `92b83e2`
 
 ---
 
@@ -193,7 +197,7 @@ online units so read-ahead cannot starve the Reader (INV-26).
 fit width/page).
 
 **Definition of Ready**
-- WP-R2 verified.
+- WP-R2 verified. ✔ (2026-09-19, live criterion included)
 - The EPUB frame's CSP and empty sandbox stay exactly as they are; typography is injected by OneShelf's
   own stylesheet inside the frame document, never by the book.
 

@@ -10,8 +10,8 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 |---|---|---|---|
 | WP-R1 | Reading progress restoration | M26.15 | **VERIFIED** — BV-01 executed 2026-09-19 |
 | WP-L1 | Shelf lifecycle | M22, M47 (INV-10, M23 hold) | **VERIFIED** — BV-02 executed 2026-09-19 |
-| WP-R2 | Long Strip virtualization and preload | M26.6, M26.18 | **IN_PROGRESS** |
-| WP-R3 | Book reader comfort | M26.22a, M26.22b | NOT_STARTED |
+| WP-R2 | Long Strip virtualization and preload | M26.6, M26.18 | **VERIFIED** — live check executed 2026-09-19 |
+| WP-R3 | Book reader comfort | M26.22a, M26.22b | **IN_PROGRESS** |
 | WP-S1 | Settings completion | M32.14, M45 | NOT_STARTED |
 | WP-R4 | Reader affordances | M26.19, M26.21, M26.14, M26.12, M26.11, M26.2 | NOT_STARTED |
 | WP-E1 | Realtime event client | M36 | NOT_STARTED |
@@ -20,7 +20,25 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-G1 | Exclusion regression guards | 17 EX rows, M49 | NOT_STARTED |
 | WP-B1 | Environment-blocked verification | M2, M2.1, M41.1 | **BLOCKED** |
 
-Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1, M36, M26.6).
+Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
+bounded-memory clause closed with M26.6).
+
+## WP-R2 — done and verified
+
+| # | Task | Status |
+|---|---|---|
+| 1 | A bounded window around the reader in Long Strip; spacers keep the strip's height | DONE |
+| 2 | Preload the next 7 and previous 4 — the window in Long Strip, a quiet prefetch in Single/Double | DONE |
+| 3 | Position read from the pages themselves, and progress written as the reader scrolls | DONE |
+| 4 | The numbers come from the §42 registry via `GET/POST /api/reader/settings` | DONE |
+
+Live, 2026-09-19: a 120-page unit mounted **12** pages; the window followed the scroll (first page 13 →
+29); the library held page 34; re-entry restored **34 / 120** exactly; no console errors.
+
+Two defects the unit tests missed and the live check caught: **I-11** (an unloaded page is zero pixels
+tall, so pages arriving above the viewport pushed the reader backwards — re-entry at 30 landed on 23) and
+the spacer estimate living in a ref where it could disagree with what was rendered. Both fixed with
+regression tests.
 
 ## WP-L1 — done and verified
 
@@ -97,4 +115,5 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-19 | WP-R2 built, reviewed, verified live and committed (`92b83e2`); M26.6 and M26.18 → `VERIFIED`, M56's bounded-memory clause closed. WP-R3 started. |
 | 2026-09-19 | Host rebuilt with `podman-init`. Blocker re-verified rather than assumed: the seven browser tests still failed, diagnosed fresh as **E-02** (missing `libnspr4.so`), fixed by installing the libraries — then all seven passed. BV-01 and BV-02 executed and passed. M26.15, M22, M47 → `VERIFIED`. Three defects found in the WP-L1 review (I-08, I-09, I-10) fixed with regression tests. WP-L1 closed; WP-R2 started. |

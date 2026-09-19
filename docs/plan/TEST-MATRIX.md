@@ -53,6 +53,23 @@ Already existing and still passing: `test_remove_from_shelf_offers_file_choices_
 `test_delete_files_keeps_follow_shelf_and_progress`, `test_completed_survives_new_releases_and_counts_them`,
 `test_delete_managed_file_only_deletes_regular_files_inside_root`.
 
+## WP-R2 — Long Strip virtualization and preload (M26.6, M26.18)
+
+| # | Test | File | State |
+|---|---|---|---|
+| 1 | `holds only a bounded window of a long chapter, not the whole of it` | `SequentialReader.test.tsx` | **passing** |
+| 2 | `moves the window as the reader scrolls, and keeps the scroll height steady` | `SequentialReader.test.tsx` | **passing** |
+| 3 | `preloads the next seven and the previous four, and no further` | `SequentialReader.test.tsx` | **passing** |
+| 4 | `prefetches the band around a single page without putting it on screen` | `SequentialReader.test.tsx` | **passing** |
+| 5 | `resumes inside the window, so virtualization does not lose the position` | `SequentialReader.test.tsx` | **passing** |
+| 6 | `writes progress as the reader scrolls, with the revision it last saw` | `SequentialReader.test.tsx` | **passing** |
+| 7 | `reads its position from the pages themselves, not from an estimated height` | `SequentialReader.test.tsx` | **passing** |
+| 8 | `reserves each page's space before it loads, so the strip does not shift under the reader` | `SequentialReader.test.tsx` | **passing** (I-11) |
+| 9 | `test_reader_settings_come_from_the_one_defaults_registry` | `test_work_api.py` | **passing** |
+
+Live criterion executed 2026-09-19: 12 of 120 pages mounted, window follows the scroll, page 34 stored,
+re-entry restores 34/120, no console errors.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.
