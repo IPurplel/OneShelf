@@ -144,3 +144,50 @@ def test_batch_controls_and_history_clearing(api):
     assert removed == 3
     page = client.get(f"/api/reader/units/{units[0]}/pages/1")
     assert page.status_code == 200 and page.headers["x-oneshelf-origin"] == "local"  # content survived (INV-23)
+
+
+def test_download_settings_are_the_ones_the_engine_actually_reads(api):
+    """§19, §16.6, §14: Settings shows knobs the engine honours — nothing invented in the UI."""
+    client = api[0] if isinstance(api, tuple) else api
+
+    defaults = client.get("/api/downloads/settings")
+    assert defaults.status_code == 200, defaults.text
+    body = defaults.json()
+    assert body["auto_download"] == {"enabled": False, "mode": "current", "read_ahead": 5, "threshold": 0.12}
+    assert body["keep_partial_on_cancel"] is False
+    assert body["extraction"]["mode"] == "preferred_ask"
+
+    changed = client.post("/api/downloads/settings", json={
+        "auto_download": {"enabled": True, "mode": "read_ahead", "read_ahead": 3},
+        "keep_partial_on_cancel": True,
+        "extraction": {"method": "direct", "mode": "strict"},
+    })
+    assert changed.status_code == 200, changed.text
+    again = client.get("/api/downloads/settings").json()
+    assert again["auto_download"] == {"enabled": True, "mode": "read_ahead", "read_ahead": 3, "threshold": 0.12}
+    assert again["keep_partial_on_cancel"] is True
+    assert again["extraction"]["method"] == "direct" and again["extraction"]["mode"] == "strict"
+
+    assert client.post("/api/downloads/settings",
+                       json={"extraction": {"method": "telepathy"}}).status_code == 422
+    assert client.post("/api/downloads/settings",
+                       json={"auto_download": {"read_ahead": 99}}).status_code == 422
+
+
+def test_reordering_a_queue_reaches_the_engine(api):
+    """§16.1: a reader can reorder a queue. The endpoint was unreachable behind `{action}` (I-15)."""
+    client, tmp_path = api
+    prepare(client, tmp_path)
+    units = unit_ids(client, tmp_path, ["irr-1", "irr-2", "irr-3"])
+    batch = client.post("/api/downloads", json={"unit_ids": units}).json()
+    client.post(f"/api/downloads/{batch['batch_id']}/pause")
+
+    jobs = client.get(f"/api/downloads/{batch['batch_id']}").json()["jobs"]
+    reversed_ids = [job["id"] for job in jobs][::-1]
+
+    response = client.post(f"/api/downloads/{batch['batch_id']}/reorder", json={"job_ids": reversed_ids})
+    assert response.status_code == 200, response.text
+    assert response.json().get("error") is None
+
+    after = [job["id"] for job in client.get(f"/api/downloads/{batch['batch_id']}").json()["jobs"]]
+    assert after == reversed_ids

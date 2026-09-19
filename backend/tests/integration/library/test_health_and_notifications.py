@@ -3,6 +3,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from oneshelf.downloads.contract import Settings
+
 from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.health.service import HealthService
@@ -228,3 +230,14 @@ def test_domain_changes_reach_every_connected_client(db):
 
     first_events, second_events = asyncio.run(scenario())
     assert first_events == second_events == ["shelf.changed", "follow.changed", "notifications.changed"]
+
+
+def test_source_recovered_is_silent_unless_it_is_turned_on(db, notifications):
+    """§30.10: a source coming back is good news, not an interruption — optional, and off by default."""
+    assert notifications.source_recovered("mangadex") is None
+    assert db.execute("SELECT count(*) FROM notifications").fetchone()[0] == 0
+
+    Settings(db).set("global", None, "notifications.source_recovered", True)
+    made = notifications.source_recovered("mangadex")
+    assert made is not None and made.dedupe_key == "source-recovered:mangadex"
+    assert db.execute("SELECT count(*) FROM notifications").fetchone()[0] == 1

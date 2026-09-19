@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 
 from oneshelf.db.connection import transaction
 from oneshelf.domain.ids import new_id
+from oneshelf.downloads.contract import Settings
 from oneshelf.settings.defaults import DEFAULTS
 
 IMPORTANT = "important"
@@ -173,6 +174,9 @@ class NotificationService:
                            summary=f"{source_id} {version} is available.", actions=["review_update"],
                            data={"source_id": source_id, "version": version})
 
-    def source_recovered(self, source_id: str) -> Notification:
+    def source_recovered(self, source_id: str) -> Notification | None:
+        """§30.10: a source coming back is good news, not an interruption. Silent unless asked for."""
+        if not Settings(self.conn).get("global", None, "notifications.source_recovered", False):
+            return None
         return self.notify(INFORMATIONAL, dedupe_key=f"source-recovered:{source_id}", title="Source recovered",
                            summary=f"{source_id} is working again.", data={"source_id": source_id})

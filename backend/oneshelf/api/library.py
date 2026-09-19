@@ -43,6 +43,70 @@ async def enqueue(request: Request, body: EnqueueBody):
     return s.downloads.batch(batch_id)
 
 
+class AutoDownloadBody(BaseModel):
+    enabled: bool | None = None
+    mode: Literal["current", "read_ahead"] | None = None
+    read_ahead: int | None = Field(default=None, ge=1, le=20)
+    threshold: float | None = Field(default=None, ge=0.01, le=1.0)
+
+
+class ExtractionBody(BaseModel):
+    method: Literal["direct", "html_api", "reader_media", "browser"] | None = None
+    mode: Literal["preferred_ask", "strict", "automatic"] | None = None
+    fallback_order: list[Literal["direct", "html_api", "reader_media", "browser"]] | None = None
+
+
+class DownloadSettingsBody(BaseModel):
+    auto_download: AutoDownloadBody | None = None
+    keep_partial_on_cancel: bool | None = None
+    extraction: ExtractionBody | None = None
+
+
+def _download_settings(settings) -> dict:
+    """Exactly the knobs the engine reads (§19, §16.6, §14); the §42 registry supplies every default."""
+    auto = DEFAULTS.auto_download
+    return {
+        "auto_download": {
+            "enabled": settings.get("global", None, "reader.auto_download.enabled", auto.enabled),
+            "mode": settings.get("global", None, "reader.auto_download.mode", "current"),
+            "read_ahead": settings.get("global", None, "reader.auto_download.read_ahead", auto.read_ahead_units),
+            "threshold": settings.get("global", None, "reader.auto_download.threshold", auto.engagement_threshold),
+        },
+        "keep_partial_on_cancel": settings.get("global", None, "downloads.keep_partial_on_cancel", False),
+        "extraction": {
+            "method": settings.get("global", None, "extraction.method"),
+            "mode": settings.get("global", None, "extraction.mode") or DEFAULTS.downloads.fallback_mode,
+            "fallback_order": settings.get("global", None, "extraction.fallback_order") or [],
+        },
+    }
+
+
+@router.get("/downloads/settings")
+async def download_settings(request: Request):
+    return _download_settings(services(request).settings)
+
+
+@router.post("/downloads/settings")
+async def set_download_settings(request: Request, body: DownloadSettingsBody):
+    settings = services(request).settings
+    if body.auto_download is not None:
+        for field, key in (("enabled", "reader.auto_download.enabled"), ("mode", "reader.auto_download.mode"),
+                           ("read_ahead", "reader.auto_download.read_ahead"),
+                           ("threshold", "reader.auto_download.threshold")):
+            value = getattr(body.auto_download, field)
+            if value is not None:
+                settings.set("global", None, key, value)
+    if body.keep_partial_on_cancel is not None:
+        settings.set("global", None, "downloads.keep_partial_on_cancel", body.keep_partial_on_cancel)
+    if body.extraction is not None:
+        for field, key in (("method", "extraction.method"), ("mode", "extraction.mode"),
+                           ("fallback_order", "extraction.fallback_order")):
+            value = getattr(body.extraction, field)
+            if value is not None:
+                settings.set("global", None, key, value)
+    return _download_settings(settings)
+
+
 @router.get("/downloads")
 async def list_batches(request: Request, limit: int = 20):
     s = services(request)
@@ -59,6 +123,17 @@ async def batch_detail(request: Request, batch_id: str):
     return {**s.downloads.batch(batch_id), "jobs": [dict(j) for j in jobs]}
 
 
+class ReorderBody(BaseModel):
+    job_ids: list[str] = Field(min_length=1, max_length=2000)
+
+
+@router.post("/downloads/{batch_id}/reorder")
+async def reorder(request: Request, batch_id: str, body: ReorderBody):
+    s = services(request)
+    s.downloads.reorder(batch_id, body.job_ids)
+    return await batch_detail(request, batch_id)
+
+
 @router.post("/downloads/{batch_id}/{action}")
 async def batch_action(request: Request, batch_id: str, action: str):
     s = services(request)
@@ -73,17 +148,6 @@ async def batch_action(request: Request, batch_id: str, action: str):
     else:
         return error(404, "UNKNOWN_ACTION", f"unknown batch action {action!r}")
     return s.downloads.batch(batch_id)
-
-
-class ReorderBody(BaseModel):
-    job_ids: list[str] = Field(min_length=1, max_length=2000)
-
-
-@router.post("/downloads/{batch_id}/reorder")
-async def reorder(request: Request, batch_id: str, body: ReorderBody):
-    s = services(request)
-    s.downloads.reorder(batch_id, body.job_ids)
-    return await batch_detail(request, batch_id)
 
 
 class JobActionBody(BaseModel):
