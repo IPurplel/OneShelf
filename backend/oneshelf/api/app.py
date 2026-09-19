@@ -94,6 +94,7 @@ class Services:
     remote_auth: RemoteAuth | None = None
     access_policy: AccessPolicy | None = None
     generator: GeneratorService | None = None
+    settings: Settings | None = None
 
 
 @dataclass(frozen=True)
@@ -213,7 +214,8 @@ def create_app(config: AppConfig) -> FastAPI:
             ExportService(conn, downloads=engine), RemoteAuth(conn),
             AccessPolicy(conn, base=config.access),
             GeneratorService(conn, work_dir=Path(config.data_dir) / "generator", dev_hosts=config.dev_hosts(),
-                             dev_test_source=config.dev_test_source))
+                             dev_test_source=config.dev_test_source),
+            settings)
         runner = DownloadRunner(engine)
         await runner.start()
         await follow_runner.start()

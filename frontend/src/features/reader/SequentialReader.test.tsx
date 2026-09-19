@@ -16,6 +16,16 @@ const PAGES = {
   ],
 };
 
+const LONG = {
+  reading_unit_id: "u2",
+  pages: Array.from({ length: 60 }, (_, i) => ({ index: i + 1, label: String(i + 1), url: null })),
+};
+
+const READER_SETTINGS = {
+  auto_mark_read_threshold: 0.97, smart_controls_hide_after_ms: 3000, remember_per_work: true,
+  preload_next: 7, preload_previous: 4,
+};
+
 const WORK = {
   work: { id: "w1", title: "The Irregular Chronicle", original_title: null, creator: null, description: null,
           content_type: "manga", content_type_source: "source", aliases: [] },
@@ -44,6 +54,7 @@ function stub(extra: ReturnType<typeof get>[] = [], progress: Record<string, unk
     get("/api/reader/units/u2/pages", PAGES),
     get("/api/reader/units/u2/progress", progress),
     get("/api/works/w1", WORK),
+    get("/api/reader/settings", READER_SETTINGS),
     post("/api/reader/units/u2/progress", { ...PROGRESS, revision: 1, read_state: "partial" }),
     post("/api/reader/units/u2/mark-read", { ...PROGRESS, revision: 1, read_state: "read" }),
     ...extra,
@@ -307,6 +318,7 @@ describe("Sequential Reader", () => {
       get("/api/reader/units/u2/pages", PAGES),
       get("/api/reader/units/u2/progress", { ...PROGRESS, revision: 3, fraction: 0.4, read_state: "partial" }),
       get("/api/works/w1", WORK),
+    get("/api/reader/settings", READER_SETTINGS),
       post("/api/reader/units/u2/progress", { ...PROGRESS, revision: 4, read_state: "partial" }),
     ]);
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -382,5 +394,172 @@ describe("Sequential Reader", () => {
 
     act(() => { vi.advanceTimersByTime(4000); });
     expect(calls.some((call) => call.method === "POST" && call.url.endsWith("/progress"))).toBe(false);
+  });
+
+  // §26.6, §26.18, §56: Long Strip keeps a bounded window around the reader, so a long chapter is never
+  // held whole, and the window is the preload band the Master names.
+  function longStub(progress: Record<string, unknown> = PROGRESS) {
+    return mockApi([
+      get("/api/reader/units/u2/pages", LONG),
+      get("/api/reader/units/u2/progress", progress),
+      get("/api/reader/settings", READER_SETTINGS),
+      get("/api/works/w1", WORK),
+      post("/api/reader/units/u2/progress", { ...PROGRESS, revision: 1, read_state: "partial" }),
+    ]);
+  }
+
+  /** jsdom has no layout, so the stage is told how tall it is and where it is scrolled. */
+  function scrollStage(stage: HTMLElement, top: number, pageHeight = 1000, count = 60) {
+    Object.defineProperty(stage, "scrollHeight", { value: pageHeight * count, configurable: true });
+    Object.defineProperty(stage, "clientHeight", { value: pageHeight, configurable: true });
+    stage.scrollTop = top;
+    fireEvent.scroll(stage);
+  }
+
+  it("holds only a bounded window of a long chapter, not the whole of it", async () => {
+    longStub();
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    await waitFor(() => {
+      const mounted = screen.getAllByRole("img", { name: /page \d/i });
+      expect(mounted.length).toBeLessThanOrEqual(12);          // previous 4 + current + next 7
+      expect(mounted.length).toBeGreaterThan(1);
+    });
+    expect(screen.getAllByRole("img", { name: /page \d/i }).length).toBeLessThan(60);
+  });
+
+  it("moves the window as the reader scrolls, and keeps the scroll height steady", async () => {
+    longStub();
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    const stage = screen.getByTestId("reader-stage");
+
+    const sources = () => screen.getAllByRole("img", { name: /page \d/i })
+      .map((img) => Number(img.getAttribute("src")!.split("/").pop()));
+    expect(sources()).toContain(1);
+
+    act(() => { scrollStage(stage, 20_000); });                // about page 21 of 60
+
+    await waitFor(() => expect(sources()).toContain(21));
+    expect(sources()).not.toContain(1);                        // the far page was released
+    expect(sources().length).toBeLessThanOrEqual(12);
+
+    // The spacers stand in for what is not mounted, so the strip keeps its full height.
+    const total = [...stage.querySelectorAll<HTMLElement>("[data-spacer]")]
+      .reduce((sum, node) => sum + Number(node.dataset.pages), 0)
+      + screen.getAllByRole("img", { name: /page \d/i }).length;
+    expect(total).toBe(60);
+  });
+
+  it("preloads the next seven and the previous four, and no further", async () => {
+    longStub({ ...PROGRESS, read_state: "partial", fraction: 0.5, locator: { page: 30 }, revision: 2 });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    await waitFor(() => {
+      const shown = screen.getAllByRole("img", { name: /page \d/i })
+        .map((img) => Number(img.getAttribute("src")!.split("/").pop()));
+      expect(Math.min(...shown)).toBe(26);                     // 30 − 4
+      expect(Math.max(...shown)).toBe(37);                     // 30 + 7
+    });
+  });
+
+  it("resumes inside the window, so virtualization does not lose the position", async () => {
+    longStub({ ...PROGRESS, read_state: "partial", fraction: 0.75, locator: { page: 45 }, revision: 3 });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    await waitFor(() =>
+      expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("45 / 60"));
+    const shown = screen.getAllByRole("img", { name: /page \d/i })
+      .map((img) => img.getAttribute("src"));
+    expect(shown).toContain("/api/reader/units/u2/pages/45");
+  });
+
+  it("writes progress as the reader scrolls, with the revision it last saw", async () => {
+    const calls = longStub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    act(() => { scrollStage(screen.getByTestId("reader-stage"), 10_000); });
+    act(() => { vi.advanceTimersByTime(1500); });
+
+    const write = calls.find((call) => call.method === "POST" && call.url.endsWith("/progress"));
+    expect(write).toBeDefined();
+    expect((write!.body as { locator: { page: number } }).locator.page).toBeGreaterThan(1);
+    expect((write!.body as { revision: number }).revision).toBe(0);
+    void user;
+  });
+
+  it("prefetches the band around a single page without putting it on screen", async () => {
+    longStub({ ...PROGRESS, read_state: "partial", fraction: 0.5, locator: { page: 30 }, revision: 2 });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    await user.click(screen.getByRole("button", { name: /reader settings/i }));
+    await user.click(within(screen.getByRole("dialog", { name: /reader settings/i }))
+      .getByRole("radio", { name: /single/i }));
+    await user.keyboard("{Escape}");
+
+    // One page is on screen; §26.18's band is fetched quietly around it.
+    await waitFor(() => expect(screen.getAllByRole("img", { name: /page \d/i })).toHaveLength(1));
+    const stage = screen.getByTestId("reader-stage");
+    const prefetched = [...stage.querySelectorAll<HTMLImageElement>("[data-preload]")]
+      .map((img) => Number(img.getAttribute("src")!.split("/").pop()))
+      .sort((a, b) => a - b);
+
+    expect(Math.min(...prefetched)).toBe(26);                  // 30 − 4
+    expect(Math.max(...prefetched)).toBe(37);                  // 30 + 7
+    expect(prefetched).not.toContain(30);                      // the page itself is already on screen
+    stage.querySelectorAll("[data-preload]").forEach((node) => {
+      expect(node.getAttribute("aria-hidden")).toBe("true");   // never announced, never in the way
+    });
+  });
+
+  it("reads its position from the pages themselves, not from an estimated height", async () => {
+    // A chapter's pages are not all the same height. If the window were driven by an average, the reader
+    // would be told they are somewhere they are not — and, after resuming, the window could shift away
+    // from the page they asked for. The mounted pages' own positions are the truth (§26.6).
+    longStub({ ...PROGRESS, read_state: "partial", fraction: 0.5, locator: { page: 30 }, revision: 2 });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    const stage = screen.getByTestId("reader-stage");
+    await waitFor(() =>
+      expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("30 / 60"));
+
+    // The stage sits at y=0; page 33 is the one crossing the top of it.
+    Object.defineProperty(stage, "getBoundingClientRect", {
+      value: () => ({ top: 0, bottom: 900, height: 900 }), configurable: true });
+    for (const img of stage.querySelectorAll<HTMLElement>("[data-page-slot]")) {
+      const slot = Number(img.dataset.pageSlot);
+      const top = (slot - 32) * 900;                      // slot 32 (page 33) starts at the top
+      Object.defineProperty(img, "getBoundingClientRect", {
+        value: () => ({ top, bottom: top + 900, height: 900 }), configurable: true });
+    }
+
+    act(() => { fireEvent.scroll(stage); });
+
+    await waitFor(() =>
+      expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("33 / 60"));
+  });
+
+  it("reserves each page's space before it loads, so the strip does not shift under the reader", async () => {
+    // An <img> with nothing loaded is zero pixels tall. Without reserved space, pages loading *above* the
+    // viewport push the strip down and the reader silently drifts backwards — which is what happened on
+    // re-entry: the library said page 30, the reader ended up on 23 (I-11).
+    longStub({ ...PROGRESS, read_state: "partial", fraction: 0.25, locator: { page: 30 }, revision: 2 });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    await waitFor(() =>
+      expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("30 / 60"));
+
+    for (const page of screen.getAllByRole("img", { name: /page \d/i })) {
+      expect(page.style.minBlockSize || page.style.minHeight).not.toBe("");
+    }
+    const spacer = screen.getByTestId("reader-stage").querySelector<HTMLElement>('[data-spacer="before"]');
+    expect(spacer!.style.blockSize).toBe(`${25 * 1200}px`);      // the same estimate, used consistently
   });
 });

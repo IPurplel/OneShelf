@@ -13,6 +13,13 @@ import { useProgress } from "./useProgress";
 
 type Page = { index: number; label: string | null; url: string | null };
 type PagesResponse = { reading_unit_id: string; pages: Page[] };
+type ReaderDefaults = { preload_next: number; preload_previous: number };
+
+/** Until the library answers, the Master's own numbers (§26.18); the registry stays the source. */
+const PRELOAD: ReaderDefaults = { preload_next: 7, preload_previous: 4 };
+
+/** A page's height before one has been measured — only ever used to size the spacers (§26.6). */
+const ESTIMATED_PAGE = 1200;
 
 const IDLE_MS = 3000;
 const ZOOM_STEP = 1.25;
@@ -39,6 +46,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
 
   const { data: pageData, error: pageError } = useResource<PagesResponse>(`/api/reader/units/${id}/pages`);
   const { data: details } = useResource<WorkDetails>(`/api/works/${work}`);
+  const { data: readerDefaults } = useResource<ReaderDefaults>("/api/reader/settings");
   const pages = useMemo(() => pageData?.pages ?? [], [pageData]);
 
   const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
@@ -57,6 +65,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
   const { record, flush, stored } = useProgress(id);
   const resumed = useRef<string | null>(null);
   const [scrollTo, setScrollTo] = useState<number | null>(null);
+  const [pageHeight, setPageHeight] = useState(ESTIMATED_PAGE);
 
   const units = useMemo(() => details?.units ?? [], [details]);
   const unit = units.find((candidate) => candidate.id === id) ?? null;
@@ -108,6 +117,8 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
   useEffect(() => {
     if (scrollTo === null) return;
     const target = stage.current?.querySelector(`[data-page-slot="${scrollTo}"]`);
+    // The resume needs no guard against its own scroll: the position is read from the pages, so the
+    // scroll it causes resolves to the slot that was just restored and changes nothing.
     (target as HTMLElement | null)?.scrollIntoView?.({ block: "start" });
     setScrollTo(null);
   }, [scrollTo, index]);
@@ -179,6 +190,21 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
     return () => window.removeEventListener("keydown", onKey);
   }, [panel, settings.direction, step, changeZoom, resetZoom, toggleFullscreen]);
 
+  /**
+   * In Long Strip the reader's position is where they have scrolled to (§26.6, §26.11). It drives the
+   * window, and it records progress through the same debounced, revision-carrying write as every other
+   * mode, so nothing about §26.23 changes.
+   */
+  const onScroll = useCallback(() => {
+    const node = stage.current;
+    if (node === null || settings.mode !== "long_strip" || pages.length === 0) return;
+    const slot = scrolledSlot(node, pages.length);
+    if (slot === null || slot === indexRef.current) return;
+    indexRef.current = slot;
+    setIndex(slot);
+    record((slot + 1) / pages.length, { page: slot + 1 });
+  }, [settings.mode, pages.length, record]);
+
   /** Ctrl and the wheel zooms; a plain wheel is scrolling, which Long Strip needs (§26.10). */
   const onWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
     if (!event.ctrlKey) return;
@@ -225,8 +251,14 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
     step(forward ? 1 : -1);
   }, [zoom, settings.mode, settings.direction, step, show]);
 
-  const visible = visiblePages(pages, index, settings);
-  const firstSlot = settings.mode === "long_strip" ? 0 : index;
+  const preload = readerDefaults ?? PRELOAD;
+  const window_ = stripWindow(pages.length, index, preload);
+  const visible = settings.mode === "long_strip"
+    ? pages.slice(window_.first, window_.last + 1)
+    : visiblePages(pages, index, settings);
+  const firstSlot = settings.mode === "long_strip" ? window_.first : index;
+  const before = settings.mode === "long_strip" ? window_.first : 0;
+  const after = settings.mode === "long_strip" ? pages.length - 1 - window_.last : 0;
 
   return (
     <div className={`reader reader--${settings.background}`} onMouseMove={show}>
@@ -272,11 +304,15 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
       <div className="reader__stage" data-testid="reader-stage" tabIndex={0} aria-label={t("reader.pages")}
            data-mode={settings.mode}
            data-direction={settings.direction} data-fit={settings.fit} data-zoom={zoom}
-           ref={stage} onWheel={onWheel} onDoubleClick={() => (zoom > 1 ? resetZoom() : changeZoom(ZOOM_STEP * 1.6))}
+           ref={stage} onWheel={onWheel} onScroll={onScroll} onDoubleClick={() => (zoom > 1 ? resetZoom() : changeZoom(ZOOM_STEP * 1.6))}
            onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
            style={{ "--reader-zoom": zoom, "--reader-pan-x": `${pan.x}px`,
                     "--reader-pan-y": `${pan.y}px` } as React.CSSProperties}>
         {pageError !== null && <p className="notice notice--problem" role="alert">{t("state.offline")}</p>}
+        {before > 0 && (
+          <div className="reader__spacer" data-spacer="before" data-pages={before} aria-hidden="true"
+               style={{ blockSize: `${before * pageHeight}px` }} />
+        )}
         {visible.map((page, offset) => (
           failed.has(page.index) ? (
             <div key={page.index} className="reader__failed" role="group" aria-label={t("reader.pageFailed")}>
@@ -289,11 +325,31 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
             </div>
           ) : (
             <img key={page.index} className="reader__page" data-page-slot={firstSlot + offset}
+                 style={settings.mode === "long_strip" ? { minBlockSize: `${pageHeight}px` } : undefined}
                  src={`/api/reader/units/${id}/pages/${page.index}`}
                  alt={t("reader.page", { index: page.label ?? page.index })} loading="lazy"
+                 onLoad={(event) => {
+                   const height = event.currentTarget.getBoundingClientRect().height;
+                   // One estimate for the whole strip, updated only when it is materially wrong, so the
+                   // spacers and the reserved page heights never disagree.
+                   if (height > 0 && Math.abs(height - pageHeight) > 24) setPageHeight(height);
+                 }}
                  onError={() => setFailed((set) => new Set(set).add(page.index))} />
           )
         ))}
+        {/*
+          * §26.18: in Single and Double the band around the page is fetched quietly — the next seven and
+          * the previous four — so a page turn is instant without ever putting those pages on screen.
+          * Long Strip needs none of this: its window already mounts the same band.
+          */}
+        {settings.mode !== "long_strip" && preloadBand(pages, index, visible.length, preload).map((page) => (
+          <img key={`preload-${page.index}`} className="reader__preload" data-preload="true" aria-hidden="true"
+               alt="" src={`/api/reader/units/${id}/pages/${page.index}`} loading="eager" decoding="async" />
+        ))}
+        {after > 0 && (
+          <div className="reader__spacer" data-spacer="after" data-pages={after} aria-hidden="true"
+               style={{ blockSize: `${after * pageHeight}px` }} />
+        )}
         {atEnd && <EndOfUnit unit={unit} next={next} workId={work} />}
       </div>
 
@@ -310,6 +366,50 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
       )}
     </div>
   );
+}
+
+/**
+ * Where the reader is, in Long Strip (§26.6).
+ *
+ * The mounted pages are asked where they are, because a chapter's pages are not all the same height and
+ * an average would put the reader somewhere they are not — and, after a resume, could shift the window
+ * away from the page they asked for. Only when there is no layout at all does this fall back to the
+ * scroll fraction, which is the same approximation the spacers are built on.
+ */
+function scrolledSlot(stage: HTMLElement, count: number): number | null {
+  const top = stage.getBoundingClientRect().top;
+  for (const node of stage.querySelectorAll<HTMLElement>("[data-page-slot]")) {
+    const rect = node.getBoundingClientRect();
+    if (rect.height > 0 && rect.bottom > top + 1) return Number(node.dataset.pageSlot);
+  }
+  const travel = stage.scrollHeight - stage.clientHeight;
+  if (travel <= 0) return null;
+  const fraction = Math.min(1, Math.max(0, stage.scrollTop / travel));
+  return Math.min(count - 1, Math.round(fraction * (count - 1)));
+}
+
+/**
+ * The bounded window Long Strip keeps around the reader (§26.6, §26.18).
+ *
+ * Only these pages are mounted, so a three-hundred-page chapter is never held whole, and the band is
+ * exactly the preload the Master asks for: the next seven and the previous four.
+ */
+function stripWindow(count: number, index: number, preload: ReaderDefaults): { first: number; last: number } {
+  if (count === 0) return { first: 0, last: -1 };
+  return {
+    first: Math.max(0, index - preload.preload_previous),
+    last: Math.min(count - 1, index + preload.preload_next),
+  };
+}
+
+/** The pages fetched around what is on screen, never mounted into the reading flow (§26.18). */
+function preloadBand(pages: Page[], index: number, onScreen: number, preload: ReaderDefaults): Page[] {
+  const first = Math.max(0, index - preload.preload_previous);
+  const last = Math.min(pages.length - 1, index + onScreen - 1 + preload.preload_next);
+  return pages.slice(first, last + 1).filter((_, offset) => {
+    const slot = first + offset;
+    return slot < index || slot >= index + onScreen;
+  });
 }
 
 /**

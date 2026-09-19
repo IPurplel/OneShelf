@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from oneshelf.api.sources import error, services
+from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.plugins.manager import PluginUnavailable
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
 from oneshelf.reader.service import StaleProgress
@@ -169,6 +170,50 @@ class ProgressBody(BaseModel):
     locator: dict | None = None
     fraction: float | None = Field(default=None, ge=0, le=1)
     revision: int | None = Field(default=None, ge=0)
+
+
+class ReaderSettingsBody(BaseModel):
+    """Only what §26.17 calls a reader setting; each one is bounded so a value cannot be absurd."""
+    auto_mark_read_threshold: float | None = Field(default=None, ge=0.5, le=1.0)
+    smart_controls_hide_after_ms: int | None = Field(default=None, ge=500, le=60_000)
+    remember_per_work: bool | None = None
+    preload_next: int | None = Field(default=None, ge=1, le=50)
+    preload_previous: int | None = Field(default=None, ge=0, le=50)
+
+
+def _reader_settings(settings) -> dict:
+    """The §42 registry is the source; a stored override replaces a value, never the shape (D2)."""
+    reader = DEFAULTS.reader
+    return {
+        "auto_mark_read_threshold": settings.get("global", None, "reader.auto_read_threshold",
+                                                 reader.auto_mark_read_threshold),
+        "smart_controls_hide_after_ms": settings.get(
+            "global", None, "reader.smart_controls_hide_after_ms",
+            int(reader.smart_controls_hide_after.total_seconds() * 1000)),
+        "remember_per_work": settings.get("global", None, "reader.remember_per_work", reader.remember_per_work),
+        "preload_next": settings.get("global", None, "reader.preload_next", reader.preload_next),
+        "preload_previous": settings.get("global", None, "reader.preload_previous", reader.preload_previous),
+    }
+
+
+@router.get("/reader/settings")
+async def reader_settings(request: Request):
+    return _reader_settings(services(request).settings)
+
+
+@router.post("/reader/settings")
+async def set_reader_settings(request: Request, body: ReaderSettingsBody):
+    settings = services(request).settings
+    keys = {"auto_mark_read_threshold": "reader.auto_read_threshold",
+            "smart_controls_hide_after_ms": "reader.smart_controls_hide_after_ms",
+            "remember_per_work": "reader.remember_per_work",
+            "preload_next": "reader.preload_next",
+            "preload_previous": "reader.preload_previous"}
+    for field, key in keys.items():
+        value = getattr(body, field)
+        if value is not None:
+            settings.set("global", None, key, value)
+    return _reader_settings(settings)
 
 
 @router.get("/reader/units/{unit_id}/progress")

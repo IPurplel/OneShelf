@@ -138,3 +138,26 @@ def test_progress_can_be_read_back_so_a_reader_knows_the_revision_it_must_carry(
     assert stale.status_code == 409 and stale.json()["error"]["code"] == "STALE_PROGRESS"
 
     assert client.get("/api/reader/units/nope/progress").status_code == 404
+
+
+def test_reader_settings_come_from_the_one_defaults_registry(api):
+    """§42/D2, §26.18: the reader's preload window has one source of truth, and an override wins."""
+    client, _ = api
+
+    defaults = client.get("/api/reader/settings")
+    assert defaults.status_code == 200, defaults.text
+    assert defaults.json() == {
+        "auto_mark_read_threshold": 0.97,
+        "smart_controls_hide_after_ms": 3000,
+        "remember_per_work": True,
+        "preload_next": 7,
+        "preload_previous": 4,
+    }
+
+    changed = client.post("/api/reader/settings", json={"preload_next": 3})
+    assert changed.status_code == 200 and changed.json()["preload_next"] == 3
+    assert client.get("/api/reader/settings").json()["preload_next"] == 3
+    assert client.get("/api/reader/settings").json()["preload_previous"] == 4    # untouched
+
+    assert client.post("/api/reader/settings", json={"preload_next": 0}).status_code == 422
+    assert client.post("/api/reader/settings", json={"preload_next": 500}).status_code == 422
