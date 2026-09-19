@@ -115,6 +115,18 @@ placeholders, 0 axe violations.
 
 Live criterion executed 2026-09-19 against a real library.
 
+## WP-E1 — Realtime event client (M36)
+
+| # | Test | File | State |
+|---|---|---|---|
+| 1 | `tells a screen to re-read when the library says something changed` | `live.test.tsx` | **passing** |
+| 2 | `falls back to polling while the stream is down, and stops once it is back` | `live.test.tsx` | **passing** |
+| 3 | `re-opens the stream after an error, and keeps the screens fed meanwhile` | `live.test.tsx` | **passing** |
+| 4 | `re-reads on a resync rather than guessing what it missed` | `live.test.tsx` | **passing** |
+| 5 | `follows the library live, re-reading only what changed` | `DownloadsScreen.test.tsx` | **passing** |
+
+Live criterion executed 2026-09-19 with two tabs sharing one stream.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.

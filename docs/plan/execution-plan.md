@@ -331,8 +331,11 @@ Named tests pass; live check that a download started in one tab appears in anoth
 **Security / persistence implications**
 Same-origin only, cookie-carrying, no third-party transport. Events carry identifiers, never content.
 
+**Criterion state (2026-09-19):** all criteria executed and passing, including the two-tab live check.
+M36 is `VERIFIED`.
+
 **Expected commit(s)**
-`feat(events): one realtime client for the live screens (M36)`
+`feat(events): one realtime client for the live screens (M36)` — landed as `0bfdd2f`
 
 ---
 
@@ -341,7 +344,7 @@ Same-origin only, cookie-carrying, no third-party transport. Events carry identi
 **Authoritative rows:** M43 (operational diagnostics only, 7 d or 100 MB rotating, redacted), DEF-diagnostics.
 
 **Definition of Ready**
-- WP-E1 verified.
+- WP-E1 verified ✔ (2026-09-19)
 - `diagnostics/redact.py` and its tests exist; the retention default already sits in the registry.
 
 **Implementation tasks**
