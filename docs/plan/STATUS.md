@@ -19,10 +19,27 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-R5 | Reader source switching and polish | M26.16, INV-25, M26.3b, M26.24 (+ M26.5, M32.9) | **VERIFIED** — live checks executed 2026-09-20 |
 | WP-G1 | Exclusion regression guards | 17 EX rows, M49 | **VERIFIED** — guards checked by violation 2026-09-20 |
 | WP-G2 | Rows carried by inspection | M9.6, M9.7, M26.9, M33.10, M50, M52, INV-06, DEF-other | **VERIFIED** — 2026-09-20 |
-| WP-B1 | Environment-blocked verification | M2, M2.1, M41.1 | **BLOCKED** |
+| WP-B1 | Docker verification and the last sources | M2, M2.1, M41.1 | **PART BLOCKED** — see below |
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
+
+## WP-B1 — what is actually blocked, checked on 2026-09-20
+
+The blockers were re-checked rather than carried forward, and they are not all the same kind:
+
+- **Genuinely blocked (environment).** M2 and M2.1 need a container runtime, and there is none inside
+  this container — `docker`, `podman`, `buildah` and `nerdctl` are all absent and no socket is mounted.
+  The host's `podman-init` repair fixed the container this session runs in; it did not put a runtime
+  inside it. M56's Docker clause waits on the same thing.
+- **Genuinely blocked (external).** `3asq.org` still does not resolve from here, for the same reason as
+  before. One source of eight.
+- **Not blocked at all — outstanding work.** Tapas, Safahat/Hindawi and the WEBTOON reader all resolve.
+  Their difficulty was never the network: episode data sits in script state, book pages render with
+  JavaScript, and the viewer builds its images in JavaScript. Each needs justified browser escalation or
+  the underlying XHR, which the Master allows and the codebase already supports. Calling these
+  "blocked" overstated it, and this corrects the record.
+- Outbound access now works (EB-3 resolved), so the live source suite can run from here.
 
 ## WP-G2 — rows carried by inspection, now tested
 

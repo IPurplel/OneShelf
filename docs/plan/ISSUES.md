@@ -45,6 +45,15 @@ they block verification steps, and a blocked step must never be quietly dropped 
 | E-01b | **Tooling failed intermittently** under the same pressure: stop hooks with `EAGAIN`/`SIGABRT` (user-reported), Go aborting with `newosproc` when vitest started workers, shells returning 144 | Same cause as E-01 | Worked around with `vitest --no-file-parallelism` | **Resolved with E-01** — the full suite now runs with default parallelism |
 | E-02 | **Chromium's system libraries were missing** from the recreated container. Diagnosed fresh rather than attributed to E-01: the launch failed in 0.8 s on a host with 0 zombies | `chrome-headless-shell: error while loading shared libraries: libnspr4.so: cannot open shared object file` | The seven `-m browser` backend tests and every Playwright check failed | **Resolved 2026-09-19** — `sudo dnf install nss nspr atk at-spi2-atk cups-libs libdrm libxkbcommon libX{composite,damage,fixes,randr} mesa-libgbm alsa-lib pango cairo libxshmfence`; the seven tests then passed in 13 s |
 
+**Blocker re-verification, 2026-09-20.** Checked rather than carried forward:
+
+| Blocker | Checked | Result |
+|---|---|---|
+| EB-1 — no container runtime | `which docker podman buildah nerdctl`; `/var/run/docker.sock`, `/run/podman/podman.sock` | **Still blocking.** Nothing is installed and no socket is mounted, so M2 and M2.1 cannot be verified here. The host's `podman-init` fix was to the container this session runs *in*; it did not put a runtime inside it |
+| EB-3 — outbound access | `https://example.com` → 200, `https://gutendex.com/books` → 301, DNS resolves | **Resolved.** The live source suite can reach the internet from here |
+| 3asq / Al-Aasheq | `getent hosts 3asq.org` | **Still blocking, same cause.** The name does not resolve from this environment |
+| Tapas, Safahat/Hindawi, WEBTOON reader | `getent hosts tapas.io`, `www.hindawi.org`, `www.webtoons.com` | **Not environment-blocked.** All three resolve. Their blockers are technical — episode data in script state, JavaScript-rendered book pages, a viewer that builds its images in JavaScript — and the answer to each is justified browser escalation or the underlying XHR, which is work in scope, not a blocked verification. Recorded as outstanding work rather than as a blocker |
+
 **History kept deliberately.** E-01 and E-01a are recorded as resolved, not deleted: they explain why
 BV-01 and BV-02 sat unexecuted, and why M26.15 was withdrawn from `VERIFIED` on 2026-09-19 rather than
 kept on a caveat. Neither is a current blocker.
