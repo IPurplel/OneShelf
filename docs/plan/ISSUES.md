@@ -41,6 +41,8 @@ only when its test exists and fails without the fix.
 
 | I-26 | Two ways 3asq's listings silently dropped real series: a series with no cover image has an empty thumbnail block, so reading its link from there lost it (four series in five pages of the latest feed); and a title block can hold the translator's own external link before the series link, so a page's first entry could be read as pointing at x.com | 3asq live verification, 2026-09-21 | the packaged `latest` case, whose fixture keeps a real coverless entry and a translator link, with both anchors pinned to a series URL | Closed |
 
+| I-27 | The container image built an API with no interface: the Dockerfile copied only `backend/`, so every container deployment would have served an API and no UI — while `vite.config.ts` had said since C2 that the SPA is served from the same origin in production | Found while writing `install.sh`, 2026-09-21 | `tests/integration/test_web_ui.py` (9 cases, including that the API still 404s as the API and that a remote client is refused at the interface too) | Closed |
+
 ## Environment defects
 
 These are defects of the machine this work runs on, not of OneShelf. They are recorded separately because

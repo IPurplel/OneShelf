@@ -1,6 +1,6 @@
 # Execution Status — the live task list
 
-Updated: 2026-09-20 (sources) · Plan: `execution-plan.md` · Authoritative statuses: `../c0/traceability.md`
+Updated: 2026-09-21 (release) · Plan: `execution-plan.md` · Authoritative statuses: `../c0/traceability.md`
 
 One work package is `IN_PROGRESS` at a time. One implementation task within it wherever practical.
 
@@ -20,9 +20,33 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-G1 | Exclusion regression guards | 17 EX rows, M49 | **VERIFIED** — guards checked by violation 2026-09-20 |
 | WP-G2 | Rows carried by inspection | M9.6, M9.7, M26.9, M33.10, M50, M52, INV-06, DEF-other | **VERIFIED** — 2026-09-20 |
 | WP-B1 | Docker verification and the last sources | M2, M2.1, M41.1 | **SOURCES DONE** — all eight ship (M41.1 `VERIFIED`); only the container runtime remains blocked |
+| WP-REL | Release: install experience and publishing | REL-01…REL-09 | **PART DONE** — scripts and interface done and tested; the host gate and publishing remain |
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
+
+## WP-REL — the release requirement (2026-09-21)
+
+A subsequent explicit user requirement: OneShelf must install from a clone with one command and be
+published as a public repository named exactly `OneShelf`.
+
+**Done and verified here.** `install.sh`, `update.sh`, `uninstall.sh`, `.env.example`, a Compose file
+driven by `.env`, and a README whose quick start is three commands. 23 tests drive the real scripts
+against stub runtimes in a throwaway checkout, covering both runtimes, a dead runtime, no runtime,
+both Compose shapes, `.env` creation and preservation, repeat installs, failure propagation, update
+safety and — twice over — that uninstalling keeps the library.
+
+**A real gap found while writing the installer.** The image built an API and no interface: the
+Dockerfile copied only `backend/`, so a container deployment had no UI at all, though the vite config
+had always said the SPA is served from the same origin in production. The frontend is now built into
+the image and served by the API, behind every boundary that already existed (ADR 0001). Verified with
+the real build: index, hashed assets, deep links, the API still answering as the API, a remote client
+refused at the interface too, and the whole UI rendered in a browser with no console errors.
+
+**Not done, and not claimable from here.** REL-07 (publishing), REL-08 (the Fedora-host Podman gate)
+and REL-09 (clean-clone) are `BLOCKED`. No container runtime exists in this environment and none may
+be installed here, and the requirement makes publishing conditional on the gate passing. The exact
+commands are in `../c9/verification.md` §3a.
 
 ## WP-B1 — the three available sources, done and verified
 
@@ -299,6 +323,7 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-21 | Release requirement recorded (REL-01…REL-09). Install/update/uninstall scripts, `.env`, README and the same-origin interface built and tested; REL-04, REL-05, REL-06 → `VERIFIED`. REL-01…03 `IMPLEMENTED` (never run against a real runtime); REL-07…09 `BLOCKED` on the host gate. |
 | 2026-09-21 | 3asq built against its current domain `3asq.online` and verified live; **M41.1 → `VERIFIED`, all eight sources ship.** I-26 fixed with a regression fixture. Only the container runtime remains blocked. |
 | 2026-09-20 | Tapas, Safahat/Hindawi and the WEBTOON reader shipped and verified live; M41.1 is seven of eight, 3asq still unreachable. Four defects found and fixed (I-21…I-24), plus I-25. |
 | 2026-09-20 | The eight rows carried by inspection closed with tests (`61ce3e7`): M9.6, M9.7, M26.9, M33.10, M50, M52, INV-06 and DEF-other → `VERIFIED`. No row is `IMPLEMENTED` any more. |

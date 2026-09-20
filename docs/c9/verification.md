@@ -20,7 +20,7 @@ complete.
 
 ```sh
 cd backend
-.venv/bin/pytest                                             # → 922 passed, 8 deselected (2026-09-21)
+.venv/bin/pytest                                             # → 954 passed, 1 skipped, 8 deselected (2026-09-21)
 ONESHELF_LIVE_SOURCES=1 .venv/bin/pytest tests/live -m live   # → 8 passed (real sources, 2026-09-21)
 ONESHELF_DATA_DIR=./var .venv/bin/python -m oneshelf.api.app  # → serves; /api/ready reports ready:true, schema 12
 ```
@@ -66,44 +66,118 @@ Each was written test-first and is covered by its own test:
 | Inputs a recipe does not declare are dropped, not fatal | The core can offer context without breaking older packages | `test_inputs_a_recipe_does_not_declare_are_dropped_rather_than_failing` |
 
 
-## 3a. EB-1 — the Docker verification still required, exactly
+## 3a. The Final Release Gate — what the Fedora host must run
 
-To be run on the Fedora host (or any host with a container runtime), **not inside ai-box**. Podman
-works in place of Docker throughout (`podman compose`, or `podman-compose`).
+This is the one gate that cannot run in the development container: there is no container runtime in
+it, and installing one there would prove nothing about a real machine. Run this on the Fedora host.
+Podman is the primary path; Docker behaves the same and the scripts detect either.
+
+Everything below is verbatim. Nothing needs to be adapted.
+
+### 1. A clean checkout, installed the way anyone would
 
 ```sh
-cd deploy
-docker compose up -d --build                  # 1. builds the image and starts with the five mounts
-
-curl -fsS http://127.0.0.1:8420/api/ready     # 2. ready:true, migrations_pending 0, recovery.order present
-curl -fsS http://127.0.0.1:8420/api/health    # 2. status ok, access "loopback"
-
-# 3. put something in the library, so there is state to lose
-curl -fsS -X POST http://127.0.0.1:8420/api/storage/roots \
-     -H 'Content-Type: application/json' -d '{"name":"Library","path":"/content"}'
-#    import a file through the UI or /api/import, then note the work id
-
-docker compose restart                        # 4. restart: the library and its files are still there
-curl -fsS http://127.0.0.1:8420/api/shelf
-
-docker compose down && docker compose up -d   # 5. recreate the container entirely, same mounts
-curl -fsS http://127.0.0.1:8420/api/ready     # 5. ready again, same schema_version, no re-migration
-curl -fsS http://127.0.0.1:8420/api/shelf     # 5. the same work is still on the shelf
-ls volumes/content                            # 5. the imported file is still on the content mount
-
-docker compose exec oneshelf id               # 6. runs as a non-root user
-docker inspect --format '{{.State.Health.Status}}' $(docker compose ps -q oneshelf)   # 6. healthy
+cd ~                                  # anywhere outside the development checkout
+git clone https://github.com/IPurplel/OneShelf.git
+cd OneShelf
+./install.sh
 ```
 
-**What each step proves:** that the image builds from this repository (1); that startup runs migrations
-and recovery and says so (2); that a restart preserves the library (4); that *recreating* the container
-— the case where anything written inside the container rather than on a mount would be lost — preserves
-it too (5); and that the container runs unprivileged with a working healthcheck (6).
+Expected: it finds Podman, finds Compose, creates `.env`, builds, starts, waits, and prints
+`OneShelf is running at http://127.0.0.1:8420`. It must exit 0.
 
-**What would fail it:** a schema re-migration on step 5, an empty shelf after recreation, a file missing
-from `volumes/content`, `id` reporting uid 0, or an unhealthy status.
+### 2. It is actually up
 
-When this passes, M2, M2.1 and M56's Docker clause move to `VERIFIED` together, and EB-1 closes.
+```sh
+curl -fsS http://127.0.0.1:8420/api/ready   ; echo
+curl -fsS http://127.0.0.1:8420/api/health  ; echo
+```
+
+Expected: `ready: true`, `migrations_pending: 0`, a `recovery` block; and `status: ok` with
+`access: loopback`. Open <http://127.0.0.1:8420> in a browser — the interface must load, not a 404.
+
+### 3. Put a real library in it
+
+```sh
+curl -fsS -X POST http://127.0.0.1:8420/api/storage/roots \
+     -H 'Content-Type: application/json' -d '{"name":"Library","path":"/content"}' ; echo
+```
+
+Then import a file through the interface (Home → Import), or with the API, and note the work's title.
+
+```sh
+curl -fsS http://127.0.0.1:8420/api/shelf | head -c 400 ; echo
+SCHEMA_BEFORE=$(curl -fsS http://127.0.0.1:8420/api/ready | grep -o '"schema_version":[0-9]*')
+echo "$SCHEMA_BEFORE"
+ls deploy/volumes/content
+```
+
+### 4. Restart
+
+```sh
+podman compose -f deploy/compose.yaml restart
+sleep 10
+curl -fsS http://127.0.0.1:8420/api/shelf | head -c 400 ; echo
+```
+
+Expected: the same work is still there.
+
+### 5. Full recreation — the case that would lose anything written inside the container
+
+```sh
+podman compose -f deploy/compose.yaml down
+podman compose -f deploy/compose.yaml up -d
+sleep 20
+curl -fsS http://127.0.0.1:8420/api/ready ; echo
+curl -fsS http://127.0.0.1:8420/api/shelf | head -c 400 ; echo
+ls deploy/volumes/content
+```
+
+Expected: ready again, **the same `schema_version` as before** and `migrations_pending: 0` — a
+re-migration here would mean the database was not the same one — the same work on the shelf, and the
+file still in `deploy/volumes/content`.
+
+### 6. It runs unprivileged and reports its own health
+
+```sh
+podman compose -f deploy/compose.yaml exec oneshelf id
+podman inspect --format '{{.State.Health.Status}}' "$(podman compose -f deploy/compose.yaml ps -q oneshelf)"
+```
+
+Expected: `uid=10001` (not 0), and `healthy`.
+
+### 7. Update is safe
+
+```sh
+./update.sh
+curl -fsS http://127.0.0.1:8420/api/shelf | head -c 400 ; echo
+```
+
+Expected: it rebuilds, restarts, reports ready and healthy, and the same work is still there. (With
+no upstream change it should say so and rebuild what is present.)
+
+### 8. Uninstall keeps the library
+
+```sh
+./uninstall.sh
+ls deploy/volumes/data deploy/volumes/content
+./install.sh
+curl -fsS http://127.0.0.1:8420/api/shelf | head -c 400 ; echo
+```
+
+Expected: `uninstall.sh` says the library has been kept, the directories still hold the files, and
+reinstalling brings the same library back.
+
+### What passing this closes
+
+M2, M2.1 and M56's Docker clause move to `VERIFIED`, and REL-01, REL-02, REL-03 and REL-08 with them.
+REL-07 (publishing) and REL-09 (clean-clone against the published repository) follow.
+
+### What would fail it
+
+A non-zero exit from any script; a re-migration or a changed `schema_version` at step 5; an empty
+shelf after recreation; a missing file under `deploy/volumes/content`; `id` reporting uid 0; an
+unhealthy container; or `uninstall.sh` removing anything at step 8.
 
 ## 4. Blocked and partial gates
 

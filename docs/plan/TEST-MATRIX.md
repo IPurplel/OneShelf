@@ -235,6 +235,48 @@ The packaged `latest` fixture keeps a real coverless series and a translator's e
 cannot return. Installation and activation were checked through `/api/sources/install`: state `active`,
 capabilities search, work, catalog, reader, latest, and one permission requested.
 
+## WP-REL — installation and the served interface (REL-01…REL-06)
+
+| # | Test | File | State |
+|---|---|---|---|
+| 1 | Docker detected when it is the one that works | `tests/deploy/test_install_scripts.py` | **passing** |
+| 2 | Podman detected, and preferred where both answer | same | **passing** |
+| 3 | no runtime at all: clear failure, install instructions, never sudo | same | **passing** |
+| 4 | installed but not answering: says which and how to start it | same | **passing** |
+| 5 | an explicit `ONESHELF_RUNTIME` is honoured | same | **passing** |
+| 6 | Compose plugin used when present | same | **passing** |
+| 7 | standalone `podman-compose` used when the plugin is missing | same | **passing** |
+| 8 | a runtime with no Compose at all is a clear failure | same | **passing** |
+| 9 | first run creates `.env` from the example, mode 600 | same | **passing** |
+| 10 | an existing `.env` is never overwritten, and is honoured | same | **passing** |
+| 11 | running install again changes nothing it should not | same | **passing** |
+| 12 | only OneShelf's own five directories are created | same | **passing** |
+| 13 | no secret is ever printed | same | **passing** |
+| 14 | a readiness failure fails the install, with diagnostics | same | **passing** |
+| 15 | a failing container command fails the install | same | **passing** |
+| 16 | update refuses before an install | same | **passing** |
+| 17 | update refuses with local changes, and says the library is untouched | same | **passing** |
+| 18 | update continues without git and still verifies | same | **passing** |
+| 19 | **uninstall keeps every byte of the library by default** | same | **passing** |
+| 20 | uninstall refuses an unknown option | same | **passing** |
+| 21 | deleting data requires typing the whole sentence | same | **passing** |
+| 22 | deleting data removes its own directories and nothing else | same | **passing** |
+| 23 | the scripts are executable in git | same | **passing** |
+| 24 | shellcheck | same | *skipped — not installed here* |
+| 25 | the interface is served at the root | `tests/integration/test_web_ui.py` | **passing** |
+| 26 | its assets are served too | same | **passing** |
+| 27 | a client route falls back to the interface rather than 404 | same | **passing** |
+| 28 | the API still answers as the API | same | **passing** |
+| 29 | nothing outside the web root can be reached (3 cases) | same | **passing** |
+| 30 | the interface is behind the same boundary as everything else | same | **passing** |
+| 31 | without a built interface the API still runs | same | **passing** |
+
+Live 2026-09-21, outside a container: the real `vite build` output served from the API origin — `/`,
+a hashed asset, a deep link, `/api/health` still JSON, `/api/nope` still 404 — and the full UI
+rendered in Chromium with no console errors.
+
+**Not covered here:** anything that needs a container runtime. REL-08's gate is unexecuted.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.
