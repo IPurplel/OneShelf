@@ -127,6 +127,26 @@ Live criterion executed 2026-09-19 against a real library.
 
 Live criterion executed 2026-09-19 with two tabs sharing one stream.
 
+## WP-D1 — Diagnostics (M43, DEF-diagnostics)
+
+| # | Test | File | State |
+|---|---|---|---|
+| 1 | `keeps what it is given, redacted, under the category it was filed` | `unit/diagnostics/test_store.py` | **passing** |
+| 2 | `refuses a category the Master does not name` | `unit/diagnostics/test_store.py` | **passing** |
+| 3 | `drops what is older than seven days` | `unit/diagnostics/test_store.py` | **passing** |
+| 4 | `drops the oldest first when it no longer fits in a hundred megabytes` | `unit/diagnostics/test_store.py` | **passing** |
+| 5 | `clearing leaves nothing behind` | `unit/diagnostics/test_store.py` | **passing** |
+| 6 | `a message with arguments survives redaction and still says what happened` (I-18) | `unit/diagnostics/test_redact.py` | **passing** |
+| 7 | `the diagnostics store takes operational records only` (INV-29) | `unit/test_no_matcher_telemetry.py` | **passing** |
+| 8 | `a matching pass writes nothing to the diagnostics store` (INV-29) | `unit/test_no_matcher_telemetry.py` | **passing** |
+| 9 | `diagnostics are local, bounded and clearable` | `integration/test_app.py` | **passing** |
+| 10 | `a source failure becomes a local diagnostic` | `integration/sources/test_test_source_pipeline.py` | **passing** |
+| 11 | `a check that fails leaves a diagnostic saying why` | `integration/library/test_shelf_and_follow.py` | **passing** |
+| 12 | `shows what the local diagnostics hold, and can clear them` | `SettingsScreen.test.tsx` | **passing** |
+
+Live criterion executed 2026-09-20 (`wpd1.py` PASS): real failures filled the store, the panel read its
+bounds, nothing sensitive was written, clearing emptied it, axe clean.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.

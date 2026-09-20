@@ -288,7 +288,7 @@ says exactly what is missing or what blocks it.
 | M41.4 | Correctness/reference vs real-world stress sources; 3asq public parser testing only, not official/licensed default | C9 | docs/evidence | — | — | evidence ledger labels | VERIFIED |
 | M41.5 | Local deterministic cases: irregular order/numbers, Special, Prologue, 3.5, 300→7, 429 Retry-After, 500, session expiry, HTML-as-media, corrupt media, interruption, changed ETag, unapproved redirect, malformed metadata, incomplete pagination, other recovery | C1→C5 | test_source/ | — | — | one scenario test each | VERIFIED |
 | M42 | Single source of approved defaults, consistent across UI/API/runtime/migrations (D2) | C1 | be/settings/defaults | Settings | settings | DEF rows | VERIFIED |
-| M43 | Diagnostics: parser/network/job/health operational data only; 7 d or 100 MB rotating; never passwords/cookies/tokens/auth headers/sensitive bodies; no matcher telemetry | C3,C6 | be/diagnostics | Settings → Advanced | rotating files | `test_redact.py` (redaction at write time). **Missing:** the rotating 7 d / 100 MB diagnostics store itself | IN_PROGRESS |
+| M43 | Diagnostics: parser/network/job/health operational data only; 7 d or 100 MB rotating; never passwords/cookies/tokens/auth headers/sensitive bodies; no matcher telemetry | C3,C6 | be/diagnostics | Settings → Advanced | rotating files | `tests/unit/diagnostics/test_store.py` (rotation by age then size, bounds, clearing), `test_redact.py` (redaction at write time, incl. I-18 regression), `test_no_matcher_telemetry.py::test_the_diagnostics_store_takes_operational_records_only` and `::test_a_matching_pass_writes_nothing_to_the_diagnostics_store` (INV-29), `test_app.py::test_diagnostics_are_local_bounded_and_clearable`, `test_test_source_pipeline.py::test_a_source_failure_becomes_a_local_diagnostic`, `test_shelf_and_follow.py::test_a_check_that_fails_leaves_a_diagnostic_saying_why`, `SettingsScreen.test.tsx::shows what the local diagnostics hold, and can clear them`; live 2026-09-20 (`wpd1.py` PASS): real Check Now failures filled the store (3 records, 582 B), panel read "3 records / 582 B of 100 MB / Kept for 7 days, then dropped", nothing sensitive on disk, clearing emptied it, axe clean, no console errors | VERIFIED |
 
 ## §44–§50 UX rules, security, exclusions, non-goals
 
@@ -363,7 +363,7 @@ says exactly what is missing or what blocks it.
 | DEF-follow | ~12 h + jitter | C6 | scheduler test | VERIFIED |
 | DEF-notifications | resolved visible ~1 h; history 30 d or 500 | C6 | lifecycle + both-limit tests | VERIFIED |
 | DEF-export-activity | 30 d or 100 jobs | C7 | both-limit test | VERIFIED |
-| DEF-diagnostics | 7 d or 100 MB | C3 | The retention default exists in the registry but nothing consumes it: there is no diagnostics store to rotate | NOT_STARTED |
+| DEF-diagnostics | 7 d or 100 MB | C3 | `DiagnosticsStore` reads both bounds from the registry and `rotate()` applies age first, then size, oldest segment first; `test_store.py` covers both, and the live panel showed "of 100 MB" and "Kept for 7 days" from the same defaults (2026-09-20) | VERIFIED |
 | DEF-retry | initial + up to 3 retries | C5 | retry count test | VERIFIED |
 | DEF-remote-session | 30 d (options shorter/90 d/1 y/manual) | C8 | session expiry test | VERIFIED |
 | DEF-storage-reserve | 5% capped 5 GB; warning ~2× reserve | C1 | guard tests | VERIFIED |
@@ -464,7 +464,7 @@ Carried forward from C1 (still `NS`): M41.2 OneShelf Test Source skeleton → C3
 | M15 | `net/governor.py` wired into fetchers | `test_governor.py`, pipeline rate-limit test | Reader/download/Follow callers (C5/C6) |
 | M21 | passive signals with plugin version | pipeline health test | states, hysteresis, active checks, UI (C6) |
 | M41.2, M41.5 | `backend/testsource/` scenarios and package | pipeline tests | media/ETag/interruption scenarios exercised by downloads (C5) |
-| M43 | `diagnostics/redact.py` | `test_redact.py` | persistent rotating diagnostics store (C6/C9) |
+| M43 | `diagnostics/redact.py`, `diagnostics/store.py`, `api/storage.py` (`/api/diagnostics`) | `test_redact.py`, `test_store.py`, `test_app.py` | — |
 | M48 | declarative plugins, Core-owned capabilities, allowlists, redirect/DNS, SSRF, no raw session exposure | C3 suites | remote auth parts (C8), document isolation (C2) |
 | INV-13, INV-15, INV-26 | package validation; policy + proxy + Chromium flags; governor | see gate checklist | — |
 | EX-03, EX-23, EX-30 | no executable plugins; no stealth tooling; no plugin LAN access | validation, K1 guard, SSRF suites | — |

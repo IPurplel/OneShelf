@@ -1,6 +1,6 @@
 # Execution Status — the live task list
 
-Updated: 2026-09-19 · Plan: `execution-plan.md` · Authoritative statuses: `../c0/traceability.md`
+Updated: 2026-09-20 · Plan: `execution-plan.md` · Authoritative statuses: `../c0/traceability.md`
 
 One work package is `IN_PROGRESS` at a time. One implementation task within it wherever practical.
 
@@ -15,13 +15,35 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-S1 | Settings completion | M32.14, M45 | **VERIFIED** — live check executed 2026-09-19 |
 | WP-R4 | Reader affordances | M26.19, M26.21, M26.14, M26.12, M26.11, M26.2 | **VERIFIED** — live check executed 2026-09-19 |
 | WP-E1 | Realtime event client | M36 | **VERIFIED** — live two-tab check executed 2026-09-19 |
-| WP-D1 | Diagnostics | M43, DEF-diagnostics | **IN_PROGRESS** |
-| WP-R5 | Reader source switching and polish | M26.16, INV-25, M26.3b, M26.24 | NOT_STARTED |
+| WP-D1 | Diagnostics | M43, DEF-diagnostics | **VERIFIED** — live check executed 2026-09-20 |
+| WP-R5 | Reader source switching and polish | M26.16, INV-25, M26.3b, M26.24 | **IN_PROGRESS** |
 | WP-G1 | Exclusion regression guards | 17 EX rows, M49 | NOT_STARTED |
 | WP-B1 | Environment-blocked verification | M2, M2.1, M41.1 | **BLOCKED** |
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
+
+## WP-D1 — done and verified
+
+What the application already said about itself is now kept. A store under the data directory writes
+redacted JSONL segments in four operational categories — parser, network, job, health — taken from the
+logger's own name, and rotation drops what is older than seven days before what does not fit in a
+hundred megabytes, oldest segment first. Settings → Advanced, behind the disclosure, reads the bounds
+and clears the store.
+
+Three places that failed silently now leave a record: a source capability that fails, a download job
+that fails, and a Follow check that degrades. Each leaves identifiers and a category — never the
+response that caused it.
+
+Evidence (2026-09-20): `wpd1.py` PASS. Real "Check Now" failures filled the store (3 records, 582 B);
+the panel read "3 records", "582 B of 100 MB", "Kept for 7 days, then dropped"; nothing sensitive was
+on disk; clearing emptied it; axe clean; no console errors. Backend 819 passed, frontend 183 passed,
+`tsc` clean. Commit `56ea58b`.
+
+Two defects found and fixed with regression tests: I-18 (redaction destroyed the placeholders its own
+arguments needed, so every logged diagnostic with arguments raised inside `logging`) and the silent
+Follow-check failure above. INV-29 is guarded by two tests that assert a matching pass writes nothing
+to the store.
 
 ## WP-E1 — done and verified
 
@@ -168,6 +190,7 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-20 | WP-D1 built, reviewed, verified live and committed (`56ea58b`); M43 and DEF-diagnostics → `VERIFIED`. I-18 fixed with a regression test. WP-R5 started. |
 | 2026-09-19 | WP-E1 built, reviewed, verified live and committed (`0bfdd2f`); M36 → `VERIFIED` and M56's realtime clause closed. WP-D1 started. |
 | 2026-09-19 | WP-R4 built, reviewed, verified live and committed (`53a3141`); M26.2, M26.11, M26.12, M26.14, M26.19, M26.21 → `VERIFIED`. WP-E1 started. |
 | 2026-09-19 | WP-S1 built, reviewed, verified live and committed (`b7383d7`); M32.14, M45 and M30.10 → `VERIFIED`. Route-order guard repaired (I-14) and queue reordering fixed (I-15) in `9874a85`. WP-R4 started. |
