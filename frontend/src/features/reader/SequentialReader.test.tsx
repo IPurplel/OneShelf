@@ -655,6 +655,19 @@ describe("Sequential Reader", () => {
     expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("1 / 3");
   });
 
+  it("downloads this unit from the keyboard, like every other reading action", async () => {
+    // §26.5 names download in the reader's keyboard set; every other key in that list worked.
+    const calls = stub([post("/api/downloads", { batch_id: "b1", state: "active", pending: 1 })]);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    await user.keyboard("d");
+    await waitFor(() => expect(calls.some((call) => call.method === "POST" && call.url === "/api/downloads"))
+      .toBe(true));
+    expect(calls.find((call) => call.url === "/api/downloads")?.body).toEqual({ unit_ids: ["u2"] });
+  });
+
   it("filters the contents by what is new, as well as unread and downloaded", async () => {
     stub();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

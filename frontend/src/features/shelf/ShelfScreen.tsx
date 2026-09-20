@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useResource } from "@/api/useApi";
 import { Icon } from "@/components/Icon";
@@ -24,16 +24,25 @@ const VIEWS: { id: string; labelKey: StringKey }[] = [
  * Search here is local only — it never reaches a source (§22, §7).
  */
 export function ShelfScreen() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [view, setView] = useState("all");
   const [query, setQuery] = useState("");
   const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const [sort, setSort] = useState<"added" | "title">("added");
   const [managing, setManaging] = useState<{ work_id: string; title: string } | null>(null);
   const [removing, setRemoving] = useState<{ summary: RemovalSummary; title: string } | null>(null);
   const { data, error, reload } = useResource<ShelfResponse>("/api/shelf",
     query.trim() ? { q: query.trim() } : { view });
 
-  const entries = data?.entries ?? [];
+  /**
+   * §32.9: sorting is the screen's own work. The shelf arrives whole and local, so reordering it needs
+   * no second request — and "added" is the order the library already gave, left exactly as it came.
+   */
+  const entries = useMemo(() => {
+    const rows = data?.entries ?? [];
+    if (sort !== "title") return rows;
+    return [...rows].sort((a, b) => a.title.localeCompare(b.title, language));
+  }, [data, sort, language]);
 
   /** The same removal a work's own page offers, from a row, with the same facts and the same words. */
   const startRemoval = async (work_id: string, title: string) => {
@@ -77,6 +86,11 @@ export function ShelfScreen() {
         <div className="toolbar__end">
           <input type="search" className="field" aria-label={t("shelf.search")} placeholder={t("shelf.search")}
                  value={query} onChange={(event) => setQuery(event.target.value)} />
+          <select className="field" aria-label={t("shelf.sort")} value={sort}
+                  onChange={(event) => setSort(event.target.value as "added" | "title")}>
+            <option value="added">{t("shelf.sort.added")}</option>
+            <option value="title">{t("shelf.sort.title")}</option>
+          </select>
           <button type="button" className="iconbutton" aria-pressed={layout === "grid"}
                   onClick={() => setLayout("grid")} aria-label={t("shelf.layout.grid")}>
             <Icon name="grid" size={18} />

@@ -22,6 +22,27 @@ describe("My Shelf", () => {
     expect(within(shelf).getByRole("link", { name: /irregular chronicle/i })).toHaveAttribute("href", "/works/w1");
   });
 
+  it("sorts the shelf by title or by when a work arrived, without asking the library again", async () => {
+    // §32.9 asks for sort beside search and the Grid/List choice. The shelf is already local and whole,
+    // so ordering it is the screen's own job — nothing needs re-fetching to change the order.
+    const zebra = { ...ENTRY, work_id: "w2", title: "Zebra Tales", added_at: "2026-09-19T10:00:00+00:00" };
+    const calls = mockApi([get("/api/shelf", { view: "all", entries: [zebra, ENTRY] })]);
+    const user = userEvent.setup();
+    renderWithProviders(<ShelfScreen />);
+    const shelf = await screen.findByRole("region", { name: /my shelf/i });
+
+    const order = () => within(shelf).getAllByRole("link").map((link) => link.getAttribute("href"));
+    expect(order()).toEqual(["/works/w2", "/works/w1"]);          // as the library ordered them
+
+    const before = calls.length;
+    await user.selectOptions(screen.getByRole("combobox", { name: /sort/i }), "title");
+    expect(order()).toEqual(["/works/w1", "/works/w2"]);          // The Irregular Chronicle, then Zebra
+    expect(calls.length).toBe(before);
+
+    await user.selectOptions(screen.getByRole("combobox", { name: /sort/i }), "added");
+    expect(order()).toEqual(["/works/w2", "/works/w1"]);
+  });
+
   it("offers the views the Master names and asks the library for the chosen one", async () => {
     const calls = mockApi([get("/api/shelf", { view: "all", entries: [ENTRY] })]);
     const user = userEvent.setup();

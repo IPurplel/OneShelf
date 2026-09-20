@@ -268,13 +268,15 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
       else if (event.key === "t") setPanel("contents");
       else if (event.key === "s") setPanel("settings");
       else if (event.key === "f") toggleFullscreen();
+      // §26.5: download belongs to the reader's own keyboard set, beside the contents and settings keys.
+      else if (event.key === "d") void api.post("/api/downloads", { unit_ids: [id] });
       else if (event.key === "+" || event.key === "=") { changeZoom(ZOOM_STEP); event.preventDefault(); }
       else if (event.key === "-") { changeZoom(1 / ZOOM_STEP); event.preventDefault(); }
       else if (event.key === "0") { resetZoom(); event.preventDefault(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [panel, settings.direction, step, changeZoom, resetZoom, toggleFullscreen]);
+  }, [panel, settings.direction, step, changeZoom, resetZoom, toggleFullscreen, id]);
 
   /**
    * In Long Strip the reader's position is where they have scrolled to (§26.6, §26.11). It drives the
