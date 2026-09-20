@@ -176,8 +176,12 @@ class SourceService:
         package, fetcher = await self._fetcher(plugin_id, priority)
         recipe = package.recipes.get(capability)
         auth_mode = recipe.request.auth if recipe is not None else "none"
+        # A recipe may declare what its own resources need — an image CDN that refuses a request without
+        # a Referer, say. The caller still wins, and the transport still owns everything else (§9, §12).
+        declared = dict(recipe.resource_headers) if recipe is not None else {}
+        declared.update(headers or {})
         response = await fetcher.request(url, capability=capability, auth_mode=auth_mode, max_bytes=max_bytes,
-                                         headers=headers)
+                                         headers=declared or None)
         if response.status == 429:
             self._record(package, capability, "failure", "rate_limit")
             raise_for_rate_limit(response)

@@ -197,3 +197,60 @@ def test_fixture_urls_must_be_allowlisted(tmp_path):
                         "fixtures": [{"url": "http://169.254.169.254/latest", "file": "fixtures/search.html"}],
                         "expect": {"min_items": 1}}]}
     rejects(tmp_path, tests=tests)
+
+
+def test_a_recipe_may_declare_the_headers_its_resources_need(tmp_path):
+    """Some CDNs refuse an image without a Referer. Declaring that is a recipe's job, not Core's.
+
+    The alternative is a source-specific branch inside the downloader, which §52 and §9 both refuse.
+    """
+    import copy
+
+    recipes = copy.deepcopy(RECIPES)
+    recipes["catalog"]["resource_headers"] = {"Referer": "https://example.test/"}
+    package = load_package(build_osp(tmp_path / "with-headers.osp", recipes=recipes))
+    assert package.recipes["catalog"].resource_headers == {"Referer": "https://example.test/"}
+
+
+@pytest.mark.parametrize("header", ["Cookie", "Authorization", "X-Forwarded-For", "Host"])
+def test_resource_headers_may_not_smuggle_credentials_or_spoof_the_hop(tmp_path, header):
+    import copy
+
+    recipes = copy.deepcopy(RECIPES)
+    recipes["catalog"]["resource_headers"] = {header: "anything"}
+    with pytest.raises(Exception, match="not allowed"):
+        load_package(build_osp(tmp_path / "bad-headers.osp", recipes=recipes))
+
+
+def test_a_recipe_may_follow_the_url_its_own_catalog_captured(tmp_path):
+    """§8: the source gave us the address; asking for it back is not a widening of anything."""
+    import copy
+
+    recipes = copy.deepcopy(RECIPES)
+    recipes["reader"] = {
+        "capability": "reader", "inputs": ["url"],
+        "request": {"method": "GET", "url": "{url:absolute}", "fetch": "http"},
+        "response": {"format": "html"},
+        "extract": {"items": {"css": "img"}, "fields": {"url": {"css": "::attr(src)", "required": True}}},
+        "pagination": {"mode": "none", "complete_when": "single_response"},
+    }
+    package = load_package(build_osp(tmp_path / "follows.osp", recipes=recipes,
+                                     manifest=variant(MANIFEST, capabilities=["search", "catalog", "reader"])))
+    assert package.recipes["reader"].request.url == "{url:absolute}"
+
+
+def test_following_a_url_without_saying_it_is_absolute_is_refused_rather_than_silently_encoded(tmp_path):
+    """A bare {url} is percent-encoded into a path segment, so the request could never have worked."""
+    import copy
+
+    recipes = copy.deepcopy(RECIPES)
+    recipes["reader"] = {
+        "capability": "reader", "inputs": ["url"],
+        "request": {"method": "GET", "url": "{url}", "fetch": "http"},
+        "response": {"format": "html"},
+        "extract": {"items": {"css": "img"}, "fields": {"url": {"css": "::attr(src)", "required": True}}},
+        "pagination": {"mode": "none", "complete_when": "single_response"},
+    }
+    with pytest.raises(PackageError, match="absolute"):
+        load_package(build_osp(tmp_path / "bare.osp", recipes=recipes,
+                               manifest=variant(MANIFEST, capabilities=["search", "catalog", "reader"])))

@@ -2,13 +2,33 @@
 from __future__ import annotations
 
 import re
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 # `language` is the Language Track's language, supplied by the core (Master §4, §41.3).
 ALLOWED_INPUTS = frozenset({"query", "page", "offset", "cursor", "listing_key", "unit_key", "url", "language"})
+def _absolute(value: object) -> str:
+    """A URL the source itself gave us, inserted as it stands.
+
+    Percent-encoding a whole URL turns it into a path segment, so a recipe that must request an address
+    it was handed — a viewer page the catalog captured — asks for this explicitly. It is not a way in:
+    only plain http(s) with a host is accepted, credentials and control characters are refused outright,
+    and the egress policy still decides whether the host may be reached at all (§12.1, K2).
+    """
+    text = str(value)
+    if len(text) > MAX_TEMPLATE or any(c in text for c in "\r\n\t ") or any(ord(c) < 0x20 for c in text):
+        raise TemplateError("absolute URL contains whitespace or control characters")
+    parsed = urlsplit(text)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        raise TemplateError(f"not an absolute http(s) URL: {text[:64]!r}")
+    if parsed.username or parsed.password or "@" in parsed.netloc:
+        raise TemplateError("credentials are not allowed in a recipe URL")
+    return text
+
+
 ENCODERS = {
     "url": lambda v: quote(str(v), safe=""),
     "path": lambda v: quote(str(v), safe=""),
+    "absolute": _absolute,
 }
 _PLACEHOLDER = re.compile(r"\{([^{}]*)\}")
 _NAME = re.compile(r"^[a-z_][a-z0-9_]*$")

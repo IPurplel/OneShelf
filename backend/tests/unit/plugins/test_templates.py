@@ -4,6 +4,7 @@ import pytest
 from oneshelf.plugins.package import PackageError
 from oneshelf.plugins.schema import Extract, FieldSpec
 from oneshelf.plugins.runtime import render_template, resolve_values
+from oneshelf.plugins.templates import TemplateError, render
 
 DOCUMENT = {"baseUrl": "https://uploads.example", "chapter": {"hash": "abc", "data": ["1.png", "2.png"]}}
 
@@ -57,3 +58,26 @@ def test_a_recipe_may_follow_a_url_its_own_catalog_produced():
         validate_url_template("{url}/pages", {"url"})        # no building on top of a supplied URL
     with pytest.raises(TemplateError):
         validate_url_template("{url}", set())
+
+
+# A recipe sometimes has to request a URL the source itself gave us — a viewer page whose address the
+# catalog captured, say. Percent-encoding the whole thing turns it into a path segment, so there is an
+# explicit encoder for it, and it refuses anything that is not plainly an http(s) URL.
+
+def test_an_absolute_url_can_be_requested_as_it_was_given():
+    url = "https://www.webtoons.com/en/fantasy/tower-of-god/season-1-ep-2/viewer?title_no=95&episode_no=3"
+    assert render("{url:absolute}", {"url": url}, base_url="https://www.webtoons.com") == url
+
+
+@pytest.mark.parametrize("value", [
+    "javascript:alert(1)",
+    "file:///etc/passwd",
+    "data:text/html,<script>",
+    "https://user:pass@example.test/x",          # credentials never travel in a recipe's URL
+    "https://example.test/x\nHost: elsewhere",   # no header splitting
+    "//example.test/x",                          # scheme-relative is not an absolute URL
+    "not a url",
+])
+def test_the_absolute_encoder_refuses_anything_that_is_not_a_plain_http_url(value):
+    with pytest.raises(TemplateError):
+        render("{u:absolute}", {"u": value}, base_url="https://example.test")

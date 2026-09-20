@@ -185,6 +185,20 @@ class FieldSpec(Strict):
         return "json" if self.json_ is not None else "template"
 
 
+def check_headers(value: dict[str, str]) -> dict[str, str]:
+    """Headers a recipe may set: never credentials, never the hop, never a header the transport owns."""
+    forbidden = {"cookie", "authorization", "host", "content-length", "transfer-encoding", "connection",
+                 "te", "upgrade", "set-cookie"}
+    for name, header_value in value.items():
+        lower = name.lower()
+        if (not re.match(r"^[A-Za-z0-9-]{1,64}$", name) or lower in forbidden
+                or lower.startswith(("proxy-", "x-forwarded-", "sec-")) or lower == "forwarded"):
+            raise ValueError(f"header not allowed in recipes: {name!r}")
+        if len(header_value) > 512 or "\r" in header_value or "\n" in header_value:
+            raise ValueError(f"invalid header value for {name!r}")
+    return value
+
+
 class Request(Strict):
     method: Literal["GET", "POST"] = "GET"
     url: str
@@ -196,16 +210,7 @@ class Request(Strict):
     @field_validator("headers")
     @classmethod
     def _headers(cls, value: dict[str, str]) -> dict[str, str]:
-        forbidden = {"cookie", "authorization", "host", "content-length", "transfer-encoding", "connection",
-                     "te", "upgrade", "set-cookie"}
-        for name, header_value in value.items():
-            lower = name.lower()
-            if (not re.match(r"^[A-Za-z0-9-]{1,64}$", name) or lower in forbidden
-                    or lower.startswith(("proxy-", "x-forwarded-", "sec-")) or lower == "forwarded"):
-                raise ValueError(f"header not allowed in recipes: {name!r}")
-            if len(header_value) > 512 or "\r" in header_value or "\n" in header_value:
-                raise ValueError(f"invalid header value for {name!r}")
-        return value
+        return check_headers(value)
 
 
 class Response(Strict):
@@ -249,6 +254,15 @@ class Recipe(Strict):
     response: Response
     extract: Extract
     pagination: Pagination = Field(default_factory=Pagination)
+    # Headers the *resources* this recipe yields need — an image CDN that refuses a request without a
+    # Referer, say. Declared here so Core stays generic: the alternative is a branch that knows a
+    # source's name (§9, §52). The same rules apply as to the recipe's own request headers.
+    resource_headers: dict[str, str] = Field(default_factory=dict, max_length=20)
+
+    @field_validator("resource_headers")
+    @classmethod
+    def _resource_headers(cls, value: dict[str, str]) -> dict[str, str]:
+        return check_headers(value)
 
 
 class FixtureResponse(Strict):

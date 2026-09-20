@@ -233,3 +233,36 @@ def test_a_source_failure_becomes_a_local_diagnostic(db, tmp_path, installed):
     assert entry["category"] == "network"
     assert "auth_failure" in entry["message"] and TS in entry["message"]
     assert "cookie" not in entry["message"].lower()      # the refusal, never what was sent
+
+
+def test_a_recipe_can_say_which_headers_its_resources_need(db, tmp_path, installed, monkeypatch):
+    """A CDN that refuses an image without a Referer is answered by declaration, not by a branch in Core."""
+    package = installed.load_active(TS)
+    import dataclasses
+
+    recipes = dict(package.recipes)
+    recipes["catalog"] = recipes["catalog"].model_copy(update={"resource_headers": {"Referer": f"http://{HOST}/"}})
+    package = dataclasses.replace(package, recipes=recipes)
+    sent = {}
+
+    async def scenario():
+        async with environment(db, tmp_path, installed) as (service, server, *_):
+            original = service._fetcher
+
+            async def capture(plugin_id, priority):
+                pkg, fetcher = await original(plugin_id, priority)
+                real = fetcher.request
+
+                async def request(url, **kwargs):
+                    sent.update(kwargs.get("headers") or {})
+                    return await real(url, **kwargs)
+
+                fetcher.request = request
+                return pkg, fetcher
+
+            monkeypatch.setattr(service, "_fetcher", capture)
+            monkeypatch.setattr(service.plugins, "load_active", lambda _id: package)
+            await service.fetch_resource(TS, f"http://{CDN_HOST}/covers/irregular.png", capability="catalog")
+
+    run(scenario())
+    assert sent.get("Referer") == f"http://{HOST}/"

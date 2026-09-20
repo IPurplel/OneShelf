@@ -179,8 +179,13 @@ def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str,
         except TemplateError as exc:
             raise PackageError(f"recipes/{capability}: {exc}") from exc
         # A recipe may follow a URL the source's own catalog produced (§8); the egress policy still
-        # decides whether that URL may be fetched, so nothing is widened here.
-        follows_source_url = recipe.request.url.startswith("{url}")
+        # decides whether that URL may be fetched, so nothing is widened here. It must say so with the
+        # `absolute` encoder: a bare `{url}` is percent-encoded into a path segment, which could never
+        # have reached anything, so it is refused here rather than failing later as a transport error.
+        if recipe.request.url.startswith("{url}"):
+            raise PackageError(f"recipes/{capability}: following a captured URL needs {{url:absolute}},"
+                               " because a bare {url} is encoded as a path segment")
+        follows_source_url = recipe.request.url.startswith("{url:absolute}")
         if not recipe.request.url.startswith("{base_url}") and not follows_source_url and not _url_allowed(
             recipe.request.url.split("{", 1)[0] or "x", manifest, include_cdn=True
         ):
