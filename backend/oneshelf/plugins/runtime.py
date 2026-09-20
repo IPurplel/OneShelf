@@ -247,6 +247,14 @@ class RecipeRuntime:
         try:
             if recipe.response.format == "json":
                 document: Any = json.loads(response.body)
+                if recipe.response.markup_at is not None:
+                    # The envelope carried markup: unwrap it and read it as the document it is.
+                    found = jsonpath.evaluate(recipe.response.markup_at, document)
+                    text = next((v for v in found if isinstance(v, str)), None)
+                    if text is None:
+                        raise _PageFailure("parser_failure",
+                                           f"no markup at {recipe.response.markup_at!r} in the response")
+                    document = parse_document(text, url=response.url)
             else:
                 document = parse_document(response.body.decode("utf-8", errors="replace"), url=response.url)
         except (ValueError, UnicodeDecodeError) as exc:

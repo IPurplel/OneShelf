@@ -278,3 +278,48 @@ def test_health_json_boolean_and_not_found_category(tmp_path):
     assert run(rt, "health").ok is True
     result = run(rt, "catalog", listing_key="42")
     assert result.evidence.issues[0].category == "not_found"
+
+
+def test_a_json_response_can_say_where_its_markup_is(tmp_path):
+    """Plenty of sites answer their own XHR with `{"data": {"body": "<li>…"}}` (Master §14).
+
+    The list is real markup; it just arrives inside a JSON envelope. Saying where it is keeps the
+    extraction declarative instead of pushing a source-shaped special case into Core.
+    """
+    import copy
+
+    recipes = copy.deepcopy(RECIPES)
+    recipes["catalog"] = {
+        "capability": "catalog", "inputs": ["listing_key", "page"],
+        "request": {"method": "GET", "url": "{base_url}/series/{listing_key}/episodes?page={page}"},
+        "response": {"format": "json", "markup_at": "$.data.body"},
+        "extract": {
+            "items": {"css": "li.episode"},
+            "fields": {"unit_key": {"css": "::attr(data-id)", "required": True},
+                       "title": {"css": "span.title::text", "transforms": ["trim"]}},
+        },
+        "pagination": {"mode": "page_number", "start": 1, "max_pages": 3, "stop_when": "empty_items"},
+    }
+    body = ('{"code":200,"data":{"body":"<ul>'
+            '<li class=\\"episode\\" data-id=\\"11\\"><span class=\\"title\\">One</span></li>'
+            '<li class=\\"episode\\" data-id=\\"12\\"><span class=\\"title\\">Two</span></li>'
+            '</ul>"}}')
+    pkg = package(tmp_path, recipes=recipes)
+    base = pkg.source.base_url.rstrip("/")
+    fetcher = MemoryFetcher({
+        f"{base}/series/9/episodes?page=1": (200, body),
+        f"{base}/series/9/episodes?page=2": (200, '{"code":200,"data":{"body":""}}'),
+    })
+    result = run(RecipeRuntime(pkg, fetcher), "catalog", listing_key="9", page=1)
+    assert [u.unit_key for u in result.units] == ["11", "12"]
+    assert [u.raw_title for u in result.units] == ["One", "Two"]
+    assert result.complete
+
+
+def test_markup_at_only_makes_sense_for_a_json_response(tmp_path):
+    import copy
+
+    recipes = copy.deepcopy(RECIPES)
+    recipes["search"]["response"] = {"format": "html", "markup_at": "$.data.body"}
+    with pytest.raises(Exception, match="markup_at"):
+        package(tmp_path, recipes=recipes)

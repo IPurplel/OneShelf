@@ -216,6 +216,15 @@ class Request(Strict):
 class Response(Strict):
     format: Literal["html", "json"]
     expect_status: list[int] = Field(default_factory=lambda: [200])
+    # Where the markup is, when a site answers its own XHR with a JSON envelope around an HTML list.
+    # The list is real markup; it just arrives wrapped, and saying so keeps extraction declarative.
+    markup_at: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def _markup(self) -> Response:
+        if self.markup_at is not None and self.format != "json":
+            raise ValueError("markup_at applies to a json response, which is the only thing that wraps markup")
+        return self
 
 
 class Extract(Strict):
