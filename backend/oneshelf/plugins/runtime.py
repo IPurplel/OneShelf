@@ -192,7 +192,7 @@ class RecipeRuntime:
             return await self._run_list(recipe, values)
         response, document = await self._fetch_page(recipe, self._render(recipe, values), page=None)
         fields = self._extract_fields(recipe, document, response.url, recipe.extract.fields,
-                                      values=resolve_values(document, recipe.extract))
+                                      values=resolve_values(document, recipe.extract), inputs=values)
         missing = [name for name, required in FIELDS[capability].items() if required and fields.get(name) in (None, "")]
         if missing:
             raise CapabilityError("selector_missing", f"required fields missing: {missing}")
@@ -275,9 +275,11 @@ class RecipeRuntime:
         return str(value)
 
     def _field(self, node: Any, spec: FieldSpec, base_url: str, issues: list[Issue],
-               values: dict[str, Any] | None = None, item: Any = None) -> Any:
+               values: dict[str, Any] | None = None, item: Any = None,
+               inputs: dict[str, Any] | None = None) -> Any:
         if spec.template is not None:
-            rendered = render_template(spec.template, values or {}, item=self._scalar(item) if item is not None else None)
+            rendered = render_template(spec.template, values or {},
+                                       item=self._scalar(item) if item is not None else None, inputs=inputs)
             return apply_pipeline(rendered, spec.transforms, base_url=base_url) if rendered else None
         raw = self._raw_values(node, spec)
         if spec.exists:
@@ -296,9 +298,11 @@ class RecipeRuntime:
         return value
 
     def _extract_fields(self, recipe: Recipe, node: Any, base_url: str, specs: dict[str, FieldSpec],
-                        issues: list[Issue] | None = None, values: dict[str, Any] | None = None) -> dict[str, Any]:
+                        issues: list[Issue] | None = None, values: dict[str, Any] | None = None,
+                        inputs: dict[str, Any] | None = None) -> dict[str, Any]:
         issues = issues if issues is not None else []
-        out = {name: self._field(node, spec, base_url, issues, values, item=node) for name, spec in specs.items()}
+        out = {name: self._field(node, spec, base_url, issues, values, item=node, inputs=inputs)
+               for name, spec in specs.items()}
         for name in _URL_FIELDS & out.keys():
             if isinstance(out[name], str):
                 out[name] = _normalize_url(out[name], base_url)
@@ -383,7 +387,7 @@ class RecipeRuntime:
             page_fields = []
             for node in item_nodes:
                 fields = self._extract_fields(recipe, node, response.url, recipe.extract.fields, evidence.issues,
-                                              page_values)
+                                              page_values, inputs=values)
                 missing = [n for n, req in FIELDS[capability].items() if req and fields.get(n) in (None, "")]
                 if missing:
                     evidence.skipped += 1

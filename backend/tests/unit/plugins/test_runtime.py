@@ -323,3 +323,33 @@ def test_markup_at_only_makes_sense_for_a_json_response(tmp_path):
     recipes["search"]["response"] = {"format": "html", "markup_at": "$.data.body"}
     with pytest.raises(Exception, match="markup_at"):
         package(tmp_path, recipes=recipes)
+
+
+def test_an_item_template_can_use_the_recipe_s_own_inputs(tmp_path):
+    """A one-unit catalog names the unit after the work it belongs to (§4.4, Gutenberg and Hindawi).
+
+    Package validation has always allowed a recipe's inputs in an item template. The runtime did not
+    pass them, so the field rendered as nothing and every item was dropped for a missing required
+    field — silently, as a validation failure rather than as the wiring bug it was (I-23).
+    """
+    import copy
+
+    recipes = copy.deepcopy(RECIPES)
+    recipes["catalog"] = {
+        "capability": "catalog", "inputs": ["listing_key"],
+        "request": {"method": "GET", "url": "{base_url}/books/{listing_key}"},
+        "response": {"format": "html"},
+        "extract": {
+            "items": {"css": "article.book"},
+            "fields": {"unit_key": {"template": "{listing_key}", "required": True},
+                       "title": {"css": "h2::text", "transforms": ["trim"]},
+                       "unit_type": {"template": "one_shot"}},
+        },
+        "pagination": {"mode": "none", "complete_when": "single_response"},
+    }
+    pkg = package(tmp_path, recipes=recipes)
+    base = pkg.source.base_url.rstrip("/")
+    fetcher = MemoryFetcher({f"{base}/books/770": (200, '<article class="book"><h2>A Book</h2></article>')})
+    result = run(RecipeRuntime(pkg, fetcher), "catalog", listing_key="770")
+    assert [u.unit_key for u in result.units] == ["770"]
+    assert result.units[0].unit_type == "one_shot" and result.units[0].raw_title == "A Book"
