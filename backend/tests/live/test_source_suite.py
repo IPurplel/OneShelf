@@ -60,6 +60,19 @@ async def fetch_bytes(package, url, limit=4_000_000, headers=None):
         return response.body
 
 
+def reached(result):
+    """Guard a live result against the source being briefly unreachable.
+
+    A third-party timeout is not a OneShelf defect, and OneShelf already reports it correctly: the
+    result comes back incomplete with a transport issue rather than as a short list. So the test skips
+    on exactly that, and on nothing else — an extraction failure still fails, loudly (E-03).
+    """
+    transport = [i for i in result.evidence.issues if i.category in ("transport", "timeout")]
+    if transport and not result.entries:
+        pytest.skip(f"source unreachable right now: {transport[0].category} — {transport[0].detail}")
+    return result
+
+
 @skip_unless_live
 def test_mangadex_search_catalog_and_reader(tmp_path):
     package = package_for("oneshelf.mangadex", tmp_path)
@@ -72,9 +85,9 @@ def test_mangadex_search_catalog_and_reader(tmp_path):
 @skip_unless_live
 def test_gutenberg_search_and_a_real_epub(tmp_path):
     package = package_for("oneshelf.gutenberg", tmp_path)
-    found = run(call(package, "search", {"query": "frankenstein", "page": 1}))
+    found = reached(run(call(package, "search", {"query": "frankenstein", "page": 1})))
     assert any(item.title.lower().startswith("frankenstein") for item in found.items)
-    files = run(call(package, "downloads", {"unit_key": found.items[0].listing_key}))
+    files = reached(run(call(package, "downloads", {"unit_key": found.items[0].listing_key})))
     body = run(fetch_bytes(package, files.items[0].url))
     with zipfile.ZipFile(io.BytesIO(body)) as archive:       # a real EPUB, opened, not just 200 OK
         assert "META-INF/container.xml" in archive.namelist()

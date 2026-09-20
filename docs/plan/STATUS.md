@@ -19,7 +19,7 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-R5 | Reader source switching and polish | M26.16, INV-25, M26.3b, M26.24 (+ M26.5, M32.9) | **VERIFIED** — live checks executed 2026-09-20 |
 | WP-G1 | Exclusion regression guards | 17 EX rows, M49 | **VERIFIED** — guards checked by violation 2026-09-20 |
 | WP-G2 | Rows carried by inspection | M9.6, M9.7, M26.9, M33.10, M50, M52, INV-06, DEF-other | **VERIFIED** — 2026-09-20 |
-| WP-B1 | Docker verification and the last sources | M2, M2.1, M41.1 | **PART DONE** — three sources shipped 2026-09-20; Docker and 3asq remain blocked |
+| WP-B1 | Docker verification and the last sources | M2, M2.1, M41.1 | **SOURCES DONE** — all eight ship (M41.1 `VERIFIED`); only the container runtime remains blocked |
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
@@ -46,8 +46,13 @@ inside a JSON envelope, and use its own inputs in an item template (I-23).
 Live evidence (2026-09-20, `ONESHELF_LIVE_SOURCES=1`): seven live tests pass, including three new ones
 that open real artefacts rather than trusting a status code.
 
-**Still blocked, unchanged:** the container runtime for M2/M2.1, and `3asq.org`, which still does not
-resolve. No substitute verification was invented for either.
+**3asq is done too (2026-09-21).** `3asq.org` was never an environment blocker: it is a dead domain, and
+the site moved to `3asq.online`. There was nothing to migrate — no package, no allowlist entry, no
+recipe, no alias logic — so the adapter was built against the domain that answers, with an id that
+carries no domain so a future move cannot fork anyone's Source Tracks. Five capabilities verified live.
+
+**Still blocked:** only the container runtime, for M2 and M2.1. M56's Docker clause waits on the same
+thing. No substitute verification was invented for it.
 
 ## WP-B1 — what is actually blocked, checked on 2026-09-20
 
@@ -57,8 +62,8 @@ The blockers were re-checked rather than carried forward, and they are not all t
   this container — `docker`, `podman`, `buildah` and `nerdctl` are all absent and no socket is mounted.
   The host's `podman-init` repair fixed the container this session runs in; it did not put a runtime
   inside it. M56's Docker clause waits on the same thing.
-- **Genuinely blocked (external).** `3asq.org` still does not resolve from here, for the same reason as
-  before. One source of eight.
+- ~~**Genuinely blocked (external).** `3asq.org`~~ — **wrong, corrected 2026-09-21.** The host is dead
+  because the source moved to `3asq.online`. The adapter ships and is verified; M41.1 is complete.
 - **Not blocked at all — outstanding work.** Tapas, Safahat/Hindawi and the WEBTOON reader all resolve.
   Their difficulty was never the network: episode data sits in script state, book pages render with
   JavaScript, and the viewer builds its images in JavaScript. Each needs justified browser escalation or
@@ -294,6 +299,7 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-21 | 3asq built against its current domain `3asq.online` and verified live; **M41.1 → `VERIFIED`, all eight sources ship.** I-26 fixed with a regression fixture. Only the container runtime remains blocked. |
 | 2026-09-20 | Tapas, Safahat/Hindawi and the WEBTOON reader shipped and verified live; M41.1 is seven of eight, 3asq still unreachable. Four defects found and fixed (I-21…I-24), plus I-25. |
 | 2026-09-20 | The eight rows carried by inspection closed with tests (`61ce3e7`): M9.6, M9.7, M26.9, M33.10, M50, M52, INV-06 and DEF-other → `VERIFIED`. No row is `IMPLEMENTED` any more. |
 | 2026-09-20 | WP-G1 built, reviewed, verified by violation and committed (`a6208e7`); the 17 inspection-only EX rows and M49 → `VERIFIED`. |

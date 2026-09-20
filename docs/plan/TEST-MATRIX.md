@@ -217,6 +217,24 @@ Live criteria executed 2026-09-20 with `ONESHELF_LIVE_SOURCES=1`: seven live tes
 opens the artefact it fetched — images through the download path's own validators and into a CBZ the
 integrity validator accepts, and an EPUB opened as a zip with its mimetype checked.
 
+## WP-B1 (part) — 3asq at its current domain (M41.1)
+
+| # | Test | File | State |
+|---|---|---|---|
+| 1 | `the source id carries no domain so a move never forks identity` | `unit/plugins/test_3asq_package.py` | **passing** |
+| 2 | `the canonical domain is the one that answers` | same | **passing** |
+| 3 | `it asks for one permission and no more` | same | **passing** |
+| 4 | `the policy refuses everything that is not this source` (7 cases: old domain, old scheme, private, lookalike, file://) | same | **passing** |
+| 5 | `the policy allows the source itself` | same | **passing** |
+| 6 | `a site that answers 404 past the last page is finished not broken` | `unit/plugins/test_runtime.py` | **passing** |
+| 7 | `a 404 on the very first page is still a failure` | same | **passing** |
+| 8 | five packaged cases — search, work, catalog, reader, latest | `plugins/official/oneshelf.3asq/tests/tests.yaml` | **passing** |
+| 9 | `3asq search series chapters and a real page` | `live/test_source_suite.py` | **passing (live)** |
+
+The packaged `latest` fixture keeps a real coverless series and a translator's external link, so I-26
+cannot return. Installation and activation were checked through `/api/sources/install`: state `active`,
+capabilities search, work, catalog, reader, latest, and one permission requested.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.

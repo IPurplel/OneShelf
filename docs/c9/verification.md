@@ -20,8 +20,8 @@ complete.
 
 ```sh
 cd backend
-.venv/bin/pytest                                             # → 906 passed, 7 deselected (2026-09-20)
-ONESHELF_LIVE_SOURCES=1 .venv/bin/pytest tests/live -m live   # → 7 passed (real sources, 2026-09-20)
+.venv/bin/pytest                                             # → 922 passed, 8 deselected (2026-09-21)
+ONESHELF_LIVE_SOURCES=1 .venv/bin/pytest tests/live -m live   # → 8 passed (real sources, 2026-09-21)
 ONESHELF_DATA_DIR=./var .venv/bin/python -m oneshelf.api.app  # → serves; /api/ready reports ready:true, schema 12
 ```
 
@@ -43,7 +43,7 @@ opt-in suite (`-m live`, `ONESHELF_LIVE_SOURCES=1`), exactly as C9 requires.
 | Generate ≠ Install; no auto-publish | `test_generate_writes_a_package_and_does_not_install_it`, `test_a_submission_bundle_is_prepared_locally_and_never_published`; installing is a separate call with its own permission approval | Pass |
 | Repair: diff, validate, atomic activation, rollback | `test_repair.py` and `test_repair_diffs_and_validates_before_the_developer_installs`: the site is redesigned, diagnosis reports `catalog` broken (and `reader` honestly unchecked), repair produces 0.1.1 with a selector diff, validation passes, activation is a separate call; an unvalidatable repair is refused and leaves the installed version untouched | Pass |
 | Unsupported declarative sites are named, not hacked | `RepairError` wording and `draft.unsupported`; no stealth path exists (`tests/unit/test_no_stealth.py`) | Pass |
-| Required initial suite | Five packages ship (`oneshelf.mangadex`, `oneshelf.gutenberg`, `oneshelf.arxiv`, `oneshelf.standard-ebooks`, `oneshelf.webtoon`) plus the OneShelf Test Source; Tapas, Safahat/Hindawi and 3asq are recorded with dated evidence in the capability ledger | **Partial — see §4** |
+| Required initial suite | Eight packages ship (`oneshelf.mangadex`, `oneshelf.gutenberg`, `oneshelf.arxiv`, `oneshelf.standard-ebooks`, `oneshelf.webtoon`) plus the OneShelf Test Source; Tapas, Safahat/Hindawi and 3asq are recorded with dated evidence in the capability ledger | **Partial — see §4** |
 | Artefacts verified by opening them | The live suite unzips the Gutenberg and Standard Ebooks EPUBs and checks `META-INF/container.xml`; the arXiv PDF is checked for `%PDF-`; downloads elsewhere are validated by the integrity layer before commit | Pass |
 | Offline deterministic vs live integration separated | `-m 'not live'` is the default in `pyproject.toml`; each package carries fixtures captured from the same responses | Pass |
 | Docker deployment with separate mounts | `deploy/Dockerfile`, `deploy/compose.yaml`: `/data`, `/plugins`, `/keys`, `/content`, `/backups`, non-root user, healthcheck on `/api/ready` | **Blocked — EB-1** |
@@ -111,7 +111,7 @@ When this passes, M2, M2.1 and M56's Docker clause move to `VERIFIED` together, 
 |---|---|---|---|
 | EB-1 | Docker build, restart and recreation against isolated mounts | No container runtime on this host | Run `docker compose up -d --build` on a host with Docker or Podman, then restart and recreate the container and confirm the library survives on the mounts |
 | ~~EB-2~~ | ~~C2 visual checks~~ | **Cleared 2026-09-18**: the reference was supplied, the UI was corrected against it, and C2's checks ran — see `docs/c2/verification.md` | — |
-| §41 suite | 3asq / Al-Aasheq | `3asq.org` does not resolve from this environment (re-checked 2026-09-20) | Network access to that host, then generate and verify an adapter. **Tapas, Safahat/Hindawi and the WEBTOON reader were completed on 2026-09-20** — none of them needed browser escalation; see `source-capability-ledger.md` §1a for the correction to the earlier finding |
+| ~~§41 suite~~ | ~~3asq / Al-Aasheq~~ | **Cleared 2026-09-21**: `3asq.org` was a dead domain, not an unreachable host — the source moved to `3asq.online`. The adapter ships and is verified live, so **all eight §41 sources are done** and M41.1 is `VERIFIED`. | — |
 | ~~§53~~ | ~~Full UI, accessibility and RTL test categories~~ | **Cleared 2026-09-18**: all twenty-six categories audited against the suite in `docs/c9/test-categories.md`; one gap (queue restart recovery) was filled | — |
 | ~~INV-29~~ | ~~Telemetry audit of records, diagnostics, network calls and cleanup~~ | **Cleared 2026-09-18**: audited and now held by `tests/unit/test_no_matcher_telemetry.py`; see `docs/c9/test-categories.md` | — |
 

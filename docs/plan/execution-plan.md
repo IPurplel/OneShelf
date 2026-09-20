@@ -449,12 +449,14 @@ eight guards; two did not catch theirs and were strengthened (an ownership colum
 
 **Authoritative rows:** M2, M2.1 (Docker), M41.1 (3asq, Tapas, Safahat/Hindawi, the WEBTOON reader).
 
+**Criterion state (2026-09-21):** M41.1 is `VERIFIED` — all eight sources ship and were verified live, none needing browser escalation. Only the container runtime remains, for M2 and M2.1; M56's Docker clause waits on the same thing and nothing else.
+
 **Status: BLOCKED. Not started, not substituted, not approximated.**
 
 | Blocker | What would unblock it |
 |---|---|
 | No container runtime on this host (`docker`, `podman` absent) | A host with Docker or Podman: `docker compose up -d --build`, then restart and recreate the container and confirm the library survives on the isolated mounts |
-| `3asq.org` does not resolve from this environment | Network access to that host, then generate and verify an adapter |
+| ~~`3asq.org` does not resolve~~ | **Cleared 2026-09-21.** A dead domain, not an unreachable host: the source is at `3asq.online`. Built, verified live, and shipped — M41.1 is `VERIFIED`. |
 | Tapas keeps episode data in script state and disallows `/search` by robots | Justified browser escalation or the underlying XHR, then a package with the capabilities that are genuinely available |
 | Safahat/Hindawi book pages render with JavaScript | Browser escalation or an API, then a package |
 | The WEBTOON reader builds its images with JavaScript | Browser escalation for the reader capability |
