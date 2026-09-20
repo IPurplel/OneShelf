@@ -183,6 +183,22 @@ def _backup_view(record) -> dict:
     return view
 
 
+@router.get("/diagnostics")
+async def diagnostics_summary(request: Request):
+    """§43: what the local store holds and the bounds it is kept within. It goes nowhere else."""
+    return services(request).diagnostics.summary()
+
+
+@router.get("/diagnostics/recent")
+async def diagnostics_recent(request: Request, limit: int = Query(default=100, ge=1, le=500)):
+    return {"entries": services(request).diagnostics.recent(limit=limit)}
+
+
+@router.delete("/diagnostics")
+async def clear_diagnostics(request: Request):
+    return {"cleared": services(request).diagnostics.clear()}
+
+
 @router.get("/backups")
 async def list_backups(request: Request):
     s = services(request)

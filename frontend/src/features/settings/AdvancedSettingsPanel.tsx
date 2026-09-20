@@ -3,6 +3,17 @@ import { useState } from "react";
 import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
+import { bytes } from "@/lib/format";
+import { Advanced } from "./Advanced";
+
+type Diagnostics = {
+  entries: number;
+  size_bytes: number;
+  oldest_day: string | null;
+  max_bytes: number;
+  max_age_days: number;
+  directory: string;
+};
 
 type AuthState = {
   access: string;
@@ -19,6 +30,7 @@ type AuthState = {
 export function AdvancedSettingsPanel() {
   const { t } = useI18n();
   const { data, reload } = useResource<AuthState>("/api/auth/state");
+  const { data: diagnostics, reload: reloadDiagnostics } = useResource<Diagnostics>("/api/diagnostics");
   const [networks, setNetworks] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -68,6 +80,27 @@ export function AdvancedSettingsPanel() {
           {t("settings.advanced.save")}
         </button>
       </div>
+
+      <Advanced label={t("settings.advanced.diagnostics")}>
+        {diagnostics === null ? <p>{t("state.loading")}</p> : (
+          <>
+            <p>{t("settings.advanced.diagnosticsHelp")}</p>
+            <ul className="restore__counts">
+              <li>{t("settings.advanced.diagnosticsCount", { entries: diagnostics.entries })}</li>
+              <li>{t("settings.advanced.diagnosticsSize", { size: bytes(diagnostics.size_bytes),
+                                                            cap: bytes(diagnostics.max_bytes) })}</li>
+              <li>{t("settings.advanced.diagnosticsAge", { days: diagnostics.max_age_days })}</li>
+            </ul>
+            <p className="cards__meta">{t("settings.advanced.diagnosticsLocal")}</p>
+            <div className="firstrun__actions">
+              <button type="button" className="button"
+                      onClick={() => { void api.delete("/api/diagnostics").finally(reloadDiagnostics); }}>
+                {t("settings.advanced.diagnosticsClear")}
+              </button>
+            </div>
+          </>
+        )}
+      </Advanced>
     </section>
   );
 }

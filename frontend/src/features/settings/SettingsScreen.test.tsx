@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SettingsScreen } from "./SettingsScreen";
 import { renderWithProviders } from "@/test/render";
-import { get, mockApi, post } from "@/test/http";
+import { del, get, mockApi, post } from "@/test/http";
 
 const AUTH = {
   canonical_hostname: null, remote_enabled: false, passkeys: [], sessions: [],
@@ -23,6 +23,9 @@ const DOWNLOADS = { auto_download: { enabled: false, mode: "current", read_ahead
 
 const NOTIFY = { source_recovered: false };
 
+const DIAGNOSTICS = { entries: 42, size_bytes: 1_200_000, oldest_day: "20260913", max_bytes: 104857600,
+                      max_age_days: 7, directory: "/data/diagnostics" };
+
 const STORAGE = { roots: [{ id: "r1", name: "Library", path: "/library", available: true, free: 1e10, total: 2e10,
                             reserve: 5e8, is_default: true, state: "ok" }], missing: 0 };
 
@@ -32,7 +35,7 @@ describe("Settings", () => {
   it("offers the Master's categories", async () => {
     mockApi([get("/api/auth/state", AUTH), get("/api/storage", STORAGE), get("/api/sources", { sources: [] }),
              get("/api/reader/settings", READER), get("/api/downloads/settings", DOWNLOADS),
-             get("/api/notifications/settings", NOTIFY)]);
+             get("/api/notifications/settings", NOTIFY), get("/api/diagnostics", DIAGNOSTICS)]);
     renderWithProviders(<SettingsScreen />);
 
     const nav = await screen.findByRole("tablist", { name: /settings/i });
@@ -45,7 +48,7 @@ describe("Settings", () => {
   it("shows storage locations with their free space and reserve", async () => {
     mockApi([get("/api/auth/state", AUTH), get("/api/storage", STORAGE), get("/api/sources", { sources: [] }),
              get("/api/reader/settings", READER), get("/api/downloads/settings", DOWNLOADS),
-             get("/api/notifications/settings", NOTIFY)]);
+             get("/api/notifications/settings", NOTIFY), get("/api/diagnostics", DIAGNOSTICS)]);
     const user = userEvent.setup();
     renderWithProviders(<SettingsScreen />);
     await screen.findByRole("tablist", { name: /settings/i });
@@ -60,7 +63,7 @@ describe("Settings", () => {
   it("describes remote access honestly when it is not set up", async () => {
     mockApi([get("/api/auth/state", AUTH), get("/api/storage", STORAGE), get("/api/sources", { sources: [] }),
              get("/api/reader/settings", READER), get("/api/downloads/settings", DOWNLOADS),
-             get("/api/notifications/settings", NOTIFY)]);
+             get("/api/notifications/settings", NOTIFY), get("/api/diagnostics", DIAGNOSTICS)]);
     const user = userEvent.setup();
     renderWithProviders(<SettingsScreen />);
     await screen.findByRole("tablist", { name: /settings/i });
@@ -74,7 +77,7 @@ describe("Settings", () => {
   it("keeps developer tools out of the way until asked", async () => {
     mockApi([get("/api/auth/state", AUTH), get("/api/storage", STORAGE), get("/api/sources", { sources: [] }),
              get("/api/reader/settings", READER), get("/api/downloads/settings", DOWNLOADS),
-             get("/api/notifications/settings", NOTIFY)]);
+             get("/api/notifications/settings", NOTIFY), get("/api/diagnostics", DIAGNOSTICS)]);
     const user = userEvent.setup();
     renderWithProviders(<SettingsScreen />);
     await screen.findByRole("tablist", { name: /settings/i });
@@ -87,7 +90,7 @@ describe("Settings", () => {
   it("uses no shelves on an operational screen", async () => {
     mockApi([get("/api/auth/state", AUTH), get("/api/storage", STORAGE), get("/api/sources", { sources: [] }),
              get("/api/reader/settings", READER), get("/api/downloads/settings", DOWNLOADS),
-             get("/api/notifications/settings", NOTIFY)]);
+             get("/api/notifications/settings", NOTIFY), get("/api/diagnostics", DIAGNOSTICS)]);
     renderWithProviders(<SettingsScreen />);
     await screen.findByRole("tablist", { name: /settings/i });
     expect(document.querySelector(".shelf__plank")).toBeNull();
@@ -97,7 +100,7 @@ describe("Settings", () => {
   // behind disclosure. Nothing here is invented — each control writes a setting the backend honours.
   const ALL = [get("/api/auth/state", AUTH), get("/api/storage", STORAGE), get("/api/sources", { sources: [] }),
                get("/api/reader/settings", READER), get("/api/downloads/settings", DOWNLOADS),
-               get("/api/notifications/settings", NOTIFY)];
+               get("/api/notifications/settings", NOTIFY), get("/api/diagnostics", DIAGNOSTICS)];
 
   it("has no category left saying it is coming later", async () => {
     mockApi(ALL);
@@ -165,5 +168,25 @@ describe("Settings", () => {
     await user.click(toggle);
     expect(calls.find((call) => call.url === "/api/notifications/settings" && call.method === "POST")?.body)
       .toEqual({ source_recovered: true });
+  });
+
+  it("shows what the local diagnostics hold, and can clear them", async () => {
+    // §43: operational records, kept locally and bounded. Nothing sends them anywhere.
+    const calls = mockApi([...ALL, del("/api/diagnostics", { cleared: 3 })]);
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsScreen />);
+    await screen.findByRole("tablist", { name: /settings/i });
+
+    await user.click(screen.getByRole("tab", { name: "Advanced" }));
+    const panel = await screen.findByRole("tabpanel");
+    await user.click(within(panel).getByRole("button", { name: /advanced/i }));
+
+    expect(await within(panel).findByText(/42 records/i)).toBeInTheDocument();
+    expect(within(panel).getByText(/1\.1 MB/)).toBeInTheDocument();
+    expect(within(panel).getByText(/7 days/i)).toBeInTheDocument();
+    expect(within(panel).getByText(/never leave this machine/i)).toBeInTheDocument();
+
+    await user.click(within(panel).getByRole("button", { name: /clear the diagnostics/i }));
+    expect(calls.some((call) => call.method === "DELETE" && call.url === "/api/diagnostics")).toBe(true);
   });
 });

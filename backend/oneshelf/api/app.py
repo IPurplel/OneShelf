@@ -1,6 +1,7 @@
 """Application factory: migrations and startup recovery on boot, access boundary around everything."""
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Mapping
 from http.cookies import SimpleCookie
@@ -37,6 +38,7 @@ from oneshelf.follow.service import FollowService
 from oneshelf.health.service import HealthService
 from oneshelf.library.shelf import ShelfService
 from oneshelf.notifications.service import NotificationService
+from oneshelf.diagnostics.store import DiagnosticsHandler, DiagnosticsStore, open_store
 from oneshelf.downloads.contract import Settings
 from oneshelf.downloads.engine import DownloadEngine
 from oneshelf.downloads.runner import DownloadRunner
@@ -95,6 +97,7 @@ class Services:
     access_policy: AccessPolicy | None = None
     generator: GeneratorService | None = None
     settings: Settings | None = None
+    diagnostics: DiagnosticsStore | None = None
 
 
 @dataclass(frozen=True)
@@ -195,6 +198,12 @@ def create_app(config: AppConfig) -> FastAPI:
         logins = LoginController(source_service, browser, sessions, governor)
         cache = DiscoveryCache(Path(config.data_dir) / "cache.db")
         settings = Settings(conn)
+        # §43: local, redacted and bounded — opened once and rotated at startup.
+        diagnostics = open_store(config.data_dir)
+        diagnostics.rotate()
+        # What the application already says about itself becomes its local diagnostic record (§43).
+        diagnostics_handler = DiagnosticsHandler(diagnostics)
+        logging.getLogger("oneshelf").addHandler(diagnostics_handler)
         engine = DownloadEngine(conn, source_service, plugins, governor, settings=settings, events=app.state.bus)
         reader_cache = ReaderCache(Path(config.data_dir) / "reader-cache", Path(config.data_dir) / "cache.db")
         reader = ReaderService(conn, source_service, reader_cache, engine, settings=settings, events=app.state.bus)
@@ -215,7 +224,8 @@ def create_app(config: AppConfig) -> FastAPI:
             AccessPolicy(conn, base=config.access),
             GeneratorService(conn, work_dir=Path(config.data_dir) / "generator", dev_hosts=config.dev_hosts(),
                              dev_test_source=config.dev_test_source),
-            settings)
+            settings,
+            diagnostics)
         runner = DownloadRunner(engine)
         await runner.start()
         await follow_runner.start()
@@ -234,6 +244,7 @@ def create_app(config: AppConfig) -> FastAPI:
             cache.close()
             reader_cache.close()
             store.close()
+            logging.getLogger("oneshelf").removeHandler(diagnostics_handler)
             conn.close()
 
     app = FastAPI(title="OneShelf", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)

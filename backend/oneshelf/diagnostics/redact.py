@@ -45,19 +45,21 @@ def redact_text(text: str) -> str:
     return text
 
 
-def _redact_value(value):
-    if isinstance(value, Mapping):
-        return redact_headers({str(k): str(v) for k, v in value.items()})
-    if isinstance(value, str):
-        return redact_text(value)
-    return value
-
-
 class RedactingFilter(logging.Filter):
+    """Redacts a record on its way out, template and arguments together.
+
+    The message is formatted here rather than later, because redacting a template on its own can remove
+    the very placeholders its arguments need — "cookie=%s" becomes "cookie=[redacted]" and the record
+    then raises while being formatted, losing the diagnostic entirely (I-18).
+    """
+
     def filter(self, record: logging.LogRecord) -> bool:
+        if record.args:
+            try:
+                record.msg = redact_text(record.getMessage())
+            except Exception:
+                record.msg = redact_text(str(record.msg))
+            record.args = ()
+            return True
         record.msg = redact_text(str(record.msg))
-        if isinstance(record.args, tuple):
-            record.args = tuple(_redact_value(a) for a in record.args)
-        elif isinstance(record.args, Mapping):
-            record.args = {k: _redact_value(v) for k, v in record.args.items()}
         return True

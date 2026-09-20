@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import shutil
 import sqlite3
@@ -81,6 +82,9 @@ def register_download(conn: sqlite3.Connection, payload: dict) -> None:
 
 def registrars() -> dict:
     return {REGISTRAR_KIND: register_download}
+
+
+logger = logging.getLogger(__name__)
 
 
 class DownloadEngine:
@@ -591,6 +595,8 @@ class DownloadEngine:
             pending = json.dumps({"reason": category, "options": list(contract.fallback_order)}) if decision.action == "ask" else None
             self._set_state(job_id, "FAILED", last_error=message, error_category=category, finished_at=utcnow_iso(),
                             pending_decision_json=pending)
+            # §43: the job that failed and why, kept locally with no content of its own.
+            logger.warning("download job %s failed: %s", job_id, category)
             self._record_history(self.job(job_id), "failed", category)
             self._notify_failure(job_id, context, category)
             report.failed += 1

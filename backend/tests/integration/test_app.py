@@ -95,3 +95,24 @@ def test_readiness_reports_what_startup_actually_did(config):
     assert body["schema_version"] >= 12 and body["migrations_pending"] == 0
     assert body["recovery"]["order"] and body["recovery"]["commits"] is not None   # recovery ran first
     assert "storage_roots" in body and "database" in body
+
+
+def test_diagnostics_are_local_bounded_and_clearable(config):
+    """§43, §32.14: Settings can see the diagnostics and clear them; nothing sends them anywhere."""
+    with client(config, "127.0.0.1") as client_:
+        _diagnostics_checks(client_)
+
+
+def _diagnostics_checks(client):
+    summary = client.get("/api/diagnostics")
+    assert summary.status_code == 200, summary.text
+    body = summary.json()
+    assert body["max_age_days"] == 7 and body["max_bytes"] == 100 * 1024 * 1024
+    assert "entries" in body and "size_bytes" in body
+
+    listing = client.get("/api/diagnostics/recent").json()
+    assert isinstance(listing["entries"], list)
+
+    cleared = client.delete("/api/diagnostics")
+    assert cleared.status_code == 200 and cleared.json()["cleared"] >= 0
+    assert client.get("/api/diagnostics").json()["size_bytes"] == 0

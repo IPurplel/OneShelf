@@ -31,3 +31,18 @@ def test_logging_filter_redacts_messages_and_args(caplog):
     with caplog.at_level(logging.INFO, logger="oneshelf.test.redaction"):
         logger.info("fetch %s with %s", "https://b.example/x?session=S3CR3T", {"Cookie": "sid=C00KIE"})
     assert "S3CR3T" not in caplog.text and "C00KIE" not in caplog.text
+
+
+def test_redaction_does_not_break_a_message_that_has_arguments(caplog):
+    """Redacting the template removed its placeholders, so the record raised and was lost (I-18)."""
+    logger = logging.getLogger("oneshelf.test.formatting")
+    logger.addFilter(RedactingFilter())
+    try:
+        with caplog.at_level(logging.WARNING):
+            logger.warning("fetch failed for %s with cookie=%s", "https://example.org/x", "session=secret")
+    finally:
+        logger.filters.clear()
+
+    message = caplog.records[-1].getMessage()          # would raise before the fix
+    assert "secret" not in message
+    assert "example.org" in message

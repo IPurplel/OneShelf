@@ -1,6 +1,8 @@
 """Source service: runs plugin capabilities through Core infrastructure and records passive health."""
 from __future__ import annotations
 
+import logging
+
 import sqlite3
 from typing import Any
 
@@ -31,6 +33,9 @@ class _CandidateSessions:
 
     def refresh_cookies(self, *args, **kwargs):
         return None
+
+
+logger = logging.getLogger(__name__)
 
 
 class SourceService:
@@ -108,6 +113,9 @@ class SourceService:
 
     def _record(self, package: PluginPackage, capability: str, outcome: str, category: str | None) -> None:
         record_signal(self.conn, package.id, capability, outcome, category, package.version)
+        if outcome == "failure":
+            # §43: what went wrong, as identifiers and a category — never the response that caused it.
+            logger.warning("%s %s failed: %s (plugin %s)", package.id, capability, category, package.version)
 
     def _auth_failed(self, plugin_id: str) -> None:
         if self.sessions is not None and self.sessions.state(plugin_id) == "connected":

@@ -8,6 +8,8 @@ actually ships, the code it actually runs, and what a real matching pass actuall
 from __future__ import annotations
 
 import logging
+
+import pytest
 import re
 import sqlite3
 from pathlib import Path
@@ -106,3 +108,31 @@ def test_matching_writes_no_decision_record_to_the_diagnostics_log(db, caplog):
                                        url="https://mangadex.example/sl", content_type="manga",
                                        language="en", cover_url=None)])
     assert caplog.records == []
+
+
+def test_the_diagnostics_store_takes_operational_records_only(tmp_path):
+    """§43, §6.10: parser, network, job and health — there is no category a matcher could file under."""
+    from oneshelf.diagnostics.store import CATEGORIES, DiagnosticsStore
+
+    store = DiagnosticsStore(tmp_path / "diagnostics")
+    assert set(CATEGORIES) == {"parser", "network", "job", "health"}
+    for invented in ("match", "matching", "decision", "telemetry", "analytics"):
+        with pytest.raises(ValueError):
+            store.record(invented, "a match decision", {"score": 0.9})
+
+
+def test_a_matching_pass_writes_nothing_to_the_diagnostics_store(db, tmp_path):
+    from oneshelf.diagnostics.store import DiagnosticsStore
+
+    store = DiagnosticsStore(tmp_path / "diagnostics")
+    now = utcnow_iso()
+    work_id = new_id()
+    db.execute("INSERT INTO works (id, display_title, content_type, created_at, updated_at) VALUES (?,?,?,?,?)",
+               (work_id, "Solo Leveling", "manga", now, now))
+    index_work(db, work_id)
+
+    group_results(db, [LiveListing(source_id="mangadex", listing_key="sl", title="Solo Leveling",
+                                   url="https://mangadex.example/sl", content_type="manga",
+                                   language="en", cover_url=None)])
+
+    assert store.recent() == [] and store.size_bytes() == 0

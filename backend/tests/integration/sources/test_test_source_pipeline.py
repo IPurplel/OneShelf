@@ -204,3 +204,32 @@ def test_disabled_or_uninstalled_plugin_is_unavailable(db, tmp_path, installed):
             with pytest.raises(PluginUnavailable):
                 await service.run(TS, "search", {"query": "x"})
     run(scenario())
+
+
+def test_a_source_failure_becomes_a_local_diagnostic(db, tmp_path, installed):
+    """§43: what goes wrong with a source is recorded locally — identifiers and a category, no content."""
+    import logging
+
+    from oneshelf.diagnostics.store import DiagnosticsHandler, DiagnosticsStore
+
+    store = DiagnosticsStore(tmp_path / "diagnostics")
+    handler = DiagnosticsHandler(store)
+    logging.getLogger("oneshelf").addHandler(handler)
+
+    async def scenario():
+        async with environment(db, tmp_path, installed) as (service, server, _, governor):
+            # A private catalog with no session: the source refuses, and that is worth recording.
+            with pytest.raises(AuthRequired):
+                await service.run(TS, "catalog", {"listing_key": "private"})
+
+    try:
+        run(scenario())
+    finally:
+        logging.getLogger("oneshelf").removeHandler(handler)
+
+    entries = store.recent()
+    assert entries, "a source failure left no diagnostic at all"
+    entry = entries[-1]
+    assert entry["category"] == "network"
+    assert "auth_failure" in entry["message"] and TS in entry["message"]
+    assert "cookie" not in entry["message"].lower()      # the refusal, never what was sent

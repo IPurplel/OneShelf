@@ -355,3 +355,32 @@ def test_due_follows_respect_the_twelve_hour_schedule_with_jitter(library, follo
     intervals = {follow.next_check_delay().total_seconds() for _ in range(20)}
     base = 12 * 3600
     assert min(intervals) >= base and max(intervals) <= base + 3600 and len(intervals) > 1
+
+
+def test_a_check_that_fails_leaves_a_diagnostic_saying_why(library, follow, db, tmp_path):
+    """§43: a Follow check that degrades records why, locally, instead of losing the reason."""
+    import asyncio
+    import logging
+
+    from oneshelf.diagnostics.store import DiagnosticsHandler, DiagnosticsStore
+    from oneshelf.follow.runner import FollowRunner
+
+    work_id, track_id = library()
+    CatalogTrust(db).refresh(track_id, units("u1"), plugin_version="1.0.0")
+    follow.follow(work_id, language="en", source_id="mangadex", track_id=track_id)
+
+    store = DiagnosticsStore(tmp_path / "diagnostics")
+    handler = DiagnosticsHandler(store)
+    logging.getLogger("oneshelf").addHandler(handler)
+    runner = FollowRunner(db, follow, None, None, CatalogTrust(db))
+    try:
+        outcome = asyncio.run(runner.check_work(work_id))
+    finally:
+        logging.getLogger("oneshelf").removeHandler(handler)
+
+    assert outcome["state"] == "degraded"
+    entries = store.recent()
+    assert entries, "a failed Follow check left no diagnostic at all"
+    entry = entries[-1]
+    assert entry["category"] == "health"
+    assert work_id in entry["message"] and "no_listing" in entry["message"]

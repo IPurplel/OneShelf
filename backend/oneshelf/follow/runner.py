@@ -32,7 +32,7 @@ class FollowRunner:
             "SELECT l.source_listing_key, t.language FROM source_tracks t"
             " JOIN source_listings l ON l.id = t.listing_id WHERE t.id = ?", (row["track_id"],)).fetchone()
         if listing is None:
-            self.follows.record_attempt(work_id, successful=False, category="no_listing")
+            self._failed(work_id, "no_listing", row["preferred_source_id"])
             return {"work_id": work_id, "state": "degraded", "new_units": []}
         try:
             package = self.plugins.load_active(row["preferred_source_id"])
@@ -40,16 +40,16 @@ class FollowRunner:
                                             {"listing_key": listing["source_listing_key"],
                                              "language": listing["language"]}, priority=Priority.FOLLOW)
         except AuthRequired:
-            self.follows.record_attempt(work_id, successful=False, category="auth_failure")
+            self._failed(work_id, "auth_failure", row["preferred_source_id"])
             if self.notifications:
                 self.notifications.reconnect_required(row["preferred_source_id"])
             return {"work_id": work_id, "state": "reconnect_required", "new_units": []}
         except RateLimited as exc:
-            self.follows.record_attempt(work_id, successful=False, category="rate_limit")
+            self._failed(work_id, "rate_limit", row["preferred_source_id"])
             return {"work_id": work_id, "state": "rate_limited", "retry_after": exc.retry_after, "new_units": []}
         except (CapabilityError, Exception) as exc:
             category = getattr(exc, "category", "transport")
-            self.follows.record_attempt(work_id, successful=False, category=category)
+            self._failed(work_id, category, row["preferred_source_id"])
             return {"work_id": work_id, "state": "degraded", "category": category, "new_units": []}
         outcome = self.catalog.refresh(row["track_id"], result, plugin_version=package.version)
         if outcome.state == "suspicious" and self.notifications:
@@ -61,6 +61,14 @@ class FollowRunner:
             self.notifications.new_releases(work_id, title, check.new_units)
         return {"work_id": work_id, "state": check.state, "new_units": check.new_units,
                 "catalog_state": outcome.state}
+
+    def _failed(self, work_id: str, category: str, source_id: str) -> None:
+        """A check that did not work is worth keeping: Follow's own record, and a local diagnostic (§20, §43).
+
+        The reason is a category and identifiers, never anything the source sent back.
+        """
+        self.follows.record_attempt(work_id, successful=False, category=category)
+        logger.warning("follow check for %s via %s failed: %s", work_id, source_id, category)
 
     async def check_all(self) -> list[dict]:
         return [await self.check_work(work_id) for work_id in self.follows.due_follows()]
