@@ -6,9 +6,20 @@ __pycache__/
 .ruff_cache/
 *.egg-info/
 
+# Node
+node_modules/
+frontend/dist/
+
+# Your configuration and your library — never committed
+/.env
+/deploy/volumes/
+
 # Local runtime data (never commit library/app state)
 /data/
 .oneshelf-dev/
+*.osbackup
+*.sqlite
+*.sqlite3
 
 # Editors / OS
 .idea/

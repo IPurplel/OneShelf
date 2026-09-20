@@ -10,9 +10,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from oneshelf.api.access import AccessConfig
+from oneshelf.api.sources import error as api_error
 from oneshelf.api.guard import RequestGuardMiddleware
 from oneshelf.api.middleware import AccessBoundaryMiddleware
 from oneshelf.api.auth import PUBLIC_REMOTE_PATHS, router as auth_router
@@ -110,6 +112,9 @@ class AppConfig:
     dev_test_source_address: str | None = None
     registry_url: str | None = None
     registry_trusted_keys: str | None = None
+    # The built interface, served from this same origin (§2.1). Empty in a source checkout that has
+    # not run a frontend build; the API then serves itself and nothing else.
+    web_root: str | None = None
 
     @property
     def db_path(self) -> Path:
@@ -118,7 +123,9 @@ class AppConfig:
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> AppConfig:
         data_dir = env.get("ONESHELF_DATA_DIR", DEFAULT_DATA_DIR)
+        web_root = env.get("ONESHELF_WEB_ROOT", "") or None
         return cls(
+            web_root=web_root,
             data_dir=data_dir,
             access=AccessConfig.from_strings(
                 trusted_networks=env.get("ONESHELF_TRUSTED_NETWORKS", ""),
@@ -176,6 +183,36 @@ def _remote_session_authenticator(scope) -> bool:
         return False
     scope["state"]["remote_session"] = session
     return True
+
+
+def _mount_web_interface(app: FastAPI, web_root: str | None) -> None:
+    """Serve the built SPA from this origin, under every boundary the API already has.
+
+    It is mounted after the routers, so `/api/...` is always answered by the API — a missing API route
+    stays a JSON 404 instead of quietly becoming the interface. Client-side routes fall back to
+    `index.html`, which is what lets the SPA own its own routing, and `StaticFiles` refuses anything
+    that resolves outside the directory it was given.
+    """
+    if not web_root:
+        return
+    root = Path(web_root)
+    if not (root / "index.html").is_file():
+        return
+
+    index = root / "index.html"
+    app.mount("/assets", StaticFiles(directory=root / "assets", check_dir=False), name="assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def interface(path: str) -> Response:
+        if path == "api" or path.startswith("api/"):
+            # The API answers for itself. A route that does not exist is a 404 in JSON, never the
+            # interface loading as though nothing were wrong.
+            return api_error(404, "NOT_FOUND", f"No such endpoint: /{path}")
+        candidate = (root / path).resolve() if path else index
+        if path and candidate.is_file() and candidate.is_relative_to(root.resolve()):
+            return FileResponse(candidate)
+        # Anything else is a screen the SPA draws for itself.
+        return FileResponse(index, media_type="text/html", headers={"Cache-Control": "no-store"})
 
 
 def create_app(config: AppConfig) -> FastAPI:
@@ -301,6 +338,7 @@ def create_app(config: AppConfig) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(firstrun_router)
     app.include_router(generator_router)
+    _mount_web_interface(app, config.web_root)
     app.add_middleware(AccessBoundaryMiddleware, config=config.access,
                        remote_authenticator=_remote_session_authenticator,
                        config_provider=_effective_access_config, observer=_observe_client)

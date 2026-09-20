@@ -2,6 +2,16 @@
 #
 # One image, one process: the ASGI core plus the in-process browser used only when a source genuinely
 # needs it. Persistent state lives on mounts, never in the image.
+# The interface is built first and copied in, because in a container there is one process and one
+# origin: the API serves the SPA it was built with (§2.1).
+FROM node:22-slim AS web
+WORKDIR /web
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend/ ./
+RUN npm run build
+
+
 FROM python:3.13-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -24,11 +34,14 @@ COPY backend/ /app/
 RUN pip install --no-cache-dir --no-deps . \
     && python -m playwright install chromium
 
+COPY --from=web /web/dist /app/web
+
 # Separate mounts (Master §2.1, §13, §33.9): application data, plugin store, the session key on its own
 # volume, library content, and backups. None of them are baked into the image.
 ENV ONESHELF_DATA_DIR=/data \
     ONESHELF_PLUGIN_DIR=/plugins \
     ONESHELF_SESSION_KEY_FILE=/keys/session.key \
+    ONESHELF_WEB_ROOT=/app/web \
     ONESHELF_HOST=0.0.0.0 \
     ONESHELF_PORT=8420
 VOLUME ["/data", "/plugins", "/keys", "/content", "/backups"]
