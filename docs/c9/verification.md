@@ -76,12 +76,20 @@ Everything below is verbatim. Nothing needs to be adapted.
 
 ### 1. A clean checkout, installed the way anyone would
 
+The point is to install from a *fresh copy*, not from the working checkout, so that anything only
+present in the development directory cannot make it pass. Clone from wherever the repository is:
+
 ```sh
 cd ~                                  # anywhere outside the development checkout
-git clone https://github.com/IPurplel/OneShelf.git
+git clone /workspace/Oneshelfv1 OneShelf      # from this machine's own checkout
+# or, once main has been pushed:
+# git clone https://github.com/IPurplel/OneShelf.git
+
 cd OneShelf
 ./install.sh
 ```
+
+If the clone comes from the local checkout, make sure it is on `main`: `git -C OneShelf checkout main`.
 
 Expected: it finds Podman, finds Compose, creates `.env`, builds, starts, waits, and prints
 `OneShelf is running at http://127.0.0.1:8420`. It must exit 0.
