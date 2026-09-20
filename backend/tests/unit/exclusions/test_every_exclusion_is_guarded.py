@@ -72,3 +72,36 @@ def test_the_guards_in_this_suite_are_all_reachable():
     """A guard module that nothing imports proves nothing, so they live where pytest collects them."""
     modules = sorted(p.name for p in SUITE.glob("test_*.py"))
     assert len(modules) >= 5 and (SUITE / "__init__.py").exists()
+
+
+# §50's non-goals are not forbidden for ever — they are forbidden from arriving early, which looks the
+# same from here: nothing in v1 may depend on one. Each names the guard that would notice if it did.
+NON_GOALS = {
+    "advanced multi-user": "test_the_schema_never_says_which_user_a_row_belongs_to",
+    "cloud sync": "test_no_code_reaches_a_oneshelf_account_service",
+    "generalized annotation suite": "test_the_reader_keeps_bookmarks_and_highlights_and_nothing_more",
+    "ai recommendation engine": "test_no_model_runtime_or_hosted_model_client_is_installed",
+    "arbitrary automation marketplace": "test_the_plugin_path_never_executes_what_it_loads",
+    "wasm plugin runtime": "test_no_wasm_runtime_is_installed",
+    "advanced format conversion": "test_missing_content_offers_choices_and_never_converts_formats",
+    "storage deduplication": "test_nothing_deduplicates_stored_files",
+    "browser/system push notifications": "test_no_browser_notification_or_push_apis_anywhere",
+}
+
+
+def master_non_goals() -> list[str]:
+    section = re.search(r"^# 50\. Non-Goals(.*?)^# 51\.", MASTER.read_text(encoding="utf-8"),
+                        re.DOTALL | re.MULTILINE)
+    assert section is not None
+    return [line[2:].strip().lower() for line in section.group(1).splitlines() if line.startswith("- ")]
+
+
+def test_the_non_goal_list_still_matches_the_masters_own_list():
+    assert sorted(master_non_goals()) == sorted(NON_GOALS)
+
+
+def test_no_non_goal_arrived_early():
+    names = set()
+    for path in (BACKEND / "tests").rglob("test_*.py"):
+        names.update(re.findall(r"^def (test_\w+)", path.read_text(encoding="utf-8"), re.MULTILINE))
+    assert sorted({guard for guard in NON_GOALS.values() if guard not in names}) == []

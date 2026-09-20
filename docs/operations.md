@@ -73,6 +73,11 @@ ONESHELF_DATA_DIR=./var .venv/bin/python -m oneshelf.api.app
   are excluded by construction, not by filtering.
 - The last four **verified** archives are kept. A new archive is verified before any old one is rotated out, so a
   failed verification never costs you a good backup.
+- An archive is **not encrypted** by OneShelf, and none is required: it carries no session, token or key, because
+  those are excluded by construction above (§33.10). If the disk holding `/backups` needs to be encrypted — an
+  off-site copy, a shared NAS — encrypt it where you already encrypt things: a LUKS volume, an encrypted dataset,
+  or your own tool over the `.osbackup` file. OneShelf reads whatever it is given back, so nothing in it prevents
+  that, and nothing in it pretends to have done it for you.
 
 ```sh
 curl -X POST http://127.0.0.1:8420/api/backups -d '{"kind":"library"}' -H 'Content-Type: application/json'

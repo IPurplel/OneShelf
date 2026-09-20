@@ -668,6 +668,28 @@ describe("Sequential Reader", () => {
     expect(calls.find((call) => call.url === "/api/downloads")?.body).toEqual({ unit_ids: ["u2"] });
   });
 
+  it("keeps Smart fit steady across pages instead of deciding per page", async () => {
+    // §26.9: Smart that re-decides for each page makes the strip jump as pages load. One decision for
+    // the whole unit is what makes it stable, so the fit must not change as the reader moves.
+    stub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+
+    const stage = screen.getByTestId("reader-stage");
+    expect(stage).toHaveAttribute("data-fit", "smart");
+    for (const page of screen.getAllByRole("img", { name: /page \d/i })) {
+      fireEvent.load(page);                      // pages arrive at whatever size they happen to be
+      expect(stage).toHaveAttribute("data-fit", "smart");
+    }
+
+    await user.keyboard("{ArrowRight}");
+    expect(stage).toHaveAttribute("data-fit", "smart");
+    // One decision for every page, not one each: every page is styled by the same single class.
+    const classes = new Set(screen.getAllByRole("img", { name: /page \d/i }).map((p) => p.className));
+    expect([...classes]).toEqual(["reader__page"]);
+  });
+
   it("filters the contents by what is new, as well as unread and downloaded", async () => {
     stub();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
