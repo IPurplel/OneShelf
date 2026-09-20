@@ -16,12 +16,41 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-R4 | Reader affordances | M26.19, M26.21, M26.14, M26.12, M26.11, M26.2 | **VERIFIED** — live check executed 2026-09-19 |
 | WP-E1 | Realtime event client | M36 | **VERIFIED** — live two-tab check executed 2026-09-19 |
 | WP-D1 | Diagnostics | M43, DEF-diagnostics | **VERIFIED** — live check executed 2026-09-20 |
-| WP-R5 | Reader source switching and polish | M26.16, INV-25, M26.3b, M26.24 | **IN_PROGRESS** |
-| WP-G1 | Exclusion regression guards | 17 EX rows, M49 | NOT_STARTED |
+| WP-R5 | Reader source switching and polish | M26.16, INV-25, M26.3b, M26.24 (+ M26.5, M32.9) | **VERIFIED** — live checks executed 2026-09-20 |
+| WP-G1 | Exclusion regression guards | 17 EX rows, M49 | **IN_PROGRESS** |
 | WP-B1 | Environment-blocked verification | M2, M2.1, M41.1 | **BLOCKED** |
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
+
+## WP-R5 — done and verified
+
+The reader says which source and language it is reading from, and can move to another source for the
+same language. Equivalence is decided on the unit's own number and type: exactly one match is
+confident, anything else is not. A confident match opens at its start or at an *approximate* position —
+the fraction read here applied to the other unit's own length, announced as approximate, with no page
+ever mapped to a page (INV-25). No match, and it says so and offers that source's own track.
+
+Minimal keeps the bars away until summoned; the way back is a real button at the centre, so the
+keyboard reaches it, and the one-time hint that names it is shown once. Pages hold their place while
+they load.
+
+Two gaps the matrix had carried since C2 closed with it: the reader's download key (§26.5) and sorting
+My Shelf (§32.9).
+
+Evidence (2026-09-20): `wpr5.py` PASS — indicator "English · local"; the panel warned that layouts may
+differ, offered Start this unit and Try approximate position for the source that matched, and said
+"could not find this unit on source-c" with a track link that landed on that track; Minimal hid the
+bars, a drifting mouse did not summon them, the centre button did, the hint appeared once and not
+again; axe clean on both screens, no console errors. `wpr5b.py` PASS — `d` enqueued a real batch and
+eight works reordered by title, Arabic included. Backend 828 passed, frontend 195 passed, `tsc` clean.
+Commits `347311e`, `41fc656`.
+
+Two defects found in review and fixed with regression tests: I-19 (tabs that controlled nothing) and
+I-20 (one unit's page failures shown over the next unit).
+
+**All 30 invariants are now VERIFIED** (M51 closed with INV-25), and no requirement row is
+`NOT_STARTED` or `IN_PROGRESS` except M56, which waits on the blocked Docker work.
 
 ## WP-D1 — done and verified
 
@@ -190,6 +219,7 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-20 | WP-R5 built, reviewed, verified live and committed (`347311e`, `41fc656`); M26.16, M26.3b, M26.24, INV-25, M51, M26.5 and M32.9 → `VERIFIED`. I-19 and I-20 fixed with regression tests. No row remains `NOT_STARTED`. WP-G1 started. |
 | 2026-09-20 | WP-D1 built, reviewed, verified live and committed (`56ea58b`); M43 and DEF-diagnostics → `VERIFIED`. I-18 fixed with a regression test. WP-R5 started. |
 | 2026-09-19 | WP-E1 built, reviewed, verified live and committed (`0bfdd2f`); M36 → `VERIFIED` and M56's realtime clause closed. WP-D1 started. |
 | 2026-09-19 | WP-R4 built, reviewed, verified live and committed (`53a3141`); M26.2, M26.11, M26.12, M26.14, M26.19, M26.21 → `VERIFIED`. WP-E1 started. |

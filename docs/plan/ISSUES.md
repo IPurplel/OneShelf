@@ -30,6 +30,9 @@ only when its test exists and fails without the fix.
 
 | I-18 | `RedactingFilter` redacted the template and its arguments separately, so a call like `logger.warning("cookie=%s", value)` had its `%s` replaced by `[redacted]` and then raised `TypeError: not all arguments converted` inside `logging` — every logged diagnostic with arguments was lost, exactly the ones §43 exists to keep | WP-D1, 2026-09-19 | `test_redact.py::test_a_message_with_arguments_survives_redaction_and_still_says_what_happened` | Closed |
 
+| I-19 | Work Details' tabs carried `role="tab"` but there was no `tabpanel` anywhere and no `aria-controls`: assistive technology was told about a tab that controlled nothing | WP-R5 review, 2026-09-20 | `gives its tabs something to control, so a screen reader can follow them` | Closed |
+| I-20 | One reader stays mounted as the unit changes, and page-level state outlived its unit: a page that failed in one chapter was shown as failed in the next, which opened at the previous chapter's page with its end-of-unit card already up | WP-R5 review, 2026-09-20 | `starts the next unit clean, rather than carrying the last one's failures into it` | Closed |
+
 ## Environment defects
 
 These are defects of the machine this work runs on, not of OneShelf. They are recorded separately because

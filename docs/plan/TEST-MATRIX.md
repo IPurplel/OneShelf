@@ -147,6 +147,35 @@ Live criterion executed 2026-09-19 with two tabs sharing one stream.
 Live criterion executed 2026-09-20 (`wpd1.py` PASS): real failures filled the store, the panel read its
 bounds, nothing sensitive was written, clearing emptied it, axe clean.
 
+## WP-R5 — Reader source switching and remaining polish (M26.16, INV-25, M26.3b, M26.24, M26.5, M32.9)
+
+| # | Test | File | State |
+|---|---|---|---|
+| 1 | `a same-language source with the same chapter is offered confidently` | `unit/reader/test_alternatives.py` | **passing** |
+| 2 | `another language is never offered as an alternative` (INV-02) | `unit/reader/test_alternatives.py` | **passing** |
+| 3 | `a source that does not have this chapter says so rather than guessing` | `unit/reader/test_alternatives.py` | **passing** |
+| 4 | `two candidates with the same number are not a confident match` | `unit/reader/test_alternatives.py` | **passing** |
+| 5 | `a unit with no number of its own is never matched by position` | `unit/reader/test_alternatives.py` | **passing** |
+| 6 | `a chapter and a special sharing a number are not the same unit` | `unit/reader/test_alternatives.py` | **passing** |
+| 7 | `the local files track is an alternative like any other` | `unit/reader/test_alternatives.py` | **passing** |
+| 8 | `the reader can ask what another source offers for this unit` | `integration/test_work_api.py` | **passing** |
+| 9 | `asking about a unit that is not here is a plain 404` | `integration/test_work_api.py` | **passing** |
+| 10 | `says which source and language this unit is being read from` | `SourceSwitch.test.tsx` | **passing** |
+| 11 | `offers another source's copy of this unit without ever claiming the same page` | `SourceSwitch.test.tsx` | **passing** |
+| 12 | `says so plainly when the other source's copy cannot be found, and offers its track instead` | `SourceSwitch.test.tsx` | **passing** |
+| 13 | `opens an approximate position as approximate, and says so` (INV-25) | `SourceSwitch.test.tsx` | **passing** |
+| 14 | `hides the bars until they are summoned, in the minimal control mode` | `SourceSwitch.test.tsx` | **passing** |
+| 15 | `shows the centre-tap hint once, and never again` | `SourceSwitch.test.tsx` | **passing** |
+| 16 | `holds each page's place while it loads, rather than collapsing the strip` | `SourceSwitch.test.tsx` | **passing** |
+| 17 | `opens the track the reader sent it to, rather than the preferred one` | `WorkScreen.test.tsx` | **passing** |
+| 18 | `gives its tabs something to control, so a screen reader can follow them` (I-19) | `WorkScreen.test.tsx` | **passing** |
+| 19 | `starts the next unit clean, rather than carrying the last one's failures into it` (I-20) | `SequentialReader.test.tsx` | **passing** |
+| 20 | `downloads this unit from the keyboard, like every other reading action` (M26.5) | `SequentialReader.test.tsx` | **passing** |
+| 21 | `sorts the shelf by title or by when a work arrived, without asking the library again` (M32.9) | `ShelfScreen.test.tsx` | **passing** |
+
+Live criteria executed 2026-09-20 (`wpr5.py` and `wpr5b.py`, both PASS) against two seeded same-language
+alternatives — one that matched confidently, one that did not.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.

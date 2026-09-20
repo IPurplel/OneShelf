@@ -399,8 +399,15 @@ Named tests pass; M26.16, M26.3b, M26.24 → `VERIFIED`; INV-25 → `VERIFIED` w
 **Security / persistence implications**
 None new; the hint flag is a per-viewer convenience and a blocked storage read is not an error.
 
+**Criterion state (2026-09-20):** all criteria executed and passing, live included. Scope was extended by
+two rows the matrix had carried as "Missing" since C2 — M26.5's download shortcut and M32.9's shelf sort —
+because they were the last genuine gaps outside the blocked set. M26.16, M26.3b, M26.24, INV-25, M26.5 and
+M32.9 are `VERIFIED`; M51 closed with INV-25. Two defects found in review (I-19, I-20) fixed with
+regression tests.
+
 **Expected commit(s)**
-`feat(reader): source switching, minimal controls and loading polish (M26.16, M26.3b, M26.24)`
+`feat(reader): source switching, minimal controls and loading polish (M26.16, M26.3b, M26.24)` — landed as
+`347311e`, with `41fc656` for the two additional rows
 
 ---
 
