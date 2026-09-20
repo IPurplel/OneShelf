@@ -20,8 +20,8 @@ complete.
 
 ```sh
 cd backend
-.venv/bin/pytest                                             # → 772 passed, 4 deselected, no warnings
-ONESHELF_LIVE_SOURCES=1 .venv/bin/pytest tests/live -m live   # → 4 passed (real sources)
+.venv/bin/pytest                                             # → 906 passed, 7 deselected (2026-09-20)
+ONESHELF_LIVE_SOURCES=1 .venv/bin/pytest tests/live -m live   # → 7 passed (real sources, 2026-09-20)
 ONESHELF_DATA_DIR=./var .venv/bin/python -m oneshelf.api.app  # → serves; /api/ready reports ready:true, schema 12
 ```
 
@@ -65,16 +65,53 @@ Each was written test-first and is covered by its own test:
 | A recipe may follow a URL its own catalogue produced, as the whole request | Direct-URL sources (§8); the egress policy still gates the fetch | `test_a_recipe_may_follow_a_url_its_own_catalog_produced` |
 | Inputs a recipe does not declare are dropped, not fatal | The core can offer context without breaking older packages | `test_inputs_a_recipe_does_not_declare_are_dropped_rather_than_failing` |
 
+
+## 3a. EB-1 — the Docker verification still required, exactly
+
+To be run on the Fedora host (or any host with a container runtime), **not inside ai-box**. Podman
+works in place of Docker throughout (`podman compose`, or `podman-compose`).
+
+```sh
+cd deploy
+docker compose up -d --build                  # 1. builds the image and starts with the five mounts
+
+curl -fsS http://127.0.0.1:8420/api/ready     # 2. ready:true, migrations_pending 0, recovery.order present
+curl -fsS http://127.0.0.1:8420/api/health    # 2. status ok, access "loopback"
+
+# 3. put something in the library, so there is state to lose
+curl -fsS -X POST http://127.0.0.1:8420/api/storage/roots \
+     -H 'Content-Type: application/json' -d '{"name":"Library","path":"/content"}'
+#    import a file through the UI or /api/import, then note the work id
+
+docker compose restart                        # 4. restart: the library and its files are still there
+curl -fsS http://127.0.0.1:8420/api/shelf
+
+docker compose down && docker compose up -d   # 5. recreate the container entirely, same mounts
+curl -fsS http://127.0.0.1:8420/api/ready     # 5. ready again, same schema_version, no re-migration
+curl -fsS http://127.0.0.1:8420/api/shelf     # 5. the same work is still on the shelf
+ls volumes/content                            # 5. the imported file is still on the content mount
+
+docker compose exec oneshelf id               # 6. runs as a non-root user
+docker inspect --format '{{.State.Health.Status}}' $(docker compose ps -q oneshelf)   # 6. healthy
+```
+
+**What each step proves:** that the image builds from this repository (1); that startup runs migrations
+and recovery and says so (2); that a restart preserves the library (4); that *recreating* the container
+— the case where anything written inside the container rather than on a mount would be lost — preserves
+it too (5); and that the container runs unprivileged with a working healthcheck (6).
+
+**What would fail it:** a schema re-migration on step 5, an empty shelf after recreation, a file missing
+from `volumes/content`, `id` reporting uid 0, or an unhealthy status.
+
+When this passes, M2, M2.1 and M56's Docker clause move to `VERIFIED` together, and EB-1 closes.
+
 ## 4. Blocked and partial gates
 
 | ID | Gate | Why | What would clear it |
 |---|---|---|---|
 | EB-1 | Docker build, restart and recreation against isolated mounts | No container runtime on this host | Run `docker compose up -d --build` on a host with Docker or Podman, then restart and recreate the container and confirm the library survives on the mounts |
 | ~~EB-2~~ | ~~C2 visual checks~~ | **Cleared 2026-09-18**: the reference was supplied, the UI was corrected against it, and C2's checks ran — see `docs/c2/verification.md` | — |
-| §41 suite | 3asq / Al-Aasheq | `3asq.org` does not resolve from this environment | Network access to that host, then generate and verify an adapter |
-| §41 suite | Tapas | Episode data sits in script state, and `/search` is disallowed by robots | Browser escalation or the underlying XHR, then a package with the capabilities that are genuinely available |
-| §41 suite | Safahat / Hindawi | Book pages render with JavaScript; canonical domain resolved as `safahat.org` | Browser escalation or an API, then a package |
-| §41 suite | WEBTOON reader | The viewer builds its images with JavaScript; only thumbnails are in the HTML | Browser escalation for the reader capability |
+| §41 suite | 3asq / Al-Aasheq | `3asq.org` does not resolve from this environment (re-checked 2026-09-20) | Network access to that host, then generate and verify an adapter. **Tapas, Safahat/Hindawi and the WEBTOON reader were completed on 2026-09-20** — none of them needed browser escalation; see `source-capability-ledger.md` §1a for the correction to the earlier finding |
 | ~~§53~~ | ~~Full UI, accessibility and RTL test categories~~ | **Cleared 2026-09-18**: all twenty-six categories audited against the suite in `docs/c9/test-categories.md`; one gap (queue restart recovery) was filled | — |
 | ~~INV-29~~ | ~~Telemetry audit of records, diagnostics, network calls and cleanup~~ | **Cleared 2026-09-18**: audited and now held by `tests/unit/test_no_matcher_telemetry.py`; see `docs/c9/test-categories.md` | — |
 
