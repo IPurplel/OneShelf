@@ -198,3 +198,41 @@ def test_a_local_work_has_no_source_to_repair_from(api):
     response = client.post("/api/downloads", json={"unit_ids": [unit], "repair": True})
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "CANNOT_ENQUEUE"
+
+
+def test_the_reader_can_ask_what_another_source_offers_for_this_unit(api):
+    """§26.16: the reader's own question — same language, named source, and no guess when uncertain."""
+    from oneshelf.db.connection import open_database
+    from oneshelf.domain.ids import new_id
+
+    client, tmp_path = api
+    imported = import_work(client, tmp_path)
+    unit = imported["reading_unit_id"]
+
+    offer = client.get(f"/api/reader/units/{unit}/alternatives").json()
+    assert offer["unit_id"] == unit and offer["alternatives"] == []     # one track, nothing to offer
+
+    with open_database(tmp_path / "data" / "oneshelf.db") as conn:
+        # An imported file carries no chapter number of its own, so numbering it is what makes the
+        # question answerable at all — without a number there is nothing two sources can agree on.
+        conn.execute("UPDATE reading_units SET user_number = '1' WHERE id = ?", (unit,))
+        number = ("1", conn.execute("SELECT unit_type FROM reading_units WHERE id = ?",
+                                    (unit,)).fetchone()[0])
+        track = new_id()
+        conn.execute("INSERT INTO source_tracks (id, work_id, source_id, language, kind, created_at)"
+                     " VALUES (?,?,?,?,?,?)",
+                     (track, imported["work_id"], "mangadex", "en", "source", "2026-01-01T00:00:00+00:00"))
+        conn.execute("INSERT INTO reading_units (id, track_id, source_unit_key, display_title, unit_type,"
+                     " source_number, source_order, first_seen_at) VALUES (?,?,?,?,?,?,?,?)",
+                     (new_id(), track, "md-1", "Chapter 1", number[1], number[0], 1.0,
+                      "2026-01-01T00:00:00+00:00"))
+
+    alternative = client.get(f"/api/reader/units/{unit}/alternatives").json()["alternatives"]
+    assert [a["source_id"] for a in alternative] == ["mangadex"]
+    assert alternative[0]["confident"] is True and alternative[0]["unit_title"] == "Chapter 1"
+
+
+def test_asking_about_a_unit_that_is_not_here_is_a_plain_404(api):
+    client, _ = api
+    response = client.get("/api/reader/units/nope/alternatives")
+    assert response.status_code == 404 and response.json()["error"]["code"] == "UNIT_NOT_FOUND"

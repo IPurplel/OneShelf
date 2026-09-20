@@ -74,6 +74,56 @@
 .reader__stage[data-fit="height"] .reader__page { block-size: calc(100vh - 112px); inline-size: auto; }
 .reader__stage[data-fit="original"] .reader__page { max-inline-size: none; }
 
+/* §26.24: the page holds its own place while it loads — a calm placeholder, never a blank spinner. */
+.reader__frame { display: block; position: relative; }
+.reader__page--skeleton {
+  background: linear-gradient(105deg, rgba(255, 255, 255, 0.04) 30%, rgba(255, 255, 255, 0.09) 50%,
+              rgba(255, 255, 255, 0.04) 70%);
+  border-radius: var(--radius-sm);
+  inline-size: min(100%, 900px);
+}
+.reader--white .reader__page--skeleton {
+  background: linear-gradient(105deg, rgba(28, 27, 24, 0.05) 30%, rgba(28, 27, 24, 0.1) 50%,
+              rgba(28, 27, 24, 0.05) 70%);
+}
+
+/* §26.16: which source this is, said quietly — it sits beside the unit, not above it. */
+.reader__source {
+  margin-inline-start: auto;
+  color: rgba(244, 244, 244, 0.62);
+  font-size: 0.85rem;
+}
+
+/*
+ * §26.3b: in Minimal the way back to the controls is the centre of the page. It is a real button, so
+ * a keyboard reaches it like anything else, and it never covers the bars it summons.
+ */
+.reader__summon {
+  position: absolute;
+  inset: 25% 25%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.reader__hint {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill, 999px);
+  background: rgba(10, 10, 10, 0.72);
+  color: #f4f4f4;
+  font-size: 0.9rem;
+}
+.reader__approximate {
+  position: absolute;
+  inset-block-start: 64px;
+  inset-inline: var(--space-6);
+  z-index: 3;
+}
+
 .reader__failed {
   display: grid; gap: var(--space-3); justify-items: center;
   padding: var(--space-6); color: inherit;

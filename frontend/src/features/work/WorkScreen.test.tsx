@@ -33,6 +33,31 @@ const DETAILS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Work Details", () => {
+  it("opens the track the reader sent it to, rather than the preferred one", async () => {
+    // §26.16: when the reader cannot confidently find this unit elsewhere, it offers that source's
+    // track instead. The link has to actually land on that track.
+    const calls = mockApi([get("/api/works/w1", { ...DETAILS, selected_track_id: "t-ar" })]);
+    renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-ar" });
+
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+    expect(calls.some((call) => call.url === "/api/works/w1?track_id=t-ar")).toBe(true);
+  });
+
+  it("gives its tabs something to control, so a screen reader can follow them", async () => {
+    // role="tab" without a tabpanel leaves assistive technology with a control that points nowhere:
+    // the tabs were announced but the panel they switch was never associated with them (I-19).
+    mockApi([get("/api/works/w1", DETAILS)]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+
+    const sources = screen.getByRole("tab", { name: /sources/i });
+    await user.click(sources);
+    const panel = screen.getByRole("tabpanel");
+    expect(panel).toHaveAccessibleName(/sources/i);
+    expect(within(panel).getByText(/mangadex/i)).toBeInTheDocument();
+  });
+
   it("presents the work with its primary actions", async () => {
     mockApi([get("/api/works/w1", DETAILS)]);
     renderWithProviders(<WorkScreen workId="w1" />);

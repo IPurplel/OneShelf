@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import type { Unit, WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
+import { languageName } from "@/i18n/language";
 import { ContentsDrawer } from "./ContentsDrawer";
 import { SettingsPanel } from "./SettingsPanel";
+import { SourceSwitch } from "./SourceSwitch";
+import type { Alternative, Alternatives } from "./SourceSwitch";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "./settings";
 import type { ReaderSettings } from "./settings";
 import { useProgress } from "./useProgress";
@@ -27,6 +30,25 @@ const ZOOM_MIN = 1;
 const ZOOM_MAX = 4;
 const SWIPE_MIN = 60;
 
+/** §26.24: guidance is one-time. A blocked storage read means it has not been seen, never an error. */
+const HINT_KEY = "oneshelf.reader.hint.centre";
+
+function hintSeen(): boolean {
+  try {
+    return window.localStorage.getItem(HINT_KEY) === "seen";
+  } catch {
+    return false;
+  }
+}
+
+function rememberHint(): void {
+  try {
+    window.localStorage.setItem(HINT_KEY, "seen");
+  } catch {
+    // Remembering is a convenience; the hint simply appears again next time.
+  }
+}
+
 const clampZoom = (value: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number(value.toFixed(3))));
 
 /**
@@ -46,12 +68,16 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
 
   const { data: pageData, error: pageError } = useResource<PagesResponse>(`/api/reader/units/${id}/pages`);
   const { data: details } = useResource<WorkDetails>(`/api/works/${work}`);
+  const { data: offer } = useResource<Alternatives>(`/api/reader/units/${id}/alternatives`);
   const { data: readerDefaults } = useResource<ReaderDefaults>("/api/reader/settings");
   const pages = useMemo(() => pageData?.pages ?? [], [pageData]);
 
   const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
-  const [panel, setPanel] = useState<null | "contents" | "settings">(null);
+  const [panel, setPanel] = useState<null | "contents" | "settings" | "source">(null);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [summoned, setSummoned] = useState(false);
+  const [hint, setHint] = useState(false);
+  const [loaded, setLoaded] = useState<Set<number>>(new Set());
   const [index, setIndex] = useState(0);
   const [atEnd, setAtEnd] = useState(false);
   const [failed, setFailed] = useState<Set<number>>(new Set());
@@ -68,6 +94,8 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
   const resumed = useRef<string | null>(null);
   const [scrollTo, setScrollTo] = useState<number | null>(null);
   const [pageHeight, setPageHeight] = useState(ESTIMATED_PAGE);
+  const navigate = useNavigate();
+  const approximate = search.get("approx");
 
   const units = useMemo(() => details?.units ?? [], [details]);
   const unit = units.find((candidate) => candidate.id === id) ?? null;
@@ -85,16 +113,51 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
     });
   }, [details?.work.id]);
 
-  // Controls auto-hide when idle, and never while a panel is open (§26.3).
+  /**
+   * Controls auto-hide when idle, and never while a panel is open (§26.3).
+   *
+   * Minimal goes further: the bars start hidden and stay hidden until they are summoned, so a drifting
+   * mouse cannot bring them back — only the centre zone, its keyboard equivalent, or opening a panel.
+   */
   useEffect(() => {
     if (panel !== null || more) {
       setControlsVisible(true);
       return;
     }
+    if (settings.controls === "minimal" && !summoned) {
+      setControlsVisible(false);
+      if (!hintSeen()) {
+        setHint(true);
+        rememberHint();
+      }
+      return;
+    }
     if (!controlsVisible) return;
-    const timer = setTimeout(() => setControlsVisible(false), IDLE_MS);
+    const timer = setTimeout(() => {
+      setControlsVisible(false);
+      setSummoned(false);
+    }, IDLE_MS);
     return () => clearTimeout(timer);
-  }, [panel, more, controlsVisible, index]);
+  }, [panel, more, controlsVisible, index, settings.controls, summoned]);
+
+  /**
+   * One reader serves every unit, so what belongs to a unit leaves with it.
+   *
+   * The route keeps this component mounted while the unit changes, and page-level state that outlived
+   * its unit showed the previous chapter's failures and its end-of-unit card over a chapter that had
+   * only just opened (I-20).
+   */
+  useEffect(() => {
+    setFailed(new Set());
+    setSkipped(new Set());
+    setLoaded(new Set());
+    setAtEnd(false);
+    // A new unit starts at its own beginning; where it is resumed to is decided by the library, below.
+    indexRef.current = 0;
+    setIndex(0);
+    setPanel(null);
+    setMore(false);
+  }, [id]);
 
   /**
    * Resume where this unit was left (§26.15).
@@ -106,6 +169,18 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
   useEffect(() => {
     if (stored === null || pages.length === 0 || resumed.current === id) return;
     resumed.current = id;
+    // Arriving from another source: the position is the fraction that was read there, applied to this
+    // unit's own length. It is approximate, it says so on screen, and no page is matched to any page.
+    if (approximate !== null) {
+      const fraction = Math.min(1, Math.max(0, Number(approximate)));
+      if (Number.isFinite(fraction)) {
+        const target = Math.min(Math.round(fraction * (pages.length - 1)), pages.length - 1);
+        indexRef.current = target;
+        setIndex(target);
+        if (target > 0) setScrollTo(target);
+        return;
+      }
+    }
     const locator = stored.locator as { page?: number } | null;
     const page = typeof locator?.page === "number" ? locator.page : 1;
     const slot = Math.min(Math.max(0, page - 1), pages.length - 1);
@@ -113,7 +188,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
     indexRef.current = slot;
     setIndex(slot);
     setScrollTo(slot);
-  }, [stored, pages.length, id]);
+  }, [stored, pages.length, id, approximate]);
 
   // In Long Strip every page is on screen, so resuming means bringing that page into view.
   useEffect(() => {
@@ -125,7 +200,16 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
     setScrollTo(null);
   }, [scrollTo, index]);
 
-  const show = useCallback(() => setControlsVisible(true), []);
+  // Interaction reveals the controls in Smart; in Minimal it does not, which is the whole point.
+  const show = useCallback(() => {
+    if (settings.controls !== "minimal") setControlsVisible(true);
+  }, [settings.controls]);
+
+  const summon = useCallback(() => {
+    setSummoned(true);
+    setControlsVisible(true);
+    setHint(false);
+  }, []);
 
   const step = useCallback((delta: number) => {
     const stride = settings.mode === "double"
@@ -253,6 +337,15 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
     step(forward ? 1 : -1);
   }, [zoom, settings.mode, settings.direction, step, show]);
 
+  /** §26.16: manual, same-language, and never a claim that the pages line up. */
+  const openElsewhere = useCallback((alternative: Alternative, position: "start" | "approximate") => {
+    if (alternative.unit_id === null) return;
+    flush();
+    const fraction = position === "approximate" ? `&approx=${stored?.fraction ?? 0}` : "";
+    setPanel(null);
+    navigate(`/read/${alternative.unit_id}?work=${work}${fraction}`);
+  }, [flush, navigate, stored?.fraction, work]);
+
   const preload = readerDefaults ?? PRELOAD;
   const window_ = stripWindow(pages.length, index, preload);
   const visible = settings.mode === "long_strip"
@@ -271,6 +364,12 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
         </Link>
         <span className="reader__title">{details?.work.title ?? ""}</span>
         <span className="reader__unit">{unit?.title ?? ""}</span>
+        {/* §26.16: subtle, and about this unit's own track — "English · source-a". */}
+        {offer !== null && (
+          <span className="reader__source" data-testid="reader-source" title={t("reader.source")}>
+            {languageName(offer.language)} · {offer.source_id}
+          </span>
+        )}
         <button type="button" className="reader__button" onClick={() => setPanel("contents")}>
           {t("reader.contents")}
         </button>
@@ -315,6 +414,10 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
                       setMore(false);
                     }}>
               {t("reader.downloadWork")}
+            </button>
+            <button type="button" className="reader__button"
+                    onClick={() => { setPanel("source"); setMore(false); }}>
+              {t("reader.changeSource")}
             </button>
             <Link className="reader__button" to={work ? `/works/${work}` : "/shelf"} onClick={flush}>
               {t("reader.workDetails")}
@@ -365,17 +468,23 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
               </div>
             </div>
           ) : (
-            <img key={page.index} className="reader__page" data-page-slot={firstSlot + offset}
-                 style={settings.mode === "long_strip" ? { minBlockSize: `${pageHeight}px` } : undefined}
-                 src={`/api/reader/units/${id}/pages/${page.index}`}
-                 alt={t("reader.page", { index: page.label ?? page.index })} loading="lazy"
-                 onLoad={(event) => {
-                   const height = event.currentTarget.getBoundingClientRect().height;
-                   // One estimate for the whole strip, updated only when it is materially wrong, so the
-                   // spacers and the reserved page heights never disagree.
-                   if (height > 0 && Math.abs(height - pageHeight) > 24) setPageHeight(height);
-                 }}
-                 onError={() => setFailed((set) => new Set(set).add(page.index))} />
+            <div key={page.index} data-page={page.index} data-page-slot={firstSlot + offset}
+                 data-loaded={loaded.has(page.index) ? "true" : "false"}
+                 /* §26.24: the page keeps its place while it loads, so nothing under it moves. */
+                 className={`reader__frame${loaded.has(page.index) ? "" : " reader__page--skeleton"}`}
+                 style={settings.mode === "long_strip" ? { minBlockSize: `${pageHeight}px` } : undefined}>
+              <img className="reader__page"
+                   src={`/api/reader/units/${id}/pages/${page.index}`}
+                   alt={t("reader.page", { index: page.label ?? page.index })} loading="lazy"
+                   onLoad={(event) => {
+                     setLoaded((set) => new Set(set).add(page.index));
+                     const height = event.currentTarget.getBoundingClientRect().height;
+                     // One estimate for the whole strip, updated only when it is materially wrong, so the
+                     // spacers and the reserved page heights never disagree.
+                     if (height > 0 && Math.abs(height - pageHeight) > 24) setPageHeight(height);
+                   }}
+                   onError={() => setFailed((set) => new Set(set).add(page.index))} />
+            </div>
           )
         ))}
         {/*
@@ -415,9 +524,27 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
         )}
       </div>
 
+      {/*
+        * §26.3b: in Minimal the bars stay away until they are summoned, so the way back to them is a
+        * real control — the centre zone the hint names, reachable by pointer and by keyboard alike.
+        */}
+      {settings.controls === "minimal" && !controlsVisible && panel === null && (
+        <button type="button" className="reader__summon" onClick={summon} aria-label={t("reader.showControls")}>
+          {hint && <span className="reader__hint">{t("reader.hint")}</span>}
+        </button>
+      )}
+      {approximate !== null && (
+        <p className="notice notice--info reader__approximate" role="status">{t("reader.approximatePosition")}</p>
+      )}
+
       {panel === "contents" && <ContentsDrawer units={units} currentId={id} workId={work} onClose={() => setPanel(null)} />}
       {panel === "settings" && (
         <SettingsPanel settings={settings} onChange={changeSettings} onClose={() => setPanel(null)} />
+      )}
+      {panel === "source" && offer !== null && (
+        <SourceSwitch offer={offer} workId={work} onClose={() => setPanel(null)}
+                      onStart={(alternative) => openElsewhere(alternative, "start")}
+                      onApproximate={(alternative) => openElsewhere(alternative, "approximate")} />
       )}
     </div>
   );

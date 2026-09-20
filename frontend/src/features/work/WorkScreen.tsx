@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import type { Track, Unit, WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
+import { languageName } from "@/i18n/language";
 import { ExportWizard } from "@/features/export/ExportWizard";
 import { RemoveFromShelf } from "@/features/shelf/RemoveFromShelf";
 import type { RemovalSummary } from "@/features/shelf/RemoveFromShelf";
@@ -24,7 +25,9 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const id = workId ?? params.workId ?? "";
   const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("read");
-  const [trackId, setTrackId] = useState<string | null>(null);
+  // The reader can send someone here to a *named* track when it could not find their unit there (§26.16).
+  const [search] = useSearchParams();
+  const [trackId, setTrackId] = useState<string | null>(search.get("track"));
   const [exporting, setExporting] = useState(false);
   const [removing, setRemoving] = useState<RemovalSummary | null>(null);
   const [completedOffer, setCompletedOffer] = useState<RemovalSummary | null>(null);
@@ -158,6 +161,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
       <div className="toolbar__tabs" role="tablist" aria-label={t("work.tab.details")}>
         {(["read", "details", "sources"] as Tab[]).map((candidate) => (
           <button key={candidate} type="button" role="tab" className="chip" aria-selected={tab === candidate}
+                  id={`work-tab-${candidate}`} aria-controls="work-tabpanel"
                   onClick={() => setTab(candidate)}>
             {t(`work.tab.${candidate}` as const)}
           </button>
@@ -194,23 +198,17 @@ export function WorkScreen({ workId }: { workId?: string }) {
         </div>
       )}
 
-      {tab === "read" && <UnitIndex units={units} />}
-      {tab === "details" && <Details data={data} />}
+      {/* The tabs switch this one panel, and say so — a tab that controls nothing announces nothing. */}
+      <div role="tabpanel" id="work-tabpanel" aria-labelledby={`work-tab-${tab}`} tabIndex={-1}>
+        {tab === "read" && <UnitIndex units={units} />}
+        {tab === "details" && <Details data={data} />}
+        {tab === "sources" && (
+          <Sources tracks={tracks} selected={data.selected_track_id} onChoose={(track) => setTrackId(track.id)} />
+        )}
+      </div>
       {exporting && <ExportWizard workId={id} onClose={() => setExporting(false)} />}
-
-      {tab === "sources" && (
-        <Sources tracks={tracks} selected={data.selected_track_id} onChoose={(track) => setTrackId(track.id)} />
-      )}
     </article>
   );
-}
-
-function languageName(code: string): string {
-  try {
-    return new Intl.DisplayNames(undefined, { type: "language" }).of(code) ?? code;
-  } catch {
-    return code;
-  }
 }
 
 function UnitIndex({ units }: { units: Unit[] }) {

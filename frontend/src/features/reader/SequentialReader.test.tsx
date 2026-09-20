@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReaderScreen } from "./ReaderScreen";
 import { renderWithProviders } from "@/test/render";
+import { TestProviders } from "@/test/providers";
 import { get, mockApi, post } from "@/test/http";
 
 const PAGES = {
@@ -365,7 +366,7 @@ describe("Sequential Reader", () => {
 
     await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
     const scrolled = scrollIntoView.mock.instances[0] as HTMLElement;
-    expect(scrolled.getAttribute("src")).toBe("/api/reader/units/u2/pages/3");
+    expect(scrolled.querySelector("img")?.getAttribute("src")).toBe("/api/reader/units/u2/pages/3");
   });
 
   it("clamps a stored position that is past the end of the unit", async () => {
@@ -557,7 +558,8 @@ describe("Sequential Reader", () => {
       expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("30 / 60"));
 
     for (const page of screen.getAllByRole("img", { name: /page \d/i })) {
-      expect(page.style.minBlockSize || page.style.minHeight).not.toBe("");
+      const frame = page.closest<HTMLElement>("[data-page]");
+      expect(frame!.style.minBlockSize || frame!.style.minHeight).not.toBe("");
     }
     const spacer = screen.getByTestId("reader-stage").querySelector<HTMLElement>('[data-spacer="before"]');
     expect(spacer!.style.blockSize).toBe(`${25 * 1200}px`);      // the same estimate, used consistently
@@ -625,6 +627,32 @@ describe("Sequential Reader", () => {
       .getByRole("radio", { name: /right to left/i }));
     await user.keyboard("{Escape}");
     expect(screen.getByRole("slider", { name: /page/i })).toHaveAttribute("dir", "rtl");
+  });
+
+  it("starts the next unit clean, rather than carrying the last one's failures into it", async () => {
+    // The route keeps one reader mounted across units, so page-level state has to belong to the unit it
+    // came from: a page that failed in chapter 1 was still shown as failed in chapter 2, and the
+    // end-of-unit card arrived with it (I-20).
+    mockApi([
+      get("/api/reader/units/u2/pages", PAGES),
+      get("/api/reader/units/u2/progress", PROGRESS),
+      get("/api/reader/units/u3/pages", { ...PAGES, reading_unit_id: "u3" }),
+      get("/api/reader/units/u3/progress", PROGRESS),
+      get("/api/works/w1", WORK),
+      get("/api/reader/settings", READER_SETTINGS),
+    ]);
+    const view = renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    const pages = await screen.findAllByRole("img", { name: /page \d/i });
+
+    fireEvent.error(pages[1]!);
+    expect(await screen.findByRole("group", { name: /could not be loaded/i })).toBeInTheDocument();
+
+    // Same providers, same mounted reader — only the unit changes, exactly as the route does.
+    view.rerender(<TestProviders><ReaderScreen unitId="u3" workId="w1" /></TestProviders>);
+    await waitFor(() => expect(screen.queryByRole("group", { name: /could not be loaded/i })).toBeNull());
+    expect((await screen.findAllByRole("img", { name: /page \d/i }))).toHaveLength(3);
+    // And it opens at its own beginning, not at the page the last unit was left on.
+    expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("1 / 3");
   });
 
   it("filters the contents by what is new, as well as unread and downloaded", async () => {

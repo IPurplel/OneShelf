@@ -12,6 +12,7 @@ from oneshelf.api.sources import error, services
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.plugins.manager import PluginUnavailable
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
+from oneshelf.reader.alternatives import alternatives
 from oneshelf.reader.service import StaleProgress
 
 router = APIRouter(prefix="/api")
@@ -280,6 +281,15 @@ async def set_reader_settings(request: Request, body: ReaderSettingsBody):
         if value is not None:
             settings.set("global", None, key, value)
     return _reader_settings(settings)
+
+
+@router.get("/reader/units/{unit_id}/alternatives")
+async def unit_alternatives(request: Request, unit_id: str):
+    """§26.16: which same-language sources could serve this unit, and which of them can say so honestly."""
+    try:
+        return alternatives(services(request).conn, unit_id)
+    except ValueError as exc:
+        return error(404, "UNIT_NOT_FOUND", str(exc))
 
 
 @router.get("/reader/units/{unit_id}/progress")

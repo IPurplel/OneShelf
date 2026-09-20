@@ -1,10 +1,11 @@
 import { useI18n } from "@/i18n/i18n";
 import { Drawer } from "@/components/Drawer";
-import type { ReaderDirection, ReaderFit, ReaderMode, ReaderSettings } from "./settings";
+import type { ReaderControls, ReaderDirection, ReaderFit, ReaderMode, ReaderSettings } from "./settings";
 
 const MODES: ReaderMode[] = ["long_strip", "single", "double"];
 const DIRECTIONS: ReaderDirection[] = ["ltr", "rtl", "vertical"];
 const FITS: ReaderFit[] = ["smart", "width", "height", "original"];
+const CONTROLS: ReaderControls[] = ["smart", "minimal"];
 
 /** Reader settings (Master §26.17): the normal ones here, advanced ones behind progressive disclosure. */
 export function SettingsPanel({ settings, onChange, onClose }: {
@@ -69,6 +70,20 @@ export function SettingsPanel({ settings, onChange, onClose }: {
           </label>
         </fieldset>
       )}
+
+      <fieldset className="panel__group" role="radiogroup" aria-label={t("reader.controlsMode")}>
+        <legend>{t("reader.controlsMode")}</legend>
+        {CONTROLS.map((controls) => (
+          <label key={controls} className="panel__choice">
+            <input type="radio" name="controls" value={controls} checked={settings.controls === controls}
+                   onChange={() => onChange({ controls })} />
+            <span>
+              <span className="panel__choiceTitle">{t(`reader.controlsMode.${controls}` as const)}</span>
+              <span className="panel__choiceHelp">{t(`reader.controlsMode.${controls}.help` as const)}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
 
       <fieldset className="panel__group" role="radiogroup" aria-label={t("reader.background")}>
         <legend>{t("reader.background")}</legend>

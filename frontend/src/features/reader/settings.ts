@@ -8,12 +8,15 @@ export type PdfFit = "width" | "page" | "custom";
 export type ReaderDirection = "ltr" | "rtl" | "vertical";
 export type ReaderFit = "smart" | "width" | "height" | "original";
 export type ReaderBackground = "black" | "dark" | "white";
+export type ReaderControls = "smart" | "minimal";
 
 export type ReaderSettings = {
   mode: ReaderMode;
   direction: ReaderDirection;
   fit: ReaderFit;
   background: ReaderBackground;
+  /** §26.3: Smart shows the controls on interaction; Minimal keeps them away until summoned. */
+  controls: ReaderControls;
   gap: number;
   /** §26.8: the first page stands alone, so every spread after it lines up. */
   coverAlone: boolean;
@@ -31,7 +34,7 @@ export type ReaderSettings = {
 };
 
 export const DEFAULT_SETTINGS: ReaderSettings = {
-  mode: "long_strip", direction: "ltr", fit: "smart", background: "black", gap: 8,
+  mode: "long_strip", direction: "ltr", fit: "smart", background: "black", controls: "smart", gap: 8,
   coverAlone: true, shiftPairing: false,
   bookFont: "serif", bookSize: "normal", bookSpacing: "normal", bookMargins: "normal", bookTheme: "paper",
   pdfFit: "width", pdfZoom: 1,
