@@ -236,3 +236,24 @@ def test_asking_about_a_unit_that_is_not_here_is_a_plain_404(api):
     client, _ = api
     response = client.get("/api/reader/units/nope/alternatives")
     assert response.status_code == 404 and response.json()["error"]["code"] == "UNIT_NOT_FOUND"
+
+
+def test_the_same_file_imported_twice_is_stored_twice(api):
+    """§49 EX-14: no deduplication. One work's file is never quietly another work's file (INV-23)."""
+    from pathlib import Path
+
+    client, tmp_path = api
+    content = make_cbz(tmp_path / "same.cbz").read_bytes()
+    stored = []
+    for title in ("First Work", "Second Work"):
+        upload = client.post("/api/import/uploads?filename=same.cbz", content=content,
+                             headers={"Content-Type": "application/octet-stream"}).json()
+        imported = client.post("/api/import", json={"upload_id": upload["upload_id"], "title": title,
+                                                    "content_type": "manga", "language": "en"}).json()
+        assert imported["work_id"]
+        stored.append(imported)
+
+    files = sorted(p for p in Path(tmp_path / "library").rglob("*.cbz") if p.is_file())
+    assert len(files) == 2, "identical content was stored once and shared between two works"
+    assert files[0].read_bytes() == files[1].read_bytes()
+    assert files[0].stat().st_ino != files[1].stat().st_ino     # two files, not one under two names
