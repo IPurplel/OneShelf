@@ -146,3 +146,25 @@ def test_webtoon_work_catalog_and_the_episode_images(tmp_path):
             out.writestr(f"{index:04d}{detect_image_suffix(body)}", body)
     result = validate(archive)
     assert result.ok and result.page_count == 3
+
+
+@skip_unless_live
+def test_tapas_series_episodes_and_the_episode_images(tmp_path):
+    """§41.1: the site's own XHR and the episode's own markup — no browser, and nothing bypassed."""
+    package = package_for("oneshelf.tapas", tmp_path)
+    work = run(call(package, "work", {"listing_key": "534"}))
+    assert work.title == "Groovy, Kinda" and work.cover_url
+
+    first = run(call(package, "catalog", {"listing_key": "534", "page": 1}))
+    assert len(first.units) > 100 and first.complete, "the episode list must paginate, not stop at one page"
+    assert first.units[0].unit_key == "3477" and first.units[0].order_index == 0
+    assert [u.number for u in first.units[:3]] == ["1", "2", "3"]      # the source's own numbering
+
+    episode = next(u for u in first.units if u.url)
+    pages = run(call(package, "reader", {"url": episode.url}))
+    assert pages.entries and all(e.url.startswith("https://") for e in pages.entries)
+
+    from oneshelf.downloads.engine import _validate_image
+
+    body = run(fetch_bytes(package, pages.entries[0].url))
+    assert _validate_image(body) is None, "the episode image did not survive the download path's checks"

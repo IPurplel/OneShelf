@@ -1,0 +1,15 @@
+capability: work
+inputs: [listing_key]
+# The series page renders its header client-side, but /info serves the parts that matter as markup.
+request:
+  url: "{base_url}/series/{listing_key:path}/info"
+  headers: {Accept: text/html}
+response:
+  format: html
+extract:
+  fields:
+    # The page titles itself "Read {series} | Tapas …"; the cover's alt text says the same thing, and
+    # is what the site itself uses, so the title is taken from there and the tag is not needed.
+    title: {css: ".section__top .thumb img::attr(alt)", required: true, transforms: [trim]}
+    cover_url: {css: ".section__top .thumb img::attr(src)", transforms: [normalize_url]}
+    description: {css: ".description__body::text", transforms: [trim]}

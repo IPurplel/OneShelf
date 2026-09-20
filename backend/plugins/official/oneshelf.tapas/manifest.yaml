@@ -1,0 +1,20 @@
+schema: oneshelf.osp/1
+id: oneshelf.tapas
+name: Tapas
+version: 1.0.0
+api: '1.0'
+description: >-
+  Tapas comics by direct URL: the series page, its episode list, and the episode's own images. Search
+  is deliberately absent because tapas.io's robots.txt disallows /search for every agent; that gap is
+  recorded in the source capability ledger rather than worked around. Nothing here needs a browser —
+  the episode list is the site's own XHR, which answers with its markup inside a JSON envelope, and an
+  episode carries its images as `data-src` before any script runs. Episodes a series does not offer
+  anonymously are simply not listed; nothing attempts to reach them.
+publisher: OneShelf
+capabilities: [work, catalog, reader]
+network:
+  domains: [tapas.io]
+  cdn_domains: ['*.tapas.io']
+defaults:
+  language: en
+  content_type: comic

@@ -1,0 +1,26 @@
+cases:
+- capability: work
+  inputs: {listing_key: '534'}
+  fixtures:
+  - url: https://tapas.io/series/534/info
+    file: fixtures/series-info.html
+  expect:
+    fields_present: [title, cover_url, description]
+    first: {title: 'Groovy, Kinda'}
+- capability: catalog
+  inputs: {listing_key: '534', page: 1}
+  fixtures:
+  - url: https://tapas.io/series/534/episodes?page=1&sort=OLDEST&max_limit=20
+    file: fixtures/episodes.json
+  expect:
+    min_items: 4
+    fields_present: [unit_key, title, url, number]
+    first: {unit_key: '3477', number: '1'}
+- capability: reader
+  inputs: {url: 'https://tapas.io/episode/1857895'}
+  fixtures:
+  - url: https://tapas.io/episode/1857895
+    file: fixtures/episode.html
+  expect:
+    min_items: 6
+    fields_present: [url]

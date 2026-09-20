@@ -1,0 +1,23 @@
+capability: catalog
+inputs: [listing_key, page]
+# The site's own episode XHR. It answers with a JSON envelope whose `body` is the episode list markup,
+# so the markup is read where it actually is instead of rendering the page to get at it.
+request:
+  url: "{base_url}/series/{listing_key:path}/episodes?page={page}&sort=OLDEST&max_limit=20"
+  headers: {Accept: application/json, X-Requested-With: XMLHttpRequest}
+response:
+  format: json
+  markup_at: "$.data.body"
+extract:
+  items: {css: "li.body__item"}
+  order: source_listed          # sort=OLDEST is already reading order
+  fields:
+    unit_key: {css: "::attr(data-id)", required: true}
+    title: {css: "a.info__title::text", transforms: [trim]}
+    number: {css: "a.info__label::text", transforms: [extract_number]}
+    url: {css: "::attr(data-permalink)", transforms: [normalize_url]}
+pagination:
+  mode: page_number
+  start: 1
+  max_pages: 200
+  stop_when: empty_items
