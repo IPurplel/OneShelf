@@ -18,10 +18,28 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-D1 | Diagnostics | M43, DEF-diagnostics | **VERIFIED** — live check executed 2026-09-20 |
 | WP-R5 | Reader source switching and polish | M26.16, INV-25, M26.3b, M26.24 (+ M26.5, M32.9) | **VERIFIED** — live checks executed 2026-09-20 |
 | WP-G1 | Exclusion regression guards | 17 EX rows, M49 | **VERIFIED** — guards checked by violation 2026-09-20 |
+| WP-G2 | Rows carried by inspection | M9.6, M9.7, M26.9, M33.10, M50, M52, INV-06, DEF-other | **VERIFIED** — 2026-09-20 |
 | WP-B1 | Environment-blocked verification | M2, M2.1, M41.1 | **BLOCKED** |
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
+
+## WP-G2 — rows carried by inspection, now tested
+
+Eight rows sat at `IMPLEMENTED` because their evidence was a review rather than a test. They were not
+in any work package, which was a gap in the plan rather than a decision, so they were closed here.
+
+The generic subsystems and the schema are checked for source names (M52); native adapters and a WASM
+runtime for absence (M9.6, M50); §50's non-goal list is read out of the Master like §49's; unknown is
+proved not to mean unavailable (INV-06); the defaults registry is checked against what the API serves
+and what the interface falls back to (DEF-other); Smart fit is held steady across pages, checked by
+mutation (M26.9); and the operations guide now states what §33.10 requires about encryption, beside
+the test that already proved no secret reaches an archive.
+
+Backend 870 passed, frontend 196 passed, `tsc` clean. Commit `61ce3e7`.
+
+**The matrix now holds 304 `VERIFIED`, 0 `IMPLEMENTED`, 0 `NOT_STARTED`.** What remains is M56, which
+waits on the blocked Docker work, and the three `BLOCKED` rows below.
 
 ## WP-G1 — done and verified
 
@@ -234,6 +252,7 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-20 | The eight rows carried by inspection closed with tests (`61ce3e7`): M9.6, M9.7, M26.9, M33.10, M50, M52, INV-06 and DEF-other → `VERIFIED`. No row is `IMPLEMENTED` any more. |
 | 2026-09-20 | WP-G1 built, reviewed, verified by violation and committed (`a6208e7`); the 17 inspection-only EX rows and M49 → `VERIFIED`. |
 | 2026-09-20 | WP-R5 built, reviewed, verified live and committed (`347311e`, `41fc656`); M26.16, M26.3b, M26.24, INV-25, M51, M26.5 and M32.9 → `VERIFIED`. I-19 and I-20 fixed with regression tests. No row remains `NOT_STARTED`. WP-G1 started. |
 | 2026-09-20 | WP-D1 built, reviewed, verified live and committed (`56ea58b`); M43 and DEF-diagnostics → `VERIFIED`. I-18 fixed with a regression test. WP-R5 started. |
