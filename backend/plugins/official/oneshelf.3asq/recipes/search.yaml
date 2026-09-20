@@ -1,0 +1,22 @@
+capability: search
+inputs: [query, page]
+request:
+  url: "{base_url}/page/{page}/?s={query}&post_type=wp-manga"
+  headers: {Accept: text/html}
+response:
+  format: html
+extract:
+  items: {css: "div.c-tabs-item__content"}
+  fields:
+    # The slug is this source's own stable key for a series; the numeric post id is not in the markup.
+    # The title block can also hold a translator's own link, so the anchor is pinned to a series URL.
+    listing_key: {css: "div.post-title a[href*='/manga/']::attr(href)", required: true,
+                  transforms: [{regex_extract: {pattern: "/manga/([^/]+)/", group: 1}}]}
+    title: {css: "div.post-title a[href*='/manga/']::text", required: true, transforms: [trim]}
+    url: {css: "div.post-title a[href*='/manga/']::attr(href)", transforms: [normalize_url]}
+    cover_url: {css: "div.tab-thumb img::attr(src)", transforms: [trim, normalize_url]}
+pagination:
+  mode: page_number
+  start: 1
+  max_pages: 10
+  stop_when: not_found

@@ -16,8 +16,8 @@ PACKAGES = sorted(p.name for p in official_packages())
 
 
 def test_the_expected_adapters_ship():
-    assert PACKAGES == ["oneshelf.arxiv", "oneshelf.gutenberg", "oneshelf.hindawi", "oneshelf.mangadex",
-                        "oneshelf.standard-ebooks", "oneshelf.tapas", "oneshelf.webtoon"]
+    assert PACKAGES == ["oneshelf.3asq", "oneshelf.arxiv", "oneshelf.gutenberg", "oneshelf.hindawi",
+                        "oneshelf.mangadex", "oneshelf.standard-ebooks", "oneshelf.tapas", "oneshelf.webtoon"]
 
 
 @pytest.mark.parametrize("name", PACKAGES)

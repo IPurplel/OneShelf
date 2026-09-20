@@ -135,7 +135,7 @@ def test_webtoon_work_catalog_and_the_episode_images(tmp_path):
     # bytes are put through the real validators and packaged the way a download would package them.
     import zipfile as zf
 
-    from oneshelf.downloads.engine import _validate_image, detect_image_suffix
+    from oneshelf.downloads.engine import MAX_RESOURCE_BYTES, _validate_image, detect_image_suffix
     from oneshelf.integrity.validators import validate
 
     bodies = [run(fetch_response(package, e.url, headers=headers)).body for e in pages.entries[:3]]
@@ -196,3 +196,52 @@ def test_hindawi_search_book_and_a_real_epub(tmp_path):
     with zipfile.ZipFile(io.BytesIO(body)) as archive:
         assert archive.read("mimetype") == b"application/epub+zip"
         assert len(archive.namelist()) > 5
+
+
+@skip_unless_live
+def test_3asq_search_series_chapters_and_a_real_page(tmp_path):
+    """§41.1, §41.4: 3asq.online — the site's own endpoints, in Arabic, with the artefact opened."""
+    package = package_for("oneshelf.3asq", tmp_path)
+    assert package.source.base_url == "https://3asq.online"
+    assert package.manifest.network.domains == ["3asq.online"]      # https only, no CDN wildcard
+    assert package.manifest.network.allow_http is False
+
+    found = run(call(package, "search", {"query": "البطل", "page": 1}))
+    assert len(found.items) >= 4 and all(i.listing_key and i.title for i in found.items)
+    # A 404 on the page past the last is this site saying "that is all", not a failure of the search,
+    # and every result must be kept — a title block can hold a translator's link before the series one.
+    assert found.complete and found.evidence.stop_reason == "no_more_pages"
+    assert found.evidence.skipped == 0 and found.evidence.issues == []
+    assert all("3asq.online/manga/" in i.url for i in found.items if i.url)
+
+    work = run(call(package, "work", {"listing_key": "one-piece"}))
+    assert work.title and work.cover_url
+
+    catalog = run(call(package, "catalog", {"listing_key": "one-piece"}))
+    assert len(catalog.units) > 300 and catalog.complete, "a long-running series must not come back short"
+    assert catalog.units[0].order_index == 0
+    first, last = catalog.units[0], catalog.units[-1]
+    assert first.unit_key != last.unit_key                          # reading order, oldest first
+
+    pages = run(call(package, "reader", {"url": first.url}))
+    assert len(pages.entries) >= 5
+    assert all(e.url.startswith("https://") and " " not in e.url for e in pages.entries)
+
+    latest = run(call(package, "latest", {"page": 1}))
+    assert len(latest.items) >= 100 and all(i.listing_key for i in latest.items)
+    # A series with no cover image is still a series, and must appear.
+    assert all("3asq.online/manga/" in i.url for i in latest.items if i.url)
+
+    from oneshelf.downloads.engine import MAX_RESOURCE_BYTES, _validate_image, detect_image_suffix
+    from oneshelf.integrity.validators import validate
+
+    # Scanlation pages are large; the engine allows far more than this helper's default (§16).
+    bodies = [run(fetch_bytes(package, e.url, limit=MAX_RESOURCE_BYTES)) for e in pages.entries[:3]]
+    assert [_validate_image(b) for b in bodies] == [None, None, None]
+    assert max(len(b) for b in bodies) > 1_000_000, "a page this small is probably not the page"
+    archive = tmp_path / "chapter.cbz"
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as out:
+        for index, body in enumerate(bodies, start=1):
+            out.writestr(f"{index:04d}{detect_image_suffix(body)}", body)
+    result = validate(archive)
+    assert result.ok and result.page_count == 3

@@ -1,0 +1,11 @@
+base_url: https://3asq.online
+url_patterns:
+  - pattern: '^https://3asq\.online/manga/([^/]+)/?$'
+    capability: work
+    id_group: 1
+  - pattern: '^https://3asq\.online/manga/[^/]+/([^/]+)/?$'
+    capability: reader
+    id_group: 1
+rate_limit:
+  requests_per_minute: 20
+  concurrency: 1

@@ -1,0 +1,45 @@
+cases:
+- capability: search
+  inputs: {query: البطل, page: 1}
+  fixtures:
+  - url: https://3asq.online/page/1/?s=%D8%A7%D9%84%D8%A8%D8%B7%D9%84&post_type=wp-manga
+    file: fixtures/search.html
+  expect:
+    min_items: 4
+    fields_present: [listing_key, title, url, cover_url]
+    first: {listing_key: 2-nen-b-gumi-yuusha-destroyers}
+- capability: work
+  inputs: {listing_key: baki-dou}
+  fixtures:
+  - url: https://3asq.online/manga/baki-dou/
+    file: fixtures/series.html
+  expect:
+    fields_present: [title, cover_url, description]
+    first: {title: Baki-Dou}
+- capability: catalog
+  inputs: {listing_key: baki-dou}
+  fixtures:
+  - url: https://3asq.online/manga/baki-dou/ajax/chapters/
+    file: fixtures/chapters.html
+  expect:
+    min_items: 3
+    fields_present: [unit_key, title, url, number]
+    first: {unit_key: '1'}
+- capability: reader
+  inputs: {url: 'https://3asq.online/manga/one-piece/0chapter/'}
+  fixtures:
+  - url: https://3asq.online/manga/one-piece/0chapter/
+    file: fixtures/chapter.html
+  expect:
+    min_items: 5
+    fields_present: [url]
+- capability: latest
+  inputs: {page: 1}
+  fixtures:
+  - url: https://3asq.online/manga/page/1/?m_orderby=latest
+    file: fixtures/latest.html
+  expect:
+    # Four entries, and the fourth has no cover image at all — it must still be listed.
+    min_items: 4
+    fields_present: [listing_key, title]
+    first: {listing_key: wistoria-wand-and-sword}
