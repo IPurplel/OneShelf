@@ -192,6 +192,31 @@ alternatives — one that matched confidently, one that did not.
 Verified by violation on 2026-09-20: eight deliberate violations introduced one at a time, each caught
 by the right guard, each reverted. Two guards were strengthened when they did not catch theirs.
 
+## WP-B1 (part) — the three available sources (M41.1)
+
+| # | Test | File | State |
+|---|---|---|---|
+| 1 | `the expected adapters ship` (seven packages) | `integration/plugins/test_official_packages.py` | **passing** |
+| 2 | `an official adapter passes the tests it ships with` (7 packages) | same | **passing** |
+| 3 | `an official adapter declares what it can and cannot do` (7 packages) | same | **passing** |
+| 4 | `a recipe may declare the headers its resources need` | `unit/plugins/test_package_validation.py` | **passing** |
+| 5 | `resource headers may not smuggle credentials or spoof the hop` (4) | same | **passing** |
+| 6 | `a recipe may follow the url its own catalog captured` | same | **passing** |
+| 7 | `following a url without saying it is absolute is refused rather than silently encoded` | same | **passing** |
+| 8 | `an absolute url can be requested as it was given` | `unit/plugins/test_templates.py` | **passing** |
+| 9 | `the absolute encoder refuses anything that is not a plain http url` (7) | same | **passing** |
+| 10 | `a json response can say where its markup is` | `unit/plugins/test_runtime.py` | **passing** |
+| 11 | `markup_at only makes sense for a json response` | same | **passing** |
+| 12 | `an item template can use the recipe's own inputs` (I-23) | same | **passing** |
+| 13 | `a recipe can say which headers its resources need` | `integration/sources/test_test_source_pipeline.py` | **passing** |
+| 14 | `webtoon work catalog and the episode images` | `live/test_source_suite.py` | **passing (live)** |
+| 15 | `tapas series episodes and the episode images` | same | **passing (live)** |
+| 16 | `hindawi search book and a real epub` | same | **passing (live)** |
+
+Live criteria executed 2026-09-20 with `ONESHELF_LIVE_SOURCES=1`: seven live tests pass. Each new one
+opens the artefact it fetched — images through the download path's own validators and into a CBZ the
+integrity validator accepts, and an EPUB opened as a zip with its mimetype checked.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.

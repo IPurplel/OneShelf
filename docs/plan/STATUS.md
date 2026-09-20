@@ -1,6 +1,6 @@
 # Execution Status — the live task list
 
-Updated: 2026-09-20 · Plan: `execution-plan.md` · Authoritative statuses: `../c0/traceability.md`
+Updated: 2026-09-20 (sources) · Plan: `execution-plan.md` · Authoritative statuses: `../c0/traceability.md`
 
 One work package is `IN_PROGRESS` at a time. One implementation task within it wherever practical.
 
@@ -19,10 +19,35 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-R5 | Reader source switching and polish | M26.16, INV-25, M26.3b, M26.24 (+ M26.5, M32.9) | **VERIFIED** — live checks executed 2026-09-20 |
 | WP-G1 | Exclusion regression guards | 17 EX rows, M49 | **VERIFIED** — guards checked by violation 2026-09-20 |
 | WP-G2 | Rows carried by inspection | M9.6, M9.7, M26.9, M33.10, M50, M52, INV-06, DEF-other | **VERIFIED** — 2026-09-20 |
-| WP-B1 | Docker verification and the last sources | M2, M2.1, M41.1 | **PART BLOCKED** — see below |
+| WP-B1 | Docker verification and the last sources | M2, M2.1, M41.1 | **PART DONE** — three sources shipped 2026-09-20; Docker and 3asq remain blocked |
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
+
+## WP-B1 — the three available sources, done and verified
+
+Tapas, Safahat/Hindawi and the WEBTOON reader are shipped and verified live. **None of them needed a
+browser**, and the 2026-09-18 record that said they did was wrong in all three cases — the correction,
+and why the Hindawi conclusion was drawn from a not-found page, is in
+`../c9/source-capability-ledger.md` §1a.
+
+- **WEBTOON** now reads episodes from WEBTOON's own episode API and the viewer's own markup. Two
+  defects the live check found: the catalog could not paginate at all (I-21) and six hundred episodes
+  were renumbered into three (I-22).
+- **Tapas** reads the site's own XHR, whose list arrives as markup inside a JSON envelope, and the
+  episode's own `data-src` images.
+- **Safahat (Hindawi)** is entirely markup — search, book page, and direct EPUB and PDF links.
+  `hindawi.org` redirects to `safahat.org`, which settles ledger item A5.
+
+Three gaps in the declarative contract were fixed to make this possible without source-specific code:
+a recipe can follow a captured URL (I-24), declare what its resources need, say where markup sits
+inside a JSON envelope, and use its own inputs in an item template (I-23).
+
+Live evidence (2026-09-20, `ONESHELF_LIVE_SOURCES=1`): seven live tests pass, including three new ones
+that open real artefacts rather than trusting a status code.
+
+**Still blocked, unchanged:** the container runtime for M2/M2.1, and `3asq.org`, which still does not
+resolve. No substitute verification was invented for either.
 
 ## WP-B1 — what is actually blocked, checked on 2026-09-20
 
@@ -269,6 +294,7 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-20 | Tapas, Safahat/Hindawi and the WEBTOON reader shipped and verified live; M41.1 is seven of eight, 3asq still unreachable. Four defects found and fixed (I-21…I-24), plus I-25. |
 | 2026-09-20 | The eight rows carried by inspection closed with tests (`61ce3e7`): M9.6, M9.7, M26.9, M33.10, M50, M52, INV-06 and DEF-other → `VERIFIED`. No row is `IMPLEMENTED` any more. |
 | 2026-09-20 | WP-G1 built, reviewed, verified by violation and committed (`a6208e7`); the 17 inspection-only EX rows and M49 → `VERIFIED`. |
 | 2026-09-20 | WP-R5 built, reviewed, verified live and committed (`347311e`, `41fc656`); M26.16, M26.3b, M26.24, INV-25, M51, M26.5 and M32.9 → `VERIFIED`. I-19 and I-20 fixed with regression tests. No row remains `NOT_STARTED`. WP-G1 started. |

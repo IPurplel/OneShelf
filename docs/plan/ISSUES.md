@@ -33,6 +33,12 @@ only when its test exists and fails without the fix.
 | I-19 | Work Details' tabs carried `role="tab"` but there was no `tabpanel` anywhere and no `aria-controls`: assistive technology was told about a tab that controlled nothing | WP-R5 review, 2026-09-20 | `gives its tabs something to control, so a screen reader can follow them` | Closed |
 | I-20 | One reader stays mounted as the unit changes, and page-level state outlived its unit: a page that failed in one chapter was shown as failed in the next, which opened at the previous chapter's page with its end-of-unit card already up | WP-R5 review, 2026-09-20 | `starts the next unit clean, rather than carrying the last one's failures into it` | Closed |
 
+| I-21 | WEBTOON's catalog could not paginate: `episodeList?titleNo=..&page=N` 301s to the canonical list URL and drops the page, so every page returned the same nine episodes and a six-hundred-episode series stopped with `repeated_page` | WEBTOON live check, 2026-09-20 | `test_webtoon_work_catalog_and_the_episode_images` (asserts >300 units and `complete`), plus the packaged catalog case against the API fixture | Closed |
+| I-22 | `extract_number` took the first number in "[Season 3] Ep. 227", so episode 227 became chapter 3 — six hundred episodes renumbered into three, against INV-24 | WEBTOON live check, 2026-09-20 | packaged catalog case with a season-numbered episode in its fixture, and the live check's `max(number) > 200` | Closed |
+| I-23 | A recipe's own inputs never reached its item templates. Package validation allowed them, the runtime did not pass them, so a one-unit catalog's `unit_key` rendered as nothing and every item was dropped — reported as a catalog validation failure rather than as the wiring gap it was | Hindawi, 2026-09-20 | `test_an_item_template_can_use_the_recipe_s_own_inputs` | Closed |
+| I-24 | A recipe could be validated as "follows a URL the catalog produced", but the renderer percent-encoded the whole URL into a path segment, so such a request could never have reached anything | WEBTOON reader, 2026-09-20 | `test_an_absolute_url_can_be_requested_as_it_was_given`, and a bare `{url}` is now refused at validation (`test_following_a_url_without_saying_it_is_absolute_is_refused_rather_than_silently_encoded`) | Closed |
+| I-25 | Three shipped adapters declared a `catalog` capability their packaged tests never exercised | `test_official_packages.py`, 2026-09-20 | each now ships a catalog case against the fixture it already had | Closed |
+
 ## Environment defects
 
 These are defects of the machine this work runs on, not of OneShelf. They are recorded separately because
@@ -53,6 +59,8 @@ they block verification steps, and a blocked step must never be quietly dropped 
 | EB-3 — outbound access | `https://example.com` → 200, `https://gutendex.com/books` → 301, DNS resolves | **Resolved.** The live source suite can reach the internet from here |
 | 3asq / Al-Aasheq | `getent hosts 3asq.org` | **Still blocking, same cause.** The name does not resolve from this environment |
 | Tapas, Safahat/Hindawi, WEBTOON reader | `getent hosts tapas.io`, `www.hindawi.org`, `www.webtoons.com` | **Not environment-blocked.** All three resolve. Their blockers are technical — episode data in script state, JavaScript-rendered book pages, a viewer that builds its images in JavaScript — and the answer to each is justified browser escalation or the underlying XHR, which is work in scope, not a blocked verification. Recorded as outstanding work rather than as a blocker |
+
+| E-03 | **gutendex.com times out intermittently.** Diagnosed rather than assumed: the adapter extracts the right titles and the right EPUB URL on a retry, and the two failures were `SocketTimeoutError` on reading the socket | 2026-09-20: one failure in a full live run, one on the next single run, then four consecutive successes | The Gutenberg live test fails intermittently | **External, not a product defect.** OneShelf reports it honestly — the result comes back `complete: false` with a `transport` issue rather than as a short catalog. Not worked around, and the test was not weakened to hide it |
 
 **History kept deliberately.** E-01 and E-01a are recorded as resolved, not deleted: they explain why
 BV-01 and BV-02 sat unexecuted, and why M26.15 was withdrawn from `VERIFIED` on 2026-09-19 rather than
