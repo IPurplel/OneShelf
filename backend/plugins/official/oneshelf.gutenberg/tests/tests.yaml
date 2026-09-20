@@ -23,3 +23,11 @@ cases:
   expect:
     min_items: 1
     fields_present: [url, format]
+- capability: catalog
+  inputs: {listing_key: 84}
+  fixtures:
+  - url: https://gutendex.com/books/84
+    file: fixtures/work.json
+  expect:
+    min_items: 1
+    fields_present: [unit_key, unit_type]

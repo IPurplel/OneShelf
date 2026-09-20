@@ -23,3 +23,11 @@ cases:
   expect:
     min_items: 1
     fields_present: [url, format]
+- capability: catalog
+  inputs: {listing_key: mary-shelley/frankenstein}
+  fixtures:
+  - url: https://standardebooks.org/feeds/opds/all?query=mary-shelley%2Ffrankenstein
+    file: fixtures/search.xml
+  expect:
+    min_items: 1
+    fields_present: [unit_key]

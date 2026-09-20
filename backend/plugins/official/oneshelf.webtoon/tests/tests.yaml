@@ -7,10 +7,19 @@ cases:
   expect:
     fields_present: [title, cover_url]
 - capability: catalog
-  inputs: {listing_key: '95', page: 1}
+  inputs: {listing_key: '95', offset: 0}
   fixtures:
-  - url: https://www.webtoons.com/episodeList?titleNo=95&page=1
-    file: fixtures/list.html
+  - url: https://m.webtoons.com/api/v1/webtoon/95/episodes?pageSize=30&cursor=0
+    file: fixtures/episodes.json
   expect:
-    min_items: 3
-    fields_present: [unit_key, title, url]
+    min_items: 5
+    fields_present: [unit_key, title, url, number]
+    first: {unit_key: '1', number: '0'}
+- capability: reader
+  inputs: {url: 'https://www.webtoons.com/en/fantasy/tower-of-god/season-1-ep-2/viewer?title_no=95&episode_no=3'}
+  fixtures:
+  - url: https://www.webtoons.com/en/fantasy/tower-of-god/season-1-ep-2/viewer?title_no=95&episode_no=3
+    file: fixtures/viewer.html
+  expect:
+    min_items: 6
+    fields_present: [url]

@@ -22,3 +22,11 @@ cases:
   expect:
     min_items: 1
     fields_present: [url, format]
+- capability: catalog
+  inputs: {listing_key: 1109.2262v1}
+  fixtures:
+  - url: http://export.arxiv.org/api/query?id_list=1109.2262v1
+    file: fixtures/work.xml
+  expect:
+    min_items: 1
+    fields_present: [unit_key]

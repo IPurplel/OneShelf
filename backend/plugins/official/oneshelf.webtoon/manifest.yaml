@@ -4,14 +4,14 @@ name: WEBTOON
 version: 1.0.0
 api: '1.0'
 description: >-
-  WEBTOON series by direct URL: the work page and its episode list. Search is deliberately absent
-  because webtoons.com's robots.txt disallows /*/search for every crawler. Reader pages are not
-  provided either: the viewer loads its images with JavaScript, so only thumbnails are in the HTML.
-  Both gaps are recorded in the source capability ledger rather than worked around.
+  WEBTOON series by direct URL: the work page, its episode list, and the episode's own images. Search
+  is deliberately absent because webtoons.com's robots.txt disallows /*/search for every crawler; that
+  gap is recorded in the source capability ledger rather than worked around. The viewer needs no
+  browser: it carries each image as `data-url` and its JavaScript only moves that into `src` on scroll.
 publisher: OneShelf
-capabilities: [work, catalog]
+capabilities: [work, catalog, reader]
 network:
-  domains: [www.webtoons.com]
+  domains: [www.webtoons.com, m.webtoons.com]
   cdn_domains: ['*.pstatic.net']
 defaults:
   language: en
