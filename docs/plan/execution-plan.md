@@ -436,8 +436,12 @@ the 17 rows and M49 → `VERIFIED`.
 **Security / persistence implications**
 None; these are tests. They must not weaken by matching only comments.
 
+**Criterion state (2026-09-20):** all criteria executed and passing. The violation check was run for
+eight guards; two did not catch theirs and were strengthened (an ownership column added by `ALTER`, and
+`dedup_store` past a word boundary). The 17 EX rows and M49 are `VERIFIED`.
+
 **Expected commit(s)**
-`test(exclusions): standing guards for the §49 exclusions (M49)`
+`test(exclusions): standing guards for the §49 exclusions (M49)` — landed as `a6208e7`
 
 ---
 

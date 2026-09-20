@@ -299,7 +299,7 @@ says exactly what is missing or what blocks it.
 | M46 | Errors answer what happened / what OneShelf did safely / what user can do; raw errors only in expandable details | C2→C8 | fe/components/error | all | — | copy audit | VERIFIED |
 | M47 | Destructive actions state what is removed, what remains, effects on files/progress/Follow/Shelf (Remove from Shelf, Delete Files, Replace Library, Reset Remote Passkeys, Uninstall Plugin) | C2,C6,C7,C8,C3 | fe/components/dialog | dialogs | — | Restore, LAN reset, history clearing and storage actions already explained themselves; Remove from Shelf and Delete Files now do too — what is removed and what stays in separate sections, Keep and Delete as two named actions, and the count reported afterwards is the library's, not a forecast. Tests as for M22; **live bilingual check executed 2026-09-19 (BV-02)** | VERIFIED |
 | M48 | Security boundaries summary (declarative plugins, Core-owned capabilities, allowlists, redirect/DNS, SSRF, genuine LAN, trusted proxies, Origin/CSRF, secure cookies, no Web Storage tokens, document isolation, path safety, no plugin FS, no raw sessions, no secrets in logs/backups/export) | C1→C8 | see architecture.md §6 | — | — | INV-12–15, 19, 30 + security review | VERIFIED |
-| M49 | Explicit v1 exclusions stay out of scope | all | — | — | — | EX rows | IMPLEMENTED |
+| M49 | v1 exclusions enforced; none silently revived | all | tests/unit/exclusions | — | — | `test_every_exclusion_is_guarded.py`: §49 is read out of the Master and every one of its 30 items names a guard that exists. Each guard was checked by introducing its violation and watching it fail (2026-09-20, 8 of 8 caught; two guards strengthened when they did not) | VERIFIED |
 | M50 | Non-goals don't delay v1 (multi-user, cloud sync, annotation suite, AI recs, automation marketplace, WASM, conversion, dedup, push) | all | — | — | — | scope review per phase | IMPLEMENTED |
 
 ## §51–§56 Invariants, structure, testing, design state, reconciliation
@@ -375,33 +375,33 @@ says exactly what is missing or what blocks it.
 
 | ID | Excluded | Verification | Status |
 |---|---|---|---|
-| EX-01 | Cloud OneShelf account | no account endpoints/UI; offline operation | IMPLEMENTED |
-| EX-02 | Multi-user | single-user model audit | IMPLEMENTED |
+| EX-01 | Cloud OneShelf account | `test_no_accounts_or_multi_user.py` (no account route, no OneShelf service reached, sign-in is passkey or source only) | VERIFIED |
+| EX-02 | Multi-user | `test_no_accounts_or_multi_user.py::test_the_schema_never_says_which_user_a_row_belongs_to` (CREATE and ALTER) | VERIFIED |
 | EX-03 | Arbitrary executable community plugin code | INV-13 | VERIFIED |
-| EX-04 | Restricted-RPC plugin design | architecture review | IMPLEMENTED |
+| EX-04 | Restricted-RPC plugin design | `test_no_executable_plugins_or_rpc.py` (no exec/eval/import/subprocess/pickle in the plugin path; no RPC transport; YAML only through the restricted loader) | VERIFIED |
 | EX-05 | Matcher telemetry / central collector / shared dataset | INV-29 | VERIFIED |
 | EX-06 | Automatic source switching | INV-02 | VERIFIED |
 | EX-07 | Automatic cross-language fallback | INV-02 | VERIFIED |
-| EX-08 | Automatic translation | no translation code paths | IMPLEMENTED |
+| EX-08 | Automatic translation | `test_no_translation_or_ai_matching.py` (no translation engine installed; nothing names a target language) | VERIFIED |
 | EX-09 | Title stemming | no-stemming tests (C09) | VERIFIED |
 | EX-10 | Cover/image matching | INV-28 | VERIFIED |
-| EX-11 | AI matching requirement | dependency/architecture audit | IMPLEMENTED |
+| EX-11 | AI matching requirement | `test_no_translation_or_ai_matching.py` (no model runtime or hosted client installed; binding is `decided_by="evidence"`) | VERIFIED |
 | EX-12 | Browser notifications | no Notification API / push usage audit | VERIFIED |
 | EX-13 | Automatic new-release downloads | INV-09 | VERIFIED |
-| EX-14 | Complex storage deduplication | architecture audit | IMPLEMENTED |
-| EX-15 | Full note/drawing/annotation system | Reader scope audit (bookmarks/highlights only) | IMPLEMENTED |
-| EX-16 | Social feed | UI/API audit | IMPLEMENTED |
-| EX-17 | Comments/reviews | UI/API audit | IMPLEMENTED |
-| EX-18 | Followers | UI/API audit | IMPLEMENTED |
-| EX-19 | Chat | UI/API audit | IMPLEMENTED |
-| EX-20 | Ads | UI/dependency audit | IMPLEMENTED |
-| EX-21 | Subscriptions/payments | UI/API audit | IMPLEMENTED |
-| EX-22 | Gaming/achievement systems | UI/API audit | IMPLEMENTED |
+| EX-14 | Complex storage deduplication | `test_no_dedup_or_annotation_system.py` (no dedup identifiers, no unique checksum index, `os.link` only as the atomic half of a move) and `test_work_api.py::test_the_same_file_imported_twice_is_stored_twice` (two inodes) | VERIFIED |
+| EX-15 | Full note/drawing/annotation system | `test_no_dedup_or_annotation_system.py` (two mark tables and no third; no annotation identifiers) | VERIFIED |
+| EX-16 | Social feed | `test_no_social_or_commercial_surfaces.py::test_no_route_opens_a_social_or_commercial_surface` | VERIFIED |
+| EX-17 | Comments/reviews | `test_no_social_or_commercial_surfaces.py::test_no_table_stores_comments_followers_or_purchases` | VERIFIED |
+| EX-18 | Followers | `test_no_social_or_commercial_surfaces.py::test_no_table_stores_comments_followers_or_purchases` (`follows` is a work, `followers` is a person) | VERIFIED |
+| EX-19 | Chat | `test_no_social_or_commercial_surfaces.py::test_nothing_in_the_product_builds_one_of_these` | VERIFIED |
+| EX-20 | Ads | `test_no_social_or_commercial_surfaces.py` (no ad identifiers; strings guarded in both languages) | VERIFIED |
+| EX-21 | Subscriptions/payments | `test_no_social_or_commercial_surfaces.py::test_no_payment_processor_is_installed` | VERIFIED |
+| EX-22 | Gaming/achievement systems | `test_no_social_or_commercial_surfaces.py::test_nothing_in_the_product_builds_one_of_these` | VERIFIED |
 | EX-23 | Anti-bot stealth/bypass | K1 guard test; config audit | VERIFIED |
-| EX-24 | CAPTCHA bypass | action-required reporting test | IMPLEMENTED |
+| EX-24 | CAPTCHA bypass | `test_no_bypass_or_screenshot_extraction.py` (no solver installed or called; a blocked source is reported instead) | VERIFIED |
 | EX-25 | Paywall bypass | Use My Session scope tests | VERIFIED |
-| EX-26 | DRM bypass | code audit | IMPLEMENTED |
-| EX-27 | Screenshot-based normal extraction | extraction method audit | IMPLEMENTED |
+| EX-26 | DRM bypass | `test_no_bypass_or_screenshot_extraction.py::test_nothing_touches_drm` | VERIFIED |
+| EX-27 | Screenshot-based normal extraction | `test_no_bypass_or_screenshot_extraction.py` (no screenshot in any extraction path; the one screencast is Use My Session) | VERIFIED |
 | EX-28 | Hidden destructive cleanup | cleanup audits (M3.4, M25, INV-18/23) | VERIFIED |
 | EX-29 | Implicit format conversion subsystem | export/packaging audit | VERIFIED |
 | EX-30 | Uncontrolled plugin access to LAN/internal services | INV-15 | VERIFIED |

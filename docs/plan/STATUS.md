@@ -17,11 +17,26 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-E1 | Realtime event client | M36 | **VERIFIED** — live two-tab check executed 2026-09-19 |
 | WP-D1 | Diagnostics | M43, DEF-diagnostics | **VERIFIED** — live check executed 2026-09-20 |
 | WP-R5 | Reader source switching and polish | M26.16, INV-25, M26.3b, M26.24 (+ M26.5, M32.9) | **VERIFIED** — live checks executed 2026-09-20 |
-| WP-G1 | Exclusion regression guards | 17 EX rows, M49 | **IN_PROGRESS** |
+| WP-G1 | Exclusion regression guards | 17 EX rows, M49 | **VERIFIED** — guards checked by violation 2026-09-20 |
 | WP-B1 | Environment-blocked verification | M2, M2.1, M41.1 | **BLOCKED** |
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
+
+## WP-G1 — done and verified
+
+Seventeen exclusions were carried by inspection. Five guard modules now assert against the shipped
+code, routes, schema and installed dependencies, and a sixth reads §49 out of the Master and insists
+every one of its 30 items still names a guard that exists.
+
+Evidence (2026-09-20): 31 guards pass against the real tree, and each was checked by introducing the
+violation it forbids — an account route, `exec()` in the plugin path, a `user_id` column, a review in
+the interface, a screenshot in a download, a dedup store, translation in the product, and an exclusion
+deleted from the Master's own list. Eight of eight caught, after two guards were strengthened: an
+ownership column added by `ALTER` rather than declared in a `CREATE`, and `dedup_store`, which a word
+boundary let through. Backend 860 passed. Commit `a6208e7`.
+
+The suite's own isolation guard caught this work using `tempfile.mkdtemp()` for the route walk.
 
 ## WP-R5 — done and verified
 
@@ -219,6 +234,7 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-20 | WP-G1 built, reviewed, verified by violation and committed (`a6208e7`); the 17 inspection-only EX rows and M49 → `VERIFIED`. |
 | 2026-09-20 | WP-R5 built, reviewed, verified live and committed (`347311e`, `41fc656`); M26.16, M26.3b, M26.24, INV-25, M51, M26.5 and M32.9 → `VERIFIED`. I-19 and I-20 fixed with regression tests. No row remains `NOT_STARTED`. WP-G1 started. |
 | 2026-09-20 | WP-D1 built, reviewed, verified live and committed (`56ea58b`); M43 and DEF-diagnostics → `VERIFIED`. I-18 fixed with a regression test. WP-R5 started. |
 | 2026-09-19 | WP-E1 built, reviewed, verified live and committed (`0bfdd2f`); M36 → `VERIFIED` and M56's realtime clause closed. WP-D1 started. |

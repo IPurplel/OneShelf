@@ -176,6 +176,22 @@ bounds, nothing sensitive was written, clearing emptied it, axe clean.
 Live criteria executed 2026-09-20 (`wpr5.py` and `wpr5b.py`, both PASS) against two seeded same-language
 alternatives — one that matched confidently, one that did not.
 
+## WP-G1 — Exclusion regression guards (17 EX rows, M49)
+
+| # | Guard module | Covers | State |
+|---|---|---|---|
+| 1 | `exclusions/test_no_accounts_or_multi_user.py` (4 tests) | EX-01, EX-02 | **passing** |
+| 2 | `exclusions/test_no_executable_plugins_or_rpc.py` (3) | EX-04 (and EX-03's architecture) | **passing** |
+| 3 | `exclusions/test_no_translation_or_ai_matching.py` (4) | EX-08, EX-11 | **passing** |
+| 4 | `exclusions/test_no_social_or_commercial_surfaces.py` (5) | EX-16 to EX-22 | **passing** |
+| 5 | `exclusions/test_no_bypass_or_screenshot_extraction.py` (7) | EX-24, EX-26, EX-27 | **passing** |
+| 6 | `exclusions/test_no_dedup_or_annotation_system.py` (5) | EX-14, EX-15 | **passing** |
+| 7 | `exclusions/test_every_exclusion_is_guarded.py` (3) | M49 — all 30 items of §49 | **passing** |
+| 8 | `test_work_api.py::test_the_same_file_imported_twice_is_stored_twice` | EX-14, behaviourally | **passing** |
+
+Verified by violation on 2026-09-20: eight deliberate violations introduced one at a time, each caught
+by the right guard, each reverted. Two guards were strengthened when they did not catch theirs.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.
