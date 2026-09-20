@@ -1,0 +1,19 @@
+schema: oneshelf.osp/1
+id: oneshelf.hindawi
+name: Safahat (Hindawi)
+version: 1.0.0
+api: '1.0'
+description: >-
+  Arabic books from the Hindawi Foundation, published at safahat.org — hindawi.org itself now redirects
+  there, which settles the open question about its canonical domain (ledger A5). Everything this needs
+  is served as markup: search results, the book page with its author and synopsis, and direct EPUB and
+  PDF links on downloads.hindawi.org. No browser, and no reader capability — a Hindawi book is one
+  file, read by OneShelf's own document reader once it is downloaded.
+publisher: OneShelf
+capabilities: [search, work, catalog, downloads]
+network:
+  domains: [www.safahat.org]
+  cdn_domains: [downloads.hindawi.org]
+defaults:
+  language: ar
+  content_type: book

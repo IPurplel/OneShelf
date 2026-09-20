@@ -1,0 +1,34 @@
+cases:
+- capability: search
+  inputs: {query: تاريخ}
+  fixtures:
+  - url: https://www.safahat.org/search/keyword/%D8%AA%D8%A7%D8%B1%D9%8A%D8%AE/
+    file: fixtures/search.html
+  expect:
+    min_items: 5
+    fields_present: [listing_key, title, creator]
+- capability: work
+  inputs: {listing_key: '24716913'}
+  fixtures:
+  - url: https://www.safahat.org/books/24716913/
+    file: fixtures/book.html
+  expect:
+    fields_present: [title, creator, cover_url, description]
+    first: {title: مئذنة الجامع الأبيض في الرملة}
+- capability: catalog
+  inputs: {listing_key: '24716913'}
+  fixtures:
+  - url: https://www.safahat.org/books/24716913/
+    file: fixtures/book.html
+  expect:
+    min_items: 1
+    fields_present: [unit_key, unit_type]
+    first: {unit_key: '24716913', unit_type: one_shot}
+- capability: downloads
+  inputs: {unit_key: '24716913'}
+  fixtures:
+  - url: https://www.safahat.org/books/24716913/
+    file: fixtures/book.html
+  expect:
+    min_items: 2
+    fields_present: [url, format]

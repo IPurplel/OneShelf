@@ -168,3 +168,31 @@ def test_tapas_series_episodes_and_the_episode_images(tmp_path):
 
     body = run(fetch_bytes(package, pages.entries[0].url))
     assert _validate_image(body) is None, "the episode image did not survive the download path's checks"
+
+
+@skip_unless_live
+def test_hindawi_search_book_and_a_real_epub(tmp_path):
+    """§41.1, ledger A5: hindawi.org redirects to safahat.org, and everything needed is markup."""
+    package = package_for("oneshelf.hindawi", tmp_path)
+    found = run(call(package, "search", {"query": "تاريخ"}))
+    assert len(found.items) >= 5
+    assert all(item.listing_key.isdigit() for item in found.items)
+    assert any(item.creator for item in found.items)
+
+    work = run(call(package, "work", {"listing_key": "24716913"}))
+    assert work.title == "مئذنة الجامع الأبيض في الرملة"
+    assert work.creator and work.cover_url and work.description
+
+    catalog = run(call(package, "catalog", {"listing_key": "24716913"}))
+    assert [u.unit_key for u in catalog.units] == ["24716913"]      # one book, one Reading Unit (§4.4)
+    assert catalog.units[0].unit_type == "one_shot" and catalog.complete
+
+    files = run(call(package, "downloads", {"unit_key": "24716913"}))
+    formats = {entry.format for entry in files.entries}
+    assert {"epub", "pdf"} <= formats, formats
+
+    epub = next(e for e in files.entries if e.format == "epub")
+    body = run(fetch_bytes(package, epub.url, limit=12_000_000))
+    with zipfile.ZipFile(io.BytesIO(body)) as archive:
+        assert archive.read("mimetype") == b"application/epub+zip"
+        assert len(archive.namelist()) > 5

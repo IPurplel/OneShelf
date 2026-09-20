@@ -1,0 +1,20 @@
+capability: search
+inputs: [query]
+# The site's search form POSTs, but it redirects to this canonical address, which serves the same
+# results as plain markup — so the request is the one the site itself ends up making.
+request:
+  url: "{base_url}/search/keyword/{query}/"
+  headers: {Accept: text/html}
+response:
+  format: html
+extract:
+  items: {css: ".searchResults ul.list li"}
+  fields:
+    listing_key: {css: "a[href*='/books/']::attr(href)", required: true,
+                  transforms: [{regex_extract: {pattern: "/books/([0-9]+)/", group: 1}}]}
+    title: {css: "a[href*='/books/']::text", required: true, transforms: [trim]}
+    creator: {css: "a[href*='/contributors/']::text", transforms: [trim]}
+    url: {css: "a[href*='/books/']::attr(href)", transforms: [normalize_url]}
+pagination:
+  mode: none
+  complete_when: single_response

@@ -1,0 +1,8 @@
+base_url: https://www.safahat.org
+url_patterns:
+  - pattern: '^https://www\.safahat\.org/books/([0-9]+)'
+    capability: work
+    id_group: 1
+rate_limit:
+  requests_per_minute: 30
+  concurrency: 1
