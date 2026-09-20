@@ -377,6 +377,13 @@ class RecipeRuntime:
             try:
                 response, document = await self._fetch_page(recipe, request, page=page_index + 1)
             except _PageFailure as failure:
+                # Some sites answer 404 for a page past the last one. Where a recipe says so, and a page
+                # has already been read, that is the end of the list rather than a failure of it — and
+                # reporting it as a failure marks a complete set of results incomplete (§5, §14).
+                if (pagination.stop_when == "not_found" and failure.category == "not_found"
+                        and evidence.pages > 0):
+                    complete, evidence.stop_reason = True, "no_more_pages"
+                    break
                 evidence.issues.append(Issue(failure.category, str(failure), page_index + 1))
                 evidence.stop_reason = "page_failed"
                 break

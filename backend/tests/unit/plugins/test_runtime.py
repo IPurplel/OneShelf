@@ -353,3 +353,42 @@ def test_an_item_template_can_use_the_recipe_s_own_inputs(tmp_path):
     result = run(RecipeRuntime(pkg, fetcher), "catalog", listing_key="770")
     assert [u.unit_key for u in result.units] == ["770"]
     assert result.units[0].unit_type == "one_shot" and result.units[0].raw_title == "A Book"
+
+
+def test_a_site_that_answers_404_past_the_last_page_is_finished_not_broken(tmp_path):
+    """WordPress returns 404 for a page beyond the last, which is an ending, not a failure.
+
+    Reported as `page_failed`, a complete set of results came back marked incomplete with a `not_found`
+    issue against it — a false negative about the source rather than about the search (I-26).
+    """
+    import copy
+
+    recipes = copy.deepcopy(RECIPES)
+    recipes["search"]["pagination"] = {"mode": "page_number", "start": 1, "max_pages": 5,
+                                       "stop_when": "not_found"}
+    pkg = package(tmp_path, recipes=recipes)
+    base = pkg.source.base_url.rstrip("/")
+    fetcher = MemoryFetcher({
+        f"{base}/search?q=moon&page=1": (200, search_page(("Moon One", "1"), ("Moon Two", "2"))),
+        f"{base}/search?q=moon&page=2": (404, "<html><body>Not found</body></html>"),
+    })
+    result = run(RecipeRuntime(pkg, fetcher), "search", query="moon", page=1)
+    assert [i.listing_key for i in result.items] == ["1", "2"]
+    assert result.complete, "everything the site had was collected, so the result is complete"
+    assert result.evidence.stop_reason == "no_more_pages"
+    assert result.evidence.issues == []
+
+
+def test_a_404_on_the_very_first_page_is_still_a_failure(tmp_path):
+    """Nothing was collected, so nothing may be claimed — the ending rule applies only after a page."""
+    import copy
+
+    recipes = copy.deepcopy(RECIPES)
+    recipes["search"]["pagination"] = {"mode": "page_number", "start": 1, "max_pages": 5,
+                                       "stop_when": "not_found"}
+    pkg = package(tmp_path, recipes=recipes)
+    base = pkg.source.base_url.rstrip("/")
+    fetcher = MemoryFetcher({f"{base}/search?q=moon&page=1": (404, "<html><body>gone</body></html>")})
+    result = run(RecipeRuntime(pkg, fetcher), "search", query="moon", page=1)
+    assert result.items == [] and not result.complete
+    assert [i.category for i in result.evidence.issues] == ["not_found"]

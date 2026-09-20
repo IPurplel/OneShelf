@@ -240,7 +240,7 @@ class Pagination(Strict):
     start: int = Field(default=1, ge=0)
     step: int | None = Field(default=None, ge=1, le=10_000)
     max_pages: int = Field(default=1, ge=1, le=MAX_PAGES_CAP)
-    stop_when: Literal["empty_items", "total_count", "no_next"] | None = None
+    stop_when: Literal["empty_items", "total_count", "no_next", "not_found"] | None = None
     total: FieldSpec | None = None
     next: FieldSpec | None = None
     complete_when: Literal["single_response"] | None = None
