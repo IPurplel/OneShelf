@@ -338,7 +338,7 @@ Four guards verified by mutation. Frontend: the "Official · Bundled" label and 
 | 17 | UI sections, states, review dialog, labels, degraded state, remove flow, en/ar | `RegistryPanel.test.tsx`, `SourcesScreen.test.tsx`; live Chromium en/ar | **passing** |
 | 18 | production-signed Registry verifies with `--require-signed` | owner key needed | **blocked (REL-14)** |
 
-Suites at completion: backend 1121 passed / 1 skipped; frontend 216 passed; `tsc` clean; deploy suite included.
+Suites at completion: backend 1123 passed / 1 skipped; frontend 216 passed; `tsc` clean; deploy suite included.
 
 ## Later packages
 
