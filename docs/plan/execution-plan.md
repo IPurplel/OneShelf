@@ -462,3 +462,16 @@ eight guards; two did not catch theirs and were strengthened (an ownership colum
 | The WEBTOON reader builds its images with JavaScript | Browser escalation for the reader capability |
 
 No task in any other package may claim to cover these.
+
+## WP-REL handoff continuation
+
+The 2026-09-20 Codex handoff audit found all Claude release work committed and preserved it.
+See `release-handoff.md` for the bounded release plan and fresh evidence. Release-only script,
+container configuration and documentation gaps were reproduced and repaired with regressions and an
+independent review; application phases remain unchanged. The current explicit user requirement
+supersedes the previous publication dependency on the Fedora gate: publish safely, then leave actual
+container/clean-clone installation verification open until the host evidence exists.
+
+Remaining mandatory gate: execute `../c9/verification.md` §3a on Fedora, review recorded persistence,
+schema, uid, healthcheck, update and uninstall evidence, and only then reconcile M2/M2.1/M56 and the
+runtime-dependent REL rows. No container runtime is installed inside ai-box.

@@ -15,16 +15,17 @@ Authority: Master §2.1, §13, §18, §24–25, §33–34, §42; Meta Prompt §C
 | Mount | Holds | Notes |
 |---|---|---|
 | `/data` | `oneshelf.db` (authoritative), `cache.db` (rebuildable), `secrets.db` (encrypted source sessions), staging, snapshots, diagnostics | Back this up. Losing `cache.db` costs nothing. |
-| `/plugins` | installed `.osp` packages | Rebuildable by reinstalling, but keeping it avoids re-approving permissions. |
+| `/data/plugins` | installed `.osp` packages | Rebuildable by reinstalling, but keeping it avoids re-approving permissions. |
 | `/keys` | `session.key`, the key for `secrets.db` | **Its own volume.** It is deliberately excluded from every backup (§33.3), so store it where you store passwords. Lose it and source logins must be redone; nothing else is affected. |
 | `/content` | a storage location for downloaded and imported files | Add more locations in Settings → Storage; OneShelf never writes outside a registered location. |
-| `/backups` | `.osbackup` archives | Prefer a different physical disk: OneShelf warns when backups sit on the same device as the library (§33.9). |
+| `/data/backups` | `.osbackup` archives | Prefer a different physical disk: OneShelf warns when backups sit on the same device as the library (§33.9). |
 
 ## 3. Start it
 
 ```sh
-cd deploy
-docker compose up -d --build
+./install.sh
+# Later manual operations, from the repository root:
+# docker compose --env-file .env -f deploy/compose.yaml up -d --build
 curl -fsS http://127.0.0.1:8420/api/ready
 ```
 
@@ -59,8 +60,10 @@ ONESHELF_DATA_DIR=./var .venv/bin/python -m oneshelf.api.app
   LAN device is fully trusted, including administrative actions such as resetting remote passkeys.
 - **Remote**: put OneShelf behind HTTPS on a stable hostname, set that hostname in First Run, and register a
   passkey from a LAN device. Remote clients then need a passkey session. Record the Recovery Code it shows once.
-- Behind a reverse proxy, add the proxy's address to `ONESHELF_TRUSTED_PROXIES`. A proxy that is not listed lends no
-  trust at all, and a listed proxy never lends its own LAN trust to the internet visitors it forwards.
+- Behind a reverse proxy, add the proxy's address to `ONESHELF_TRUSTED_PROXIES`. An unlisted proxy
+  contributes its own peer address, which is trusted if it is loopback or an allowed LAN address.
+  Configure a same-host or LAN proxy **before** exposing it publicly; a listed proxy requires the
+  forwarded client identity and never lends its own LAN trust to remote visitors.
 - If every client appears to arrive from one address, OneShelf says so in Settings: that means a router or proxy is
   forwarding, and your trusted networks are wider than you think.
 
@@ -74,7 +77,7 @@ ONESHELF_DATA_DIR=./var .venv/bin/python -m oneshelf.api.app
 - The last four **verified** archives are kept. A new archive is verified before any old one is rotated out, so a
   failed verification never costs you a good backup.
 - An archive is **not encrypted** by OneShelf, and none is required: it carries no session, token or key, because
-  those are excluded by construction above (§33.10). If the disk holding `/backups` needs to be encrypted — an
+  those are excluded by construction above (§33.10). If the disk holding `/data/backups` needs to be encrypted — an
   off-site copy, a shared NAS — encrypt it where you already encrypt things: a LUKS volume, an encrypted dataset,
   or your own tool over the `.osbackup` file. OneShelf reads whatever it is given back, so nothing in it prevents
   that, and nothing in it pretends to have done it for you.

@@ -3,9 +3,11 @@
 Recorded: 2026-09-18 · Branch: `c9/generator-sources-deploy` (from `c8/remote-access-first-run` @ `86f4d37`)
 Authority: Meta Prompt §C9, §D1–D3 · Companion: `source-capability-ledger.md`
 
-Status: **C9 backend gates passed except the ones blocked below.** The Docker image cannot be built or
-restarted here, and the C2 frontend does not exist yet, so this is not a claim that the whole application is
-complete.
+Current handoff status (2026-09-20 workspace date): application work and source adapters are preserved;
+Fedora container verification remains open. Historical C9 sections below retain their dated evidence.
+Fresh handoff results: backend **989 passed, 1 skipped, 8 deselected**; frontend **196 passed** and
+production build passed; deployment subset **58 passed, 1 skipped**. ShellCheck is the skipped tool.
+See `../plan/release-handoff.md` for live-source and publication outcomes. This is not a final release PASS.
 
 ## 1. Environment and commands
 
@@ -25,7 +27,7 @@ ONESHELF_LIVE_SOURCES=1 .venv/bin/pytest tests/live -m live   # → 8 passed (re
 ONESHELF_DATA_DIR=./var .venv/bin/python -m oneshelf.api.app  # → serves; /api/ready reports ready:true, schema 12
 ```
 
-The default run is offline and deterministic: 772 tests, no network. Live source checks are a separate,
+The default run is offline and deterministic; current totals are recorded above. Live source checks are a separate,
 opt-in suite (`-m live`, `ONESHELF_LIVE_SOURCES=1`), exactly as C9 requires.
 
 ## 2. Gate checklist (Meta Prompt §C9)
@@ -68,130 +70,176 @@ Each was written test-first and is covered by its own test:
 
 ## 3a. The Final Release Gate — what the Fedora host must run
 
-This is the one gate that cannot run in the development container: there is no container runtime in
-it, and installing one there would prove nothing about a real machine. Run this on the Fedora host.
-Podman is the primary path; Docker behaves the same and the scripts detect either.
+**Not executed in ai-box.** No Docker/Podman executable or runtime socket is available there.
+Run the following in Bash on the Fedora host, with Podman, a current Compose provider, Git, curl and
+Python 3 installed. Do not run it inside ai-box. Use a fresh disposable checkout: the generated PDF
+contains one blank page and no personal content. The commands preserve its volumes at the end.
 
-Everything below is verbatim. Nothing needs to be adapted.
+### 1. Public clean clone and install
 
-### 1. A clean checkout, installed the way anyone would
-
-The point is to install from a *fresh copy*, not from the working checkout, so that anything only
-present in the development directory cannot make it pass. Clone from wherever the repository is:
-
-```sh
-cd ~                                  # anywhere outside the development checkout
-git clone /workspace/Oneshelfv1 OneShelf      # from this machine's own checkout
-# or, once main has been pushed:
-# git clone https://github.com/IPurplel/OneShelf.git
-
-cd OneShelf
-./install.sh
+```bash
+set -euo pipefail
+RELEASE_DIR=$(mktemp -d "$HOME/oneshelf-release-XXXXXX")
+export COMPOSE_PROJECT_NAME="oneshelf-release-$(date +%s)"
+export ONESHELF_RUNTIME=podman
+mkdir "$RELEASE_DIR/evidence"
+export EVIDENCE="$RELEASE_DIR/evidence"
+git clone https://github.com/IPurplel/OneShelf.git "$RELEASE_DIR/OneShelf"
+cd "$RELEASE_DIR/OneShelf"
+git rev-parse HEAD | tee "$EVIDENCE/commit.txt"
+git ls-remote origin refs/heads/main | tee "$EVIDENCE/remote-main.txt"
+podman --version | tee "$EVIDENCE/runtime.txt"
+podman compose version | tee "$EVIDENCE/compose.txt"
+getenforce | tee "$EVIDENCE/selinux.txt"
+# Port 8420 must be free. For another port set ONESHELF_PORT before installation.
+./install.sh 2>&1 | tee "$EVIDENCE/install.txt"
+compose() { podman compose --env-file .env -p "$COMPOSE_PROJECT_NAME" -f deploy/compose.yaml "$@"; }
+export GATE_URL="http://127.0.0.1:${ONESHELF_PORT:-8420}"
+wait_ready() {
+  python3 - <<'PY'
+import json, os, time, urllib.request
+opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+for attempt in range(90):
+    try:
+        with opener.open(os.environ['GATE_URL'] + '/api/ready', timeout=5) as r:
+            ready = json.load(r)
+        if ready.get('ready') is True and ready.get('migrations_pending') == 0:
+            print(json.dumps(ready)); break
+    except (OSError, ValueError):
+        pass
+    time.sleep(2)
+else:
+    raise SystemExit('readiness timed out')
+PY
+}
+wait_ready | tee "$EVIDENCE/ready-before.json"
+curl -fsS "$GATE_URL/api/health" | tee "$EVIDENCE/health.json"
+python3 - <<'PY'
+import json, os
+from pathlib import Path
+health = json.loads((Path(os.environ['EVIDENCE'])/'health.json').read_text())
+assert health['status'] == 'ok' and health['access'] == 'loopback', health
+PY
+curl -fsS "$GATE_URL/" -o "$EVIDENCE/index.html"
 ```
 
-If the clone comes from the local checkout, make sure it is on `main`: `git -C OneShelf checkout main`.
+Open the printed URL and confirm the interface loads. Keep the default loopback binding for this
+local gate. A separate LAN test must deliberately configure a trusted subnet; reverse proxies must
+be configured as trusted proxies before public exposure. Never add a bridge gateway as a shortcut.
 
-Expected: it finds Podman, finds Compose, creates `.env`, builds, starts, waits, and prints
-`OneShelf is running at http://127.0.0.1:8420`. It must exit 0.
+### 2. Register storage and import an actual PDF through the application
 
-### 2. It is actually up
-
-```sh
-curl -fsS http://127.0.0.1:8420/api/ready   ; echo
-curl -fsS http://127.0.0.1:8420/api/health  ; echo
+```bash
+curl -fsS -X POST "$GATE_URL/api/storage/roots" -H 'Content-Type: application/json' \
+  -d '{"name":"Release gate","path":"/content"}' | tee "$EVIDENCE/root.json"
+compose exec -T oneshelf python -c \
+  'import sys; from pypdf import PdfWriter; w=PdfWriter(); w.add_blank_page(width=300,height=400); w.write(sys.stdout.buffer)' \
+  > "$EVIDENCE/gate.pdf"
+curl -fsS -X POST "$GATE_URL/api/import/uploads?filename=release-gate.pdf" \
+  -H 'Content-Type: application/pdf' --data-binary "@$EVIDENCE/gate.pdf" > "$EVIDENCE/upload.json"
+python3 - <<'PY' > "$EVIDENCE/import-request.json"
+import json, os
+from pathlib import Path
+upload=json.loads((Path(os.environ['EVIDENCE'])/'upload.json').read_text())
+print(json.dumps({'upload_id': upload['upload_id'], 'title': 'OneShelf release gate',
+                  'content_type': 'book', 'language': 'en', 'mode': 'copy', 'add_to_shelf': True}))
+PY
+curl -fsS -X POST "$GATE_URL/api/import" -H 'Content-Type: application/json' \
+  --data-binary "@$EVIDENCE/import-request.json" > "$EVIDENCE/import.json"
+check_library() {
+  curl -fsS "$GATE_URL/api/shelf" > "$EVIDENCE/shelf-current.json"
+  python3 - <<'PY'
+import json, os
+from pathlib import Path
+p=Path(os.environ['EVIDENCE'])
+work=json.loads((p/'import.json').read_text())['work_id']
+shelf=json.loads((p/'shelf-current.json').read_text())
+assert any(row['work_id']==work for row in shelf['entries']), 'imported work missing'
+PY
+  compose exec -T oneshelf python -c \
+    'import pathlib,hashlib,json; p=pathlib.Path("/content"); files={str(f.relative_to(p)):hashlib.sha256(f.read_bytes()).hexdigest() for f in p.rglob("*") if f.is_file() and f.name!=".oneshelf-managed"}; assert files; print(json.dumps(files,sort_keys=True))' \
+    > "$EVIDENCE/content-current.json"
+  cmp "$EVIDENCE/content-before.json" "$EVIDENCE/content-current.json"
+}
+compose exec -T oneshelf python -c \
+  'import pathlib,hashlib,json; p=pathlib.Path("/content"); files={str(f.relative_to(p)):hashlib.sha256(f.read_bytes()).hexdigest() for f in p.rglob("*") if f.is_file() and f.name!=".oneshelf-managed"}; assert files; print(json.dumps(files,sort_keys=True))' \
+  > "$EVIDENCE/content-before.json"
+check_library
+curl -fsS -X POST "$GATE_URL/api/backups" -H 'Content-Type: application/json' \
+  -d '{"kind":"library"}' > "$EVIDENCE/backup.json"
+test -n "$(find deploy/volumes/backups -maxdepth 1 -name '*.osbackup' -print -quit)"
+test -s deploy/volumes/keys/session.key
+sha256sum .env > "$EVIDENCE/env-before.sha256"
 ```
 
-Expected: `ready: true`, `migrations_pending: 0`, a `recovery` block; and `status: ok` with
-`access: loopback`. Open <http://127.0.0.1:8420> in a browser — the interface must load, not a 404.
+### 3. Restart, then remove and recreate containers
 
-### 3. Put a real library in it
-
-```sh
-curl -fsS -X POST http://127.0.0.1:8420/api/storage/roots \
-     -H 'Content-Type: application/json' -d '{"name":"Library","path":"/content"}' ; echo
+```bash
+compose restart
+wait_ready | tee "$EVIDENCE/ready-restart.json"
+check_library
+compose down
+compose up -d
+wait_ready | tee "$EVIDENCE/ready-recreated.json"
+check_library
+python3 - <<'PY'
+import json, os
+from pathlib import Path
+p=Path(os.environ['EVIDENCE'])
+before=json.loads((p/'ready-before.json').read_text())
+after=json.loads((p/'ready-recreated.json').read_text())
+assert after['schema_version']==before['schema_version']
+assert after['migrations_pending']==0 and after['ready'] is True
+PY
+compose exec -T oneshelf python -c \
+  'import sqlite3; c=sqlite3.connect("/data/oneshelf.db"); assert c.execute("PRAGMA integrity_check").fetchone()[0]=="ok"; assert not c.execute("PRAGMA foreign_key_check").fetchall(); print(c.execute("SELECT version,name FROM schema_migrations ORDER BY version").fetchall())' \
+  | tee "$EVIDENCE/schema.txt"
+compose exec -T oneshelf id | tee "$EVIDENCE/container-user.txt"
+test "$(compose exec -T oneshelf id -u | tr -d '\r')" = 10001
+CONTAINER_ID=$(compose ps -q oneshelf)
+for attempt in $(seq 1 30); do
+  HEALTH=$(podman inspect --format '{{.State.Health.Status}}' "$CONTAINER_ID")
+  [ "$HEALTH" != healthy ] || break
+  sleep 2
+done
+printf '%s\n' "$HEALTH" | tee "$EVIDENCE/container-health.txt"
+test "$HEALTH" = healthy
+podman inspect --format '{{range .Mounts}}{{println .Destination}}{{end}}' "$CONTAINER_ID" \
+  | tee "$EVIDENCE/mounts.txt"
+# Expected: /data /data/plugins /data/backups /keys /content, plus read-only /legacy-data.
 ```
 
-Then import a file through the interface (Home → Import), or with the API, and note the work's title.
+### 4. Update and nondestructive uninstall/reinstall
 
-```sh
-curl -fsS http://127.0.0.1:8420/api/shelf | head -c 400 ; echo
-SCHEMA_BEFORE=$(curl -fsS http://127.0.0.1:8420/api/ready | grep -o '"schema_version":[0-9]*')
-echo "$SCHEMA_BEFORE"
-ls deploy/volumes/content
-```
-
-### 4. Restart
-
-```sh
-podman compose -f deploy/compose.yaml restart
-sleep 10
-curl -fsS http://127.0.0.1:8420/api/shelf | head -c 400 ; echo
-```
-
-Expected: the same work is still there.
-
-### 5. Full recreation — the case that would lose anything written inside the container
-
-```sh
-podman compose -f deploy/compose.yaml down
-podman compose -f deploy/compose.yaml up -d
-sleep 20
-curl -fsS http://127.0.0.1:8420/api/ready ; echo
-curl -fsS http://127.0.0.1:8420/api/shelf | head -c 400 ; echo
-ls deploy/volumes/content
-```
-
-Expected: ready again, **the same `schema_version` as before** and `migrations_pending: 0` — a
-re-migration here would mean the database was not the same one — the same work on the shelf, and the
-file still in `deploy/volumes/content`.
-
-### 6. It runs unprivileged and reports its own health
-
-```sh
-podman compose -f deploy/compose.yaml exec oneshelf id
-podman inspect --format '{{.State.Health.Status}}' "$(podman compose -f deploy/compose.yaml ps -q oneshelf)"
-```
-
-Expected: `uid=10001` (not 0), and `healthy`.
-
-### 7. Update is safe
-
-```sh
-./update.sh
-curl -fsS http://127.0.0.1:8420/api/shelf | head -c 400 ; echo
-```
-
-Expected: it rebuilds, restarts, reports ready and healthy, and the same work is still there. (With
-no upstream change it should say so and rebuild what is present.)
-
-### 8. Uninstall keeps the library
-
-```sh
+```bash
+./update.sh 2>&1 | tee "$EVIDENCE/update.txt"
+wait_ready | tee "$EVIDENCE/ready-update.json"
+check_library
+sha256sum -c "$EVIDENCE/env-before.sha256"
+./uninstall.sh 2>&1 | tee "$EVIDENCE/uninstall.txt"
+test -d deploy/volumes/data && test -d deploy/volumes/content
+./install.sh 2>&1 | tee "$EVIDENCE/reinstall.txt"
+wait_ready | tee "$EVIDENCE/ready-reinstalled.json"
+check_library
+sha256sum -c "$EVIDENCE/env-before.sha256"
 ./uninstall.sh
-ls deploy/volumes/data deploy/volumes/content
-./install.sh
-curl -fsS http://127.0.0.1:8420/api/shelf | head -c 400 ; echo
+printf 'Host gate completed; retained library and evidence: %s\n' "$RELEASE_DIR"
 ```
 
-Expected: `uninstall.sh` says the library has been kept, the directories still hold the files, and
-reinstalling brings the same library back.
+The commands fail on a script error, missing imported work, changed content hash, invalid schema,
+root execution, unhealthy container or configuration change. Retain the evidence outside the clone;
+do not publish private logs or substitute this procedure for actual execution. A stable schema alone
+is not persistence proof; the imported work and content hashes carry that assertion.
 
-### What passing this closes
-
-M2, M2.1 and M56's Docker clause move to `VERIFIED`, and REL-01, REL-02, REL-03 and REL-08 with them.
-REL-07 (publishing) and REL-09 (clean-clone against the published repository) follow.
-
-### What would fail it
-
-A non-zero exit from any script; a re-migration or a changed `schema_version` at step 5; an empty
-shelf after recreation; a missing file under `deploy/volumes/content`; `id` reporting uid 0; an
-unhealthy container; or `uninstall.sh` removing anything at step 8.
+Passing this gate supplies evidence for M2/M2.1/M56 and REL-01/02/03/08/09. Those rows remain open until
+the evidence is reviewed. GitHub publication (REL-07) is independently authorized by the latest user
+instruction and does not close any deployment requirement.
 
 ## 4. Blocked and partial gates
 
 | ID | Gate | Why | What would clear it |
 |---|---|---|---|
-| EB-1 | Docker build, restart and recreation against isolated mounts | No container runtime on this host | Run `docker compose up -d --build` on a host with Docker or Podman, then restart and recreate the container and confirm the library survives on the mounts |
+| EB-1 | Docker build, restart and recreation against isolated mounts | No container runtime on this host | Execute §3a above on the Fedora host and retain the generated evidence |
 | ~~EB-2~~ | ~~C2 visual checks~~ | **Cleared 2026-09-18**: the reference was supplied, the UI was corrected against it, and C2's checks ran — see `docs/c2/verification.md` | — |
 | ~~§41 suite~~ | ~~3asq / Al-Aasheq~~ | **Cleared 2026-09-21**: `3asq.org` was a dead domain, not an unreachable host — the source moved to `3asq.online`. The adapter ships and is verified live, so **all eight §41 sources are done** and M41.1 is `VERIFIED`. | — |
 | ~~§53~~ | ~~Full UI, accessibility and RTL test categories~~ | **Cleared 2026-09-18**: all twenty-six categories audited against the suite in `docs/c9/test-categories.md`; one gap (queue restart recovery) was filled | — |

@@ -280,3 +280,19 @@ rendered in Chromium with no console errors.
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.
+
+## Release handoff verification (2026-09-20 workspace date)
+
+The later handoff review extends, rather than replaces, the original 23 script cases above.
+`backend/tests/deploy/`: **58 passed, 1 skipped** (ShellCheck unavailable). Runtime commands are stubbed;
+Git repositories, filesystem operations, script execution and HTTP healthcheck responses are real.
+
+Added evidence covers successful install/rerun, health JSON rejection, missing probe tools, explicit
+Compose env-file and shell overrides, quoted values, custom plugin/backup paths, directory failures,
+unsafe/overlapping/symlink paths, nondestructive uninstall without mkdir, purge restrictions, real Git
+fast-forward/ahead/divergence and linked-worktree checks, ownership failure, legacy-store refusal,
+nonempty unmarked custom storage, and image-level legacy and healthcheck guards.
+
+Fresh full backend: **989 passed, 1 skipped, 8 live tests deselected**. Frontend: **196 passed**;
+`npm run build` passes (typecheck included). Container execution is not represented by these totals.
+Live results and public clean-clone evidence are in `release-handoff.md`.

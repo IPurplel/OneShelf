@@ -73,3 +73,17 @@ kept on a caveat. Neither is a current blocker.
 **The rule they produced still stands:** a verification criterion that cannot be executed is recorded
 `BLOCKED_BY_ENVIRONMENT` with its wording preserved, and its row stays at `IMPLEMENTED`. What changed is
 that nothing is currently blocked that way.
+
+## Release handoff findings (2026-09-20 workspace date)
+
+| ID | Finding | Resolution and evidence | State |
+|---|---|---|---|
+| I-28 | Scripts could report success without a probe tool or with unhealthy JSON; process substitution hid mkdir failure | Nonzero failures, explicit health JSON check, synchronous directory preparation; deployment regressions | Fixed in release scripts; runtime gate pending |
+| I-29 | Script dotenv parsing, exported overrides, singular plugin/backup keys and Compose env-file resolution disagreed | One resolved/exported configuration, explicit root env-file, quoted literal values; deployment regressions | Fixed; runtime gate pending |
+| I-30 | Purge/custom paths could delete or recursively change unrelated data; default uninstall created directories | Canonical non-overlapping paths, no symlink parents, explicit managed custom directories, default-only confirmed purge, error propagation | Fixed; runtime gate pending |
+| I-31 | Fedora mounts lacked SELinux labels; plugin/backup mounts were unused; bridge forwarding concealed peer IP | Shared labels, actual nested store targets, host networking and configured-listener healthcheck; ADR 0003 | Implemented; Fedora host evidence required |
+| I-32 | `deploy/.dockerignore` did not protect the repository-root build context | Root `.dockerignore` excludes env, databases, runtime directories, Git and dev dependencies | Fixed by inspection; image build gate pending |
+| I-33 | Updater accepted unsafe Git states and recommended unsupported schema downgrade | Real Git-state regressions, fast-forward-only origin/main, script re-entry; migration-aware recovery guidance | Fixed in script tests |
+| I-34 | New nested mounts could conceal legacy data, including when an old updater pulls the new release | Script preflight plus independent image startup guard on read-only legacy data view; original bytes retained | Fixed in regressions; runtime gate pending |
+
+No verified application UI, source recipe, database migration or core behavior was rewritten.

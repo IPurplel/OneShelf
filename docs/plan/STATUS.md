@@ -1,6 +1,6 @@
 # Execution Status — the live task list
 
-Updated: 2026-09-21 (release) · Plan: `execution-plan.md` · Authoritative statuses: `../c0/traceability.md`
+Updated: 2026-09-20 workspace date (Codex handoff; older records retain their dates) · Plan: `execution-plan.md` · Authoritative statuses: `../c0/traceability.md`
 
 One work package is `IN_PROGRESS` at a time. One implementation task within it wherever practical.
 
@@ -30,8 +30,8 @@ bounded-memory clause closed with M26.6).
 A subsequent explicit user requirement: OneShelf must install from a clone with one command and be
 published as a public repository named exactly `OneShelf`.
 
-**Done and verified here.** `install.sh`, `update.sh`, `uninstall.sh`, `.env.example`, a Compose file
-driven by `.env`, and a README whose quick start is three commands. 23 tests drive the real scripts
+**Implemented and tested here; runtime verification pending.** `install.sh`, `update.sh`, `uninstall.sh`, `.env.example`, a Compose file
+driven by `.env`, and a README whose quick start is three commands. 58 deployment tests now drive the real scripts and image helpers
 against stub runtimes in a throwaway checkout, covering both runtimes, a dead runtime, no runtime,
 both Compose shapes, `.env` creation and preservation, repeat installs, failure propagation, update
 safety and — twice over — that uninstalling keeps the library.
@@ -45,8 +45,9 @@ refused at the interface too, and the whole UI rendered in a browser with no con
 
 **Not done, and not claimable from here.** REL-07 (publishing), REL-08 (the Fedora-host Podman gate)
 and REL-09 (clean-clone) are `BLOCKED`. No container runtime exists in this environment and none may
-be installed here, and the requirement makes publishing conditional on the gate passing. The exact
-commands are in `../c9/verification.md` §3a.
+be installed here, The current user instruction independently authorizes publication; the earlier dependency on
+the host gate is superseded. Exact Fedora commands are in `../c9/verification.md` §3a.
+Fresh audit, test totals and publication evidence are in `release-handoff.md`.
 
 ## WP-B1 — the three available sources, done and verified
 
