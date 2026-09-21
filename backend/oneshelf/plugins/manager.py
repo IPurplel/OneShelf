@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import re
 import os
 import shutil
 import sqlite3
@@ -25,7 +26,7 @@ from oneshelf.db.connection import transaction
 from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.plugins.package import PackageError, PluginPackage, load_package
-from oneshelf.plugins.registry import Registry, RegistryError, pick
+from oneshelf.plugins.registry import Registry, RegistryEntry, RegistryError, api_supported, pick
 from oneshelf.plugins.runtime import run_packaged_tests
 
 STAGING = ".staging"
@@ -68,6 +69,39 @@ class VersionRecord:
     sha256: str
     permissions: frozenset[str]
     approved_permissions: frozenset[str]
+
+
+@dataclass(frozen=True)
+class RegistryReview:
+    plugin_id: str
+    name: str
+    version: str
+    publisher: str | None
+    description: str | None
+    capabilities: tuple[str, ...]
+    permissions: frozenset[str]
+    added_permissions: frozenset[str]
+    tests_passed: bool
+    test_cases: int
+    test_failures: tuple[str, ...]
+    effective_trust: str
+    claimed_trust: str
+    signed: bool
+    sha256: str
+    state: str
+    installed_version: str | None
+    plugin_state: str | None
+    channel: str | None
+    trust_label: str | None
+
+
+def _rejection(exc: PackageError) -> InstallRejected:
+    """A package this build cannot load says so plainly, rather than as a generic validation failure."""
+    found = re.search(r"unsupported plugin API (\d+\.\d+)", str(exc))
+    if found:
+        return InstallRejected(f"this adapter requires a newer OneShelf (plugin API {found.group(1)}); "
+                               "update OneShelf to install it")
+    return InstallRejected(f"invalid plugin package: {exc}")
 
 
 def _vkey(version: str) -> tuple[int, ...]:
@@ -155,7 +189,7 @@ class PluginManager:
             try:
                 package = load_package(staged)
             except PackageError as exc:
-                raise InstallRejected(f"invalid plugin package: {exc}") from exc
+                raise _rejection(exc) from exc
             steps.extend(STEPS_VALIDATION)
 
             existing = self._version_row(package.id, package.version)
@@ -200,7 +234,11 @@ class PluginManager:
         with transaction(self.conn):
             plugin = self.conn.execute("SELECT * FROM plugins WHERE id = ?", (package.id,)).fetchone()
             has_active = plugin is not None and plugin["state"] in ("active", "disabled") and plugin["active_version"]
-            if status == "active":
+            if status == "active" and has_active and plugin["state"] == "disabled":
+                # A new version is not a request to enable: the owner disabled this source, and an update —
+                # uploaded, from the Registry, or approved after review — leaves it disabled.
+                state, active_version = "disabled", package.version
+            elif status == "active":
                 state, active_version = "active", package.version
             elif has_active:
                 state, active_version = plugin["state"], plugin["active_version"]
@@ -253,16 +291,32 @@ class PluginManager:
                      record["channel"], record["registry_url"], row["test_report_json"])
         return InstallOutcome(plugin_id, version, "active", ["activated"], frozenset(), package.manifest.auth is not None)
 
-    async def install_from_registry(self, registry: Registry, plugin_id: str, *, version: str | None = None,
-                                    approved_permissions: Iterable[str]) -> InstallOutcome:
+    async def _fetch_entry(self, registry: Registry, plugin_id: str, version: str | None,
+                           expected_sha256: str | None) -> tuple[RegistryEntry, bytes]:
         try:
             entry = pick(await registry.entries(), plugin_id, version)
+        except RegistryError as exc:
+            raise InstallRejected(str(exc)) from exc
+        if not api_supported(entry.api):
+            raise InstallRejected(f"this adapter requires a newer OneShelf (plugin API {entry.api}); "
+                                  "update OneShelf to install it")
+        try:
             data = await registry.fetch(entry)
         except RegistryError as exc:
             raise InstallRejected(str(exc)) from exc
         sha = hashlib.sha256(data).hexdigest()
         if sha != entry.sha256:
             raise InstallRejected("package hash does not match the registry entry")
+        if expected_sha256 is not None and sha != expected_sha256.lower():
+            # What was reviewed is what gets installed: a package that changed underneath the review is
+            # refused, rather than installed on the strength of an approval given for other bytes.
+            raise InstallRejected("the package changed since it was reviewed; review it again")
+        return entry, data
+
+    async def install_from_registry(self, registry: Registry, plugin_id: str, *, version: str | None = None,
+                                    approved_permissions: Iterable[str],
+                                    expected_sha256: str | None = None) -> InstallOutcome:
+        entry, data = await self._fetch_entry(registry, plugin_id, version, expected_sha256)
         label = self._verified_label(entry)
         (self.store / STAGING).mkdir(parents=True, exist_ok=True)
         download = self.store / STAGING / f"download-{new_id()}.osp"
@@ -275,7 +329,69 @@ class PluginManager:
                 download.unlink()
         if outcome.plugin_id != entry.id or outcome.version != entry.version:
             raise InstallRejected("package identity does not match the registry entry")
+        if outcome.state == "pending_review":
+            # Asking the Registry for this plugin is the owner choosing who updates it. That holds while the
+            # new version waits for review — so the bundled image can never take it back in the meantime.
+            with transaction(self.conn):
+                self.conn.execute("UPDATE plugins SET channel = 'registry', registry_url = ?, updated_at = ?"
+                                  " WHERE id = ?", (registry.location, utcnow_iso(), entry.id))
         return outcome
+
+    # -- review: what the owner is shown is what gets installed -------------------------------------------
+
+    def install_state(self, plugin_id: str, version: str) -> tuple[str, dict]:
+        """How `version` relates to what is installed, using the one version comparison Core has."""
+        plugin = self.conn.execute("SELECT * FROM plugins WHERE id = ?", (plugin_id,)).fetchone()
+        installed = {"installed_version": None, "plugin_state": None, "channel": None, "trust_label": None}
+        if plugin is None or plugin["state"] == "uninstalled" or not plugin["active_version"]:
+            if plugin is not None:
+                installed.update(plugin_state=plugin["state"], channel=plugin["channel"])
+            return "available", installed
+        installed.update(installed_version=plugin["active_version"], plugin_state=plugin["state"],
+                         channel=plugin["channel"], trust_label=plugin["trust_label"])
+        pending = self._version_row(plugin_id, version)
+        if pending is not None and pending["status"] == "pending_review":
+            return "pending_review", installed
+        ours, theirs = _vkey(plugin["active_version"]), _vkey(version)
+        if theirs > ours:
+            return "update_available", installed
+        return ("installed" if theirs == ours else "installed_newer"), installed
+
+    def registry_trust(self, entry: RegistryEntry) -> str:
+        """The trust an entry would earn, from its signature alone — no download needed."""
+        try:
+            return self._verified_label(entry)
+        except InstallRejected:
+            return "invalid_signature"
+
+    async def review_from_registry(self, registry: Registry, plugin_id: str, *,
+                                   version: str | None = None) -> "RegistryReview":
+        """Everything the install would check, without installing: bytes, hash, signature, package, tests."""
+        entry, data = await self._fetch_entry(registry, plugin_id, version, None)
+        trust = self._verified_label(entry)
+        (self.store / STAGING).mkdir(parents=True, exist_ok=True)
+        staged = self.store / STAGING / f"review-{new_id()}.osp"
+        staged.write_bytes(data)
+        try:
+            try:
+                package = load_package(staged)
+            except PackageError as exc:
+                raise _rejection(exc) from exc
+        finally:
+            staged.unlink(missing_ok=True)
+        if package.id != entry.id or package.version != entry.version:
+            raise InstallRejected("package identity does not match the registry entry")
+        report = await run_packaged_tests(package)
+        state, installed = self.install_state(package.id, package.version)
+        active = self._active_row(package.id)
+        baseline = frozenset(json.loads(active["approved_permissions_json"] or "[]")) if active else frozenset()
+        return RegistryReview(
+            plugin_id=package.id, name=package.manifest.name, version=package.version,
+            publisher=package.manifest.publisher, description=package.manifest.description,
+            capabilities=tuple(package.manifest.capabilities), permissions=package.permissions,
+            added_permissions=package.permissions - baseline, tests_passed=report.passed, test_cases=report.cases,
+            test_failures=tuple(report.failures), effective_trust=trust, claimed_trust=entry.trust_label,
+            signed=bool(entry.signature), sha256=entry.sha256, state=state, **installed)
 
     def _verified_label(self, entry) -> str:
         claimed = entry.trust_label if entry.trust_label in SIGNED_LABELS | {"community"} else "community"
