@@ -17,15 +17,18 @@ cd OneShelf
 
 Then open **<http://127.0.0.1:8420>**.
 
-Release verification is still awaiting the Fedora-host container gate. Script and application tests
-pass independently; see [the host verification commands](docs/c9/verification.md#3a-the-final-release-gate--what-the-fedora-host-must-run).
-
 The first run builds the image, which takes a few minutes. After that, starting takes seconds.
 
 ```sh
 ./update.sh       # update to the latest version, keeping your library
 ./uninstall.sh    # stop OneShelf, keeping your library
 ```
+
+> **Status.** The application and the install scripts are tested — 989 backend tests, 196 frontend
+> tests, 58 deployment-script tests, and all eight sources verified against the live sites. What has
+> *not* happened yet is a run of the whole thing on a real machine with a container runtime: the
+> [Fedora host gate](docs/c9/verification.md#3a-the-final-release-gate--what-the-fedora-host-must-run)
+> is still open, so treat the deployment as unproven until it closes.
 
 ### What you need first
 

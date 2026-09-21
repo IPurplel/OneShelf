@@ -25,6 +25,14 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
 
+## User decisions outstanding
+
+| # | Decision | Why it is the owner's, not mine | Blocking? |
+|---|---|---|---|
+| UD-4 | **Which licence, if any.** The repository is public with no `LICENSE` file, so the default applies: people may read the code but have no right to use, modify or redistribute it. | A licence is a legal grant over the owner's own work; picking one on their behalf would be making that grant for them. | Not blocking publication — GitHub does not require it. It does block anyone else legitimately using OneShelf. |
+
+The README says this plainly in its Licence section rather than leaving a visitor to guess.
+
 ## WP-REL — the release requirement (2026-09-21)
 
 A subsequent explicit user requirement: OneShelf must install from a clone with one command and be
