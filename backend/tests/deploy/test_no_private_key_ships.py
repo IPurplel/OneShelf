@@ -9,9 +9,10 @@ import pytest
 
 from .test_image_contains_bundled_sources import REPO, dockerignore_rules, excluded
 
-PRIVATE_KEY_MARKERS = (b"-----BEGIN PRIVATE KEY-----", b"-----BEGIN OPENSSH PRIVATE KEY-----",
-                       b"-----BEGIN ENCRYPTED PRIVATE KEY-----", b"-----BEGIN EC PRIVATE KEY-----",
-                       b"-----BEGIN RSA PRIVATE KEY-----")
+# Assembled rather than written out, so this file does not match its own scan.
+_DASHES = b"-" * 5
+PRIVATE_KEY_MARKERS = tuple(_DASHES + b"BEGIN " + kind + b"PRIVATE KEY" + _DASHES
+                            for kind in (b"", b"OPENSSH ", b"ENCRYPTED ", b"EC ", b"RSA "))
 
 
 def tracked_files():
