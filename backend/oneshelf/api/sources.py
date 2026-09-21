@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from oneshelf.domain.ids import new_id
 from oneshelf.plugins.manager import InstallRejected, PluginUnavailable
 from oneshelf.plugins.package import PackageError, load_package
-from oneshelf.plugins.registry import RegistryError
+from oneshelf.plugins.registry import RegistryError, api_supported
 from oneshelf.plugins.runtime import run_packaged_tests
 from oneshelf.sessions.login import LoginError
 from oneshelf.sources.health import recent_signals
@@ -270,25 +270,83 @@ async def cancel_login(request: Request, login_id: str):
 
 
 @router.get("/registry")
-async def registry_listing(request: Request):
-    registry = services(request).registry
+async def registry_listing(request: Request, refresh: bool = False):
+    """One card per plugin: the Registry's newest version this build can run, set against what is installed.
+
+    The comparison happens here, with the same version logic the manager uses, so the screen never has to
+    guess. Reading the Registry changes nothing — it never installs, updates or enables anything.
+    """
+    s = services(request)
+    registry = s.registry
     if registry is None:
         return {"configured": False, "plugins": []}
+    if refresh and hasattr(registry, "invalidate"):
+        registry.invalidate()
     try:
         entries = await registry.entries()
     except (RegistryError, OSError) as exc:
         return error(502, "REGISTRY_UNAVAILABLE", str(exc))
     except Exception as exc:  # network policy / transport failures
         return error(502, "REGISTRY_UNAVAILABLE", type(exc).__name__)
-    return {"configured": True, "plugins": [
-        {"id": e.id, "name": e.name, "version": e.version, "trust_label": e.trust_label, "signed": bool(e.signature)}
-        for e in entries]}
+    by_id: dict[str, list] = {}
+    for entry in entries:
+        by_id.setdefault(entry.id, []).append(entry)
+    plugins = []
+    for plugin_id in sorted(by_id):
+        versions = sorted(by_id[plugin_id], key=lambda e: _registry_vkey(e.version), reverse=True)
+        runnable = [e for e in versions if api_supported(e.api)]
+        entry = runnable[0] if runnable else versions[0]
+        state, installed = s.plugins.install_state(plugin_id, entry.version)
+        if not runnable and state in ("available", "update_available"):
+            state = "incompatible"                                      # "Requires newer OneShelf"
+        plugins.append({
+            "id": entry.id, "name": entry.name, "version": entry.version,
+            "trust_label": entry.trust_label, "signed": bool(entry.signature),
+            "effective_trust": s.plugins.registry_trust(entry), "api": entry.api,
+            "state": state, "installed_version": installed["installed_version"],
+            "plugin_state": installed["plugin_state"], "channel": installed["channel"],
+            "installed_trust": installed["trust_label"],
+        })
+    return {"configured": True, "location": registry.location, "plugins": plugins}
+
+
+class RegistryReviewBody(BaseModel):
+    plugin_id: str = Field(pattern=r"^[a-z0-9]+(?:[.-][a-z0-9]+)*$", max_length=64)
+    version: str | None = Field(default=None, pattern=r"^\d+\.\d+\.\d+$")
+
+
+@router.post("/registry/review-package")
+async def registry_review(request: Request, body: RegistryReviewBody):
+    """Download and check a package exactly as installing it would — and install nothing.
+
+    The response carries the package's sha256; sending it back with the install binds the approval to
+    these exact bytes.
+    """
+    s = services(request)
+    if s.registry is None:
+        return error(409, "REGISTRY_NOT_CONFIGURED", "No plugin registry is configured.")
+    try:
+        review = await s.plugins.review_from_registry(s.registry, body.plugin_id, version=body.version)
+    except InstallRejected as exc:
+        return error(422, "REVIEW_REJECTED", str(exc))
+    return {
+        "id": review.plugin_id, "name": review.name, "version": review.version, "publisher": review.publisher,
+        "description": review.description, "capabilities": list(review.capabilities),
+        "permissions": sorted(review.permissions), "added_permissions": sorted(review.added_permissions),
+        "tests_passed": review.tests_passed, "test_cases": review.test_cases,
+        "test_failures": list(review.test_failures), "effective_trust": review.effective_trust,
+        "claimed_trust": review.claimed_trust, "signed": review.signed, "sha256": review.sha256,
+        "state": review.state, "installed_version": review.installed_version, "plugin_state": review.plugin_state,
+        "channel": review.channel,
+    }
 
 
 class RegistryInstallBody(BaseModel):
     plugin_id: str = Field(pattern=r"^[a-z0-9]+(?:[.-][a-z0-9]+)*$", max_length=64)
     version: str | None = Field(default=None, pattern=r"^\d+\.\d+\.\d+$")
     approved_permissions: list[str] = Field(default_factory=list, max_length=200)
+    # From the review: the install is refused if the package is no longer these exact bytes.
+    sha256: str | None = Field(default=None, pattern=r"^[0-9a-fA-F]{64}$")
 
 
 @router.post("/registry/install")
@@ -298,7 +356,12 @@ async def registry_install(request: Request, body: RegistryInstallBody):
         return error(409, "REGISTRY_NOT_CONFIGURED", "No plugin registry is configured.")
     try:
         outcome = await s.plugins.install_from_registry(s.registry, body.plugin_id, version=body.version,
-                                                        approved_permissions=body.approved_permissions)
+                                                        approved_permissions=body.approved_permissions,
+                                                        expected_sha256=body.sha256)
     except InstallRejected as exc:
         return error(422, "INSTALL_REJECTED", str(exc))
     return _outcome(outcome)
+
+
+def _registry_vkey(version: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in version.split("."))

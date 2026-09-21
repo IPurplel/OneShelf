@@ -284,6 +284,22 @@ class CachedRegistry:
         return await self.inner.fetch(entry)
 
 
+class UnavailableRegistry:
+    """A configured registry Core refuses to use. The Sources page reports it; nothing else stops."""
+
+    def __init__(self, location: str, reason: str) -> None:
+        self.location, self.reason = location, reason
+
+    async def entries(self) -> list[RegistryEntry]:
+        raise RegistryError(self.reason)
+
+    async def fetch(self, entry: RegistryEntry) -> bytes:
+        raise RegistryError(self.reason)
+
+    def invalidate(self) -> None:
+        pass
+
+
 def registry_from_config(url: str | None):
     """None (no registry), a local mirror (file://directory) or an HTTPS static index URL."""
     if not url:

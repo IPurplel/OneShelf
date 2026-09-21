@@ -56,7 +56,8 @@ from oneshelf.net.governor import TrafficGovernor
 from oneshelf.net.lazy_browser import LazyBrowser
 from oneshelf.plugins.bundled import sync_bundled
 from oneshelf.plugins.manager import PluginManager
-from oneshelf.plugins.registry import parse_trusted_keys, registry_from_config
+from oneshelf.plugins.registry import (RegistryError, UnavailableRegistry, parse_trusted_keys,
+                                       registry_from_config)
 from oneshelf.sessions.login import LoginController
 from oneshelf.sessions.manager import SessionManager
 from oneshelf.sessions.store import SecretsStore, load_or_create_key
@@ -237,7 +238,11 @@ def create_app(config: AppConfig) -> FastAPI:
         app.state.startup_report = run_startup_recovery(conn)
         plugins = PluginManager(conn, store_dir=Path(config.data_dir) / "plugins",
                                 trusted_keys=parse_trusted_keys(config.registry_trusted_keys))
-        registry = registry_from_config(config.registry_url)
+        try:
+            registry = registry_from_config(config.registry_url)
+        except RegistryError as exc:
+            # A bad registry setting degrades the Registry, never the library: installed sources still run.
+            registry = UnavailableRegistry(config.registry_url or "", str(exc))
         plugins.reconcile_store()
         store = SecretsStore(Path(config.data_dir) / "secrets.db", load_or_create_key(config.session_key_file))
         sessions = SessionManager(conn, store, events=app.state.bus)
