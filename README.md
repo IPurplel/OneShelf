@@ -19,6 +19,10 @@ Then open **<http://127.0.0.1:8420>**.
 
 The first run builds the image, which takes a few minutes. After that, starting takes seconds.
 
+OneShelf includes its eight official source adapters automatically on first run — there is nothing to
+build, upload or approve. You can disable or remove any of them from **Sources**, and a source you remove
+stays removed: restarting, updating or recreating the container never brings it back.
+
 ```sh
 ./update.sh       # update to the latest version, keeping your library
 ./uninstall.sh    # stop OneShelf, keeping your library
@@ -197,9 +201,13 @@ telemetry of any kind, no account, and no cloud service behind it.
 ## Sources
 
 Eight sources ship and are verified against the live sites: MangaDex, WEBTOON, Tapas, 3asq
-(Al-Aasheq), Safahat (Hindawi), Project Gutenberg, arXiv and Standard Ebooks. Each is a declarative
-package — data, not code — and you can see exactly what each one asks for before installing it. What
-each can and cannot do is recorded in
+(Al-Aasheq), Safahat (Hindawi), Project Gutenberg, arXiv and Standard Ebooks. They are installed for you
+on first run and marked **Official · Bundled** on the Sources screen, where you can see exactly what each
+one is allowed to reach, and disable or remove it.
+
+Each is a declarative package — data, not code — installed through the same validation and packaged tests
+as any other. When an update to one asks for more than it had before, it waits for your review rather than
+being approved for you. What each source can and cannot do is recorded in
 [docs/c9/source-capability-ledger.md](docs/c9/source-capability-ledger.md).
 
 ## Documentation

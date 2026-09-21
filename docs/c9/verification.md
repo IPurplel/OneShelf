@@ -121,6 +121,24 @@ health = json.loads((Path(os.environ['EVIDENCE'])/'health.json').read_text())
 assert health['status'] == 'ok' and health['access'] == 'loopback', health
 PY
 curl -fsS "$GATE_URL/" -o "$EVIDENCE/index.html"
+# The eight official sources arrive with the install, through the normal plugin pipeline.
+compose exec -T oneshelf ls /app/plugins/official | tee "$EVIDENCE/bundled-in-image.txt"
+curl -fsS "$GATE_URL/api/sources" | tee "$EVIDENCE/sources-fresh.json"
+python3 - <<'PY'
+import json, os
+from pathlib import Path
+p = Path(os.environ['EVIDENCE'])
+expected = {"oneshelf.3asq", "oneshelf.arxiv", "oneshelf.gutenberg", "oneshelf.hindawi", "oneshelf.mangadex",
+            "oneshelf.standard-ebooks", "oneshelf.tapas", "oneshelf.webtoon"}
+assert set((p/'bundled-in-image.txt').read_text().split()) == expected
+sources = {s['id']: s for s in json.loads((p/'sources-fresh.json').read_text())['sources']}
+assert set(sources) == expected, sorted(sources)
+for s in sources.values():
+    assert (s['state'], s['trust_label'], s['channel']) == ('active', 'official', 'bundled'), s
+    assert s['capabilities'], s
+ready = json.loads((p/'ready-before.json').read_text())
+assert ready['bundled_sources']['failed'] == [] and len(ready['bundled_sources']['installed']) == 8, ready
+PY
 ```
 
 Open the printed URL and confirm the interface loads. Keep the default loopback binding for this
@@ -174,14 +192,31 @@ sha256sum .env > "$EVIDENCE/env-before.sha256"
 
 ### 3. Restart, then remove and recreate containers
 
+Before restarting, change two sources the way a person would, so the gate proves those choices stand.
+
 ```bash
+curl -fsS -X POST "$GATE_URL/api/sources/oneshelf.webtoon/disable" >/dev/null
+curl -fsS -X DELETE "$GATE_URL/api/sources/oneshelf.tapas" >/dev/null
+check_sources() {
+  curl -fsS "$GATE_URL/api/sources" | python3 -c '
+import json, sys
+s = {x["id"]: x["state"] for x in json.load(sys.stdin)["sources"]}
+assert s["oneshelf.webtoon"] == "disabled", s
+assert s["oneshelf.tapas"] == "uninstalled", s
+assert sum(v == "active" for v in s.values()) == 6, s
+assert len(s) == 8, s
+print("sources as the person left them:", s)'
+}
+check_sources
 compose restart
 wait_ready | tee "$EVIDENCE/ready-restart.json"
 check_library
+check_sources | tee "$EVIDENCE/sources-restart.txt"
 compose down
 compose up -d
 wait_ready | tee "$EVIDENCE/ready-recreated.json"
 check_library
+check_sources | tee "$EVIDENCE/sources-recreated.txt"
 python3 - <<'PY'
 import json, os
 from pathlib import Path
@@ -215,6 +250,7 @@ podman inspect --format '{{range .Mounts}}{{println .Destination}}{{end}}' "$CON
 ./update.sh 2>&1 | tee "$EVIDENCE/update.txt"
 wait_ready | tee "$EVIDENCE/ready-update.json"
 check_library
+check_sources | tee "$EVIDENCE/sources-update.txt"
 sha256sum -c "$EVIDENCE/env-before.sha256"
 ./uninstall.sh 2>&1 | tee "$EVIDENCE/uninstall.txt"
 test -d deploy/volumes/data && test -d deploy/volumes/content
@@ -231,7 +267,9 @@ root execution, unhealthy container or configuration change. Retain the evidence
 do not publish private logs or substitute this procedure for actual execution. A stable schema alone
 is not persistence proof; the imported work and content hashes carry that assertion.
 
-Passing this gate supplies evidence for M2/M2.1/M56 and REL-01/02/03/08/09. Those rows remain open until
+Passing this gate supplies evidence for M2/M2.1/M56, REL-01/02/03/08/09 and REL-11 — including that
+the eight official sources arrive with a fresh install, and that a disabled or removed one stays that
+way across restart, full recreation and `./update.sh`. Those rows remain open until
 the evidence is reviewed. GitHub publication (REL-07) is independently authorized by the latest user
 instruction and does not close any deployment requirement.
 

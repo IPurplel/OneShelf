@@ -293,6 +293,28 @@ nothing from the development checkout.
 | 7 | readiness failure is reported honestly when nothing is running | **pass** |
 | 8 | the container actually starts and serves | **not run — needs a runtime (REL-08)** |
 
+## WP-REL — official sources included automatically (REL-10, REL-11)
+
+| # | Requirement test | Where | State |
+|---|---|---|---|
+| 1 | fresh database: all eight installed and active | `test_bundled_sources.py`, `test_bundled_sources_api.py` | **passing** |
+| 2 | restart: no duplicate plugin or version rows | `test_restarting_changes_nothing_and_duplicates_nothing` | **passing** |
+| 3 | application restart: bootstrap stays idempotent | same, and `test_restarting_the_application_keeps_the_person_s_choices` | **passing** |
+| 4 | disabled source stays disabled across restarts | `test_a_source_the_person_disabled_stays_disabled_across_restarts` | **passing** |
+| 5 | uninstalled source is never reinstalled | `test_a_source_the_person_removed_is_never_reinstalled` | **passing** |
+| 6 | mappings, Shelf, Follow, progress survive an update | `test_an_update_leaves_the_library_that_depends_on_the_source_untouched` | **passing** |
+| 7 | same version: no reinstall | `test_restarting_changes_nothing…`, `test_the_build_is_deterministic…` | **passing** |
+| 8 | newer version, same permissions: validated update with rollback | `test_a_newer_bundled_version_updates_through_the_normal_path_keeping_rollback` | **passing** |
+| 9 | newer version, more permissions: pending review, not approved | `test_a_newer_version_asking_for_more_goes_to_review…` | **passing** |
+| 10 | broken package: never partially active | `test_a_broken_adapter_is_never_active…`, `test_an_adapter_whose_own_tests_fail…` | **passing** |
+| 11 | production image carries the adapters | `test_image_contains_bundled_sources.py` (static); host gate (real container) | **static passing; container not run** |
+| 12 | `GET /api/sources` lists all eight after a fresh start | `test_a_fresh_start_lists_all_eight_official_sources_as_active` | **passing** |
+
+Also: disabled sources are not updated; a hand-reinstalled source is the owner's; a rolled-back source is not
+rolled forward; an interrupted bootstrap resumes; failures are retried only when the package changes; an
+existing library is recorded as skipped; Needs Attention is raised and cleared; readiness is never blocked.
+Four guards verified by mutation. Frontend: the "Official · Bundled" label and the First Run copy.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.

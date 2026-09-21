@@ -25,6 +25,24 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
 
+## Official sources install themselves — 2026-09-21
+
+A further explicit requirement: a fresh install must open with its eight official sources, with nothing to
+build, upload or approve. Done through the existing plugin architecture and nothing else — each adapter is
+built with the one deterministic builder and installed with `PluginManager.install_file`, packaged tests
+included, as `official`/`bundled`.
+
+It runs once. A marker in `app_meta` and a per-source record in `bundled_plugins` (migration 0014) mean a
+restart, rebuild, recreation or update never runs it again, so a disabled source stays disabled and a
+removed one stays removed. Updates keep rollback and approve nothing new; a version asking for more waits for
+review. A disabled adapter is not updated, because installing a version would re-enable it. A broken one is
+never active, is raised in Needs Attention, and does not block readiness — §3.3 says local content must not
+depend on any source. An interrupted bootstrap resumes rather than mistaking its own work for the person's.
+
+Verified in-process and live against the real application: REL-10 is `VERIFIED`. The production image is
+checked statically and in the host gate, which now asserts the eight sources and that the person's choices
+survive restart, recreation and update — REL-11 stays `BLOCKED` until that runs.
+
 ## Published — 2026-09-21
 
 The owner decided to publish the source independently of the container gate, which changes publication
@@ -352,6 +370,7 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-21 | Official sources install on a fresh library, once, through the normal pipeline (REL-10 `VERIFIED`, REL-11 `BLOCKED` on the host gate). Migration 0014. |
 | 2026-09-21 | Source published to `IPurplel/OneShelf` (public, `main`, HEADs equal). REL-07 → `VERIFIED`; REL-09 partly evidenced from a clean clone but still `BLOCKED` on a runtime. Deployment review found and fixed three faults: dead plugin/backup mounts, an unread `.dockerignore`, and a peer address the access boundary could not see (ADR 0003). |
 | 2026-09-21 | Release requirement recorded (REL-01…REL-09). Install/update/uninstall scripts, `.env`, README and the same-origin interface built and tested; REL-04, REL-05, REL-06 → `VERIFIED`. REL-01…03 `IMPLEMENTED` (never run against a real runtime); REL-07…09 `BLOCKED` on the host gate. |
 | 2026-09-21 | 3asq built against its current domain `3asq.online` and verified live; **M41.1 → `VERIFIED`, all eight sources ship.** I-26 fixed with a regression fixture. Only the container runtime remains blocked. |

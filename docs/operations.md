@@ -15,7 +15,7 @@ Authority: Master §2.1, §13, §18, §24–25, §33–34, §42; Meta Prompt §C
 | Mount | Holds | Notes |
 |---|---|---|
 | `/data` | `oneshelf.db` (authoritative), `cache.db` (rebuildable), `secrets.db` (encrypted source sessions), staging, snapshots, diagnostics | Back this up. Losing `cache.db` costs nothing. |
-| `/data/plugins` | installed `.osp` packages | Rebuildable by reinstalling, but keeping it avoids re-approving permissions. |
+| `/data/plugins` | installed `.osp` packages, including the eight official sources installed on first run | Rebuildable by reinstalling, but keeping it avoids re-approving permissions. Recreating the container does **not** reinstall a source you removed. |
 | `/keys` | `session.key`, the key for `secrets.db` | **Its own volume.** It is deliberately excluded from every backup (§33.3), so store it where you store passwords. Lose it and source logins must be redone; nothing else is affected. |
 | `/content` | a storage location for downloaded and imported files | Add more locations in Settings → Storage; OneShelf never writes outside a registered location. |
 | `/data/backups` | `.osbackup` archives | Prefer a different physical disk: OneShelf warns when backups sit on the same device as the library (§33.9). |

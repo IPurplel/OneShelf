@@ -25,6 +25,7 @@ curl http://127.0.0.1:8420/api/health
 | Variable | Default | Meaning |
 |---|---|---|
 | `ONESHELF_DATA_DIR` | `.oneshelf-dev` | application data (SQLite DB, plugins, secrets.db, snapshots) |
+| `ONESHELF_BUNDLED_PLUGINS_DIR` | unset | the official adapters to install on a fresh library. The image sets `/app/plugins/official`; set `backend/plugins/official` to get them when running from source. Unset, a new library starts with no sources — which is what the test suite relies on |
 | `ONESHELF_HOST` / `ONESHELF_PORT` | `127.0.0.1` / `8420` | listen address |
 | `ONESHELF_TRUSTED_NETWORKS` | empty (loopback only) | comma-separated CIDRs treated as trusted LAN |
 | `ONESHELF_TRUSTED_PROXIES` | empty | comma-separated CIDRs whose `X-Forwarded-For` is honoured |

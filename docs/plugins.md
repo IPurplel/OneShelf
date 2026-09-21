@@ -138,3 +138,31 @@ are *Unsupported by Declarative Adapter* and *Native Adapter Review Required*. D
 why. `backend/testsource/` is the OneShelf Test Source: a local, deterministic source for failure and recovery
 testing (rate limits, 500s, session expiry, corrupt media, interrupted downloads, catalogue collapse), enabled
 only when `ONESHELF_DEV_TEST_SOURCE=1`.
+
+### How the shipped suite is installed
+
+Nobody installs these by hand. On a **fresh library**, the first start builds each package in
+`backend/plugins/official/` with the same deterministic builder a developer uses, and installs it through
+`PluginManager.install_file` — the full pipeline, packaged tests included — as `trust_label = official`,
+`channel = bundled`. The result is recorded in `bundled_plugins`, and a marker in `app_meta` records that the
+bootstrap has run.
+
+After that:
+
+| Situation | What happens on the next start |
+|---|---|
+| Nothing changed | Nothing. The package is recognised as already installed; no tests are re-run |
+| A newer version ships, same permissions | Installed through the normal update path; the previous version is kept for rollback |
+| A newer version asks for more permissions | **Waits for review.** The approved version keeps working; nothing new is approved |
+| The person disabled it | Left alone — and not updated, because installing a version would re-enable it |
+| The person removed it | Left alone, for good. The plugin row kept after uninstall is the evidence |
+| The person reinstalled it by hand | Theirs. It is never updated for them |
+| It failed to install | Recorded with its reason and raised in Needs Attention. Retried only when the bundled package changes. The library starts normally (§3.3) |
+| An existing library already had official sources | Recorded as skipped. Nothing is added automatically |
+
+Permissions are approved without a review only on that first install, for the adapters exactly as shipped,
+because the owner chose that. The permission model is otherwise unchanged for bundled adapters.
+
+To change a shipped adapter, bump its `version` in `manifest.yaml`. The builder is deterministic, so the same
+sources are always the same bytes; different content under the same version is refused rather than guessed at.
+
