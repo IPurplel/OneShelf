@@ -43,6 +43,7 @@ COPY deploy/container_start.py /app/container_start.py
 ENV ONESHELF_DATA_DIR=/data \
     ONESHELF_SESSION_KEY_FILE=/keys/session.key \
     ONESHELF_WEB_ROOT=/app/web \
+    ONESHELF_BUNDLED_PLUGINS_DIR=/app/plugins/official \
     ONESHELF_HOST=127.0.0.1 \
     ONESHELF_PORT=8420
 VOLUME ["/data", "/data/plugins", "/keys", "/content", "/data/backups"]
