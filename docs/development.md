@@ -31,7 +31,7 @@ curl http://127.0.0.1:8420/api/health
 | `ONESHELF_TRUSTED_PROXIES` | empty | comma-separated CIDRs whose `X-Forwarded-For` is honoured |
 | `ONESHELF_ALLOWED_HOSTS` | empty (IP literals and `localhost` only) | extra host names accepted in the `Host` header |
 | `ONESHELF_SESSION_KEY_FILE` | `<data_dir>/keys/session.key` | source-session encryption key; mount on separate storage in deployments |
-| `ONESHELF_REGISTRY_URL` | unset (no registry) when running from source; Compose defaults it to the Official Source Registry | `https://…/index.json` static index or `file:///path/to/mirror` (e.g. `file://$PWD/../registry`) |
+| `ONESHELF_REGISTRY_URL` | unset (no registry) when running from source; Compose defaults it to the OneShelf-Adapters Source Registry | `https://…/index.json` static index or `file:///path/to/mirror` (e.g. `file://$PWD/../registry`) |
 | `ONESHELF_REGISTRY_TRUSTED_KEYS` | unset | **public** `key-id:base64-ed25519-public-key,…` for Official/Verified labels; list several to rotate |
 | `ONESHELF_DEV_TEST_SOURCE` | off | enables the OneShelf Test Source loopback exception (development only) |
 | `ONESHELF_DEV_TEST_SOURCE_ADDRESS` | unset | `127.0.0.1:PORT` where `python -m testsource PORT` runs |
@@ -80,16 +80,17 @@ unauthenticated. `ONESHELF_TRUSTED_NETWORKS` and `ONESHELF_TRUSTED_PROXIES` seed
 First Run or Settings can extend it at runtime without a restart. Forwarded client addresses are read only from
 configured trusted proxies.
 
-## The Official Source Registry
+## Adapters
 
-After changing an adapter under `backend/plugins/official/`, bump its version and regenerate:
+Adapter development moved to [OneShelf-Adapters](https://github.com/IPurplel/OneShelf-Adapters); its CONTRIBUTING.md is the guide. Core keeps:
 
-```bash
-cd backend
-.venv/bin/python -m plugins.registry_tool build && .venv/bin/python -m plugins.registry_tool verify
-```
+- the package format, validators, packaged-test runtime, canonical builder and Registry protocol, plus
+  `oneshelf.plugins.adapter_repo`, which OneShelf-Adapters runs from a pinned Core commit — change them here,
+  then move that pin in its own reviewed PR;
+- the bundled release snapshot in `backend/plugins/official/`, refreshed only with
+  `python -m plugins.sync_snapshot --from <OneShelf-Adapters checkout>` (never edited by hand);
+- `registry/` and `plugins.registry_tool`: the frozen, deprecated former Registry, kept for older installations.
 
-The suite fails if `registry/` is not exactly what the sources build. Tests that sign use a throwaway
-Ed25519 key generated inside the test's temporary directory; no key file is committed, and
-`tests/deploy/test_no_private_key_ships.py` fails if a tracked file contains private-key material or the
-build context would include a key file. Signing for real is the owner's step (`docs/plugins.md` §7).
+Tests that sign use throwaway Ed25519 keys generated in the test's temporary directory; no key file is
+committed, and `tests/deploy/test_no_private_key_ships.py` fails if a tracked file contains private-key
+material or the build context would include a key file.

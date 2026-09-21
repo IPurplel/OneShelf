@@ -123,7 +123,9 @@ says why — a page that builds itself with JavaScript is named as such instead 
 - The preview is the Recipe Inspector: the recipes, the confidence, the permissions an install would request,
   and every fetch discovery made.
 - **Generate is not Install.** Generate writes a validated `.osp`; installing is a separate call that approves
-  permissions. A submission bundle can be written to disk; nothing is ever published.
+  permissions. A submission bundle can be written to disk; nothing is ever published. To contribute it,
+  copy the bundle's files into `adapters/community/<id>/` in [OneShelf-Adapters](https://github.com/IPurplel/OneShelf-Adapters) and follow its
+  CONTRIBUTING.md — generating, installing and publishing stay separate steps.
 - **Repair** diagnoses the installed adapter against the live site, re-discovers, shows a selector diff, writes
   a new version and validates it. Activation is another explicit call, and a repair that cannot be validated is
   refused so the working adapter stays in place.
@@ -166,94 +168,92 @@ because the owner chose that. The permission model is otherwise unchanged for bu
 To change a shipped adapter, bump its `version` in `manifest.yaml`. The builder is deterministic, so the same
 sources are always the same bytes; different content under the same version is refused rather than guessed at.
 
-## 7. The Official Source Registry
+## 7. OneShelf-Adapters and the Source Registry
 
-The same eight adapters are also published as a **Registry**: `registry/index.json` and
-`registry/packages/<id>-<version>.osp` in this repository, served over HTTPS from
-`https://raw.githubusercontent.com/IPurplel/OneShelf/main/registry/index.json` (the default
-`ONESHELF_REGISTRY_URL`). Bundled and Registry are two ways a package *arrives*; there is one plugin
-architecture, one `PluginManager` pipeline and one lifecycle per plugin id.
+Adapters are developed in their own repository, **[IPurplel/OneShelf-Adapters](https://github.com/IPurplel/OneShelf-Adapters)**: sources, packaged
+tests, contribution guide, review policy, CI, and the published **Source Registry**. OneShelf reads that
+Registry over HTTPS — there is no Git checkout, submodule or build step at runtime:
 
-**Sources → Official Source Registry** reads the index and sets each entry against the library:
+```
+adapter source → PR → CI (pinned OneShelf tooling) → maintainer review → merge
+  → Registry build (canonical builder, packaged tests) → signing where the tier requires it
+  → verification → published on the `registry` branch
+  → OneShelf: Sources → Source Registry → review → PluginManager validation, hash, signature,
+    permissions → install
+```
 
-| State | Shown as | Action |
+A merge is governance, not runtime trust: every later layer still applies.
+
+**Default Registry:** `https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json` (set by Compose and `.env.example`; `ONESHELF_REGISTRY_URL=` switches it off).
+Adapter updates reach existing installations through it without a new OneShelf release. The Registry is
+read only when the Sources screen is opened — there is no background polling.
+
+**The old default still works.** Before the move, `.env.example` shipped `https://raw.githubusercontent.com/IPurplel/OneShelf/main/registry/index.json`. `update.sh` never rewrites
+`.env`, so the container start (`deploy/container_start.py`) reads exactly that value as the new default,
+for the process only. Any other value is used as configured. The application itself carries no Registry
+host (INV-29), which is why the translation lives in deployment. Running from source, set the new URL
+yourself. Core's own `registry/` directory is a frozen, deprecated snapshot kept for older installations.
+
+### Trust tiers
+
+| OneShelf-Adapters tier | Registry label | OneShelf shows it as |
 |---|---|---|
-| Same version installed | Installed | none |
-| Not installed, or removed by you | Not installed | Install |
-| Newer in the Registry | Update available: 1.0.0 → 1.1.0 (or *Disabled · Update available*) | Update |
-| That newer version already waits for review | Version … is waiting for your review | Review update |
-| Installed version is newer than the Registry's | Your installed version … is newer | none — no downgrade |
-| Needs a newer plugin API than this OneShelf | Requires a newer OneShelf | none |
+| `adapters/official/` | `official` | **Official** — only with a valid signature from a key in `ONESHELF_REGISTRY_TRUSTED_KEYS` |
+| `adapters/verified-community/` | `verified_community` | **Verified Community** — same rule |
+| `adapters/community/` | `community` | **Community** |
 
-Every action opens a **review** first (`POST /api/registry/review-package`): the package is downloaded,
-hash-checked against the index, validated, and its packaged tests are run — nothing is installed. The review
-shows publisher, version, trust, capabilities, every permission with the ones an update newly asks for
-marked **New**, and the test result. The install request carries the reviewed `sha256`; if the Registry's
-package changed in between, the install is refused (`the package changed since it was reviewed`).
+The tier comes from the directory, which only maintainers can change; nothing inside an adapter sets it.
+OneShelf believes a label only when the signature verifies against a key the installation trusts: unsigned
+or unknown-key claims are Community, and a bad signature from a trusted key is refused. Keys never come from
+the Registry. Sources → Source Registry shows each entry's own level, and installed sources show trust and
+delivery separately (*Official · Bundled*, *Official · Registry*, *Verified Community · Registry*,
+*Community · Registry*, *Local upload*).
 
-**Ownership.** Installing or updating from the Registry makes it `channel = registry`, recorded at once —
-also while an update waits for review. The bundled bootstrap only ever maintains `channel = bundled`
-plugins, so it never reclaims or downgrades one the Registry now owns. A removed source is never
-reinstalled automatically, and neither reading the Registry nor updating a disabled source enables it.
-New permissions are never approved for you, official or not.
+**Signing status:** the project signing key does not exist yet, so the Registry is published as an
+**unsigned preview** — every entry reads *Says Official · not verified* and installs as Community.
+The owner's one-time step is in OneShelf-Adapters' `docs/publishing.md`.
 
-**Trust.** The index's `trust_label` is a claim. A package is *Official* only when its sha256 carries a valid
-Ed25519 signature from a key in your local `ONESHELF_REGISTRY_TRUSTED_KEYS`; unsigned or unknown-key
-entries install as *Community*, and a bad signature from a trusted key is refused. Keys never come from the
-index. **Until the owner's signing key exists the committed Registry is unsigned**, so the Sources screen
-labels its entries *Says Official · not verified*, and a source reinstalled from it is recorded as Community.
-Bundled sources are unaffected: they come from the image itself.
+### What Sources → Source Registry does
 
-**If the Registry is unreachable** (offline, rate limited, malformed), the section says so with *Try again*;
-installed sources, search, reading and readiness are unaffected. Failures are cached for 60 s and good
-listings for 5 min, so nothing is hammered.
+Unchanged from before the move: each entry is set against the library (Installed, Install, Update,
+Review update, Disabled · Update available, installed version newer, Requires a newer OneShelf); every
+action opens a review (`POST /api/registry/review-package`) that downloads, hash-checks, validates and
+packaged-tests the package without installing it; the install is bound to the reviewed sha256; a
+Registry action makes the plugin `channel = registry`, which the bundled bootstrap never reclaims or
+downgrades; removed sources are never reinstalled automatically; disabled sources stay disabled; new
+permissions always wait for review. Adapters that OneShelf does not bundle install the same way.
 
-**Network.** Only `https://` (or a local `file://` mirror). Core's egress policy allows the index host alone;
-every package location must be a plain relative `.osp` path beneath the index's own directory — no other
-host, no other repository on the same host, no credentials, query, `..` or encoded tricks — and redirects are
-re-checked hop by hop. Index ≤ 5 MB, package ≤ 20 MB.
+### Network
 
-### Publishing the Registry
+Only `https://` (or a local `file://` mirror). Core's egress policy allows the index host alone, and every
+package location must be a plain relative `.osp` path beneath the index's own directory — so the Registry
+on `raw.githubusercontent.com` cannot point OneShelf at any other repository on that host. Redirects and DNS
+answers are re-checked; index ≤ 5 MB, package ≤ 20 MB. Moving the Registry did not widen any of this.
 
-The index is generated, never hand-edited:
+### The bundled snapshot
+
+`backend/plugins/official/` is a **release snapshot** of the Official adapters listed in its
+`UPSTREAM.json` (`bundled`), which also records the OneShelf-Adapters commit it came from. First run installs
+from it with no network access at all. It is never edited here:
 
 ```bash
 cd backend
-.venv/bin/python -m plugins.registry_tool build     # builds, validates and packaged-tests all eight
-.venv/bin/python -m plugins.registry_tool verify    # rebuilds from source; fails on any difference
+.venv/bin/python -m plugins.sync_snapshot --from ../../OneShelf-Adapters   # validates, tests, copies, records
+git diff                                                                   # review, then commit yourself
 ```
 
-`build` uses the same deterministic builder as the bundled bootstrap, so Registry and bundled bytes are
-identical and a fresh library reads every entry as Installed. `verify` fails on a hand-edited hash, a
-replaced or stray package, a failing adapter, a registry that lags its sources, or a signature that does not
-verify; `tests/integration/plugins/test_registry_tool.py` runs it against the committed `registry/`.
-Bump an adapter's `version`, run `build`, commit `registry/` with the adapter.
+Only allowlisted Official adapters are copied — Registry-only adapters stay out of the image. Adding one to
+`bundled` is a Core release decision.
 
-### Signing (owner only)
+### Packages are the same bytes everywhere
 
-```bash
-# Once, on a machine you trust, OUTSIDE the repository. Nothing here is committed or uploaded.
-umask 077
-mkdir -p ~/.config/oneshelf-registry
-openssl genpkey -algorithm ed25519 -out ~/.config/oneshelf-registry/official-2026.pem
-# Back this file up offline now (encrypted drive or password manager). It is the only copy.
+The canonical builder stores entries uncompressed with fixed header fields, because zlib implementations
+compress differently and a deflated package was reproducible on one platform only. OneShelf-Adapters' CI
+rebuilds every published version on GitHub's runner and requires the exact published bytes. An
+installation that already has a version never reinstalls it because a newer build packs it differently.
 
-cd OneShelf/backend
-# The PUBLIC half, in the form ONESHELF_REGISTRY_TRUSTED_KEYS expects — this line is safe to publish:
-.venv/bin/python -m plugins.registry_tool public-key \
-    --signing-key ~/.config/oneshelf-registry/official-2026.pem --key-id official-2026
-# Sign the Registry, then prove it verifies against the public key alone:
-.venv/bin/python -m plugins.registry_tool build \
-    --signing-key ~/.config/oneshelf-registry/official-2026.pem --key-id official-2026
-.venv/bin/python -m plugins.registry_tool verify --trusted-keys "official-2026:<PUBLIC-BASE64>" --require-signed
-```
+### Tooling for the adapter repository
 
-Then set that public line as the default `ONESHELF_REGISTRY_TRUSTED_KEYS` in `deploy/compose.yaml` and
-`.env.example` (and update `tests/deploy/test_registry_defaults.py`, which pins "no key shipped yet"), and
-commit `registry/` with them. `ONESHELF_REGISTRY_SIGNING_KEY_FILE=~/.config/oneshelf-registry/official-2026.pem`
-may replace `--signing-key`. The tool refuses a key inside the work tree, and `.gitignore` and
-`.dockerignore` exclude `*.pem`, `*.key` and `*.p8`.
-
-**Rotation.** Generate a new key (`official-2027`), trust both
-(`official-2026:<old>,official-2027:<new>`), re-sign the Registry with the new key and release; once
-installations have updated, remove the old key from the trusted list. A key is never taken from the index.
+`oneshelf.plugins.adapter_repo` (in the installed package) is what OneShelf-Adapters runs, from a Core
+commit it pins: `check`, `check-all`, `reproducible`, `build-registry`, `verify-registry`, `public-key`.
+Validation rules live here only.

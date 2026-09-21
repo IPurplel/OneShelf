@@ -484,3 +484,13 @@ compatibility) → T2 registry hardening (path confinement, bounded sizes, cache
 `plugins.registry_tool` and the generated `registry/` → T5 HTTPS default and key-absence guards → T6 Sources
 UI (three sections, review, remove, en/ar) → T7 records, live verification, push. Status in `STATUS.md`;
 REL-14 waits for the owner's signing key.
+
+## WP-ADP — OneShelf-Adapters (REL-16…REL-25), 2026-09-21
+
+A audit → D1 Core `adapter_repo` (checks, mixed-trust Registry, symlink-safe builder) → B/C local repository and
+byte-identical migration → D tooling, docs, templates, CI → F create `IPurplel/OneShelf-Adapters` and push → G publish the `registry`
+branch and verify over HTTPS → H `plugins.sync_snapshot` + `UPSTREAM.json` → I default URL, legacy alias at
+container start, frozen Core Registry → J "Source Registry" and per-entry trust in the UI → K live and CI
+verification (which found the platform-dependent builder: fixed, repackaged, and guarded by `reproducible`)
+→ L records → M push both and verify remote refs. REL-24 waits for the owner key; REL-25 for the owner's
+licence decision.

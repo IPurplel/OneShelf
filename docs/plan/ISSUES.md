@@ -91,5 +91,11 @@ that nothing is currently blocked that way.
 | I-38 | A `/api/registry/review` route tripped the §49 social-surface guard | Route is `/api/registry/review-package`; the guard was not weakened | Fixed |
 | I-39 | An update waiting for review could not be approved from the Registry (`already_installed`) | Installing it again from its review approves it when the stored bytes match the reviewed sha256 | Fixed |
 | I-40 | Live check: a removed source was still listed under Installed sources with an untranslated state | Filtered from the installed list; the Registry offers it as Not installed; regression test | Fixed |
+| I-41 | The canonical builder deflated; zlib and zlib-ng produce different bytes, so packages were reproducible on one platform only (found by OneShelf-Adapters' first CI run) | Entries stored with fixed header fields; CI proves GitHub's runner rebuilds the published bytes; the one-time repackaging kept every file identical | Fixed |
+| I-42 | An equal-version package with different bytes made the bundled maintainer record a failure — after the builder fix, every existing installation would have shown eight failures | Equal version is 'unchanged'; regression test; checked by mutation | Fixed |
+| I-43 | A OneShelf-Adapters pull request could pin a fork's Core commit and run altered validators | CI requires the pin to be an ancestor of OneShelf `main`; CODEOWNERS on `tooling/` | Fixed |
+| I-44 | `tools/bootstrap` reported the new pin while `pip` kept the old same-version package | Force-reinstall from the pin; tools check pip's own `direct_url.json` | Fixed |
+| I-45 | The legacy Registry alias first put GitHub URLs into the application; the INV-29 guard failed, and that commit (`b64129a`) was made with the suite red because a pipe hid pytest's exit status | Alias moved to `deploy/container_start.py` (`e408e8c`); commits now gate on the suite's summary line | Fixed |
+| I-46 | `sync_bundled` (runtime) vs a snapshot-sync tool would have shared a name | Tool named `plugins.sync_snapshot` | Avoided |
 
 No verified application UI, source recipe, database migration or core behavior was rewritten.

@@ -50,7 +50,7 @@ ONESHELF_DATA_DIR=./var .venv/bin/python -m oneshelf.api.app
 | `ONESHELF_TRUSTED_PROXIES` | empty | CIDRs whose `X-Forwarded-For` is believed. Anything else is ignored entirely. |
 | `ONESHELF_ALLOWED_HOSTS` | `localhost` plus IP literals | Host header allowlist (DNS-rebinding defence). The canonical hostname you set for remote access is accepted automatically. |
 | `ONESHELF_HOST`, `ONESHELF_PORT` | `127.0.0.1`, `8420` | Bind address. |
-| `ONESHELF_REGISTRY_URL` | the Official Source Registry (`https://raw.githubusercontent.com/IPurplel/OneShelf/main/registry/index.json`) via Compose and `.env.example` | Read only when Sources → Official Source Registry is opened. `ONESHELF_REGISTRY_URL=` (set, empty) switches it off. `https://` or a local `file://` mirror. |
+| `ONESHELF_REGISTRY_URL` | the Source Registry, `https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json` (Compose and `.env.example`) | Read only when Sources → Source Registry is opened. `ONESHELF_REGISTRY_URL=` (set, empty) switches it off. The old default `https://raw.githubusercontent.com/IPurplel/OneShelf/main/registry/index.json` is read as the new one at container start, without editing `.env`. `https://` or a local `file://` mirror. |
 | `ONESHELF_REGISTRY_TRUSTED_KEYS` | empty | **Public** Ed25519 keys (`key-id:base64,…`) whose signatures make a Registry package Official. List two while rotating. A private key never goes in configuration. |
 | `ONESHELF_DEV_TEST_SOURCE`, `ONESHELF_DEV_TEST_SOURCE_ADDRESS` | off | Development only: enables the bundled Test Source and its loopback exception. Never set these in a real deployment. |
 
@@ -115,10 +115,11 @@ curl http://127.0.0.1:8420/api/backups           # list, due, same-disk warning
 - If a source changes its markup, use the generator's **Repair Existing Adapter** flow: it diagnoses the live site,
   proposes a selector diff, validates the replacement, and only then lets you activate it.
 
-## 9. The Official Source Registry
+## 9. The Source Registry
 
-Installed sources never depend on it. If it cannot be reached, Sources says so and everything else carries
-on; `/api/ready` does not consult it. To run without it, set `ONESHELF_REGISTRY_URL=` in `.env`. To mirror it
-offline, copy `registry/` somewhere and point `ONESHELF_REGISTRY_URL` at `file:///that/directory`.
-The committed Registry is unsigned until the owner's signing key exists (see `plugins.md` §7), so its
-entries are labelled *not verified* and install as Community.
+Published from [OneShelf-Adapters](https://github.com/IPurplel/OneShelf-Adapters). Installed sources never depend on it: if it cannot be reached,
+Sources says so and everything else carries on; `/api/ready` does not consult it. To run without it, set
+`ONESHELF_REGISTRY_URL=` in `.env`. To mirror it offline, copy the `registry` branch of OneShelf-Adapters
+somewhere and point `ONESHELF_REGISTRY_URL` at `file:///that/directory`. It is read when the Sources screen
+opens (cached 5 minutes, failures 60 seconds) — never polled in the background. Until the project signing key
+exists its entries are labelled *not verified* and install as Community (`plugins.md` §7).

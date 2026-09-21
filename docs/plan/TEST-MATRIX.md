@@ -340,6 +340,30 @@ Four guards verified by mutation. Frontend: the "Official · Bundled" label and 
 
 Suites at completion: backend 1123 passed / 1 skipped; frontend 216 passed; `tsc` clean; deploy suite included.
 
+## WP-ADP — OneShelf-Adapters (REL-16…REL-25)
+
+| # | Requirement test | Where | State |
+|---|---|---|---|
+| 1 | structure; eight Official ids exactly once; no id in two tiers; id = directory | OneShelf-Adapters `tests/test_repository.py`; Core `test_adapter_repo.py` | **passing** |
+| 2 | invalid manifest / recipe / undeclared domain / code files / symlinks / hidden files / oversized or binary fixtures / secrets fail | `test_adapter_repo.py` | **passing** |
+| 3 | same version + changed files fails; downgrade fails; repackaging identical files passes | `test_adapter_repo.py` | **passing** |
+| 4 | trust from tier; Official/Verified need a key; Community needs none; relabelled community entry fails | `test_adapter_repo.py` | **passing** |
+| 5 | deterministic Registry, no stale packages, sha matches, ids unique, api matches, consumable by Core | `test_adapter_repo.py`; CI | **passing** |
+| 6 | builder reproducible across platforms | `test_the_canonical_builder_is_the_same_on_every_platform`; CI `reproducible` on GitHub's runner | **passing** |
+| 7 | migrated adapters byte-identical to Core's | side-by-side build; sync changed no file | **passing** |
+| 8 | sync: eight copied with provenance; missing / non-Official / duplicate / symlink / failing / dirty refused | `test_sync_snapshot.py` | **passing** |
+| 9 | fresh install offline; Registry outage harmless | `test_when_the_registry_is_unreachable…`; live outage | **passing** |
+| 10 | new default URL; exact legacy alias; custom/empty/unset untouched; `.env` byte-identical after update | `test_registry_defaults.py`, `test_install_scripts.py` | **passing** |
+| 11 | Registry-only adapter installs with no Core change; update without a Core release | `test_registry_api.py` | **passing** |
+| 12 | trust enforced by signature and local keys, never the label | `test_registry_api.py`, `test_adapter_repo.py` | **passing** |
+| 13 | UI: "Source Registry", per-entry trust, channel apart from trust, en/ar | `RegistryPanel.test.tsx`, `SourcesScreen.test.tsx`; live screenshot | **passing** |
+| 14 | equal-version repackage is not a failure on existing installs | `test_repackaging_under_the_same_version_is_neither_an_update_nor_a_failure` | **passing** |
+| 15 | workflows unprivileged; no secrets/signing in CI; Core pin on OneShelf main; CODEOWNERS | `test_repository.py`; CI | **passing** |
+| 16 | signed publication verifies with `--require-signed` | owner key needed | **blocked (REL-24)** |
+
+Suites at completion: Core backend 1204 passed / 1 skipped; frontend 219 passed; `tsc` clean;
+OneShelf-Adapters `check-all` (8 adapters, 31 policy tests, Registry contract) green locally and on GitHub.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.

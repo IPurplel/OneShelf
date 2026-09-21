@@ -17,6 +17,9 @@ Updated: 2026-09-21
 | R-06 | **The published Registry is unsigned until the owner creates a signing key** (REL-14). | Medium / low — Registry reinstalls are labelled Community, not Official | Signing chain implemented and tested; owner process in `docs/plugins.md` §7; bundled sources unaffected |
 | R-07 | **Signing-key custody.** A lost key forces rotation; a leaked key lets anyone sign Official packages for every installation trusting it. | High / low | Key only outside the repository (tool refuses otherwise), ignored by Git and Docker, scanned for in tracked files; multiple trusted keys for rotation |
 | R-08 | **raw.githubusercontent.com caching or outage** delays or hides Registry updates. | Low / medium | Degraded state with Try again; installed sources unaffected; `file://` mirror supported |
+| R-09 | **Adapter supply chain.** A merged contribution is published to every installation's Registry view. | Medium / medium | Governance (CODEOWNERS, review policy) plus runtime layers that a merge cannot bypass: declarative-only validation, hashes bound to the review, signatures from local keys only, permission review, Core egress policy. Community entries never read as trusted |
+| R-10 | **Branch protection is partly advisory.** Requiring PRs and code-owner review on OneShelf-Adapters `main` is not enabled. | Medium / low | Force-push/deletion blocked by ruleset; recommendation recorded for the owner in `docs/publishing.md` |
+| R-11 | **Contribution terms undecided (UD-5).** | Legal / medium | No licence or CLA chosen on the owner's behalf; technical infrastructure only |
 
 ## Closed
 
