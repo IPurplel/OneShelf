@@ -33,6 +33,50 @@ const DETAILS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Work Details", () => {
+  it("can refresh the selected track's catalogue, as its empty state says", async () => {
+    const empty = { ...DETAILS, units: [], continue_unit_id: null,
+                    tracks: [{ ...DETAILS.tracks[1], unit_count: 0 }], selected_track_id: "t-ar" };
+    const calls = mockApi([post("/api/tracks/t-ar/catalog/refresh", { track_id: "t-ar", state: "trusted", unit_count: 5 }),
+                           get("/api/works/w1", empty)]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    expect(await screen.findByText(/no reading units yet/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: /sources/i }));
+    await user.click(await screen.findByRole("button", { name: /refresh catalogue/i }));
+    expect(calls.some((c) => c.url === "/api/tracks/t-ar/catalog/refresh" && c.method === "POST")).toBe(true);
+    expect(calls.filter((c) => c.url.startsWith("/api/works/w1")).length).toBeGreaterThan(1);   // reloaded
+  });
+
+
+  it("shows the selected track's cover, and the placeholder when it cannot load", async () => {
+    const cover = "/api/covers?source=mangadex&url=https%3A%2F%2Fuploads.mangadex.org%2Fc.jpg";
+    mockApi([get("/api/works/w1", { ...DETAILS, cover_url: cover })]);
+    const { container } = renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+    const img = container.querySelector(".work__cover img")!;
+    expect(img).toHaveAttribute("src", cover);
+    const { fireEvent } = await import("@testing-library/react");
+    fireEvent.error(img);
+    expect(container.querySelector(".work__cover img")).toBeNull();
+  });
+
+  it("changes the cover when another track is chosen", async () => {
+    const enCover = "/api/covers?source=local&url=https%3A%2F%2Fa.example%2Fen.jpg";
+    const arCover = "/api/covers?source=mangadex&url=https%3A%2F%2Fa.example%2Far.jpg";
+    // The shared stub helper ignores query strings, so this route tells the two tracks apart itself.
+    mockApi([{ match: (url: string) => url === "/api/works/w1?track_id=t-ar",
+               payload: { ...DETAILS, selected_track_id: "t-ar", cover_url: arCover } },
+             get("/api/works/w1", { ...DETAILS, cover_url: enCover })]);
+    const user = userEvent.setup();
+    const { container } = renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
+    expect(container.querySelector(".work__cover img")).toHaveAttribute("src", enCover);
+    await user.click(screen.getByRole("tab", { name: /sources/i }));
+    await user.click(await screen.findByRole("button", { name: /mangadex/i }));
+    await screen.findByText((_, el) => el?.getAttribute?.("src") === arCover);
+  });
+
+
   it("opens the track the reader sent it to, rather than the preferred one", async () => {
     // §26.16: when the reader cannot confidently find this unit elsewhere, it offers that source's
     // track instead. The link has to actually land on that track.

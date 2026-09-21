@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useI18n } from "@/i18n/i18n";
@@ -18,8 +19,17 @@ export type CardWork = {
  * and — when there is progress — a slim olive bar with its percentage. Availability stays concise: a
  * language and a source count, never every internal state.
  */
-export function WorkCard({ work, size = "standard" }: { work: CardWork; size?: "compact" | "standard" | "detailed" }) {
+export function WorkCard({ work, size = "standard", onOpen, busy = false }: {
+  work: CardWork;
+  size?: "compact" | "standard" | "detailed";
+  /** For a result with no Work yet: the card is a button that opens it (see ResultCard). */
+  onOpen?: () => void;
+  busy?: boolean;
+}) {
   const { t, language } = useI18n();
+  // A cover that fails to load becomes the placeholder; the card itself never becomes unusable (INV-28).
+  const [failed, setFailed] = useState<string | null>(null);
+  const showCover = work.cover_url && failed !== work.cover_url;
   const languages = Object.entries(work.availability ?? {});
   const sources = languages.reduce((total, [, count]) => total + count, 0);
   const href = work.work_id ? `/works/${work.work_id}` : undefined;
@@ -27,8 +37,8 @@ export function WorkCard({ work, size = "standard" }: { work: CardWork; size?: "
 
   const cover = (
     <span className="workcard__cover">
-      {work.cover_url
-        ? <img src={work.cover_url} alt="" loading="lazy" />
+      {showCover
+        ? <img src={work.cover_url!} alt="" loading="lazy" onError={() => setFailed(work.cover_url ?? null)} />
         : <span className="workcard__blank" aria-hidden="true">{work.title.slice(0, 1)}</span>}
     </span>
   );
@@ -54,11 +64,14 @@ export function WorkCard({ work, size = "standard" }: { work: CardWork; size?: "
     </span>
   );
 
-  return href ? (
-    <Link to={href} className={`workcard workcard--${size}`}>{cover}{caption}</Link>
-  ) : (
-    <span className={`workcard workcard--${size}`}>{cover}{caption}</span>
-  );
+  if (href) return <Link to={href} className={`workcard workcard--${size}`}>{cover}{caption}</Link>;
+  if (onOpen) {
+    return (
+      <button type="button" className={`workcard workcard--${size} workcard--open`} onClick={onOpen}
+              aria-busy={busy || undefined} disabled={busy}>{cover}{caption}</button>
+    );
+  }
+  return <span className={`workcard workcard--${size}`}>{cover}{caption}</span>;
 }
 
 function displayLanguage(code: string, uiLanguage: string): string {

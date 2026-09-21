@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "@/api/client";
 import type { ResultWork } from "@/api/types";
-import { WorkCard } from "@/components/WorkCard";
+import { ResultCard } from "./ResultCard";
 import { useI18n } from "@/i18n/i18n";
 
 type Update = {
@@ -88,7 +88,7 @@ export function SearchScreen() {
 
       <div className="search__results">
         {(update?.results ?? []).map((result) => (
-          <WorkCard key={result.work_id ?? result.title} work={result} />
+          <ResultCard key={result.work_id ?? `${result.title}:${result.provenance[0]?.listing_key ?? ""}`} result={result} />
         ))}
       </div>
 

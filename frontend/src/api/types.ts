@@ -1,5 +1,7 @@
 /** Shapes the API actually returns; kept close to the backend rather than re-modelled. */
-export type Provenance = { source_id: string; listing_key: string; language: string; title: string; url: string | null };
+/** `cover_url` is always a same-origin /api/covers path: presentation only, never identity (INV-28). */
+export type Provenance = { source_id: string; listing_key: string; language: string; title: string; url: string | null;
+                           cover_url?: string | null };
 
 export type ResultWork = {
   work_id: string | null;
@@ -8,6 +10,7 @@ export type ResultWork = {
   soft: boolean;
   availability: Record<string, number>;
   provenance: Provenance[];
+  cover_url?: string | null;
 };
 
 export type LibraryItem = {
@@ -43,6 +46,7 @@ export type ShelfEntry = {
   is_pinned: boolean;
   completed_at: string | null;
   releases_since_completion: number;
+  cover_url?: string | null;
 };
 
 export type ShelfResponse = { view: string; entries: ShelfEntry[] };
@@ -117,4 +121,5 @@ export type WorkDetails = {
   selected_track_id: string | null;
   units: Unit[];
   continue_unit_id: string | null;
+  cover_url?: string | null;
 };

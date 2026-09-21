@@ -14,6 +14,17 @@ const ENTRY = {
 
 afterEach(() => vi.unstubAllGlobals());
 
+const COVERED = "/api/covers?source=oneshelf.tapas&url=https%3A%2F%2Fus-a.tapas.io%2Fc.jpg";
+
+describe("Shelf covers", () => {
+  it("shows each work's known cover", async () => {
+    mockApi([get("/api/shelf", { view: "all", entries: [{ ...ENTRY, cover_url: COVERED }] })]);
+    const { container } = renderWithProviders(<ShelfScreen />);
+    await screen.findAllByText(ENTRY.title);
+    expect(container.querySelector(".workcard img")).toHaveAttribute("src", COVERED);
+  });
+});
+
 describe("My Shelf", () => {
   it("shows the saved works on shelves", async () => {
     mockApi([get("/api/shelf", { view: "all", entries: [ENTRY] })]);

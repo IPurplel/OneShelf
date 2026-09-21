@@ -4,6 +4,7 @@ import { useResource } from "@/api/useApi";
 import type { HomeResponse } from "@/api/types";
 import { Shelf } from "@/components/Shelf";
 import { WorkCard } from "@/components/WorkCard";
+import { ResultCard } from "@/features/search/ResultCard";
 import { useI18n } from "@/i18n/i18n";
 
 /**
@@ -53,7 +54,7 @@ export function HomeScreen() {
 
       {data.trending.length > 0 && (
         <Shelf id="trending" title={t("home.trending")} viewAllHref="/search" recessed>
-          {data.trending.map((result) => <WorkCard key={result.work_id ?? result.title} work={result} />)}
+          {data.trending.map((result) => <ResultCard key={result.work_id ?? result.title} result={result} />)}
         </Shelf>
       )}
 
@@ -62,7 +63,7 @@ export function HomeScreen() {
           {data.latest.length > 0 && (
             <Shelf id="latest" title={t("home.latest")} viewAllHref="/search" compactRow>
               {data.latest.map((result) => (
-                <WorkCard key={result.work_id ?? result.title} work={result} size="compact" />
+                <ResultCard key={result.work_id ?? result.title} result={result} size="compact" />
               ))}
             </Shelf>
           )}

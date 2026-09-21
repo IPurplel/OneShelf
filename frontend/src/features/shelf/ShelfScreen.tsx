@@ -110,7 +110,7 @@ export function ShelfScreen() {
           <div className="shelfview__list">
             {entries.map((entry) => (
               <div key={entry.work_id} className="shelfview__row">
-                <WorkCard size="detailed" work={{ work_id: entry.work_id, title: entry.title }} />
+                <WorkCard size="detailed" work={{ work_id: entry.work_id, title: entry.title, cover_url: entry.cover_url ?? null }} />
                 <ManageButton entry={entry} onOpen={setManaging} />
               </div>
             ))}
@@ -121,7 +121,7 @@ export function ShelfScreen() {
             <div className="shelf__case" key={row[0]?.work_id ?? index}>
               <div className="shelf__row shelf__row--wrap">
                 {row.map((entry) => (
-                  <WorkCard key={entry.work_id} work={{ work_id: entry.work_id, title: entry.title }} />
+                  <WorkCard key={entry.work_id} work={{ work_id: entry.work_id, title: entry.title, cover_url: entry.cover_url ?? null }} />
                 ))}
               </div>
               <div className="shelf__plank" aria-hidden="true" />

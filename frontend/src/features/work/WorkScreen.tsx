@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
-import { api } from "@/api/client";
+import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import type { Track, Unit, WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
@@ -111,7 +111,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
   return (
     <article className="screen work">
       <header className="work__header">
-        <div className="work__cover" aria-hidden="true" />
+        <WorkCover url={data.cover_url ?? null} />
         <div className="work__intro">
           <h1 className="work__title display">{work.title}</h1>
           {work.original_title && <p className="work__original">{work.original_title}</p>}
@@ -203,7 +203,8 @@ export function WorkScreen({ workId }: { workId?: string }) {
         {tab === "read" && <UnitIndex units={units} />}
         {tab === "details" && <Details data={data} />}
         {tab === "sources" && (
-          <Sources tracks={tracks} selected={data.selected_track_id} onChoose={(track) => setTrackId(track.id)} />
+          <Sources tracks={tracks} selected={data.selected_track_id} onChoose={(track) => setTrackId(track.id)}
+                   onRefreshed={reload} />
         )}
       </div>
       {exporting && <ExportWizard workId={id} onClose={() => setExporting(false)} />}
@@ -251,20 +252,48 @@ function Details({ data }: { data: WorkDetails }) {
   );
 }
 
-function Sources({ tracks, selected, onChoose }: {
+function Sources({ tracks, selected, onChoose, onRefreshed }: {
   tracks: Track[];
   selected: string | null;
   onChoose: (track: Track) => void;
+  onRefreshed: () => void;
 }) {
   const { t } = useI18n();
+  const [refreshing, setRefreshing] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  // What the empty state tells a person to do, and what a first open that could not reach the source leaves
+  // to try again: ask the selected source for its catalogue now.
+  const refresh = async (track: Track) => {
+    setRefreshing(true);
+    setProblem(null);
+    try {
+      await api.post(`/api/tracks/${track.id}/catalog/refresh`);
+      onRefreshed();
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
+    <>
+    {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
     <ul className="tracks">
       {tracks.map((track) => (
         <li key={track.id} className="tracks__row">
           <span className="tracks__name">{track.source_id} · {languageName(track.language)}</span>
           <span className="tracks__count">{track.unit_count}</span>
           {track.id === selected ? (
-            <span className="chip chip--static">{t("work.track.current")}</span>
+            <>
+              <span className="chip chip--static">{t("work.track.current")}</span>
+              {track.kind === "source" && (
+                <button type="button" className="button" disabled={refreshing} onClick={() => void refresh(track)}>
+                  {t("work.track.refresh")}
+                </button>
+              )}
+            </>
           ) : (
             <button type="button" className="button"
                     aria-label={`${t("work.track.use")}: ${track.source_id} · ${languageName(track.language)}`}
@@ -275,5 +304,17 @@ function Sources({ tracks, selected, onChoose }: {
         </li>
       ))}
     </ul>
+    </>
+  );
+}
+
+
+/** The selected track's cover (presentation only, INV-28); the paper placeholder when there is none or it fails. */
+function WorkCover({ url }: { url: string | null }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  return (
+    <div className="work__cover" aria-hidden="true">
+      {url && failed !== url && <img src={url} alt="" onError={() => setFailed(url)} />}
+    </div>
   );
 }
