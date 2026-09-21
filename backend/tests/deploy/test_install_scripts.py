@@ -531,6 +531,20 @@ def test_update_with_real_git_remote_preserves_data(checkout, bin_dir, state):
     assert (checkout / ".env").read_bytes() == before
 
 
+def test_update_leaves_an_env_with_the_historical_registry_url_byte_for_byte(checkout, bin_dir):
+    """The old default Registry URL is aliased in the application, never rewritten in the owner's .env."""
+    working_runtime(bin_dir, "podman", log=checkout / "runtime.log")
+    healthy_probe(bin_dir)
+    env = checkout / ".env"
+    env.write_text("ONESHELF_BIND=127.0.0.1\n"
+                   "ONESHELF_REGISTRY_URL=https://raw.githubusercontent.com/IPurplel/OneShelf/main/registry/index.json\n",
+                   encoding="utf-8")
+    before = env.read_bytes()
+    result = run("update.sh", checkout, bin_dir)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert env.read_bytes() == before
+
+
 def test_legacy_nested_data_blocks_install_before_it_can_be_hidden(checkout, bin_dir):
     # A pre-release image stored plugins/backups beneath /data, ignoring separate mounts.
     # A helper detects existing content there; never mount an empty store over that content.

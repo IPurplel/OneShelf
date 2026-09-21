@@ -236,3 +236,84 @@ def test_another_site_cannot_make_the_browser_install_from_the_registry(tmp_path
                                headers={"Origin": "https://evil.example"})
         assert response.status_code == 403
         assert listing(client)["oneshelf.tapas"]["state"] == "available"
+
+
+# -- the Registry published from OneShelf-Adapters: mixed trust, sources Core has never heard of ------------
+
+def adapters_registry(tmp_path, *, signer_dir=None):
+    """A OneShelf-Adapters-style tree built by Core's adapter_repo tooling: the eight Official adapters,
+    one Verified Community and one Community adapter that no OneShelf release bundles."""
+    from oneshelf.plugins import adapter_repo
+    root = tmp_path / "adapters-repo"
+    for tier in ("official", "verified-community", "community"):
+        (root / "adapters" / tier).mkdir(parents=True)
+    for plugin in EIGHT:
+        shutil.copytree(OFFICIAL / plugin, root / "adapters" / "official" / plugin)
+    for tier, plugin in (("verified-community", "example.verified-books"), ("community", "example.books")):
+        target = root / "adapters" / tier / plugin
+        shutil.copytree(OFFICIAL / "oneshelf.gutenberg", target)
+        manifest = target / "manifest.yaml"
+        manifest.write_text(manifest.read_text(encoding="utf-8").replace("id: oneshelf.gutenberg", f"id: {plugin}"),
+                            encoding="utf-8")
+    out = tmp_path / "published"
+    args = ["build-registry", "--root", str(root), "--out", str(out)]
+    public = None
+    if signer_dir is not None:
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+        key = Ed25519PrivateKey.generate()                       # TEST-ONLY, in the test's tmp directory
+        signer_dir.mkdir(parents=True)
+        (signer_dir / "test-only.pem").write_bytes(key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+        args += ["--signing-key", str(signer_dir / "test-only.pem"), "--key-id", "test-only-1"]
+        public = adapter_repo.public_line(key, "test-only-1")
+    else:
+        args += ["--unsigned-preview"]
+    assert adapter_repo.main(args) == 0
+    return out, public
+
+
+def start_with_keys(tmp_path, registry, keys):
+    config = AppConfig.from_env({
+        "ONESHELF_DATA_DIR": str(tmp_path / "data"), "ONESHELF_ALLOWED_HOSTS": "testserver",
+        "ONESHELF_SESSION_KEY_FILE": str(tmp_path / "keys" / "session.key"),
+        "ONESHELF_BUNDLED_PLUGINS_DIR": str(OFFICIAL), "ONESHELF_REGISTRY_URL": registry.as_uri(),
+        "ONESHELF_REGISTRY_TRUSTED_KEYS": keys or "",
+    })
+    return TestClient(create_app(config), client=("127.0.0.1", 50000))
+
+
+def test_a_registry_only_source_installs_without_any_change_to_oneshelf(tmp_path):
+    registry, _ = adapters_registry(tmp_path)
+    with start_with_keys(tmp_path, registry, None) as client:
+        books = listing(client)["example.books"]
+        assert (books["state"], books["trust_label"], books["effective_trust"]) == ("available", "community", "community")
+        review = client.post("/api/registry/review-package", json={"plugin_id": "example.books"}).json()
+        assert review["tests_passed"] and review["added_permissions"] == review["permissions"]
+        installed = client.post("/api/registry/install", json={
+            "plugin_id": "example.books", "approved_permissions": review["permissions"], "sha256": review["sha256"]})
+        assert installed.json()["state"] == "active"
+        sources = {s["id"]: s for s in client.get("/api/sources").json()["sources"]}
+        assert (sources["example.books"]["channel"], sources["example.books"]["trust_label"]) == ("registry", "community")
+        assert sorted(p for p, s in sources.items() if s["channel"] == "bundled") == EIGHT   # the bundled set is untouched
+
+
+def test_trust_follows_the_signature_and_the_installations_keys_never_the_label(tmp_path):
+    registry, public = adapters_registry(tmp_path, signer_dir=tmp_path / "signer")
+    with start_with_keys(tmp_path / "trusting", registry, public) as client:
+        plugins = listing(client)
+    assert plugins["oneshelf.tapas"]["effective_trust"] == "official"
+    assert plugins["example.verified-books"]["effective_trust"] == "verified_community"
+    assert plugins["example.books"]["effective_trust"] == "community"
+    with start_with_keys(tmp_path / "not-trusting", registry, None) as client:        # same Registry, no keys
+        plugins = listing(client)
+    assert {p["effective_trust"] for p in plugins.values()} == {"community"}
+
+
+def test_an_unsigned_preview_never_reads_as_official(tmp_path):
+    registry, _ = adapters_registry(tmp_path)
+    _, public = adapters_registry(tmp_path / "other", signer_dir=tmp_path / "other-signer")
+    with start_with_keys(tmp_path, registry, public) as client:
+        plugins = listing(client)
+    assert plugins["oneshelf.tapas"]["trust_label"] == "official" and plugins["oneshelf.tapas"]["signed"] is False
+    assert {p["effective_trust"] for p in plugins.values()} == {"community"}

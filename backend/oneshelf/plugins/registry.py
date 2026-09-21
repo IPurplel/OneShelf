@@ -300,8 +300,19 @@ class UnavailableRegistry:
         pass
 
 
+DEFAULT_REGISTRY_URL = "https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json"
+# The default that .env.example shipped before the Registry moved to OneShelf-Adapters. update.sh never
+# rewrites an owner's .env, so this exact URL — and nothing merely like it — is read as the new default.
+LEGACY_REGISTRY_URLS = frozenset({"https://raw.githubusercontent.com/IPurplel/OneShelf/main/registry/index.json"})
+
+
+def canonical_registry_url(url: str | None) -> str | None:
+    return DEFAULT_REGISTRY_URL if url in LEGACY_REGISTRY_URLS else url
+
+
 def registry_from_config(url: str | None):
     """None (no registry), a local mirror (file://directory) or an HTTPS static index URL."""
+    url = canonical_registry_url(url)
     if not url:
         return None
     parts = urlsplit(url)

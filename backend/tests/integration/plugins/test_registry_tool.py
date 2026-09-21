@@ -204,10 +204,12 @@ def test_the_public_key_command_prints_only_the_public_half(tmp_path, capsys):
 
 # -- the committed registry ---------------------------------------------------------------------------------
 
-def test_the_committed_registry_is_exactly_what_the_sources_build():
+def test_the_frozen_core_registry_is_still_internally_consistent():
+    """Deprecated: kept only for installations older than the move to OneShelf-Adapters. It is no longer
+    rebuilt, so it is checked for its own hashes and packages, not against today's sources."""
     committed = REPO / "registry"
-    assert (committed / "index.json").is_file(), "run: python -m plugins.registry_tool build"
-    assert verify(committed) == 0
+    assert registry_tool.verify(committed, None, {}, False) == []
+    assert "deprecated" in (committed / "README.md").read_text(encoding="utf-8").lower()
 
 
 @pytest.mark.parametrize("pattern", ["*.pem", "*.key", "*signing*"])

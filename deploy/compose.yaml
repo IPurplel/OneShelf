@@ -25,10 +25,11 @@ services:
       ONESHELF_LEGACY_DATA_DIR: /legacy-data
       ONESHELF_SESSION_KEY_FILE: /keys/session.key
       ONESHELF_WEB_ROOT: /app/web
-      # The official Source Registry. Contacted only when the Sources screen asks; `ONESHELF_REGISTRY_URL=`
+      # The OneShelf Source Registry, published from IPurplel/OneShelf-Adapters. Contacted only when the
+      # Sources screen asks; `ONESHELF_REGISTRY_URL=`
       # (set, empty) in .env switches it off. No colon in `${VAR-default}` on purpose: an unset value gets
       # the default, an empty one keeps it off.
-      ONESHELF_REGISTRY_URL: "${ONESHELF_REGISTRY_URL-https://raw.githubusercontent.com/IPurplel/OneShelf/main/registry/index.json}"
+      ONESHELF_REGISTRY_URL: "${ONESHELF_REGISTRY_URL-https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json}"
       # Public Ed25519 keys only ("key-id:base64,..."); list two while rotating. A private key never goes here.
       ONESHELF_REGISTRY_TRUSTED_KEYS: "${ONESHELF_REGISTRY_TRUSTED_KEYS-}"
     volumes:
