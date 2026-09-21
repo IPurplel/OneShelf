@@ -377,6 +377,27 @@ OneShelf-Adapters `check-all` (8 adapters, 31 policy tests, Registry contract) g
 | 10 | invalid trusted-key signature still rejected, first-party or not | `test_an_invalid_signature_from_a_trusted_key_is_refused_even_first_party` | **passing** |
 | UI | Signed only for a verified signature; no crypto wording for unsigned first-party entries | `RegistryPanel.test.tsx` | **passing** |
 
+## WP-UX1 — search results open; covers (I-47…I-50)
+
+| # | Requirement test | Where | State |
+|---|---|---|---|
+| 1 | bound result is a link to its Work | `ResultCard.test.tsx` | **passing** |
+| 2–3 | unbound single-source result is a button and binds exactly that listing | `ResultCard.test.tsx`, `test_opening_an_unbound_result_binds_exactly_it…` | **passing** |
+| 4–5 | several sources: chooser first; choosing one binds only it | `ResultCard.test.tsx`, `test_opening_one_provenance_leaves_everything_else_unbound` | **passing** |
+| 6 | the chosen source/language is the track created | `test_the_language_chosen_is_the_track_created` | **passing** |
+| 7–8 | opening brings units; a unit opens in the Reader | `test_opening_an_unbound_result…`, `test_an_opened_unit_opens_in_the_reader`; real browser | **passing** |
+| 9 | keyboard activation | `ResultCard.test.tsx`; real browser (Enter on the focused card) | **passing** |
+| 10 | displaying results creates nothing durable | `test_displaying_search_results_creates_nothing_durable` | **passing** |
+| C1–C2 | result cover rendered; placeholder without one | `ResultCard.test.tsx`; real browser | **passing** |
+| C3 | cover survives binding and is never erased by a later result without one | `test_a_known_cover_is_not_erased…`, open test | **passing** |
+| C4–C5 | Work Details shows the selected track's cover, and changes with the track | `WorkScreen.test.tsx`, `test_work_details_follow_the_selected_tracks_cover` | **passing** |
+| C6 | covers never group, split or match | `test_covers_never_group_or_split_results` | **passing** |
+| C7–C8 | Shelf and Home carry the known cover | `test_shelf_and_home_show_the_known_cover`, `ShelfScreen.test.tsx`; real browser | **passing** |
+| C9 | a failing cover becomes the placeholder; the card stays usable | `ResultCard.test.tsx`, `WorkScreen.test.tsx` | **passing** |
+| C10–C12 | cover route: allowlist only; loopback/link-local/private refused; redirect away refused; oversized 413; non-image 415; non-web schemes 422; cross-site 403 | `test_open_and_covers.py` | **passing** |
+| C13 | source session/resource headers through Core | covers use `SourceService.fetch_resource` (same path as reader pages) | **by construction** |
+| R | a source that cannot answer still opens the Work; runtime raises CapabilityError | `test_a_source_that_cannot_answer…`, `test_a_transport_failure…`, `test_a_single_document_capability…` | **passing** |
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.

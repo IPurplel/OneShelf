@@ -312,3 +312,26 @@ None of these are worked around, and none are claimed as passing.
 | D-C9-01 | The declarative `template` field and document-level `values` extend the `.osp` schema within `api: '1.0'`; older readers would not understand a package that uses them. |
 | D-C9-05 | WEBTOON ships without search (robots) and without a reader (JavaScript viewer) rather than not shipping at all. |
 | D-C9-06 | Generated adapters are installed through the generator's own endpoint, which only accepts packages from its work directory. |
+
+## 6. Real-browser verification: opening search results, and covers (2026-09-21)
+
+Both defects were found by running the real UI. Reproduced first on `475c145`: a real search for
+"frankenstein" gave 50 results, **0 links** (every card an inert `<span>`), clicking changed nothing, and **0 covers**
+(no cover field anywhere in the API response).
+
+After the fix — the real application from a fresh library with the bundled official sources, Chromium, real network:
+
+| Step | Result |
+|---|---|
+| Search "frankenstein" | 50 cards: 50 buttons, 0 inert; 5 real covers loaded through `/api/covers`, the rest placeholders (MangaDex offers none in search) |
+| Activate a grouped Gutenberg result with the keyboard | chooser listed each edition by source, language and its own title |
+| Choose one | Work page: title, 1 unit, cover loaded |
+| Add to shelf → My Shelf; Home | cover on the Shelf card; 4 covers on Home |
+| Search "yotsuba" (MangaDex) | placeholders, cards still open (see I-51 for MangaDex languages) |
+| Search "one piece" → a 3asq result | Work "One Piece", 567 units, cover loaded |
+| Open the first unit | Reader: 4 page images loaded |
+| Arabic UI, search "ون بيس" | `dir=rtl`, 12 cards, 8 covers, 0 inert |
+
+Screenshots: `screenshots-search-covers.png`, `screenshots-work-cover.png`, `screenshots-shelf-cover.png`,
+`screenshots-work-from-search-3asq.png`, `screenshots-reader-from-search.png`, `screenshots-search-covers-ar.png`.
+The first run of this check failed on a real Gutenberg timeout (I-49); it was fixed and the check re-run.

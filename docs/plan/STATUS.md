@@ -27,6 +27,17 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
 
+## Search results open, and covers show — 2026-09-21
+
+Two defects were found by running the real UI, not by the suites, which were green: every live search result
+without a Work was an inert span, and no cover reached any screen (I-47, I-48). Both are fixed end to end and
+re-verified in a real browser against real sources — search → choose a source → Work with units → Reader, and
+covers on search, Work, Shelf and Home, in English and Arabic. Opening binds exactly the chosen listing through
+`POST /api/listings/open`; covers are listing presentation (migration 0015, INV-28) served same-origin through
+`/api/covers` under each source's network policy. The check itself found a runtime error leak (I-49) and a dead
+"refresh the catalogue" instruction (I-50), both fixed; a MangaDex language-model limitation (I-51) is recorded
+for OneShelf-Adapters.
+
 ## First-party trust — 2026-09-21
 
 The owner decided that production signing is not required for OneShelf's own Registry. The trust model is now
@@ -425,6 +436,7 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-21 | Real-UI defects fixed: live search results open (`/api/listings/open`), covers everywhere (migration 0015, `/api/covers`); verified in a real browser to the Reader. I-47…I-53. |
 | 2026-09-21 | Owner decision: first-party Registry trusted by its repository tiers; signatures optional. REL-26 `VERIFIED`; REL-14, REL-24 `SUPERSEDED`; UD-6 resolved. |
 | 2026-09-21 | OneShelf-Adapters created and published; Registry moved there (HTTPS, reproducible, mixed trust); Core snapshot synced with provenance; old default aliased at container start. REL-16…REL-23 `VERIFIED`; REL-24 `BLOCKED` (owner key), REL-25 `BLOCKED` (owner licence). |
 | 2026-09-21 | Official Source Registry in Sources: review → install/update/reinstall bound to the reviewed sha256, generated `registry/`, HTTPS default. REL-12, REL-13, REL-15 `VERIFIED`; REL-14 `BLOCKED` on the owner signing key. |

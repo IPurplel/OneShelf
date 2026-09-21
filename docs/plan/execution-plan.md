@@ -494,3 +494,11 @@ container start, frozen Core Registry → J "Source Registry" and per-entry trus
 verification (which found the platform-dependent builder: fixed, repackaged, and guarded by `reproducible`)
 → L records → M push both and verify remote refs. REL-24 waits for the owner key; REL-25 for the owner's
 licence decision.
+
+## WP-UX1 — real-UI defects: open search results; covers (2026-09-21)
+
+Reproduce on the real app and browser (0 of 50 results clickable, 0 covers) → T1 cover presentation data
+(migration 0015, grouping, `work_cover`) → T2 `/api/covers` through `SourceService.fetch_resource` → T3
+`POST /api/listings/open` (bind the chosen listing, details, catalogue) → T4 `ResultCard`, covers on every screen →
+real-browser verification against real sources, which found I-49 (runtime error leak) and I-50 (no catalogue
+refresh control), both fixed → records.
