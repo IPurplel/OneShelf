@@ -19,7 +19,8 @@ from oneshelf.settings.defaults import DEFAULTS
 
 IMPORTANT = "important"
 INFORMATIONAL = "informational"
-ATTENTION_PREFIXES = ("source-auth:", "storage-low:", "download-failed:", "catalog-suspicious:")
+ATTENTION_PREFIXES = ("source-auth:", "storage-low:", "download-failed:", "catalog-suspicious:",
+                      "source-bootstrap:")
 NEVER_NOTIFY = {"retry_succeeded", "health_probe", "cache_cleanup", "page_repaired", "temporary_timeout",
                 "download_progress", "backup_success"}
 
@@ -168,6 +169,18 @@ class NotificationService:
         return self.notify(IMPORTANT, dedupe_key=f"catalog-suspicious:{source_id}", title="Source catalog looks unusual",
                            summary=f"OneShelf kept the last trusted catalog for {work_title}.",
                            actions=["view_source"], data={"source_id": source_id})
+
+    def bundled_source_failed(self, source_id: str, detail: str) -> Notification:
+        """An official adapter that ships with OneShelf could not be installed (release requirement).
+
+        Actionable and unresolved, so it belongs in Needs Attention (§44) — and it never blocks the library
+        from starting, because local content must not depend on any source (§3.3).
+        """
+        return self.notify(IMPORTANT, dedupe_key=f"source-bootstrap:{source_id}",
+                           title="An official source could not be installed",
+                           summary=f"{source_id} is not available. The rest of OneShelf works normally.",
+                           actions=["view_source"], data={"source_id": source_id, "detail": detail[:500]},
+                           accumulate=False)
 
     def plugin_update_available(self, source_id: str, version: str) -> Notification:
         return self.notify(INFORMATIONAL, dedupe_key=f"plugin-update:{source_id}", title="Source update available",

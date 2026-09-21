@@ -80,7 +80,8 @@ def _state(request: Request) -> dict:
         "remote": {"canonical_hostname": remote_state["canonical_hostname"],
                    "passkey_registered": bool(remote_state["passkeys"])},
         "network": s.access_policy.describe(),
-        "sources_installed": s.conn.execute("SELECT count(*) FROM plugins").fetchone()[0],
+        # Active ones: an uninstalled plugin keeps its row for provenance, and is not "installed".
+        "sources_installed": s.conn.execute("SELECT count(*) FROM plugins WHERE state = 'active'").fetchone()[0],
         "completed_at": row["completed_at"],
     }
 

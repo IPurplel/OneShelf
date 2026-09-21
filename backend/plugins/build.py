@@ -1,25 +1,22 @@
-"""Build the official `.osp` packages from plugins/official (deterministic ordering and timestamps)."""
+"""Build the official `.osp` packages from plugins/official.
+
+The builder itself lives in `oneshelf.plugins.bundled`, because the application needs it inside the
+production image to install these packages on first run. Keeping a single builder means the packages a
+developer builds here and the ones a fresh installation builds are byte-for-byte the same.
+"""
 from __future__ import annotations
 
-import zipfile
 from pathlib import Path
+
+from oneshelf.plugins.bundled import build_package, discover
 
 OFFICIAL_DIR = Path(__file__).parent / "official"
 
+__all__ = ["OFFICIAL_DIR", "build_all", "build_package", "official_packages"]
+
 
 def official_packages() -> list[Path]:
-    return sorted(p for p in OFFICIAL_DIR.iterdir() if p.is_dir() and (p / "manifest.yaml").is_file())
-
-
-def build_package(source_dir: str | Path, destination: str | Path) -> Path:
-    source_dir, destination = Path(source_dir), Path(destination)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(p for p in source_dir.rglob("*") if p.is_file()):
-            info = zipfile.ZipInfo(path.relative_to(source_dir).as_posix(), date_time=(2026, 1, 1, 0, 0, 0))
-            info.compress_type = zipfile.ZIP_DEFLATED
-            archive.writestr(info, path.read_bytes())
-    return destination
+    return discover(OFFICIAL_DIR)
 
 
 def build_all(destination_dir: str | Path) -> list[Path]:

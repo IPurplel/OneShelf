@@ -54,6 +54,7 @@ from oneshelf.search.service import SearchService
 from oneshelf.search.url_resolve import UrlResolver
 from oneshelf.net.governor import TrafficGovernor
 from oneshelf.net.lazy_browser import LazyBrowser
+from oneshelf.plugins.bundled import sync_bundled
 from oneshelf.plugins.manager import PluginManager
 from oneshelf.plugins.registry import parse_trusted_keys, registry_from_config
 from oneshelf.sessions.login import LoginController
@@ -115,6 +116,9 @@ class AppConfig:
     # The built interface, served from this same origin (§2.1). Empty in a source checkout that has
     # not run a frontend build; the API then serves itself and nothing else.
     web_root: str | None = None
+    # The official adapters shipped with this build, installed once on a fresh library. Unset in
+    # development and tests, which start with an empty library unless a directory is given.
+    bundled_plugins_dir: str | None = None
 
     @property
     def db_path(self) -> Path:
@@ -126,6 +130,7 @@ class AppConfig:
         web_root = env.get("ONESHELF_WEB_ROOT", "") or None
         return cls(
             web_root=web_root,
+            bundled_plugins_dir=env.get("ONESHELF_BUNDLED_PLUGINS_DIR", "") or None,
             data_dir=data_dir,
             access=AccessConfig.from_strings(
                 trusted_networks=env.get("ONESHELF_TRUSTED_NETWORKS", ""),
@@ -183,6 +188,14 @@ def _remote_session_authenticator(scope) -> bool:
         return False
     scope["state"]["remote_session"] = session
     return True
+
+
+def _bundled_summary(outcomes) -> dict:
+    return {
+        "installed": sorted(o.plugin_id for o in outcomes if o.result in ("installed", "updated", "unchanged")),
+        "failed": sorted(o.plugin_id for o in outcomes if o.result == "failed"),
+        "pending_review": sorted(o.plugin_id for o in outcomes if o.result == "pending_review"),
+    }
 
 
 def _mount_web_interface(app: FastAPI, web_root: str | None) -> None:
@@ -247,6 +260,10 @@ def create_app(config: AppConfig) -> FastAPI:
         catalog = CatalogTrust(conn)
         backups = BackupService(conn, config.db_path, backup_dir=Path(config.data_dir) / "backups")
         notifications = NotificationService(conn, events=app.state.bus)
+        # The official adapters, installed through the normal plugin pipeline on a fresh library and kept
+        # current afterwards — never re-adding one the owner removed, never approving new permissions.
+        app.state.bundled_outcomes = await sync_bundled(conn, plugins, config.bundled_plugins_dir,
+                                                        notifications=notifications)
         shelf = ShelfService(conn, events=app.state.bus)
         follows = FollowService(conn, catalog, events=app.state.bus)
         follow_runner = FollowRunner(conn, follows, source_service, plugins, catalog, notifications)
@@ -319,6 +336,8 @@ def create_app(config: AppConfig) -> FastAPI:
                          "jobs_failed": getattr(report, "jobs_failed", 0),
                          "staging_removed": getattr(report, "staging_removed", 0)},
             "storage_roots": roots,
+            # Reported, never gating: one failed adapter must not make a local library unavailable (§3.3).
+            "bundled_sources": _bundled_summary(getattr(app.state, "bundled_outcomes", [])),
         }
 
     @app.get("/api/events")
