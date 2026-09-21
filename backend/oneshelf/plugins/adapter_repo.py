@@ -24,11 +24,13 @@ import asyncio
 import base64
 import getpass
 import hashlib
+import io
 import json
 import os
 import re
 import sys
 import tempfile
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -207,14 +209,34 @@ def build_adapter(adapter: Adapter, work: Path) -> tuple[Built | None, list[str]
     return Built(adapter, package.manifest.name, package.version, package.manifest.api, path.read_bytes()), []
 
 
-def baseline_problems(built: Built, published: list[RegistryEntry]) -> list[str]:
-    """A published id+version is immutable, and versions only move forward."""
+def _package_files(data: bytes) -> dict[str, bytes] | None:
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            return {i.filename: archive.read(i) for i in archive.infolist() if not i.is_dir()}
+    except (zipfile.BadZipFile, OSError, ValueError):
+        return None
+
+
+def baseline_problems(built: Built, published: list[RegistryEntry], baseline: Path | None = None) -> list[str]:
+    """A published id+version is immutable, and versions only move forward.
+
+    Immutability is about the adapter's files. The same files packed into different container bytes (as
+    when the canonical builder stopped compressing, to be reproducible on every platform) are the same
+    version; a changed file is not.
+    """
     mine = [e for e in published if e.id == built.id]
     problems = []
     same = next((e for e in mine if e.version == built.version), None)
     if same is not None and same.sha256 != built.sha256:
-        problems.append(f"{built.id} {built.version}: content changed but the version did not — bump the version "
-                        "(published packages are immutable per id and version)")
+        before = None
+        if baseline is not None:
+            try:
+                before = _package_files(asyncio.run(DirectoryRegistry(baseline).fetch(same)))
+            except RegistryError:
+                before = None
+        if before is None or before != _package_files(built.data):
+            problems.append(f"{built.id} {built.version}: content changed but the version did not — bump the "
+                            "version (published packages are immutable per id and version)")
     newest = max((e.version for e in mine), key=_vkey, default=None)
     if newest is not None and _vkey(built.version) < _vkey(newest):
         problems.append(f"{built.id}: version {built.version} is a downgrade from published {newest}")
@@ -243,7 +265,7 @@ def check(root: Path, ids: list[str] | None, baseline: Path | None) -> tuple[lis
             built, found = build_adapter(adapter, Path(work))
             problems += found
             if built is not None:
-                problems += baseline_problems(built, published)
+                problems += baseline_problems(built, published, baseline)
                 built_all.append(built)
     return sorted(built_all, key=lambda b: b.id), problems
 

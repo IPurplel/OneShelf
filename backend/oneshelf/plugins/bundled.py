@@ -62,10 +62,14 @@ def build_package(source_dir: str | Path, destination: str | Path) -> Path:
     if links:
         raise ValueError(f"symlinks are not allowed in adapter sources: {links[0]}")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+    # Stored, not deflated: zlib implementations (zlib, zlib-ng) compress the same bytes differently, so a
+    # deflated package was only reproducible on one platform. Every header field is fixed for the same reason.
+    with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_STORED) as archive:
         for path in sorted(p for p in source_dir.rglob("*") if p.is_file()):
             info = zipfile.ZipInfo(path.relative_to(source_dir).as_posix(), date_time=(2026, 1, 1, 0, 0, 0))
-            info.compress_type = zipfile.ZIP_DEFLATED
+            info.compress_type = zipfile.ZIP_STORED
+            info.create_system = 3
+            info.external_attr = 0o100644 << 16
             archive.writestr(info, path.read_bytes())
     return destination
 
@@ -207,6 +211,11 @@ async def _maintain(conn, manager, item: _Built, notifications) -> BundledOutcom
         return _failed(conn, item, item.error, notifications)
     if _vkey(item.version) < _vkey(plugin["active_version"]):
         return BundledOutcome(item.plugin_id, item.version, "left_alone", "a newer version is already installed")
+    if _vkey(item.version) == _vkey(plugin["active_version"]):
+        # A version's content never changes (the adapter repository enforces it), so an equal version is
+        # nothing to do — even when this build packs it into different bytes than the one installed.
+        _resolve(notifications, item.plugin_id)
+        return BundledOutcome(item.plugin_id, item.version, "unchanged")
 
     try:
         # Nothing new is approved here: the approved baseline carries forward and anything beyond it

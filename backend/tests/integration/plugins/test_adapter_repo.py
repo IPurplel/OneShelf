@@ -257,6 +257,38 @@ def test_a_version_downgrade_fails(tmp_path, capsys):
     assert "downgrade" in problems_for(root, "--baseline", baseline, capsys=capsys)
 
 
+def test_repackaging_the_same_files_under_the_same_version_passes(tmp_path, monkeypatch):
+    """Immutability is about the adapter's files, not the zip container around them."""
+    import zipfile
+
+    def deflated(source_dir, destination):
+        destination = Path(destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for path in sorted(p for p in Path(source_dir).rglob("*") if p.is_file()):
+                archive.write(path, path.relative_to(source_dir).as_posix())
+        return destination
+
+    root = make_tree(tmp_path / "repo", community=["example.books"])
+    monkeypatch.setattr(adapter_repo, "build_package", deflated)
+    baseline = published(root, tmp_path / "published")
+    monkeypatch.undo()
+    assert run("check-all", "--root", root, "--baseline", baseline) == 0
+
+
+def test_the_canonical_builder_is_the_same_on_every_platform(tmp_path):
+    """No compression (zlib implementations differ), and every header field fixed."""
+    import zipfile
+    path = build_package(OFFICIAL / "oneshelf.gutenberg", tmp_path / "g.osp")
+    with zipfile.ZipFile(path) as archive:
+        infos = archive.infolist()
+    assert infos and [i.filename for i in infos] == sorted(i.filename for i in infos)
+    for info in infos:
+        assert info.compress_type == zipfile.ZIP_STORED
+        assert info.create_system == 3 and info.external_attr == 0o100644 << 16
+        assert info.date_time == (2026, 1, 1, 0, 0, 0) and info.extra == b"" and info.comment == b""
+
+
 # -- the Registry: trust from the tier, signatures where the tier needs them ----------------------------------
 
 def test_trust_labels_come_from_the_tier(tmp_path):

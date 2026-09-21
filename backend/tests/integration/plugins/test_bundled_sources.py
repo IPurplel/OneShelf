@@ -277,6 +277,36 @@ def test_a_failure_is_raised_as_needs_attention_and_cleared_when_it_is_fixed(db,
     assert notifications.needs_attention() == []
 
 
+def deflated_build(source_dir, destination):
+    """The same files packed the way an older builder packed them: different container bytes."""
+    import zipfile
+    source_dir, destination = Path(source_dir), Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(p for p in source_dir.rglob("*") if p.is_file()):
+            archive.write(path, path.relative_to(source_dir).as_posix())
+    return destination
+
+
+def test_repackaging_under_the_same_version_is_neither_an_update_nor_a_failure(db, manager, tmp_path, monkeypatch):
+    """A Core update that packs the same adapter differently must not raise eight failures in Needs Attention."""
+    import oneshelf.plugins.bundled as bundled
+    from oneshelf.notifications.service import NotificationService
+
+    notifications = NotificationService(db)
+    source = bundle(tmp_path, "oneshelf.gutenberg")
+    monkeypatch.setattr(bundled, "build_package", deflated_build)
+    run(sync_bundled(db, manager, source, notifications=notifications))
+    installed_sha = db.execute("SELECT sha256 FROM plugin_versions WHERE plugin_id = 'oneshelf.gutenberg'").fetchone()[0]
+    monkeypatch.undo()
+    outcome = by_id(run(sync_bundled(db, manager, source, notifications=notifications)))["oneshelf.gutenberg"]
+    assert outcome.result == "unchanged"
+    assert notifications.needs_attention() == []
+    assert plugin_rows(db)["oneshelf.gutenberg"] == ("active", "1.0.0", "official", "bundled")
+    rows = db.execute("SELECT sha256, status FROM plugin_versions WHERE plugin_id = 'oneshelf.gutenberg'").fetchall()
+    assert [tuple(r) for r in rows] == [(installed_sha, "active")]
+
+
 # -- existing libraries -------------------------------------------------------------------------------
 
 def test_a_library_that_already_manages_its_sources_is_not_second_guessed(db, manager, tmp_path):
