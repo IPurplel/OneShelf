@@ -194,24 +194,32 @@ for the process only. Any other value is used as configured. The application its
 host (INV-29), which is why the translation lives in deployment. Running from source, set the new URL
 yourself. Core's own `registry/` directory is a frozen, deprecated snapshot kept for older installations.
 
-### Trust tiers
+### Trust tiers — first-party trust (owner decision, 2026-09-21)
 
-| OneShelf-Adapters tier | Registry label | OneShelf shows it as |
-|---|---|---|
-| `adapters/official/` | `official` | **Official** — only with a valid signature from a key in `ONESHELF_REGISTRY_TRUSTED_KEYS` |
-| `adapters/verified-community/` | `verified_community` | **Verified Community** — same rule |
-| `adapters/community/` | `community` | **Community** |
+| OneShelf-Adapters tier | Registry label | From the first-party Registry | From any other Registry |
+|---|---|---|---|
+| `adapters/official/` | `official` | **Official** | Community — unless a locally trusted key signs it |
+| `adapters/verified-community/` | `verified_community` | **Verified Community** | Community — unless a locally trusted key signs it |
+| `adapters/community/` | `community` | Community | Community |
 
-The tier comes from the directory, which only maintainers can change; nothing inside an adapter sets it.
-OneShelf believes a label only when the signature verifies against a key the installation trusts: unsigned
-or unknown-key claims are Community, and a bad signature from a trusted key is refused. Keys never come from
-the Registry. Sources → Source Registry shows each entry's own level, and installed sources show trust and
-delivery separately (*Official · Bundled*, *Official · Registry*, *Verified Community · Registry*,
-*Community · Registry*, *Local upload*).
+The **first-party Registry** is the one named in `ONESHELF_FIRST_PARTY_REGISTRY_URL` (Compose and
+`.env.example`: `https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json`). Only when `ONESHELF_REGISTRY_URL` is *exactly* that URL are its tiers trusted,
+because OneShelf-Adapters controls them: the tier comes from the directory, which only a maintainer-reviewed
+change can move an adapter into; nothing inside an adapter sets it; CI validates every package. Pointing the
+Registry anywhere else — or emptying the first-party setting — returns to the safer rule: a claimed Official or
+Verified Community label counts only with a valid signature from a key in `ONESHELF_REGISTRY_TRUSTED_KEYS`.
 
-**Signing status:** the project signing key does not exist yet, so the Registry is published as an
-**unsigned preview** — every entry reads *Says Official · not verified* and installs as Community.
-The owner's one-time step is in OneShelf-Adapters' `docs/publishing.md`.
+**Signatures are optional** for the first-party Registry. Ed25519 remains supported as stronger evidence
+anywhere: a valid signature from a trusted key is shown as *Official · Signed* / *Verified Community · Signed*,
+and an invalid signature from a trusted key is refused outright, first-party or not. The screen never says
+Signed or verified for an unsigned entry. Every other safeguard is unchanged: HTTPS and the egress policy,
+package paths confined to the index's directory, sha256 bound to the review, packaged tests, permission review.
+
+The API reports the basis of each trust decision — `trust_basis`: `signature`, `first_party` or `none`.
+
+*History:* until 2026-09-21 a signature was required for any Official or Verified Community trust, and the
+Registry was published as an "unsigned preview" read as Community. The owner replaced that requirement with
+repository-governed first-party trust (REL-26); REL-14 and REL-24 record the change.
 
 ### What Sources → Source Registry does
 

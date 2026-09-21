@@ -217,9 +217,10 @@ level — Official, Verified Community or Community — and installs only after 
 Removed one of the included sources? It is listed there as *Not installed*. New sources and adapter updates
 arrive through the Registry without waiting for a new OneShelf release; nothing installs, updates or gains a
 permission without your review, a disabled source stays disabled, and an older version is never offered over
-a newer one. If the Registry cannot be reached, your installed sources simply keep working. The Registry is
-not signed yet, so its entries are labelled *not verified* until the project's signing key is set up. Set
-`ONESHELF_REGISTRY_URL=` in `.env` to switch it off.
+a newer one. If the Registry cannot be reached, your installed sources simply keep working. Official and
+Verified Community entries are trusted because this is OneShelf's own first-party Registry, whose tiers the
+project's repository controls; a Registry you point OneShelf at yourself gets Community trust unless its
+packages carry a signature from a key you trust. Set `ONESHELF_REGISTRY_URL=` in `.env` to switch it off.
 
 Want to add a source? See OneShelf-Adapters' [CONTRIBUTING.md](https://github.com/IPurplel/OneShelf-Adapters/blob/main/CONTRIBUTING.md).
 

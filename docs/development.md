@@ -32,6 +32,7 @@ curl http://127.0.0.1:8420/api/health
 | `ONESHELF_ALLOWED_HOSTS` | empty (IP literals and `localhost` only) | extra host names accepted in the `Host` header |
 | `ONESHELF_SESSION_KEY_FILE` | `<data_dir>/keys/session.key` | source-session encryption key; mount on separate storage in deployments |
 | `ONESHELF_REGISTRY_URL` | unset (no registry) when running from source; Compose defaults it to the OneShelf-Adapters Source Registry | `https://…/index.json` static index or `file:///path/to/mirror` (e.g. `file://$PWD/../registry`) |
+| `ONESHELF_FIRST_PARTY_REGISTRY_URL` | unset | the Registry whose tiers are trusted without a signature, only while `ONESHELF_REGISTRY_URL` equals it exactly (Compose sets the OneShelf-Adapters Registry) |
 | `ONESHELF_REGISTRY_TRUSTED_KEYS` | unset | **public** `key-id:base64-ed25519-public-key,…` for Official/Verified labels; list several to rotate |
 | `ONESHELF_DEV_TEST_SOURCE` | off | enables the OneShelf Test Source loopback exception (development only) |
 | `ONESHELF_DEV_TEST_SOURCE_ADDRESS` | unset | `127.0.0.1:PORT` where `python -m testsource PORT` runs |

@@ -359,10 +359,23 @@ Suites at completion: backend 1123 passed / 1 skipped; frontend 216 passed; `tsc
 | 13 | UI: "Source Registry", per-entry trust, channel apart from trust, en/ar | `RegistryPanel.test.tsx`, `SourcesScreen.test.tsx`; live screenshot | **passing** |
 | 14 | equal-version repackage is not a failure on existing installs | `test_repackaging_under_the_same_version_is_neither_an_update_nor_a_failure` | **passing** |
 | 15 | workflows unprivileged; no secrets/signing in CI; Core pin on OneShelf main; CODEOWNERS | `test_repository.py`; CI | **passing** |
-| 16 | signed publication verifies with `--require-signed` | owner key needed | **blocked (REL-24)** |
+| 16 | signed publication verifies with `--require-signed` | superseded by the first-party trust decision (REL-26); signing path still tested with test-only keys | **superseded** |
 
 Suites at completion: Core backend 1204 passed / 1 skipped; frontend 219 passed; `tsc` clean;
 OneShelf-Adapters `check-all` (8 adapters, 31 policy tests, Registry contract) green locally and on GitHub.
+
+## First-party trust (REL-26)
+
+| # | Owner's test | Where | State |
+|---|---|---|---|
+| 1–3 | first-party Official / Verified Community / Community → the same | `test_first_party_tiers_map_to_their_trust_without_a_signature`, `test_the_configured_first_party_registry_reads_by_tier` | **passing** |
+| 4–5 | a custom Registry claiming Official / Verified Community → Community | `test_any_other_registry_claiming_signed_tiers_stays_community`, `test_pointing_the_registry_elsewhere…`; live | **passing** |
+| 6 | changing only `ONESHELF_REGISTRY_URL` cannot inherit first-party trust | `test_pointing_the_registry_elsewhere_does_not_inherit_first_party_trust`; exact-location test | **passing** |
+| 7 | empty / missing first-party setting → the safer behaviour | `test_without_a_first_party_setting_nothing_is_first_party` | **passing** |
+| 8 | sha256 mismatch still rejected | `test_a_package_that_does_not_match_its_hash_is_refused_even_first_party`; live wrong-sha 422 | **passing** |
+| 9 | valid configured Ed25519 signature still works (basis `signature`) | `test_a_valid_trusted_signature_is_stronger_evidence_anywhere` | **passing** |
+| 10 | invalid trusted-key signature still rejected, first-party or not | `test_an_invalid_signature_from_a_trusted_key_is_refused_even_first_party` | **passing** |
+| UI | Signed only for a verified signature; no crypto wording for unsigned first-party entries | `RegistryPanel.test.tsx` | **passing** |
 
 ## Later packages
 

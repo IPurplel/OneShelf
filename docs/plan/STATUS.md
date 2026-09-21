@@ -22,10 +22,20 @@ One work package is `IN_PROGRESS` at a time. One implementation task within it w
 | WP-B1 | Docker verification and the last sources | M2, M2.1, M41.1 | **SOURCES DONE** — all eight ship (M41.1 `VERIFIED`); only the container runtime remains blocked |
 | WP-REL | Release: install experience and publishing | REL-01…REL-09 | **PUBLISHED** — source is public and REL-07 is `VERIFIED`; the host gate remains |
 | WP-REG | Official Source Registry in the web UI | REL-12…REL-15 | **VERIFIED except REL-14** — `BLOCKED` on the owner's signing key |
-| WP-ADP | OneShelf-Adapters: independent adapter repository and Source Registry | REL-16…REL-25 | **VERIFIED except REL-24** (owner signing key) **and REL-25** (owner licence decision) |
+| WP-ADP | OneShelf-Adapters: independent adapter repository and Source Registry | REL-16…REL-26 | **VERIFIED except REL-25** (owner licence decision); REL-24 SUPERSEDED by REL-26 |
 
 Consequential rows that close when their causes do: M51 (with INV-25), M56 (with M2.1 and M36 — its
 bounded-memory clause closed with M26.6).
+
+## First-party trust — 2026-09-21
+
+The owner decided that production signing is not required for OneShelf's own Registry. The trust model is now
+repository-governed: when `ONESHELF_REGISTRY_URL` is exactly `ONESHELF_FIRST_PARTY_REGISTRY_URL` (both default to
+`https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json`), its Official and Verified Community tiers are trusted as such, because OneShelf-Adapters controls them
+through reviewed moves between tier directories. No other Registry inherits that: its claims stay Community
+unless a locally trusted key signs them. Ed25519 stays as optional stronger evidence, shown as *Signed* only when
+it verifies; an invalid trusted-key signature is still refused. REL-26 is `VERIFIED`, including live against
+GitHub; REL-14 and REL-24 are `SUPERSEDED` (not verified), and signing is no longer a release blocker.
 
 ## OneShelf-Adapters — 2026-09-21
 
@@ -112,7 +122,7 @@ open, and the README says so where a visitor will read it.
 |---|---|---|---|
 | UD-4 | **Which licence, if any.** The repository is public with no `LICENSE` file, so the default applies: people may read the code but have no right to use, modify or redistribute it. | A licence is a legal grant over the owner's own work; picking one on their behalf would be making that grant for them. | Not blocking publication — GitHub does not require it. It does block anyone else legitimately using OneShelf. |
 | UD-5 | **Licence and contribution terms for OneShelf-Adapters** (a licence for adapters, and for contributions: DCO, CLA or similar). The repository is public with no licence; contributions can be proposed and reviewed, but cannot be relied on as redistributable project assets until this is decided. | Legal terms and copyright are the owner's to choose; choosing them would bind the owner and every contributor. | Blocks relying on outside contributions (REL-25); not technical work |
-| UD-6 | **The project Registry signing key.** Create it offline, keep it outside every repository, and publish signed (OneShelf-Adapters `docs/publishing.md`); send the public `key-id:base64` line to configure it as OneShelf's default trusted key. | A private key must only ever exist with the owner. | Blocks REL-24 (and REL-14) |
+| UD-6 | ~~The project Registry signing key.~~ **Resolved 2026-09-21 by owner decision:** production signatures are not required; the first-party Registry is trusted by its repository-controlled tiers (REL-26). A key remains optional future hardening. | — | No |
 
 The README says this plainly in its Licence section rather than leaving a visitor to guess.
 
@@ -415,6 +425,7 @@ the Podman `--init` rebuild, and E-02 (missing Chromium libraries) fixed on the 
 | 2026-09-18 | WP-R1 built and committed (`d8a21a4`); M26.15 marked VERIFIED. |
 | 2026-09-19 | **Correction:** that VERIFIED was not earned — the browser re-entry criterion had never run. M26.15 → `IMPLEMENTED`; the step is recorded `BLOCKED_BY_ENVIRONMENT` (E-01a); the criterion is unchanged. Environment defect E-01 recorded. WP-L1 not started. |
 | 2026-09-19 | User decision: downstream gates amended to the four-part rule. WP-R1 tracked as **IMPLEMENTED — VERIFICATION BLOCKED (E-01a)**; BV-01 stays on the blocked-verification list. WP-L1 started under point 4 (no shared persistence, security, migration or data-safety assumption). |
+| 2026-09-21 | Owner decision: first-party Registry trusted by its repository tiers; signatures optional. REL-26 `VERIFIED`; REL-14, REL-24 `SUPERSEDED`; UD-6 resolved. |
 | 2026-09-21 | OneShelf-Adapters created and published; Registry moved there (HTTPS, reproducible, mixed trust); Core snapshot synced with provenance; old default aliased at container start. REL-16…REL-23 `VERIFIED`; REL-24 `BLOCKED` (owner key), REL-25 `BLOCKED` (owner licence). |
 | 2026-09-21 | Official Source Registry in Sources: review → install/update/reinstall bound to the reviewed sha256, generated `registry/`, HTTPS default. REL-12, REL-13, REL-15 `VERIFIED`; REL-14 `BLOCKED` on the owner signing key. |
 | 2026-09-21 | Official sources install on a fresh library, once, through the normal pipeline (REL-10 `VERIFIED`, REL-11 `BLOCKED` on the host gate). Migration 0014. |
