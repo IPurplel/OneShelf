@@ -2,6 +2,7 @@
 
     python -m oneshelf.plugins.adapter_repo check-all      [--root .] [--baseline PUBLISHED_REGISTRY_DIR]
     python -m oneshelf.plugins.adapter_repo check ID...    [--root .] [--baseline DIR]
+    python -m oneshelf.plugins.adapter_repo reproducible   --baseline PUBLISHED_REGISTRY_DIR [--root .]
     python -m oneshelf.plugins.adapter_repo build-registry --out DIR [--signing-key PATH --key-id ID | --unsigned-preview]
     python -m oneshelf.plugins.adapter_repo verify-registry --registry DIR [--root .] [--require-signed]
     python -m oneshelf.plugins.adapter_repo public-key --signing-key PATH --key-id ID
@@ -270,6 +271,24 @@ def check(root: Path, ids: list[str] | None, baseline: Path | None) -> tuple[lis
     return sorted(built_all, key=lambda b: b.id), problems
 
 
+def reproducibility_problems(root: Path, baseline: Path) -> list[str]:
+    """Every adapter whose version is already published must rebuild to exactly the published bytes.
+
+    Run on a different platform from the one that published, this is the proof that the canonical builder is
+    reproducible everywhere — and the guard that notices if it ever stops being so.
+    """
+    built, problems = check(root, None, baseline)
+    if problems:
+        return problems
+    published = {(e.id, e.version): e for e in _load_baseline(baseline)}
+    for item in built:
+        entry = published.get((item.id, item.version))
+        if entry is not None and entry.sha256 != item.sha256:
+            problems.append(f"{item.id} {item.version}: rebuilding here does not reproduce the published package "
+                            f"({item.sha256[:12]} vs {entry.sha256[:12]}); the builder is not reproducible")
+    return problems
+
+
 # -- the Registry ---------------------------------------------------------------------------------------------
 
 def _write_atomic(path: Path, data: bytes) -> None:
@@ -470,6 +489,9 @@ def _parser() -> argparse.ArgumentParser:
         c.add_argument("--baseline", type=Path, help="the published Registry (index.json + packages/) to compare with")
         if name == "check":
             c.add_argument("ids", nargs="+")
+    r = commands.add_parser("reproducible")
+    r.add_argument("--root", type=Path, default=Path("."))
+    r.add_argument("--baseline", type=Path, required=True)
     b = commands.add_parser("build-registry")
     b.add_argument("--root", type=Path, default=Path("."))
     b.add_argument("--out", type=Path, required=True)
@@ -505,6 +527,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command in ("check", "check-all"):
             built, problems = check(args.root, getattr(args, "ids", None), args.baseline)
             return _report(problems, f"{len(built)} adapter(s) passed")
+        if args.command == "reproducible":
+            return _report(reproducibility_problems(args.root, args.baseline),
+                           "every published version rebuilds to its published bytes")
         if args.command == "build-registry":
             path = key_path(args.signing_key, forbidden=[args.root, args.out])
             if path is not None and not args.key_id:

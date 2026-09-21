@@ -276,6 +276,40 @@ def test_repackaging_the_same_files_under_the_same_version_passes(tmp_path, monk
     assert run("check-all", "--root", root, "--baseline", baseline) == 0
 
 
+def test_rebuilding_a_published_version_reproduces_its_bytes(tmp_path):
+    root = make_tree(tmp_path / "repo", community=["example.books"])
+    baseline = published(root, tmp_path / "published")
+    assert run("reproducible", "--root", root, "--baseline", baseline) == 0
+
+
+def test_a_build_that_does_not_reproduce_published_bytes_fails(tmp_path, monkeypatch, capsys):
+    import zipfile
+
+    def deflated(source_dir, destination):
+        destination = Path(destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for path in sorted(p for p in Path(source_dir).rglob("*") if p.is_file()):
+                archive.write(path, path.relative_to(source_dir).as_posix())
+        return destination
+
+    root = make_tree(tmp_path / "repo", community=["example.books"])
+    monkeypatch.setattr(adapter_repo, "build_package", deflated)
+    baseline = published(root, tmp_path / "published")
+    monkeypatch.undo()
+    assert run("reproducible", "--root", root, "--baseline", baseline) != 0
+    assert "reproduce" in capsys.readouterr().err
+
+
+def test_versions_not_yet_published_are_not_compared(tmp_path):
+    root = make_tree(tmp_path / "repo", community=["example.books"])
+    baseline = published(root, tmp_path / "published")
+    bump(community(root) / "manifest.yaml", "1.0.0", "1.0.1")
+    recipe = sorted((community(root) / "recipes").glob("*.yaml"))[0]
+    recipe.write_text(recipe.read_text(encoding="utf-8") + "\n# changed\n", encoding="utf-8")
+    assert run("reproducible", "--root", root, "--baseline", baseline) == 0
+
+
 def test_the_canonical_builder_is_the_same_on_every_platform(tmp_path):
     """No compression (zlib implementations differ), and every header field fixed."""
     import zipfile
