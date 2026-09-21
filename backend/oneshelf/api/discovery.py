@@ -13,17 +13,23 @@ from oneshelf.api.sources import error, services
 from oneshelf.catalog.trust import TrustRejected
 from oneshelf.plugins.manager import PluginUnavailable
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
+from oneshelf.net.governor import Priority
 from oneshelf.search.grouping import LiveListing, persist_listing
+from oneshelf.search.presentation import cover_path, raw_cover_url
 from oneshelf.search.mapping import MappingError, MappingService
 from oneshelf.search.url_resolve import UnsupportedUrl
 
 router = APIRouter(prefix="/api")
 
 
+def _provenance(p) -> dict:
+    return {**asdict(p), "cover_url": cover_path(p.source_id, p.cover_url)}
+
+
 def _result(result) -> dict:
     return {"work_id": result.work_id, "title": result.title, "content_type": result.content_type,
-            "soft": result.soft, "availability": result.availability,
-            "provenance": [asdict(p) for p in result.provenance]}
+            "soft": result.soft, "availability": result.availability, "cover_url": result.cover_url,
+            "provenance": [_provenance(p) for p in result.provenance]}
 
 
 def _update(update) -> dict:
@@ -106,14 +112,13 @@ class BindBody(BaseModel):
     content_type: str | None = Field(default=None, max_length=32)
     work_id: str | None = Field(default=None, max_length=64)
     decided_by: Literal["user", "evidence"] = "user"
+    cover_url: str | None = Field(default=None, max_length=4096)     # a cover path this API issued, if any
 
 
-@router.post("/listings/bind")
-async def bind_listing(request: Request, body: BindBody):
-    """Durable actions (Shelf, Follow, Download) bind a concrete listing and track (INV-03)."""
-    s = services(request)
+def _bind(s, body: BindBody):
     listing = LiveListing(source_id=body.source_id, listing_key=body.listing_key, title=body.title, url=body.url,
-                          content_type=body.content_type, language=body.language)
+                          content_type=body.content_type, language=body.language,
+                          cover_url=raw_cover_url(body.cover_url, body.source_id))
     work_id = body.work_id
     if work_id is None:
         existing = s.conn.execute("SELECT work_id FROM source_listings WHERE source_id = ? AND source_listing_key = ?",
@@ -133,8 +138,87 @@ async def bind_listing(request: Request, body: BindBody):
                            (work_id, body.title, body.content_type or "unknown",
                             "source" if body.content_type else "unknown", now, now))
         index_work(s.conn, work_id)
-    binding = persist_listing(s.conn, listing, work_id=work_id, decided_by=body.decided_by)
+    return persist_listing(s.conn, listing, work_id=work_id, decided_by=body.decided_by)
+
+
+@router.post("/listings/bind")
+async def bind_listing(request: Request, body: BindBody):
+    """Durable actions (Shelf, Follow, Download) bind a concrete listing and track (INV-03)."""
+    binding = _bind(services(request), body)
     return {"listing_id": binding.listing_id, "work_id": binding.work_id, "track_id": binding.track_id}
+
+
+class OpenBody(BaseModel):
+    source_id: str = Field(min_length=1, max_length=64)
+    listing_key: str = Field(min_length=1, max_length=512)
+    title: str = Field(min_length=1, max_length=500)
+    url: str | None = Field(default=None, max_length=2048)
+    language: str | None = Field(default=None, max_length=35)
+    content_type: str | None = Field(default=None, max_length=32)
+    cover_url: str | None = Field(default=None, max_length=4096)
+
+
+def _source_problem(exc: Exception) -> str:
+    if isinstance(exc, AuthRequired):
+        return "session_required"
+    if isinstance(exc, RateLimited):
+        return "rate_limited"
+    return "failed"
+
+
+async def _open_details(s, package, work_id: str, body: OpenBody) -> str:
+    """What the source says about the work, kept only where the library knows nothing yet. The title, aliases
+    and type are identity and matching evidence, so they are never rewritten here."""
+    if "work" not in package.recipes:
+        return "unsupported"
+    try:
+        details = await s.source_service.run(body.source_id, "work",
+                                             {"listing_key": body.listing_key, "language": body.language},
+                                             priority=Priority.INTERACTIVE)
+    except (AuthRequired, RateLimited, CapabilityError) as exc:
+        return _source_problem(exc)
+    from oneshelf.db.connection import transaction
+    with transaction(s.conn):
+        s.conn.execute("UPDATE works SET description = COALESCE(description, ?), creator = COALESCE(creator, ?)"
+                       " WHERE id = ?", (getattr(details, "description", None), getattr(details, "creator", None),
+                                         work_id))
+        cover = getattr(details, "cover_url", None)
+        if cover:
+            s.conn.execute("UPDATE source_listings SET cover_url = COALESCE(cover_url, ?)"
+                           " WHERE source_id = ? AND source_listing_key = ?", (cover, body.source_id, body.listing_key))
+    return "fetched"
+
+
+async def _open_catalog(s, package, track_id: str, body: OpenBody) -> str:
+    if "catalog" not in package.recipes:
+        return "unsupported"
+    if s.conn.execute("SELECT 1 FROM reading_units WHERE track_id = ? LIMIT 1", (track_id,)).fetchone():
+        return "present"
+    try:
+        result = await s.source_service.run(body.source_id, "catalog",
+                                            {"listing_key": body.listing_key, "language": body.language or "und"},
+                                            priority=Priority.INTERACTIVE)
+    except (AuthRequired, RateLimited, CapabilityError) as exc:
+        return _source_problem(exc)
+    s.catalog.refresh(track_id, result, plugin_version=package.version)
+    return "refreshed"
+
+
+@router.post("/listings/open")
+async def open_listing(request: Request, body: OpenBody):
+    """Open one concrete search result: the person chose this listing, so it is bound — it alone, never the
+    other listings it was shown with — and given its details and catalogue so the Work can be read at once.
+    A source that cannot answer right now still leaves an openable Work; the response says what happened."""
+    s = services(request)
+    try:
+        package = s.plugins.load_active(body.source_id)
+    except PluginUnavailable as exc:
+        return error(409, "SOURCE_UNAVAILABLE", str(exc))
+    binding = _bind(s, BindBody(**body.model_dump(), decided_by="user"))
+    details = await _open_details(s, package, binding.work_id, body)
+    catalog = await _open_catalog(s, package, binding.track_id, body)
+    return {"listing_id": binding.listing_id, "work_id": binding.work_id, "track_id": binding.track_id,
+            "details": details, "catalog": catalog}
 
 
 @router.get("/tracks/{track_id}/catalog")

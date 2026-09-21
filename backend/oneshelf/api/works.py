@@ -11,6 +11,8 @@ import sqlite3
 
 from fastapi import APIRouter, Request, Response
 
+from oneshelf.search.presentation import work_cover
+
 router = APIRouter(prefix="/api")
 
 
@@ -131,6 +133,8 @@ async def work_details(request: Request, work_id: str, track_id: str | None = No
         },
         "tracks": tracks,
         "selected_track_id": selected["id"] if selected else None,
+        # Presentation only (INV-28): the selected track's listing cover, as a same-origin path.
+        "cover_url": work_cover(conn, work_id, selected["id"] if selected else None),
         "units": units,
         "continue_unit_id": _continue_unit(units),
     }

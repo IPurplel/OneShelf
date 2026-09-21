@@ -10,6 +10,7 @@ import sqlite3
 from dataclasses import dataclass
 
 from oneshelf.db.connection import transaction
+from oneshelf.search.presentation import work_cover
 from oneshelf.domain.clock import utcnow_iso
 from oneshelf.search.index import search_local
 from oneshelf.storage.paths import PathSafetyError, delete_managed_file
@@ -27,6 +28,7 @@ class ShelfEntry:
     is_pinned: bool
     completed_at: str | None
     releases_since_completion: int = 0
+    cover_url: str | None = None          # presentation only (INV-28)
 
 
 class ShelfService:
@@ -43,7 +45,7 @@ class ShelfService:
                 "SELECT count(*) FROM release_events WHERE work_id = ? AND detected_at > ?",
                 (row["work_id"], row["completed_at"])).fetchone()[0]
         return ShelfEntry(row["work_id"], row["display_title"], row["added_at"], bool(row["is_favorite"]),
-                          bool(row["is_pinned"]), row["completed_at"], releases)
+                          bool(row["is_pinned"]), row["completed_at"], releases, work_cover(self.conn, row["work_id"]))
 
     def _row(self, work_id: str) -> sqlite3.Row | None:
         return self.conn.execute(

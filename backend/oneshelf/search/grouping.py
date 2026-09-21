@@ -13,6 +13,7 @@ from oneshelf.db.connection import transaction
 from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.search.index import index_work
+from oneshelf.search.presentation import cover_path, work_cover
 from oneshelf.search.normalize import search_keys
 
 SEQUENTIAL_FAMILY = {"manga", "manhwa", "manhua", "comic"}
@@ -39,6 +40,7 @@ class Provenance:
     language: str
     title: str
     url: str | None
+    cover_url: str | None = None          # the source's own cover URL: presentation only (INV-28)
 
 
 @dataclass
@@ -48,6 +50,7 @@ class ResultWork:
     content_type: str | None
     soft: bool
     provenance: list[Provenance] = field(default_factory=list)
+    cover_url: str | None = None          # a same-origin /api/covers path chosen for display, never for grouping
 
     @property
     def availability(self) -> dict[str, int]:
@@ -125,7 +128,13 @@ def group_results(conn: sqlite3.Connection, listings: list[LiveListing]) -> list
             group = groups[key] = ResultWork(work_id=work_id, title=title, content_type=content_type, soft=soft)
         group.soft = group.soft and soft
         group.provenance.append(Provenance(listing.source_id, listing.listing_key, listing.language or "und",
-                                           listing.title, listing.url))
+                                           listing.title, listing.url, listing.cover_url))
+        if group.cover_url is None:
+            # The first cover a source offers is what the card shows. The grouping key above never sees it.
+            group.cover_url = cover_path(listing.source_id, listing.cover_url)
+    for group in groups.values():
+        if group.cover_url is None and group.work_id:
+            group.cover_url = work_cover(conn, group.work_id)
     return list(groups.values())
 
 
@@ -150,13 +159,15 @@ def persist_listing(conn: sqlite3.Connection, listing: LiveListing, *, work_id: 
         if row is None:
             conn.execute(
                 "INSERT INTO source_listings (id, source_id, source_listing_key, canonical_url, raw_title, work_id,"
-                " mapping_decided_by, created_at, last_seen_at) VALUES (?,?,?,?,?,?,?,?,?)",
-                (listing_id, listing.source_id, listing.listing_key, listing.url, listing.title, target, decision, now, now))
+                " mapping_decided_by, created_at, last_seen_at, cover_url) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (listing_id, listing.source_id, listing.listing_key, listing.url, listing.title, target, decision, now,
+                 now, listing.cover_url))
         else:
             previous_title = row["raw_title"]
+            # A result that simply did not carry a cover never erases one that is known.
             conn.execute("UPDATE source_listings SET raw_title = ?, canonical_url = ?, work_id = ?,"
-                         " mapping_decided_by = ?, last_seen_at = ? WHERE id = ?",
-                         (listing.title, listing.url, target, decision, now, listing_id))
+                         " mapping_decided_by = ?, last_seen_at = ?, cover_url = COALESCE(?, cover_url) WHERE id = ?",
+                         (listing.title, listing.url, target, decision, now, listing.cover_url, listing_id))
             if previous_title and previous_title != listing.title and target:
                 # Preserve title history across source renames (§6.8); display text is never rewritten.
                 conn.execute("INSERT OR IGNORE INTO work_aliases (id, work_id, title, kind, created_at)"

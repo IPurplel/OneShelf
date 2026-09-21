@@ -12,6 +12,7 @@ from dataclasses import asdict, dataclass, field
 from oneshelf.net.governor import Priority
 from oneshelf.search.cache import DiscoveryCache
 from oneshelf.search.grouping import LiveListing, ResultWork, group_results
+from oneshelf.search.presentation import cover_path, work_cover
 
 SECTION_LIMIT = 12
 FEED_KINDS = ("trending", "latest")
@@ -59,14 +60,15 @@ class HomeService:
             " JOIN source_tracks t ON t.id = u.track_id JOIN works w ON w.id = t.work_id"
             " WHERE rs.read_state = 'partial' GROUP BY w.id ORDER BY at DESC LIMIT ?",
             (SECTION_LIMIT,)).fetchall()
-        return [LibraryItem(r["work_id"], r["display_title"], fraction=r["fraction"],
-                            content_type=r["content_type"]) for r in rows]
+        return [LibraryItem(r["work_id"], r["display_title"], work_cover(self.conn, r["work_id"]),
+                            fraction=r["fraction"], content_type=r["content_type"]) for r in rows]
 
     def recently_added(self) -> list[LibraryItem]:
         rows = self.conn.execute(
             "SELECT w.id AS work_id, w.display_title, w.content_type FROM shelf_entries s"
             " JOIN works w ON w.id = s.work_id ORDER BY s.added_at DESC LIMIT ?", (SECTION_LIMIT,)).fetchall()
-        return [LibraryItem(r["work_id"], r["display_title"], content_type=r["content_type"]) for r in rows]
+        return [LibraryItem(r["work_id"], r["display_title"], work_cover(self.conn, r["work_id"]),
+                            content_type=r["content_type"]) for r in rows]
 
     # -- source feeds ------------------------------------------------------------------------------
 
@@ -117,13 +119,13 @@ class HomeService:
             "SELECT w.id, w.display_title, w.description, w.content_type FROM shelf_entries s"
             " JOIN works w ON w.id = s.work_id WHERE s.is_pinned = 1 ORDER BY s.added_at DESC LIMIT 1").fetchone()
         if pinned is not None:
-            return HeroChoice("pinned", pinned["display_title"], pinned["id"], None, pinned["description"],
-                              pinned["content_type"])
+            return HeroChoice("pinned", pinned["display_title"], pinned["id"], work_cover(self.conn, pinned["id"]),
+                              pinned["description"], pinned["content_type"])
         for kind in FEED_KINDS:
             listings = self._cached_feed(kind)
             if listings:
                 groups = group_results(self.conn, listings)
                 if groups:
                     return HeroChoice("cached_discovery", groups[0].title, groups[0].work_id,
-                                      listings[0].cover_url)
+                                      groups[0].cover_url or cover_path(listings[0].source_id, listings[0].cover_url))
         return None
