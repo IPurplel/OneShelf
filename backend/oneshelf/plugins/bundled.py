@@ -57,6 +57,10 @@ def build_package(source_dir: str | Path, destination: str | Path) -> Path:
     offering them again as a new version.
     """
     source_dir, destination = Path(source_dir), Path(destination)
+    # A symlink would let a source tree package bytes from anywhere on the machine that builds it.
+    links = [p for p in [source_dir, *source_dir.rglob("*")] if p.is_symlink()]
+    if links:
+        raise ValueError(f"symlinks are not allowed in adapter sources: {links[0]}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(p for p in source_dir.rglob("*") if p.is_file()):
