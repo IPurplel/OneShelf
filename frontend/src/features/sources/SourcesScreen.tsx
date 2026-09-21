@@ -14,7 +14,7 @@ import { useLive } from "@/app/live";
 type Source = {
   id: string;
   name: string;
-  state: "active" | "disabled" | "pending_review" | "failed";
+  state: "active" | "disabled" | "pending_review" | "failed" | "uninstalled";
   version: string | null;
   trust_label: string;
   channel: string;
@@ -51,7 +51,8 @@ export function SourcesScreen() {
   const [revision, setRevision] = useState(0);
   const changed = () => { reload(); setRevision((n) => n + 1); };
 
-  const sources = data?.sources ?? [];
+  // A removed source keeps its record (provenance), but it is not installed: the Registry section offers it.
+  const sources = (data?.sources ?? []).filter((source) => source.state !== "uninstalled");
 
   const act = async (call: Promise<unknown>) => {
     try {

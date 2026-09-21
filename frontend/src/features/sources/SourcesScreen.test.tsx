@@ -133,6 +133,18 @@ describe("Sources", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
+  it("does not list a removed source as installed — the Registry offers it again instead", async () => {
+    mockApi([get("/api/sources", { sources: [
+      SOURCES.sources[0],
+      { ...SOURCES.sources[1], state: "uninstalled", version: null, capabilities: [] },
+    ] })]);
+    renderWithProviders(<SourcesScreen />);
+    const rows = await screen.findAllByRole("listitem");
+    expect(rows).toHaveLength(1);
+    expect(screen.queryByText("WEBTOON")).toBeNull();
+    expect(screen.queryByText(/sources\.state/)).toBeNull();
+  });
+
   it("says plainly when no source is installed", async () => {
     mockApi([get("/api/sources", { sources: [] })]);
     renderWithProviders(<SourcesScreen />);
