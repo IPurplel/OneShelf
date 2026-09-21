@@ -184,3 +184,11 @@ def test_a_malformed_registry_is_reported_not_crashed_on(tmp_path):
 def test_without_a_registry_the_listing_says_so_plainly(tmp_path):
     with start(tmp_path, None) as client:
         assert client.get("/api/registry").json() == {"configured": False, "plugins": []}
+
+
+def test_the_committed_official_registry_matches_what_a_fresh_library_bundles(tmp_path):
+    committed = Path(__file__).resolve().parents[3] / "registry"
+    with start(tmp_path, committed) as client:
+        plugins = listing(client)
+    assert sorted(plugins) == EIGHT
+    assert {p["state"] for p in plugins.values()} == {"installed"}

@@ -22,3 +22,4 @@ deploy/volumes
 .oneshelf-dev/
 data/
 image refrence/
+**/*.p8

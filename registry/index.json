@@ -1,0 +1,77 @@
+{
+  "plugins": [
+    {
+      "api": "1.0",
+      "file": "packages/oneshelf.3asq-1.0.0.osp",
+      "id": "oneshelf.3asq",
+      "name": "3asq (Al-Aasheq)",
+      "sha256": "59e726c28b08d3ffdaf89e773a72b9613bfb84c8a05d3c1d553328c6edef68c1",
+      "trust_label": "official",
+      "version": "1.0.0"
+    },
+    {
+      "api": "1.0",
+      "file": "packages/oneshelf.arxiv-1.0.0.osp",
+      "id": "oneshelf.arxiv",
+      "name": "arXiv",
+      "sha256": "bbf42fbdd70f4fd1550eafdf5813ea867079890804728d18fbe6afd663ca8856",
+      "trust_label": "official",
+      "version": "1.0.0"
+    },
+    {
+      "api": "1.0",
+      "file": "packages/oneshelf.gutenberg-1.0.0.osp",
+      "id": "oneshelf.gutenberg",
+      "name": "Project Gutenberg",
+      "sha256": "6610a1c6783807c7890e71b85496fdfb6dc307688dda78cf30985f4d93c2aa98",
+      "trust_label": "official",
+      "version": "1.0.0"
+    },
+    {
+      "api": "1.0",
+      "file": "packages/oneshelf.hindawi-1.0.0.osp",
+      "id": "oneshelf.hindawi",
+      "name": "Safahat (Hindawi)",
+      "sha256": "b4a3b3fa215d8205e7b936ebd56d516bd2a45cb6501163b3d70118edc5881573",
+      "trust_label": "official",
+      "version": "1.0.0"
+    },
+    {
+      "api": "1.0",
+      "file": "packages/oneshelf.mangadex-1.0.0.osp",
+      "id": "oneshelf.mangadex",
+      "name": "MangaDex",
+      "sha256": "44c568e4156b02f8855f5b74f0788e7f24e88f56b00c2520b14a7afc5778f0c8",
+      "trust_label": "official",
+      "version": "1.0.0"
+    },
+    {
+      "api": "1.0",
+      "file": "packages/oneshelf.standard-ebooks-1.0.0.osp",
+      "id": "oneshelf.standard-ebooks",
+      "name": "Standard Ebooks",
+      "sha256": "24bc3f0556f73fea9c864e73ed936b98b282dc67a2c7d694cee8c785720e281c",
+      "trust_label": "official",
+      "version": "1.0.0"
+    },
+    {
+      "api": "1.0",
+      "file": "packages/oneshelf.tapas-1.0.0.osp",
+      "id": "oneshelf.tapas",
+      "name": "Tapas",
+      "sha256": "eb266ddd9d8184c9592faf87d83c81bf4a37f8530f1bc5706d31a943362147b5",
+      "trust_label": "official",
+      "version": "1.0.0"
+    },
+    {
+      "api": "1.0",
+      "file": "packages/oneshelf.webtoon-1.0.0.osp",
+      "id": "oneshelf.webtoon",
+      "name": "WEBTOON",
+      "sha256": "18292239813acedfa7fc8376c9776ce9e21321774e6228ee2ca2ffe3a5544625",
+      "trust_label": "official",
+      "version": "1.0.0"
+    }
+  ],
+  "schema": "oneshelf.registry/1"
+}

@@ -39,3 +39,8 @@ frontend/dist/
 /keys/
 /staging/
 /diagnostics/
+
+# Signing keys — the Registry private key lives outside the repository, always
+*.pem
+*.key
+*.p8
