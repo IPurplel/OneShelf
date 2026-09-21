@@ -277,6 +277,22 @@ rendered in Chromium with no console errors.
 
 **Not covered here:** anything that needs a container runtime. REL-08's gate is unexecuted.
 
+## WP-REL — clean-clone check against the published repository (2026-09-21)
+
+Run from a clone of `https://github.com/IPurplel/OneShelf` in an isolated temporary directory, using
+nothing from the development checkout.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | every file an install needs is present in the clone | **pass** (11 of 11) |
+| 2 | `install.sh`, `update.sh`, `uninstall.sh` executable after clone | **pass** |
+| 3 | no `.env`, `deploy/volumes` or `backend/var` came with it | **pass** |
+| 4 | all four scripts parse (`bash -n`) | **pass** |
+| 5 | with no runtime, `install.sh` refuses clearly and exits 1 | **pass** |
+| 6 | with a runtime, it detects Compose, creates `.env`, creates its five directories, passes `--env-file` and `-p oneshelf`, builds, starts | **pass** |
+| 7 | readiness failure is reported honestly when nothing is running | **pass** |
+| 8 | the container actually starts and serves | **not run — needs a runtime (REL-08)** |
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.
