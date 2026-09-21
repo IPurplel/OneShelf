@@ -215,3 +215,24 @@ def test_a_pending_update_is_approved_from_the_registry_review_bound_to_its_byte
         hindawi = next(s for s in client.get("/api/sources").json()["sources"] if s["id"] == "oneshelf.hindawi")
         assert (hindawi["state"], hindawi["version"], hindawi["channel"]) == ("active", "1.1.0", "registry")
         assert listing(client)["oneshelf.hindawi"]["state"] == "installed"
+
+
+def test_a_remote_visitor_without_a_passkey_cannot_read_or_install_from_the_registry(tmp_path):
+    config = AppConfig.from_env({
+        "ONESHELF_DATA_DIR": str(tmp_path / "data"), "ONESHELF_ALLOWED_HOSTS": "testserver",
+        "ONESHELF_SESSION_KEY_FILE": str(tmp_path / "keys" / "session.key"),
+        "ONESHELF_BUNDLED_PLUGINS_DIR": str(OFFICIAL), "ONESHELF_REGISTRY_URL": registry_dir(tmp_path).as_uri(),
+    })
+    with TestClient(create_app(config), client=("203.0.113.9", 50000)) as remote:
+        assert remote.get("/api/registry").status_code == 401
+        assert remote.post("/api/registry/review-package", json={"plugin_id": "oneshelf.tapas"}).status_code == 401
+        assert remote.post("/api/registry/install", json={"plugin_id": "oneshelf.tapas"}).status_code == 401
+
+
+def test_another_site_cannot_make_the_browser_install_from_the_registry(tmp_path):
+    with start(tmp_path, registry_dir(tmp_path)) as client:
+        client.delete("/api/sources/oneshelf.tapas")
+        response = client.post("/api/registry/install", json={"plugin_id": "oneshelf.tapas"},
+                               headers={"Origin": "https://evil.example"})
+        assert response.status_code == 403
+        assert listing(client)["oneshelf.tapas"]["state"] == "available"
