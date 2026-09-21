@@ -130,7 +130,8 @@ from pathlib import Path
 p = Path(os.environ['EVIDENCE'])
 expected = {"oneshelf.3asq", "oneshelf.arxiv", "oneshelf.gutenberg", "oneshelf.hindawi", "oneshelf.mangadex",
             "oneshelf.standard-ebooks", "oneshelf.tapas", "oneshelf.webtoon"}
-assert set((p/'bundled-in-image.txt').read_text().split()) == expected
+assert {n for n in (p/'bundled-in-image.txt').read_text().split() if n.startswith('oneshelf.')} == expected
+assert 'UPSTREAM.json' in (p/'bundled-in-image.txt').read_text().split()   # the snapshot's provenance ships with it
 sources = {s['id']: s for s in json.loads((p/'sources-fresh.json').read_text())['sources']}
 assert set(sources) == expected, sorted(sources)
 for s in sources.values():
