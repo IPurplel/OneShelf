@@ -190,7 +190,12 @@ class RecipeRuntime:
         values = self._validate_inputs(recipe, inputs)
         if capability in LIST_CAPABILITIES:
             return await self._run_list(recipe, values)
-        response, document = await self._fetch_page(recipe, self._render(recipe, values), page=None)
+        try:
+            response, document = await self._fetch_page(recipe, self._render(recipe, values), page=None)
+        except _PageFailure as failure:
+            # A single-document capability has no list to record the failure in: it is a capability error,
+            # the one kind callers handle — never the runtime's private page failure (found 2026-09-21).
+            raise CapabilityError(failure.category, str(failure)) from failure
         fields = self._extract_fields(recipe, document, response.url, recipe.extract.fields,
                                       values=resolve_values(document, recipe.extract), inputs=values)
         missing = [name for name, required in FIELDS[capability].items() if required and fields.get(name) in (None, "")]

@@ -244,3 +244,40 @@ def test_another_site_cannot_use_the_library_to_fetch_images(api):
     client, _ = api
     assert cover_request(client, COVER, **{"Sec-Fetch-Site": "cross-site"}).status_code == 403
     assert cover_request(client, COVER, **{"Sec-Fetch-Site": "same-origin"}).status_code == 200
+
+
+# -- a source that cannot answer never costs the person the Work (found in the real-browser check) -------------
+
+def test_a_source_that_cannot_answer_still_leaves_an_openable_work(api):
+    client, _ = api
+    response = client.post("/api/listings/open", json={"source_id": TS, "listing_key": "no-such-work",
+                                                       "title": "Gone Upstream", "language": "en"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert (body["details"], body["catalog"]) == ("failed", "failed")
+    assert client.get(f"/api/works/{body['work_id']}").status_code == 200
+
+
+def test_a_transport_failure_during_open_is_reported_not_raised(api, monkeypatch):
+    from oneshelf.net.http import FetchFailed
+    client, _ = api
+    service = client.app.state.services.source_service
+    original = service.run
+
+    async def flaky(plugin_id, capability, inputs, **kwargs):
+        if capability == "catalog":
+            raise FetchFailed("SocketTimeoutError: Timeout on reading data from socket")
+        return await original(plugin_id, capability, inputs, **kwargs)
+
+    monkeypatch.setattr(service, "run", flaky)
+    response = client.post("/api/listings/open", json={"source_id": TS, "listing_key": "irregular",
+                                                       "title": "The Irregular Chronicle", "language": "en"})
+    assert response.status_code == 200 and response.json()["catalog"] == "failed"
+
+
+def test_a_single_document_capability_reports_page_failures_as_capability_errors(api):
+    """The runtime's contract is CapabilityError; its private page failure used to escape it as a 500."""
+    client, _ = api
+    response = client.post("/api/resolve-url", json={"url": "http://testsource.example/work/no-such-work"})
+    assert response.status_code == 502, response.text
+    assert response.json()["error"]["message"].startswith("not_found")

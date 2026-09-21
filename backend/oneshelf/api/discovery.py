@@ -177,6 +177,8 @@ async def _open_details(s, package, work_id: str, body: OpenBody) -> str:
                                              priority=Priority.INTERACTIVE)
     except (AuthRequired, RateLimited, CapabilityError) as exc:
         return _source_problem(exc)
+    except Exception:           # transport failures and the like: the Work opens anyway, and says so
+        return "failed"
     from oneshelf.db.connection import transaction
     with transaction(s.conn):
         s.conn.execute("UPDATE works SET description = COALESCE(description, ?), creator = COALESCE(creator, ?)"
@@ -200,6 +202,11 @@ async def _open_catalog(s, package, track_id: str, body: OpenBody) -> str:
                                             priority=Priority.INTERACTIVE)
     except (AuthRequired, RateLimited, CapabilityError) as exc:
         return _source_problem(exc)
+    except Exception:           # transport failures and the like: the Work opens anyway, and says so
+        return "failed"
+    if not result.entries:
+        # Nothing to show: a failed first page is a failure, not an empty catalogue to record.
+        return "failed" if result.evidence.issues else "empty"
     s.catalog.refresh(track_id, result, plugin_version=package.version)
     return "refreshed"
 
