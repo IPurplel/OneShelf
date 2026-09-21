@@ -48,8 +48,8 @@ runtime_works() {
 detect_runtime() {
   local candidate
   if [ -n "${ONESHELF_RUNTIME:-}" ]; then
-    command -v "$ONESHELF_RUNTIME" >/dev/null 2>&1 \
-      || die "ONESHELF_RUNTIME=$ONESHELF_RUNTIME is not on PATH"
+    case "$ONESHELF_RUNTIME" in podman|docker) ;; *) die "ONESHELF_RUNTIME must be podman or docker" ;; esac
+    runtime_works "$ONESHELF_RUNTIME" || die "$ONESHELF_RUNTIME is installed but not responding (or absent)"
     printf '%s' "$ONESHELF_RUNTIME"
     return 0
   fi
@@ -94,7 +94,9 @@ detect_compose() {
 
 compose_cmd() {
   # shellcheck disable=SC2086  # COMPOSE is a deliberately word-split command prefix
-  ( cd "$ROOT" && $COMPOSE -f "$COMPOSE_FILE_REL" "$@" )
+  local env_args=()
+  [ ! -f "$ROOT/.env" ] || env_args=(--env-file "$ROOT/.env")
+  ( cd "$ROOT" && $COMPOSE "${env_args[@]}" -p "${COMPOSE_PROJECT_NAME:-oneshelf}" -f "$COMPOSE_FILE_REL" "$@" )
 }
 
 # --- configuration ---------------------------------------------------------------------------------
@@ -106,48 +108,139 @@ ensure_env() {
     return 0
   fi
   [ -f "$root/.env.example" ] || die "no .env.example in the repository; cannot create a default .env"
-  cp "$root/.env.example" "$root/.env"
-  chmod 600 "$root/.env"
+  [ ! -e "$root/.env" ] && [ ! -L "$root/.env" ] || die ".env is not a regular file"
+  (umask 077; set -o noclobber; cat "$root/.env.example" > "$root/.env")
   ok "created .env from .env.example"
 }
 
 env_value() {
-  # Reads one key from .env without sourcing it, so a stray line cannot run anything.
-  local root="$1" key="$2" default="${3:-}" line
-  line="$(grep -E "^${key}=" "$root/.env" 2>/dev/null | tail -1 || true)"
-  if [ -z "$line" ]; then printf '%s' "$default"; else printf '%s' "${line#*=}"; fi
+  # A literal subset of dotenv, never shell code. Shell overrides match Compose precedence.
+  local root="$1" key="$2" default="${3:-}" line value
+  if [[ -v $key ]]; then printf '%s' "${!key}"; return; fi
+  line="$(grep -E "^[[:space:]]*${key}[[:space:]]*=" "$root/.env" 2>/dev/null | tail -1 || true)"
+  [ -n "$line" ] || { printf '%s' "$default"; return; }
+  value="${line#*=}"
+  value="$(printf '%s' "$value" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+  if [[ $value == \"* || $value == \'* ]]; then
+    local quote="${value:0:1}" rest
+    value="${value:1}"
+    [[ $value == *"$quote"* ]] || die "invalid quoted value for $key in .env"
+    rest="${value#*"$quote"}"
+    [[ $rest =~ ^[[:space:]]*(#.*)?$ ]] || die "invalid trailing text for $key in .env"
+    value="${value%%"$quote"*}"
+  else
+    value="$(printf '%s' "$value" | sed 's/[[:space:]][[:space:]]*#.*$//; s/[[:space:]]*$//')"
+  fi
+  [[ $value != *'$'* && $value != *'\'* && $value != *$'\n'* && $value != *$'\r'* ]] \
+    || die "use a literal single-line value for $key (no interpolation or escapes)"
+  printf '%s' "$value"
 }
 
-# --- OneShelf's own directories ----------------------------------------------------------------------
-prepare_directories() {
-  local root="$1" name path
-  for name in "${VOLUME_DIRS[@]}"; do
-    path="$(env_value "$root" "ONESHELF_$(printf '%s' "$name" | tr '[:lower:]' '[:upper:]')_PATH" "./volumes/$name")"
-    case "$path" in
-      /*) : ;;                       # absolute: used as given
-      *)  path="$root/deploy/${path#./}" ;;
+load_configuration() {
+  # Export the exact values used for paths/probes so providers see the same configuration.
+  local key value
+  for key in ONESHELF_BIND ONESHELF_PORT ONESHELF_IMAGE ONESHELF_TRUSTED_NETWORKS \
+      ONESHELF_TRUSTED_PROXIES ONESHELF_ALLOWED_HOSTS; do
+    case "$key" in
+      ONESHELF_BIND) value="$(env_value "$ROOT" "$key" 127.0.0.1)" ;;
+      ONESHELF_PORT) value="$(env_value "$ROOT" "$key" 8420)" ;;
+      ONESHELF_IMAGE) value="$(env_value "$ROOT" "$key" oneshelf:local)" ;;
+      ONESHELF_ALLOWED_HOSTS) value="$(env_value "$ROOT" "$key" localhost)" ;;
+      *) value="$(env_value "$ROOT" "$key" '')" ;;
     esac
-    mkdir -p "$path"
-    printf '%s\n' "$path"
+    export "$key=$value"
+  done
+  [[ $ONESHELF_PORT =~ ^[0-9]{1,5}$ ]] && ((10#$ONESHELF_PORT > 0 && 10#$ONESHELF_PORT < 65536)) \
+    || die "ONESHELF_PORT must be between 1 and 65535"
+  [[ $ONESHELF_BIND =~ ^[a-zA-Z0-9.:-]+$ ]] || die "invalid ONESHELF_BIND"
+  [[ $ONESHELF_IMAGE =~ ^[a-zA-Z0-9][a-zA-Z0-9./:@_-]*$ ]] || die "invalid ONESHELF_IMAGE"
+  resolve_directories
+}
+
+resolve_directories() {
+  local name key path canonical previous
+  DIRS=()
+  for name in "${VOLUME_DIRS[@]}"; do
+    key="ONESHELF_$(printf '%s' "$name" | tr '[:lower:]' '[:upper:]')_PATH"
+    # The example historically used singular PLUGIN and BACKUP; Compose uses those too.
+    case "$name" in plugins) key=ONESHELF_PLUGIN_PATH ;; backups) key=ONESHELF_BACKUP_PATH ;; esac
+    path="$(env_value "$ROOT" "$key" "./volumes/$name")"
+    [[ -n $path && $path != *:* && $path != *$'\n'* && $path != *'$'* ]] || die "invalid $key: use a dedicated directory"
+    case "$path" in /*) ;; *) path="$ROOT/deploy/${path#./}" ;; esac
+    canonical="$(realpath -m -- "$path")" || die "cannot resolve $key"
+    # Reject aliases/symlinks as well as system roots and ancestors of this checkout/home.
+    [ "$canonical" = "$(realpath -ms -- "$path")" ] || die "refusing symlinked directory for $key"
+    case "$canonical" in /|/home|/root|/etc|/var|/usr|/tmp|/opt|/srv|/mnt|/media|/run|/dev|/proc|/sys|/boot) die "unsafe directory for $key" ;; esac
+    [[ "$ROOT/" != "$canonical/"* && "$HOME/" != "$canonical/"* ]] || die "unsafe directory for $key"
+    for previous in "${DIRS[@]}"; do
+      [[ "$canonical/" != "$previous/"* && "$previous/" != "$canonical/"* ]] || die "persistent directories must not overlap"
+    done
+    DIRS+=("$canonical")
+    export "$key=$canonical"
   done
 }
 
-# The container runs as an unprivileged user (uid 10001). Where the runtime cannot already write to a
-# bind mount, ownership of *OneShelf's own directories only* is corrected through the runtime itself —
-# no sudo, nothing outside these paths, and no loosening of permissions.
+validate_custom_directories() {
+  local i path found
+  for i in "${!DIRS[@]}"; do
+    path="${DIRS[$i]}"
+    [ "$path" != "$ROOT/deploy/volumes/${VOLUME_DIRS[$i]}" ] || continue
+    [ -d "$path" ] || continue
+    [ ! -L "$path/.oneshelf-managed" ] || die "invalid ownership marker in custom storage"
+    [ ! -f "$path/.oneshelf-managed" ] || continue
+    found="$(find "$path" -mindepth 1 -maxdepth 1 -print -quit)" || die "cannot inspect custom storage safely"
+    [ -z "$found" ] || die "custom storage is nonempty and not marked for OneShelf; see README before changing ownership"
+  done
+}
+
+prepare_directories() {
+  validate_custom_directories
+  local path
+  for path in "${DIRS[@]}"; do
+    mkdir -p -- "$path" || die "cannot create a persistent directory; check permissions"
+    if [ ! -e "$path/.oneshelf-managed" ]; then
+      (umask 077; set -o noclobber; : > "$path/.oneshelf-managed") || die "cannot mark dedicated storage"
+    fi
+    say "    $path"
+  done
+}
+
 fix_ownership_if_needed() {
   local image="$1"; shift
-  local dirs=("$@") args=() d
-  for d in "${dirs[@]}"; do args+=(-v "$d:/mnt/$(basename "$d")"); done
+  local dirs=("$@") args=() d index=0
+  for d in "${dirs[@]}"; do args+=(-v "$d:/mnt/$index:z"); index=$((index + 1)); done
   if "$RUNTIME" run --rm "${args[@]}" --user "$CONTAINER_UID" --entrypoint sh "$image" \
-        -c 'for d in /mnt/*; do touch "$d/.oneshelf-write-test" && rm -f "$d/.oneshelf-write-test" || exit 1; done' \
+        -c 'for d in /mnt/*; do t=$(mktemp -d "$d/.oneshelf-write-test.XXXXXX") && rmdir "$t" || exit 1; done' \
         >/dev/null 2>&1; then
     return 0
   fi
-  step "giving OneShelf's own directories to the container user (uid $CONTAINER_UID)"
+  step "giving OneShelf's dedicated directories to the container user (uid $CONTAINER_UID)"
   "$RUNTIME" run --rm "${args[@]}" --user 0 --entrypoint sh "$image" \
-      -c "chown -R $CONTAINER_UID:$CONTAINER_UID /mnt/*" >/dev/null 2>&1 \
-    || warn "could not adjust ownership automatically; if OneShelf cannot write, see README → Troubleshooting"
+      -c "chown -R -h -P $CONTAINER_UID:$CONTAINER_UID /mnt/*" >/dev/null 2>&1 \
+    || die "could not adjust directory ownership; see README → Troubleshooting"
+}
+
+check_legacy_storage() {
+  # Before adding nested mounts, refuse to conceal files from a pre-release deployment.
+  "$RUNTIME" run --rm -v "$ONESHELF_DATA_PATH:/legacy:ro,z" --user 0 --entrypoint sh \
+    "$ONESHELF_IMAGE" -c 'for name in plugins backups; do
+      if [ -d "/legacy/$name" ]; then
+        found=$(find "/legacy/$name" -mindepth 1 -maxdepth 1 -print -quit) || exit 1
+        [ -z "$found" ] || exit 1
+      fi
+    done' >/dev/null 2>&1 \
+    || die "legacy plugins/backups may exist beneath the data directory, or the storage check failed. Nothing was moved. See README → Legacy deployment storage before starting."
+}
+
+require_probe() {
+  command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 \
+    || die "install curl or wget to verify readiness and health"
+}
+
+verify_health() {
+  local body
+  body="$(probe "$1/api/health")" || return 1
+  [[ $body =~ \"status\"[[:space:]]*:[[:space:]]*\"ok\" ]]
 }
 
 # --- readiness ------------------------------------------------------------------------------------
@@ -155,16 +248,16 @@ oneshelf_url() {
   local root="$1" bind port
   bind="$(env_value "$root" ONESHELF_BIND 127.0.0.1)"
   port="$(env_value "$root" ONESHELF_PORT "$ONESHELF_PORT_DEFAULT")"
-  [ "$bind" = "0.0.0.0" ] && bind=127.0.0.1
+  case "$bind" in 0.0.0.0) bind=127.0.0.1 ;; ::) bind="[::1]" ;; *:*) bind="[$bind]" ;; esac
   printf 'http://%s:%s' "$bind" "$port"
 }
 
 probe() {
   local url="$1"
   if command -v curl >/dev/null 2>&1; then
-    curl -fsS --max-time 5 "$url" 2>/dev/null
+    curl --noproxy '*' -fsS --max-time 5 "$url" 2>/dev/null
   elif command -v wget >/dev/null 2>&1; then
-    wget -qO- --timeout=5 "$url" 2>/dev/null
+    wget --no-proxy -qO- --timeout=5 "$url" 2>/dev/null
   else
     return 2
   fi
@@ -176,7 +269,7 @@ wait_for_ready() {
   local delay="${ONESHELF_READY_DELAY:-2}"
   for ((i = 1; i <= tries; i++)); do
     if body="$(probe "$url/api/ready")"; then
-      case "$body" in *'"ready": true'*|*'"ready":true'*) printf '%s' "$body"; return 0 ;; esac
+      if [[ $body =~ \"ready\"[[:space:]]*:[[:space:]]*true[[:space:]]*[,}] ]]; then printf '%s' "$body"; return 0; fi
     elif [ "$?" -eq 2 ]; then
       warn "neither curl nor wget is available, so readiness cannot be checked from here"
       return 3
@@ -195,6 +288,5 @@ diagnose() {
   say "  2. Check it is running:  $COMPOSE -f $COMPOSE_FILE_REL ps"
   say "  3. Check the port is free: something else may already be on $(env_value "$ROOT" ONESHELF_PORT "$ONESHELF_PORT_DEFAULT")"
   say ""
-  say "The last few lines of OneShelf's own log:"
-  compose_cmd logs --tail=30 2>&1 | sed 's/^/    /' || true
+  say "Inspect logs locally before sharing them; they may contain private information."
 }

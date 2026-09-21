@@ -10,3 +10,15 @@ docs
 .git
 deploy/volumes
 .env
+.env.*
+!.env.example
+**/*.db
+**/*.db-*
+**/*.sqlite*
+**/*.osbackup
+**/*.pem
+**/*.key
+**/var/
+.oneshelf-dev/
+data/
+image refrence/

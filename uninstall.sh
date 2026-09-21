@@ -24,8 +24,16 @@ done
 RUNTIME="$(detect_runtime)"
 COMPOSE="$(detect_compose "$RUNTIME")"
 
+load_configuration
+if [ "$DELETE_DATA" -eq 1 ]; then
+  for i in "${!VOLUME_DIRS[@]}"; do
+    [ "${DIRS[$i]}" = "$ROOT/deploy/volumes/${VOLUME_DIRS[$i]}" ] \
+      || die "automatic deletion supports only default deploy/volumes directories; remove custom storage manually after backing it up"
+  done
+fi
+
 step "Stopping OneShelf"
-compose_cmd down
+compose_cmd down || die "could not stop the deployment; no data was deleted"
 ok "containers stopped and removed"
 
 if [ "$DELETE_DATA" -eq 0 ]; then
@@ -34,7 +42,6 @@ if [ "$DELETE_DATA" -eq 0 ]; then
   if [ -f "$ROOT/.env" ]; then
     say ""
     say "It is still in:"
-    mapfile -t DIRS < <(prepare_directories "$ROOT")
     for d in "${DIRS[@]}"; do say "    $d"; done
   fi
   say ""
@@ -44,7 +51,6 @@ if [ "$DELETE_DATA" -eq 0 ]; then
 fi
 
 # --- the destructive path, which is never the default ---------------------------------------------
-mapfile -t DIRS < <(prepare_directories "$ROOT")
 say ""
 say "${_red}This will permanently delete OneShelf's data directories:${_r}"
 for d in "${DIRS[@]}"; do
@@ -56,22 +62,18 @@ say "logins, and your OneShelf backups. It cannot be undone, and nothing else on
 say "touched. If you want to keep a copy, stop now and copy those directories somewhere safe."
 say ""
 printf 'Type exactly "delete my library" to continue: '
-read -r answer
+read -r answer || { say "Nothing was deleted."; exit 1; }
 [ "$answer" = "delete my library" ] || { say "Nothing was deleted."; exit 1; }
 
 for d in "${DIRS[@]}"; do
-  case "$d" in
-    /|/home|/root|/etc|/var|/usr|"$HOME") die "refusing to delete $d" ;;
-  esac
   [ -d "$d" ] || continue
-  # Files written by the container belong to a different uid; remove them through the runtime rather
-  # than asking anyone for sudo.
-  if ! rm -rf "$d" 2>/dev/null; then
-    "$RUNTIME" run --rm -v "$d:/mnt" --user 0 --entrypoint sh \
-      "$(env_value "$ROOT" ONESHELF_IMAGE "oneshelf:local")" -c 'rm -rf /mnt/* /mnt/.[!.]* 2>/dev/null || true' \
-      >/dev/null 2>&1 || true
-    rmdir "$d" 2>/dev/null || true
+  if ! rm -rf --one-file-system -- "$d" 2>/dev/null; then
+    "$RUNTIME" run --rm -v "$d:/mnt:z" --user 0 --entrypoint sh \
+      "$ONESHELF_IMAGE" -c 'find /mnt -xdev -mindepth 1 -delete' \
+      >/dev/null 2>&1 || die "could not delete all data; remaining files are in $d"
+    rmdir -- "$d" || die "could not remove $d"
   fi
+  [ ! -e "$d" ] || die "data remains in $d"
   say "    removed $d"
 done
 say ""

@@ -25,3 +25,17 @@ frontend/dist/
 .idea/
 .vscode/
 .DS_Store
+
+# Local environment variants, SQLite sidecars and runtime output
+.env.*
+!.env.example
+*.db
+*.db-*
+*.sqlite-*
+*.sqlite3-*
+/backend/var/
+/backend/data/
+/var/
+/keys/
+/staging/
+/diagnostics/

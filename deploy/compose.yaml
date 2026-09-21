@@ -1,7 +1,7 @@
 # OneShelf: one container, explicit mounts, loopback by default.
 #
 # `./install.sh` from the repository root drives this file. Everything a person would reasonably change
-# lives in `.env` beside it — see `.env.example` — so this file rarely needs editing.
+# lives in `.env` at the repository root — see `.env.example` — so this file rarely needs editing.
 name: oneshelf
 
 services:
@@ -11,27 +11,25 @@ services:
       dockerfile: deploy/Dockerfile
     image: ${ONESHELF_IMAGE:-oneshelf:local}
     restart: unless-stopped
-    ports:
-      # Loopback only. Publishing on the LAN is a deliberate change: set ONESHELF_BIND to 0.0.0.0 *and*
-      # ONESHELF_TRUSTED_NETWORKS to the subnet you actually trust (Master §28.1, §28.2).
-      - "${ONESHELF_BIND:-127.0.0.1}:${ONESHELF_PORT:-8420}:8420"
+    init: true
+    # Linux host networking preserves the real peer IP for the LAN/passkey boundary.
+    # Bridge/rootless port proxies can make every visitor look like the same gateway.
+    network_mode: host
     environment:
+      ONESHELF_HOST: "${ONESHELF_BIND:-127.0.0.1}"
+      ONESHELF_PORT: "${ONESHELF_PORT:-8420}"
       ONESHELF_TRUSTED_NETWORKS: "${ONESHELF_TRUSTED_NETWORKS:-}"
       ONESHELF_TRUSTED_PROXIES: "${ONESHELF_TRUSTED_PROXIES:-}"
       ONESHELF_ALLOWED_HOSTS: "${ONESHELF_ALLOWED_HOSTS:-localhost}"
       ONESHELF_DATA_DIR: /data
-      ONESHELF_PLUGIN_DIR: /plugins
+      ONESHELF_LEGACY_DATA_DIR: /legacy-data
       ONESHELF_SESSION_KEY_FILE: /keys/session.key
       ONESHELF_WEB_ROOT: /app/web
     volumes:
-      - ${ONESHELF_DATA_PATH:-./volumes/data}:/data           # oneshelf.db, cache.db, secrets.db, staging, diagnostics
-      - ${ONESHELF_PLUGIN_PATH:-./volumes/plugins}:/plugins   # installed .osp packages
-      - ${ONESHELF_KEYS_PATH:-./volumes/keys}:/keys           # the session key: its own volume, backed up separately
-      - ${ONESHELF_CONTENT_PATH:-./volumes/content}:/content  # a storage root for downloaded and imported content
-      - ${ONESHELF_BACKUP_PATH:-./volumes/backups}:/backups   # .osbackup archives; ideally a different physical disk
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8420/api/ready"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 40s
+      # Read-only view prevents a pre-release updater from hiding legacy nested files.
+      - ${ONESHELF_DATA_PATH:-./volumes/data}:/legacy-data:ro,z
+      - ${ONESHELF_DATA_PATH:-./volumes/data}:/data:z           # oneshelf.db, cache.db, secrets.db, staging, diagnostics
+      - ${ONESHELF_PLUGIN_PATH:-./volumes/plugins}:/data/plugins:z   # installed .osp packages
+      - ${ONESHELF_KEYS_PATH:-./volumes/keys}:/keys:z           # the session key: its own volume, backed up separately
+      - ${ONESHELF_CONTENT_PATH:-./volumes/content}:/content:z  # a storage root for downloaded and imported content
+      - ${ONESHELF_BACKUP_PATH:-./volumes/backups}:/data/backups:z   # .osbackup archives; ideally a different physical disk

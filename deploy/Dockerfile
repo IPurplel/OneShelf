@@ -35,24 +35,25 @@ RUN pip install --no-cache-dir --no-deps . \
     && python -m playwright install chromium
 
 COPY --from=web /web/dist /app/web
+COPY deploy/healthcheck.py /app/healthcheck.py
+COPY deploy/container_start.py /app/container_start.py
 
 # Separate mounts (Master §2.1, §13, §33.9): application data, plugin store, the session key on its own
 # volume, library content, and backups. None of them are baked into the image.
 ENV ONESHELF_DATA_DIR=/data \
-    ONESHELF_PLUGIN_DIR=/plugins \
     ONESHELF_SESSION_KEY_FILE=/keys/session.key \
     ONESHELF_WEB_ROOT=/app/web \
-    ONESHELF_HOST=0.0.0.0 \
+    ONESHELF_HOST=127.0.0.1 \
     ONESHELF_PORT=8420
-VOLUME ["/data", "/plugins", "/keys", "/content", "/backups"]
+VOLUME ["/data", "/data/plugins", "/keys", "/content", "/data/backups"]
 
 RUN useradd --system --uid 10001 --home /app oneshelf \
-    && mkdir -p /data /plugins /keys /content /backups \
-    && chown -R oneshelf:oneshelf /app /data /plugins /keys /content /backups
+    && mkdir -p /data /data/plugins /keys /content /data/backups \
+    && chown -R oneshelf:oneshelf /app /data /data/plugins /keys /content /data/backups
 USER oneshelf
 
 EXPOSE 8420
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -fsS "http://127.0.0.1:${ONESHELF_PORT}/api/ready" || exit 1
+    CMD ["python", "/app/healthcheck.py"]
 
-CMD ["python", "-m", "oneshelf.api.app"]
+CMD ["python", "/app/container_start.py"]

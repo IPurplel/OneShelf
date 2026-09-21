@@ -309,3 +309,250 @@ def test_shellcheck_is_happy():
     result = subprocess.run(["shellcheck", "-S", "warning", *SCRIPTS, "deploy/lib.sh"],
                             cwd=REPO, capture_output=True, text=True)
     assert result.returncode == 0, result.stdout
+
+# Handoff regressions: external runtimes are stubbed, filesystem and Git operations are real.
+def healthy_probe(bin_dir):
+    stub(bin_dir, "curl", '''case "${@: -1}" in
+      */api/ready) echo '{"ready":true,"schema_version":12,"migrations_pending":0}' ;;
+      */api/health) echo '{"status":"ok"}' ;;
+      *) exit 7 ;;
+    esac''')
+
+
+def test_install_success_repeats_and_checks_health(checkout, bin_dir):
+    working_runtime(bin_dir, "podman")
+    healthy_probe(bin_dir)
+    for _ in range(2):
+        result = run("install.sh", checkout, bin_dir)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "health check passed" in result.stdout
+        assert "http://127.0.0.1:8420" in result.stdout
+
+
+def test_http_200_with_unhealthy_payload_is_failure(checkout, bin_dir):
+    working_runtime(bin_dir, "podman")
+    stub(bin_dir, "curl", '''case "${@: -1}" in
+      */api/ready) echo '{"ready":true}' ;;
+      *) echo '{"status":"error"}' ;;
+    esac''')
+    result = run("install.sh", checkout, bin_dir)
+    assert result.returncode != 0
+    assert "is running at" not in result.stdout
+
+
+def test_missing_probe_tools_cannot_report_success(checkout, bin_dir):
+    working_runtime(bin_dir, "podman")
+    (bin_dir / "curl").unlink()
+    # A genuinely restricted PATH without curl/wget; do not depend on host installed tools.
+    for name in ("bash", "dirname", "head", "cp", "chmod", "grep", "tail", "tr", "mkdir", "basename", "realpath", "cat", "sed", "sleep"):
+        (bin_dir / name).symlink_to(shutil.which(name))
+    result = run("install.sh", checkout, bin_dir, env={"PATH": str(bin_dir)})
+    assert result.returncode != 0
+    assert "curl" in result.stderr and "wget" in result.stderr
+    assert "is running at" not in result.stdout
+
+
+def test_compose_receives_explicit_env_file_and_same_port_as_probe(checkout, bin_dir):
+    working_runtime(bin_dir, "podman", log=checkout / "runtime.log")
+    healthy_probe(bin_dir)
+    (checkout / ".env").write_text('ONESHELF_PORT="9999" # chosen port\n')
+    result = run("install.sh", checkout, bin_dir)
+    assert result.returncode == 0, result.stderr
+    assert "http://127.0.0.1:9999" in result.stdout
+    assert f"--env-file {checkout}/.env" in (checkout / "runtime.log").read_text()
+
+
+def test_exported_configuration_overrides_env_consistently(checkout, bin_dir):
+    working_runtime(bin_dir, "podman")
+    healthy_probe(bin_dir)
+    result = run("install.sh", checkout, bin_dir, env={"ONESHELF_PORT": "9998"})
+    assert result.returncode == 0, result.stderr
+    assert "http://127.0.0.1:9998" in result.stdout
+
+
+def test_directory_creation_failure_stops_before_build(checkout, bin_dir):
+    log = checkout / "runtime.log"
+    working_runtime(bin_dir, "podman", log=log)
+    healthy_probe(bin_dir)
+    (checkout / "deploy" / "volumes").write_text("not a directory")
+    result = run("install.sh", checkout, bin_dir)
+    assert result.returncode != 0
+    assert " build" not in log.read_text()
+
+
+@pytest.mark.parametrize("path", ["/", "..", "../..", "/home", "/var", ""])
+def test_unsafe_mount_paths_stop_before_container_commands(checkout, bin_dir, path):
+    log = checkout / "runtime.log"
+    working_runtime(bin_dir, "podman", log=log)
+    healthy_probe(bin_dir)
+    (checkout / ".env").write_text(f"ONESHELF_DATA_PATH={path}\n")
+    result = run("install.sh", checkout, bin_dir)
+    assert result.returncode != 0
+    assert " build" not in log.read_text()
+
+
+def test_default_uninstall_does_not_create_missing_directories(checkout, bin_dir):
+    working_runtime(bin_dir, "podman")
+    shutil.copy(checkout / ".env.example", checkout / ".env")
+    result = run("uninstall.sh", checkout, bin_dir)
+    assert result.returncode == 0
+    assert not (checkout / "deploy" / "volumes").exists()
+
+
+def test_destructive_uninstall_refuses_custom_directory_even_with_confirmation(checkout, bin_dir):
+    working_runtime(bin_dir, "podman")
+    outside = checkout.parent / "shared-files"
+    outside.mkdir()
+    keep = outside / "keep"
+    keep.write_text("unrelated")
+    (checkout / ".env").write_text(f"ONESHELF_CONTENT_PATH={outside}\n")
+    result = subprocess.run([str(checkout / "uninstall.sh"), "--delete-data"],
+                            input="delete my library\n", capture_output=True, text=True,
+                            env={"PATH": f"{bin_dir}:/usr/bin:/bin", "HOME": str(checkout.parent)})
+    assert result.returncode != 0
+    assert keep.read_text() == "unrelated"
+
+
+def test_destructive_uninstall_rejects_symlinked_volume_parent(checkout, bin_dir):
+    working_runtime(bin_dir, "podman")
+    outside = checkout.parent / "shared-files"
+    (outside / "data").mkdir(parents=True)
+    keep = outside / "data" / "keep"
+    keep.write_text("unrelated")
+    (checkout / "deploy" / "volumes").symlink_to(outside, target_is_directory=True)
+    shutil.copy(checkout / ".env.example", checkout / ".env")
+    result = subprocess.run([str(checkout / "uninstall.sh"), "--delete-data"],
+                            input="delete my library\n", capture_output=True, text=True,
+                            env={"PATH": f"{bin_dir}:/usr/bin:/bin", "HOME": str(checkout.parent)})
+    assert result.returncode != 0
+    assert keep.read_text() == "unrelated"
+
+
+def init_repo(checkout):
+    subprocess.run(["git", "init", "-qb", "main"], cwd=checkout, check=True)
+    (checkout / ".gitignore").write_text(".env\ndeploy/volumes/\nruntime.log\n")
+    subprocess.run(["git", "add", "."], cwd=checkout, check=True)
+    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "base"],
+                   cwd=checkout, check=True)
+
+
+@pytest.mark.parametrize("state", ["detached", "wrong-branch", "merge"])
+def test_update_refuses_unsafe_git_states(checkout, bin_dir, state):
+    init_repo(checkout)
+    if state == "detached":
+        subprocess.run(["git", "checkout", "--detach", "-q"], cwd=checkout, check=True)
+    elif state == "wrong-branch":
+        subprocess.run(["git", "checkout", "-qb", "experiment"], cwd=checkout, check=True)
+    else:
+        (checkout / ".git" / "MERGE_HEAD").write_text(subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=checkout, text=True))
+    working_runtime(bin_dir, "podman", log=checkout / "runtime.log")
+    healthy_probe(bin_dir)
+    shutil.copy(checkout / ".env.example", checkout / ".env")
+    result = run("update.sh", checkout, bin_dir)
+    assert result.returncode != 0
+    assert " build" not in (checkout / "runtime.log").read_text()
+
+
+@pytest.mark.parametrize("action", ["build", "up"])
+def test_compose_action_failure_is_propagated(checkout, bin_dir, action):
+    stub(bin_dir, "podman", f'''case "$*" in
+      *" {action}"|*" {action} "*) exit 19 ;;
+      *) exit 0 ;;
+    esac''')
+    healthy_probe(bin_dir)
+    result = run("install.sh", checkout, bin_dir)
+    assert result.returncode != 0
+    assert "is running at" not in result.stdout
+
+
+def test_custom_plugin_and_backup_paths_match_compose(checkout, bin_dir):
+    working_runtime(bin_dir, "podman")
+    healthy_probe(bin_dir)
+    plugins, backups = checkout.parent / "my plugins", checkout.parent / "my backups"
+    (checkout / ".env").write_text(f'ONESHELF_PLUGIN_PATH="{plugins}"\nONESHELF_BACKUP_PATH="{backups}"\n')
+    result = run("install.sh", checkout, bin_dir)
+    assert result.returncode == 0, result.stderr
+    assert plugins.is_dir() and backups.is_dir()
+    assert not (checkout / "deploy/volumes/plugins").exists()
+    assert not (checkout / "deploy/volumes/backups").exists()
+
+
+def test_ownership_failure_prevents_start(checkout, bin_dir):
+    log = checkout / "runtime.log"
+    stub(bin_dir, "podman", f'''echo "$*" >> "{log}"
+    case "$1" in run) exit 23 ;; *) exit 0 ;; esac''')
+    healthy_probe(bin_dir)
+    result = run("install.sh", checkout, bin_dir)
+    assert result.returncode != 0
+    assert " up -d" not in log.read_text()
+
+
+@pytest.mark.parametrize("state", ["ahead", "diverged", "fast-forward", "unchanged", "worktree-dirty"])
+def test_update_with_real_git_remote_preserves_data(checkout, bin_dir, state):
+    init_repo(checkout)
+    origin = checkout.parent / "origin.git"
+    subprocess.run(["git", "clone", "--bare", str(checkout), str(origin)], check=True, capture_output=True)
+    subprocess.run(["git", "remote", "add", "origin", str(origin)], cwd=checkout, check=True)
+    subprocess.run(["git", "fetch", "origin"], cwd=checkout, check=True, capture_output=True)
+    subprocess.run(["git", "branch", "--set-upstream-to=origin/main"], cwd=checkout, check=True, capture_output=True)
+    if state in ("ahead", "diverged"):
+        subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-qm", "local"], cwd=checkout, check=True)
+    if state in ("fast-forward", "diverged"):
+        other = checkout.parent / "publisher"
+        subprocess.run(["git", "clone", str(origin), str(other)], check=True, capture_output=True)
+        (other / "release-note").write_text("new release")
+        subprocess.run(["git", "add", "."], cwd=other, check=True)
+        subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "remote"], cwd=other, check=True)
+        subprocess.run(["git", "push"], cwd=other, check=True, capture_output=True)
+    if state == "worktree-dirty":
+        linked = checkout.parent / "linked"
+        subprocess.run(["git", "worktree", "add", "--detach", str(linked)], cwd=checkout, check=True, capture_output=True)
+        checkout = linked
+        (checkout / "install.sh").write_text("changed")
+    working_runtime(bin_dir, "podman", log=checkout / "runtime.log")
+    healthy_probe(bin_dir)
+    shutil.copy(checkout / ".env.example", checkout / ".env")
+    before = (checkout / ".env").read_bytes()
+    data = checkout / "deploy/volumes/data"
+    data.mkdir(parents=True)
+    (data / "oneshelf.db").write_bytes(b"persistent library")
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=checkout)
+    result = run("update.sh", checkout, bin_dir)
+    if state in ("ahead", "diverged", "worktree-dirty"):
+        assert result.returncode != 0, result.stdout
+        assert " build" not in (checkout / "runtime.log").read_text()
+        assert subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=checkout) == head
+    else:
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "health check passed" in result.stdout
+        if state == "fast-forward":
+            assert (checkout / "release-note").read_text() == "new release"
+    assert (data / "oneshelf.db").read_bytes() == b"persistent library"
+    assert (checkout / ".env").read_bytes() == before
+
+
+def test_legacy_nested_data_blocks_install_before_it_can_be_hidden(checkout, bin_dir):
+    # A pre-release image stored plugins/backups beneath /data, ignoring separate mounts.
+    # A helper detects existing content there; never mount an empty store over that content.
+    log = checkout / "runtime.log"
+    stub(bin_dir, "podman", f'''echo "$*" >> "{log}"
+    case "$*" in *"/legacy"*) exit 24 ;; *) exit 0 ;; esac''')
+    healthy_probe(bin_dir)
+    result = run("install.sh", checkout, bin_dir)
+    assert result.returncode != 0
+    assert " up -d" not in log.read_text()
+    assert "legacy" in result.stderr.lower()
+
+
+def test_install_refuses_unmarked_nonempty_custom_storage_before_runtime_mounts(checkout, bin_dir):
+    custom = checkout.parent / "personal-books"
+    custom.mkdir()
+    (custom / "keep.epub").write_text("personal")
+    (checkout / ".env").write_text(f"ONESHELF_CONTENT_PATH={custom}\n")
+    log = checkout / "runtime.log"
+    working_runtime(bin_dir, "podman", log=log)
+    healthy_probe(bin_dir)
+    result = run("install.sh", checkout, bin_dir)
+    assert result.returncode != 0
+    assert " run " not in log.read_text()
+    assert (custom / "keep.epub").read_text() == "personal"
