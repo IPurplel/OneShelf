@@ -3,7 +3,7 @@
     python -m oneshelf.plugins.adapter_repo check-all      [--root .] [--baseline PUBLISHED_REGISTRY_DIR]
     python -m oneshelf.plugins.adapter_repo check ID...    [--root .] [--baseline DIR]
     python -m oneshelf.plugins.adapter_repo reproducible   --baseline PUBLISHED_REGISTRY_DIR [--root .]
-    python -m oneshelf.plugins.adapter_repo build-registry --out DIR [--signing-key PATH --key-id ID | --unsigned-preview]
+    python -m oneshelf.plugins.adapter_repo build-registry --out DIR [--signing-key PATH --key-id ID] [--require-signing]
     python -m oneshelf.plugins.adapter_repo verify-registry --registry DIR [--root .] [--require-signed]
     python -m oneshelf.plugins.adapter_repo public-key --signing-key PATH --key-id ID
 
@@ -13,10 +13,11 @@ parser. Nothing is copied into that repository.
 
 Layout: `adapters/official/`, `adapters/verified-community/`, `adapters/community/`, one directory per
 plugin id. **Trust comes from the tier directory**, which only a maintainer-reviewed change can move an
-adapter into — never from anything inside an adapter. Official and Verified Community entries are
-published only when signed by the project key (an explicit `--unsigned-preview` publishes them unsigned,
-which every OneShelf then treats as Community). A private key is only ever read from outside any Git work
-tree, and only its public half is written anywhere.
+adapter into — never from anything inside an adapter. Signing Official and Verified Community entries is
+optional (owner decision, 2026-09-21): an installation trusts those tiers without a signature only from the
+Registry it names as first-party (ONESHELF_FIRST_PARTY_REGISTRY_URL); anywhere else only a valid signature
+from a locally trusted key does. `--require-signing` enforces signatures. A private key is only ever read
+from outside any Git work tree, and only its public half is written anywhere.
 """
 from __future__ import annotations
 
@@ -313,15 +314,16 @@ def index_bytes(built: list[Built], signer: Ed25519PrivateKey | None, key_id: st
 
 
 def build_registry(root: Path, out: Path, signer: Ed25519PrivateKey | None, key_id: str | None, *,
-                   unsigned_preview: bool, baseline: Path | None = None) -> list[Built]:
+                   require_signing: bool = False, baseline: Path | None = None) -> list[Built]:
+    """Signatures are optional (owner decision, 2026-09-21): the first-party Registry's tiers are trusted
+    by installations that name it as first-party. `require_signing` restores the stricter policy."""
     built, problems = check(root, None, baseline)
     if problems:
         raise ToolError("\n".join(problems))
     needs_key = sorted(b.id for b in built if b.adapter.tier in SIGNED_TIERS)
-    if needs_key and signer is None and not unsigned_preview:
+    if needs_key and signer is None and require_signing:
         raise ToolError(f"{len(needs_key)} Official/Verified Community adapters need the project signing key "
-                        f"(--signing-key PATH --key-id ID): {', '.join(needs_key)}. --unsigned-preview publishes "
-                        "them unsigned, and OneShelf then treats them as Community.")
+                        f"(--signing-key PATH --key-id ID): {', '.join(needs_key)}")
     for item in built:
         _write_atomic(out / item.file, item.data)
     wanted = {out / item.file for item in built}
@@ -498,8 +500,9 @@ def _parser() -> argparse.ArgumentParser:
     b.add_argument("--baseline", type=Path)
     b.add_argument("--signing-key", help=f"Ed25519 PEM key outside any repository (or ${KEY_FILE_ENV})")
     b.add_argument("--key-id")
-    b.add_argument("--unsigned-preview", action="store_true",
-                   help="publish Official/Verified Community entries unsigned (OneShelf treats them as Community)")
+    b.add_argument("--require-signing", action="store_true",
+                   help="refuse to publish Official/Verified Community entries without a signature")
+    b.add_argument("--unsigned-preview", action="store_true", help="accepted for compatibility; unsigned is the default")
     v = commands.add_parser("verify-registry")
     v.add_argument("--registry", type=Path, required=True)
     v.add_argument("--root", type=Path, help="also check the Registry is exactly what these adapters build")
@@ -535,7 +538,7 @@ def main(argv: list[str] | None = None) -> int:
             if path is not None and not args.key_id:
                 raise ToolError("--key-id is required when signing")
             signer = load_key(path) if path is not None else None
-            built = build_registry(args.root, args.out, signer, args.key_id, unsigned_preview=args.unsigned_preview,
+            built = build_registry(args.root, args.out, signer, args.key_id, require_signing=args.require_signing,
                                    baseline=args.baseline)
             signed = sum(1 for b in built if b.adapter.tier in SIGNED_TIERS) if signer else 0
             print(f"built {len(built)} packages into {args.out} ({signed} signed with {args.key_id or '-'})")

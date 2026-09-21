@@ -93,6 +93,7 @@ class RegistryReview:
     plugin_state: str | None
     channel: str | None
     trust_label: str | None
+    trust_basis: str = "none"              # "signature" | "first_party" | "none"
 
 
 def _rejection(exc: PackageError) -> InstallRejected:
@@ -110,10 +111,14 @@ def _vkey(version: str) -> tuple[int, ...]:
 
 class PluginManager:
     def __init__(self, conn: sqlite3.Connection, *, store_dir: str | Path,
-                 trusted_keys: dict[str, bytes] | None = None, fault: Callable[[str], None] | None = None) -> None:
+                 trusted_keys: dict[str, bytes] | None = None, fault: Callable[[str], None] | None = None,
+                 first_party_registry: str | None = None) -> None:
         self.conn = conn
         self.store = Path(store_dir)
         self.trusted_keys = trusted_keys or {}
+        # The one Registry location whose repository-controlled tiers are trusted without a signature
+        # (owner decision, 2026-09-21). Local configuration only — never taken from a Registry.
+        self.first_party_registry = first_party_registry or None
         self.fault = fault or (lambda _p: None)
         self._cache: dict[tuple[str, str, str], PluginPackage] = {}
 
@@ -317,7 +322,7 @@ class PluginManager:
                                     approved_permissions: Iterable[str],
                                     expected_sha256: str | None = None) -> InstallOutcome:
         entry, data = await self._fetch_entry(registry, plugin_id, version, expected_sha256)
-        label = self._verified_label(entry)
+        label = self._verified_label(entry, registry.location)
         (self.store / STAGING).mkdir(parents=True, exist_ok=True)
         download = self.store / STAGING / f"download-{new_id()}.osp"
         download.write_bytes(data)
@@ -363,18 +368,18 @@ class PluginManager:
             return "update_available", installed
         return ("installed" if theirs == ours else "installed_newer"), installed
 
-    def registry_trust(self, entry: RegistryEntry) -> str:
-        """The trust an entry would earn, from its signature alone — no download needed."""
+    def registry_trust(self, entry: RegistryEntry, location: str | None = None) -> tuple[str, str]:
+        """The trust an entry would earn and why — no download needed."""
         try:
-            return self._verified_label(entry)
+            return self._trust(entry, location)
         except InstallRejected:
-            return "invalid_signature"
+            return "invalid_signature", "none"
 
     async def review_from_registry(self, registry: Registry, plugin_id: str, *,
                                    version: str | None = None) -> "RegistryReview":
         """Everything the install would check, without installing: bytes, hash, signature, package, tests."""
         entry, data = await self._fetch_entry(registry, plugin_id, version, None)
-        trust = self._verified_label(entry)
+        trust, basis = self._trust(entry, registry.location)
         (self.store / STAGING).mkdir(parents=True, exist_ok=True)
         staged = self.store / STAGING / f"review-{new_id()}.osp"
         staged.write_bytes(data)
@@ -397,21 +402,34 @@ class PluginManager:
             capabilities=tuple(package.manifest.capabilities), permissions=package.permissions,
             added_permissions=package.permissions - baseline, tests_passed=report.passed, test_cases=report.cases,
             test_failures=tuple(report.failures), effective_trust=trust, claimed_trust=entry.trust_label,
-            signed=bool(entry.signature), sha256=entry.sha256, state=state, **installed)
+            signed=basis == "signature", sha256=entry.sha256, state=state, trust_basis=basis, **installed)
 
-    def _verified_label(self, entry) -> str:
+    def _verified_label(self, entry, location: str | None = None) -> str:
+        return self._trust(entry, location)[0]
+
+    def _trust(self, entry, location: str | None) -> tuple[str, str]:
+        """A signed-tier label is believed for one of two reasons, and never because an index says so.
+
+        1. A valid Ed25519 signature from a locally trusted key — anywhere. An invalid signature from a
+           trusted key is refused outright, first-party or not.
+        2. The entry comes from exactly the configured first-party Registry, whose tiers the project's own
+           repository controls (owner decision, 2026-09-21: signatures are optional there).
+        Everything else is Community.
+        """
         claimed = entry.trust_label if entry.trust_label in SIGNED_LABELS | {"community"} else "community"
         if claimed not in SIGNED_LABELS:
-            return "community"
-        if not entry.signature or entry.signature_key_id not in self.trusted_keys:
-            return "community"
-        try:
-            Ed25519PublicKey.from_public_bytes(self.trusted_keys[entry.signature_key_id]).verify(
-                base64.b64decode(entry.signature), entry.sha256.encode()
-            )
-        except (InvalidSignature, ValueError) as exc:
-            raise InstallRejected("registry signature verification failed") from exc
-        return claimed
+            return "community", "none"
+        if entry.signature and entry.signature_key_id in self.trusted_keys:
+            try:
+                Ed25519PublicKey.from_public_bytes(self.trusted_keys[entry.signature_key_id]).verify(
+                    base64.b64decode(entry.signature), entry.sha256.encode()
+                )
+            except (InvalidSignature, ValueError) as exc:
+                raise InstallRejected("registry signature verification failed") from exc
+            return claimed, "signature"
+        if self.first_party_registry is not None and location == self.first_party_registry:
+            return claimed, "first_party"
+        return "community", "none"
 
     # -- management -------------------------------------------------------------------------------
 

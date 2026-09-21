@@ -299,10 +299,11 @@ async def registry_listing(request: Request, refresh: bool = False):
         state, installed = s.plugins.install_state(plugin_id, entry.version)
         if not runnable and state in ("available", "update_available"):
             state = "incompatible"                                      # "Requires newer OneShelf"
+        effective, basis = s.plugins.registry_trust(entry, registry.location)
         plugins.append({
             "id": entry.id, "name": entry.name, "version": entry.version,
-            "trust_label": entry.trust_label, "signed": bool(entry.signature),
-            "effective_trust": s.plugins.registry_trust(entry), "api": entry.api,
+            "trust_label": entry.trust_label, "signed": basis == "signature",
+            "effective_trust": effective, "trust_basis": basis, "api": entry.api,
             "state": state, "installed_version": installed["installed_version"],
             "plugin_state": installed["plugin_state"], "channel": installed["channel"],
             "installed_trust": installed["trust_label"],
@@ -335,7 +336,8 @@ async def registry_review(request: Request, body: RegistryReviewBody):
         "permissions": sorted(review.permissions), "added_permissions": sorted(review.added_permissions),
         "tests_passed": review.tests_passed, "test_cases": review.test_cases,
         "test_failures": list(review.test_failures), "effective_trust": review.effective_trust,
-        "claimed_trust": review.claimed_trust, "signed": review.signed, "sha256": review.sha256,
+        "claimed_trust": review.claimed_trust, "signed": review.signed, "trust_basis": review.trust_basis,
+        "sha256": review.sha256,
         "state": review.state, "installed_version": review.installed_version, "plugin_state": review.plugin_state,
         "channel": review.channel,
     }

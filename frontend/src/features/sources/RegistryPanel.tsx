@@ -16,6 +16,7 @@ type Card = {
   trust_label: string;
   signed: boolean;
   effective_trust: string;
+  trust_basis?: string;
   api: string | null;
   state: RegistryState;
   installed_version: string | null;
@@ -39,6 +40,7 @@ type Review = {
   test_cases: number;
   test_failures: string[];
   effective_trust: string;
+  trust_basis?: string;
   claimed_trust: string;
   signed: boolean;
   sha256: string;
@@ -56,10 +58,15 @@ const ACTION: Partial<Record<RegistryState, StringKey>> = {
   pending_review: "registry.action.review",
 };
 
-/** The trust a person can rely on: a trusted signature, never what the index merely claims. */
-function trustKey(effective: string, claimed: string): StringKey {
-  if (effective === "official") return "registry.trust.official";
-  if (effective === "verified_community") return "registry.trust.verified";
+/**
+ * The trust a person can rely on, and never more: Official or Verified Community from the first-party
+ * Registry's own tiers, "· Signed" only when a trusted key's signature actually verified, and a plain
+ * "Says … · not verified" for what any other Registry merely claims.
+ */
+function trustKey(effective: string, claimed: string, basis?: string): StringKey {
+  const signed = basis === "signature";
+  if (effective === "official") return signed ? "registry.trust.officialSigned" : "registry.trust.official";
+  if (effective === "verified_community") return signed ? "registry.trust.verifiedSigned" : "registry.trust.verified";
   if (effective === "invalid_signature") return "registry.trust.invalid";
   if (claimed === "official") return "registry.trust.unverified";
   if (claimed === "verified_community") return "registry.trust.unverifiedVerified";
@@ -182,7 +189,7 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
               <li key={card.id} className="cards__row">
                 <span className="cards__name display">{card.name}</span>
                 <span className="cards__meta">{card.version}</span>
-                <span className="chip chip--static">{t(trustKey(card.effective_trust, card.trust_label))}</span>
+                <span className="chip chip--static">{t(trustKey(card.effective_trust, card.trust_label, card.trust_basis))}</span>
                 <span className={`cards__state cards__state--${card.state}`}>{status(card)}</span>
                 {action !== undefined && (
                   <button type="button" className="chip" disabled={busy} onClick={() => void open(card)}>
@@ -207,7 +214,7 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
                 <dt>{t("install.version")}</dt>
                 <dd>{review.installed_version !== null && review.installed_version !== review.version
                   ? `${review.installed_version} → ${review.version}` : review.version}</dd>
-                <dt>{t("sources.trust")}</dt><dd>{t(trustKey(review.effective_trust, review.claimed_trust))}</dd>
+                <dt>{t("sources.trust")}</dt><dd>{t(trustKey(review.effective_trust, review.claimed_trust, review.trust_basis))}</dd>
                 <dt>{t("sources.capabilities")}</dt><dd>{review.capabilities.join(", ")}</dd>
               </dl>
               {review.description !== null && <p>{review.description}</p>}

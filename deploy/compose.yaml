@@ -30,6 +30,10 @@ services:
       # (set, empty) in .env switches it off. No colon in `${VAR-default}` on purpose: an unset value gets
       # the default, an empty one keeps it off.
       ONESHELF_REGISTRY_URL: "${ONESHELF_REGISTRY_URL-https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json}"
+      # The Registry whose repository-controlled tiers (Official, Verified Community) are trusted without a
+      # signature. Only a Registry URL exactly equal to this one earns that; any other stays Community unless
+      # a trusted key signs it. Empty = no first-party Registry (the safer behaviour).
+      ONESHELF_FIRST_PARTY_REGISTRY_URL: "${ONESHELF_FIRST_PARTY_REGISTRY_URL-https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json}"
       # Public Ed25519 keys only ("key-id:base64,..."); list two while rotating. A private key never goes here.
       ONESHELF_REGISTRY_TRUSTED_KEYS: "${ONESHELF_REGISTRY_TRUSTED_KEYS-}"
     volumes:

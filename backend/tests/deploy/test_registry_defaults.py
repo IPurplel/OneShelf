@@ -30,6 +30,23 @@ def test_compose_defaults_to_the_official_registry_but_lets_an_empty_value_switc
     assert f'ONESHELF_REGISTRY_URL: "${{ONESHELF_REGISTRY_URL-{OFFICIAL_INDEX}}}"' in compose()
 
 
+def test_compose_names_the_first_party_registry_and_lets_an_empty_value_remove_it():
+    assert f'ONESHELF_FIRST_PARTY_REGISTRY_URL: "${{ONESHELF_FIRST_PARTY_REGISTRY_URL-{OFFICIAL_INDEX}}}"' in compose()
+
+
+def test_env_example_first_party_registry_is_exactly_the_default_registry():
+    lines = env_example().splitlines()
+    assert f"ONESHELF_FIRST_PARTY_REGISTRY_URL={OFFICIAL_INDEX}" in lines
+    assert f"ONESHELF_REGISTRY_URL={OFFICIAL_INDEX}" in lines
+
+
+def test_the_historical_default_still_lands_on_the_first_party_registry():
+    """Old .env files carry the old URL; the container reads it as the new one, which is the first-party one."""
+    environ = {"ONESHELF_REGISTRY_URL": LEGACY_INDEX}
+    container_start().alias_registry_url(environ)
+    assert environ["ONESHELF_REGISTRY_URL"] == OFFICIAL_INDEX
+
+
 def test_compose_passes_trusted_public_keys_through_and_ships_none():
     assert 'ONESHELF_REGISTRY_TRUSTED_KEYS: "${ONESHELF_REGISTRY_TRUSTED_KEYS-}"' in compose()
 

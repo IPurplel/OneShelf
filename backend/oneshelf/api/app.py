@@ -114,6 +114,7 @@ class AppConfig:
     dev_test_source_address: str | None = None
     registry_url: str | None = None
     registry_trusted_keys: str | None = None
+    first_party_registry_url: str | None = None
     # The built interface, served from this same origin (§2.1). Empty in a source checkout that has
     # not run a frontend build; the API then serves itself and nothing else.
     web_root: str | None = None
@@ -143,6 +144,7 @@ class AppConfig:
             dev_test_source_address=env.get("ONESHELF_DEV_TEST_SOURCE_ADDRESS"),
             registry_url=env.get("ONESHELF_REGISTRY_URL") or None,
             registry_trusted_keys=env.get("ONESHELF_REGISTRY_TRUSTED_KEYS") or None,
+            first_party_registry_url=env.get("ONESHELF_FIRST_PARTY_REGISTRY_URL") or None,
         )
 
     def dev_hosts(self) -> dict[str, tuple[str, int]]:
@@ -237,7 +239,8 @@ def create_app(config: AppConfig) -> FastAPI:
         conn = open_database(config.db_path)
         app.state.startup_report = run_startup_recovery(conn)
         plugins = PluginManager(conn, store_dir=Path(config.data_dir) / "plugins",
-                                trusted_keys=parse_trusted_keys(config.registry_trusted_keys))
+                                trusted_keys=parse_trusted_keys(config.registry_trusted_keys),
+                                first_party_registry=config.first_party_registry_url)
         try:
             registry = registry_from_config(config.registry_url)
         except RegistryError as exc:

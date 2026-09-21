@@ -336,16 +336,25 @@ def test_trust_labels_come_from_the_tier(tmp_path):
     assert entries["example.books"].trust_label == "community" and entries["example.books"].signature is None
 
 
-def test_official_publication_without_a_key_fails(tmp_path, capsys):
+def test_signatures_are_optional_by_default(tmp_path):
+    """Owner decision, 2026-09-21: the first-party Registry's tiers are its trust; signing is extra evidence."""
+    root = make_tree(tmp_path / "repo", verified=["example.verified"])
+    assert run("build-registry", "--root", root, "--out", tmp_path / "reg") == 0
+    entries = {e.id: e for e in parse_index((tmp_path / "reg" / "index.json").read_bytes())}
+    assert entries["oneshelf.gutenberg"].trust_label == "official" and entries["oneshelf.gutenberg"].signature is None
+    assert entries["example.verified"].trust_label == "verified_community"
+
+
+def test_official_publication_without_a_key_fails_when_signing_is_required(tmp_path, capsys):
     root = make_tree(tmp_path / "repo")
-    assert run("build-registry", "--root", root, "--out", tmp_path / "reg") != 0
+    assert run("build-registry", "--root", root, "--out", tmp_path / "reg", "--require-signing") != 0
     assert "signing key" in capsys.readouterr().err
     assert not (tmp_path / "reg" / "index.json").exists()
 
 
-def test_verified_community_publication_without_a_key_fails(tmp_path):
+def test_verified_community_publication_without_a_key_fails_when_signing_is_required(tmp_path):
     root = make_tree(tmp_path / "repo", official=(), verified=["example.verified"])
-    assert run("build-registry", "--root", root, "--out", tmp_path / "reg") != 0
+    assert run("build-registry", "--root", root, "--out", tmp_path / "reg", "--require-signing") != 0
 
 
 def test_a_community_only_registry_needs_no_key(tmp_path):

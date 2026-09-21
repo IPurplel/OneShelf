@@ -12,8 +12,8 @@ import { renderWithProviders } from "@/test/render";
 import { get, mockApi, post } from "@/test/http";
 
 const card = (over: Record<string, unknown>) => ({
-  id: "oneshelf.tapas", name: "Tapas", version: "1.0.0", trust_label: "official", signed: true,
-  effective_trust: "official", api: "1.0", state: "installed", installed_version: "1.0.0",
+  id: "oneshelf.tapas", name: "Tapas", version: "1.0.0", trust_label: "official", signed: false,
+  effective_trust: "official", trust_basis: "first_party", api: "1.0", state: "installed", installed_version: "1.0.0",
   plugin_state: "active", channel: "bundled", installed_trust: "official", ...over,
 });
 
@@ -28,7 +28,7 @@ const REVIEW = {
   permissions: ["network:cdn:us-a.tapas.io", "network:domain:tapas.io"],
   added_permissions: ["network:cdn:us-a.tapas.io", "network:domain:tapas.io"],
   tests_passed: true, test_cases: 5, test_failures: [], effective_trust: "official", claimed_trust: "official",
-  signed: true, sha256: "b".repeat(64), state: "available", installed_version: null, plugin_state: "uninstalled",
+  signed: false, trust_basis: "first_party", sha256: "b".repeat(64), state: "available", installed_version: null, plugin_state: "uninstalled",
   channel: "bundled",
 };
 
@@ -138,7 +138,7 @@ describe("Source Registry", () => {
   });
 
   it("does not call an unsigned claim Official", async () => {
-    mockApi([get("/api/registry", listing(card({ signed: false, effective_trust: "community" })))]);
+    mockApi([get("/api/registry", listing(card({ signed: false, effective_trust: "community", trust_basis: "none" })))]);
     renderWithProviders(<RegistryPanel revision={0} onChanged={() => {}} />);
     const tapas = await cardFor("Tapas");
     expect(within(tapas).queryByText("Official")).toBeNull();
@@ -156,11 +156,12 @@ describe("Source Registry", () => {
     mockApi([get("/api/registry", listing(
       card({}),
       card({ id: "example.verified", name: "Verified Books", trust_label: "verified_community",
-             effective_trust: "verified_community", state: "available", installed_version: null }),
+             effective_trust: "verified_community", trust_basis: "first_party", state: "available",
+             installed_version: null }),
       card({ id: "example.claims", name: "Claims Books", trust_label: "verified_community", signed: false,
-             effective_trust: "community", state: "available", installed_version: null }),
+             effective_trust: "community", trust_basis: "none", state: "available", installed_version: null }),
       card({ id: "example.books", name: "Community Books", trust_label: "community", signed: false,
-             effective_trust: "community", state: "available", installed_version: null }),
+             effective_trust: "community", trust_basis: "none", state: "available", installed_version: null }),
     ))]);
     renderWithProviders(<RegistryPanel revision={0} onChanged={() => {}} />);
     expect(within(await cardFor("Tapas")).getByText("Official")).toBeInTheDocument();
@@ -169,6 +170,35 @@ describe("Source Registry", () => {
     const community = await cardFor("Community Books");
     expect(within(community).getByText("Community")).toBeInTheDocument();
     expect(within(community).getByRole("button", { name: /^install$/i })).toBeInTheDocument();
+  });
+
+  it("says Signed only when a signature was actually verified", async () => {
+    mockApi([get("/api/registry", listing(
+      card({}),
+      card({ id: "example.signed", name: "Signed Books", signed: true, trust_basis: "signature" }),
+      card({ id: "example.vsigned", name: "Signed Verified", trust_label: "verified_community", signed: true,
+             effective_trust: "verified_community", trust_basis: "signature" }),
+    ))]);
+    renderWithProviders(<RegistryPanel revision={0} onChanged={() => {}} />);
+    const tapas = await cardFor("Tapas");
+    expect(within(tapas).getByText("Official")).toBeInTheDocument();
+    expect(within(tapas).queryByText(/signed|verified|cryptograph/i)).toBeNull();
+    expect(within(await cardFor("Signed Books")).getByText("Official · Signed")).toBeInTheDocument();
+    expect(within(await cardFor("Signed Verified")).getByText("Verified Community · Signed")).toBeInTheDocument();
+  });
+
+  it("shows the review's trust with the same care", async () => {
+    mockApi([
+      get("/api/registry", listing(card({ state: "available", installed_version: null }))),
+      post("/api/registry/review-package", REVIEW),
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<RegistryPanel revision={0} onChanged={() => {}} />);
+    await user.click(within(await cardFor("Tapas")).getByRole("button", { name: /^install$/i }));
+    const review = await screen.findByRole("dialog", { name: /tapas/i });
+    await within(review).findByText(/5 packaged tests passed/i);
+    expect(within(review).getByText("Official")).toBeInTheDocument();
+    expect(within(review).queryByText(/· signed|cryptograph/i)).toBeNull();
   });
 
   it("will not install from a review whose packaged tests failed", async () => {
