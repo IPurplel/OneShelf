@@ -59,6 +59,23 @@ describe("First run", () => {
     expect(await screen.findByRole("textbox", { name: /hostname/i })).toBeInTheDocument();
   });
 
+  it("says the official sources are already included, and never asks for them to be uploaded", async () => {
+    // Release requirement: a fresh install arrives with its official sources. The step says so, and
+    // says where to change that — it does not send someone off to build or upload anything.
+    mockApi([get("/api/first-run", { ...PENDING, sources_installed: 8 })]);
+    renderWithProviders(<FirstRunScreen initialStep="sources" />);
+    const lede = await screen.findByText(/8 official sources are already included/i);
+    expect(lede).toHaveTextContent(/disable or remove/i);
+    expect(screen.queryByText(/upload/i)).toBeNull();
+    expect(screen.getByRole("link", { name: /sources/i })).toHaveAttribute("href", "/sources");
+  });
+
+  it("still reads sensibly when no source is installed", async () => {
+    mockApi([get("/api/first-run", { ...PENDING, sources_installed: 0 })]);
+    renderWithProviders(<FirstRunScreen initialStep="sources" />);
+    expect(await screen.findByText(/without installing a single source/i)).toBeInTheDocument();
+  });
+
   it("lets someone reach their library without finishing the tour", async () => {
     mockApi([get("/api/first-run", PENDING)]);
     renderWithProviders(<FirstRunScreen />);

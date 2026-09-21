@@ -143,7 +143,11 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
         {step === "sources" && (
           <>
             <h1 className="firstrun__title display">{t("first.sources.title")}</h1>
-            <p className="firstrun__lede">{t("first.sources.body")}</p>
+            <p className="firstrun__lede">
+              {data !== null && data.sources_installed > 0
+                ? t("first.sources.included", { count: data.sources_installed })
+                : t("first.sources.body")}
+            </p>
             <div className="firstrun__actions">
               <Link className="button" to="/sources">{t("nav.sources")}</Link>
               <button type="button" className="button button--primary" onClick={() => setStep("finish")}>

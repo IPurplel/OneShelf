@@ -56,6 +56,8 @@ export function SourcesScreen() {
           <li key={source.id} className="cards__row">
             <span className="cards__name display">{source.name}</span>
             <span className="cards__meta">{source.capabilities.join(" · ")}</span>
+            {/* It came with OneShelf: the person did not have to add it, and may still remove it. */}
+            {source.channel === "bundled" && <span className="chip chip--static">{t("sources.bundled")}</span>}
             <span className={`cards__state cards__state--${source.state}`}>
               {t(`sources.state.${source.state}` as const)}
             </span>

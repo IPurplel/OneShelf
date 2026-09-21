@@ -68,6 +68,19 @@ describe("Sources", () => {
     expect(calls.some((call) => call.url === "/api/sources/oneshelf.webtoon/enable")).toBe(true);
   });
 
+  it("marks the sources that ship with OneShelf, and only those", async () => {
+    // Release requirement: the official adapters arrive with the install. Saying so on the row is how a
+    // person knows they did not have to add them — and a source they uploaded is not labelled that way.
+    mockApi([get("/api/sources", { sources: [
+      { ...SOURCES.sources[0], channel: "bundled" },
+      { ...SOURCES.sources[1], channel: "upload", trust_label: "local" },
+    ] })]);
+    renderWithProviders(<SourcesScreen />);
+    const rows = await screen.findAllByRole("listitem");
+    expect(within(rows[0]!).getByText("Official · Bundled")).toBeInTheDocument();
+    expect(within(rows[1]!).queryByText("Official · Bundled")).toBeNull();
+  });
+
   it("says plainly when no source is installed", async () => {
     mockApi([get("/api/sources", { sources: [] })]);
     renderWithProviders(<SourcesScreen />);
