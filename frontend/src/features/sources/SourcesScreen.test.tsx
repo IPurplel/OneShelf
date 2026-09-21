@@ -97,6 +97,15 @@ describe("Sources", () => {
     expect(within(rows[1]!).getByText("Local upload")).toBeInTheDocument();
   });
 
+  it("keeps trust level and delivery channel apart for Verified Community sources", async () => {
+    mockApi([get("/api/sources", { sources: [
+      { ...SOURCES.sources[0], channel: "registry", trust_label: "verified_community" },
+    ] })]);
+    renderWithProviders(<SourcesScreen />);
+    const rows = await screen.findAllByRole("listitem");
+    expect(within(rows[0]!).getByText("Verified Community · Registry")).toBeInTheDocument();
+  });
+
   it("removes a source only after saying what stays, and that it will not come back by itself", async () => {
     const calls = mockApi([
       get("/api/sources", SOURCES),
@@ -110,18 +119,18 @@ describe("Sources", () => {
     await user.click(await screen.findByRole("button", { name: /remove this source/i }));
     const confirm = await screen.findByRole("dialog", { name: /remove mangadex/i });
     expect(within(confirm).getByText(/reading progress stay exactly as they are/i)).toBeInTheDocument();
-    expect(within(confirm).getByText(/official source registry/i)).toBeInTheDocument();
+    expect(within(confirm).getByText(/source registry/i)).toBeInTheDocument();
     expect(calls.some((c) => c.method === "DELETE")).toBe(false);
 
     await user.click(within(confirm).getByRole("button", { name: /remove source/i }));
     expect(calls.some((c) => c.method === "DELETE" && c.url === "/api/sources/oneshelf.mangadex")).toBe(true);
   });
 
-  it("shows installed sources, the Official Source Registry and install from file as their own sections", async () => {
+  it("shows installed sources, the Source Registry and install from file as their own sections", async () => {
     mockApi([get("/api/sources", SOURCES), get("/api/registry", { configured: false, plugins: [] })]);
     renderWithProviders(<SourcesScreen />);
     expect(await screen.findByRole("heading", { name: /installed sources/i })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: /official source registry/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /^source registry$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /install from file/i })).toBeInTheDocument();
   });
 

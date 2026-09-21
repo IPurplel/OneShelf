@@ -27,7 +27,9 @@ type Source = {
 function originKey(source: Source): StringKey | null {
   if (source.channel === "bundled") return "sources.bundled";
   if (source.channel === "registry") {
-    return source.trust_label === "official" ? "sources.origin.registry" : "sources.origin.registryCommunity";
+    if (source.trust_label === "official") return "sources.origin.registry";
+    return source.trust_label === "verified_community" ? "sources.origin.registryVerified"
+      : "sources.origin.registryCommunity";
   }
   if (source.channel === "upload") return "sources.origin.upload";
   return null;

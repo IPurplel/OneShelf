@@ -59,12 +59,15 @@ const ACTION: Partial<Record<RegistryState, StringKey>> = {
 /** The trust a person can rely on: a trusted signature, never what the index merely claims. */
 function trustKey(effective: string, claimed: string): StringKey {
   if (effective === "official") return "registry.trust.official";
+  if (effective === "verified_community") return "registry.trust.verified";
   if (effective === "invalid_signature") return "registry.trust.invalid";
-  return claimed === "official" ? "registry.trust.unverified" : "registry.trust.community";
+  if (claimed === "official") return "registry.trust.unverified";
+  if (claimed === "verified_community") return "registry.trust.unverifiedVerified";
+  return "registry.trust.community";
 }
 
 /**
- * Sources → Official Source Registry (release requirement REL-13).
+ * Sources → Source Registry (REL-13; mixed trust since the Registry moved to OneShelf-Adapters).
  *
  * The Registry is read against the library by Core, so each card already knows whether it is installed,
  * an update, waiting for review, older than what is installed, or too new for this OneShelf. Every

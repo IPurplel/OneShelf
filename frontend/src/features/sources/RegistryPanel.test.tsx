@@ -1,5 +1,5 @@
 /**
- * Sources → Official Source Registry. The Registry is read against what is installed, so a fresh library
+ * Sources → Source Registry. The Registry is read against what is installed, so a fresh library
  * shows its eight official sources as Installed; a removed one comes back through the same review a file
  * gets; and nothing — not an update, not a reinstall — happens without that review.
  */
@@ -35,19 +35,19 @@ const REVIEW = {
 afterEach(() => vi.unstubAllGlobals());
 
 const cardFor = async (name: string) => {
-  const section = await screen.findByRole("region", { name: /official source registry/i });
+  const section = await screen.findByRole("region", { name: /^source registry$/i });
   const item = (await within(section).findAllByRole("listitem")).find((li) => within(li).queryByText(name));
   if (!item) throw new Error(`no card for ${name}`);
   return item;
 };
 
-describe("Official Source Registry", () => {
+describe("Source Registry", () => {
   it("shows an official source that is already installed as Installed, with nothing to press", async () => {
     mockApi([get("/api/registry", listing(card({})))]);
     renderWithProviders(<RegistryPanel revision={0} onChanged={() => {}} />);
     const tapas = await cardFor("Tapas");
     expect(within(tapas).getByText(/^installed$/i)).toBeInTheDocument();
-    expect(within(tapas).getByText("Official · Signed")).toBeInTheDocument();
+    expect(within(tapas).getByText("Official")).toBeInTheDocument();
     expect(within(tapas).queryByRole("button")).toBeNull();
   });
 
@@ -141,8 +141,34 @@ describe("Official Source Registry", () => {
     mockApi([get("/api/registry", listing(card({ signed: false, effective_trust: "community" })))]);
     renderWithProviders(<RegistryPanel revision={0} onChanged={() => {}} />);
     const tapas = await cardFor("Tapas");
-    expect(within(tapas).queryByText("Official · Signed")).toBeNull();
+    expect(within(tapas).queryByText("Official")).toBeNull();
     expect(within(tapas).getByText(/not verified/i)).toBeInTheDocument();
+  });
+
+  it("is not called Official when it holds every trust level", async () => {
+    mockApi([get("/api/registry", listing(card({})))]);
+    renderWithProviders(<RegistryPanel revision={0} onChanged={() => {}} />);
+    expect(await screen.findByRole("heading", { name: /^source registry$/i })).toBeInTheDocument();
+    expect(screen.queryByText(/official source registry/i)).toBeNull();
+  });
+
+  it("shows each entry's own trust level, from its signature", async () => {
+    mockApi([get("/api/registry", listing(
+      card({}),
+      card({ id: "example.verified", name: "Verified Books", trust_label: "verified_community",
+             effective_trust: "verified_community", state: "available", installed_version: null }),
+      card({ id: "example.claims", name: "Claims Books", trust_label: "verified_community", signed: false,
+             effective_trust: "community", state: "available", installed_version: null }),
+      card({ id: "example.books", name: "Community Books", trust_label: "community", signed: false,
+             effective_trust: "community", state: "available", installed_version: null }),
+    ))]);
+    renderWithProviders(<RegistryPanel revision={0} onChanged={() => {}} />);
+    expect(within(await cardFor("Tapas")).getByText("Official")).toBeInTheDocument();
+    expect(within(await cardFor("Verified Books")).getByText("Verified Community")).toBeInTheDocument();
+    expect(within(await cardFor("Claims Books")).getByText(/says verified community · not verified/i)).toBeInTheDocument();
+    const community = await cardFor("Community Books");
+    expect(within(community).getByText("Community")).toBeInTheDocument();
+    expect(within(community).getByRole("button", { name: /^install$/i })).toBeInTheDocument();
   });
 
   it("will not install from a review whose packaged tests failed", async () => {
