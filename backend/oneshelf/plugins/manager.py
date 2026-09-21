@@ -329,6 +329,12 @@ class PluginManager:
                 download.unlink()
         if outcome.plugin_id != entry.id or outcome.version != entry.version:
             raise InstallRejected("package identity does not match the registry entry")
+        if outcome.state == "already_installed":
+            # This exact version already waits for review: installing it again from its review is the
+            # approval — and only for the bytes that were stored, which are the bytes just reviewed.
+            row = self._version_row(entry.id, entry.version)
+            if row is not None and row["status"] == "pending_review" and row["sha256"] == entry.sha256:
+                return await self.approve(entry.id, entry.version, approved_permissions=approved_permissions)
         if outcome.state == "pending_review":
             # Asking the Registry for this plugin is the owner choosing who updates it. That holds while the
             # new version waits for review — so the bundled image can never take it back in the meantime.

@@ -192,3 +192,26 @@ def test_the_committed_official_registry_matches_what_a_fresh_library_bundles(tm
         plugins = listing(client)
     assert sorted(plugins) == EIGHT
     assert {p["state"] for p in plugins.values()} == {"installed"}
+
+
+def test_a_pending_update_is_approved_from_the_registry_review_bound_to_its_bytes(tmp_path):
+    registry = registry_dir(tmp_path, {"oneshelf.hindawi": edited(tmp_path, "oneshelf.hindawi", version="1.1.0",
+                                                                  extra_domain="www.hindawi.org")})
+    with start(tmp_path, registry) as client:
+        first = client.post("/api/registry/review-package", json={"plugin_id": "oneshelf.hindawi"}).json()
+        client.post("/api/registry/install", json={"plugin_id": "oneshelf.hindawi", "approved_permissions": [],
+                                                   "sha256": first["sha256"]})
+        review = client.post("/api/registry/review-package", json={"plugin_id": "oneshelf.hindawi"}).json()
+        assert review["state"] == "pending_review"
+        assert review["added_permissions"] == ["network:domain:www.hindawi.org"]
+
+        wrong = client.post("/api/registry/install", json={
+            "plugin_id": "oneshelf.hindawi", "approved_permissions": review["permissions"], "sha256": "f" * 64})
+        assert wrong.status_code == 422
+        outcome = client.post("/api/registry/install", json={
+            "plugin_id": "oneshelf.hindawi", "approved_permissions": review["permissions"],
+            "sha256": review["sha256"]}).json()
+        assert outcome["state"] == "active" and outcome["version"] == "1.1.0"
+        hindawi = next(s for s in client.get("/api/sources").json()["sources"] if s["id"] == "oneshelf.hindawi")
+        assert (hindawi["state"], hindawi["version"], hindawi["channel"]) == ("active", "1.1.0", "registry")
+        assert listing(client)["oneshelf.hindawi"]["state"] == "installed"
