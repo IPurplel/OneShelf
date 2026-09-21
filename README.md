@@ -210,6 +210,14 @@ as any other. When an update to one asks for more than it had before, it waits f
 being approved for you. What each source can and cannot do is recorded in
 [docs/c9/source-capability-ledger.md](docs/c9/source-capability-ledger.md).
 
+The Sources screen also shows the **Official Source Registry** — the same adapters, published in this
+repository. Removed one? It is listed there as *Not installed*, and **Install** brings it back after the same
+review and packaged tests. Newer versions appear as **Update**; nothing installs, updates or gains a
+permission without your review, a disabled source stays disabled, and an older version is never offered
+over a newer one. If the Registry cannot be reached, your installed sources simply keep working. The
+Registry is not signed yet, so its entries are labelled *not verified* until the project's signing key is
+set up ([docs/plugins.md](docs/plugins.md) §7). Set `ONESHELF_REGISTRY_URL=` in `.env` to switch it off.
+
 ## Documentation
 
 | | |

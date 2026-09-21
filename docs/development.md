@@ -31,8 +31,8 @@ curl http://127.0.0.1:8420/api/health
 | `ONESHELF_TRUSTED_PROXIES` | empty | comma-separated CIDRs whose `X-Forwarded-For` is honoured |
 | `ONESHELF_ALLOWED_HOSTS` | empty (IP literals and `localhost` only) | extra host names accepted in the `Host` header |
 | `ONESHELF_SESSION_KEY_FILE` | `<data_dir>/keys/session.key` | source-session encryption key; mount on separate storage in deployments |
-| `ONESHELF_REGISTRY_URL` | unset (no registry) | `https://…/index.json` static index or `file:///path/to/mirror` |
-| `ONESHELF_REGISTRY_TRUSTED_KEYS` | unset | `key-id:base64-ed25519-public-key,…` for Official/Verified labels |
+| `ONESHELF_REGISTRY_URL` | unset (no registry) when running from source; Compose defaults it to the Official Source Registry | `https://…/index.json` static index or `file:///path/to/mirror` (e.g. `file://$PWD/../registry`) |
+| `ONESHELF_REGISTRY_TRUSTED_KEYS` | unset | **public** `key-id:base64-ed25519-public-key,…` for Official/Verified labels; list several to rotate |
 | `ONESHELF_DEV_TEST_SOURCE` | off | enables the OneShelf Test Source loopback exception (development only) |
 | `ONESHELF_DEV_TEST_SOURCE_ADDRESS` | unset | `127.0.0.1:PORT` where `python -m testsource PORT` runs |
 
@@ -58,7 +58,7 @@ Scenarios are controlled with `POST /__control` on the Test Source (e.g. `{"big_
 | Health / events | `GET /api/health`, `GET /api/ready`, `GET /api/events` (SSE) |
 | Generator | `POST|GET /api/generator/drafts`, `GET /api/generator/drafts/{id}`, `POST /api/generator/drafts/{id}/{test,generate,install,submission}`, `POST /api/generator/repair/{plugin}[/diagnose|/activate]` |
 | Sources | `GET /api/sources`, `POST /api/sources/uploads`, `POST /api/sources/install`, `POST /api/sources/{id}/approve`, `POST /api/sources/{id}/{disable,enable,rollback}`, `DELETE /api/sources/{id}`, `GET /api/sources/{id}/health` |
-| Registry | `GET /api/registry`, `POST /api/registry/install` |
+| Registry | `GET /api/registry`, `POST /api/registry/review-package`, `POST /api/registry/install` |
 | Sessions / login | `GET|DELETE /api/sources/{id}/session`, `POST /api/sources/{id}/session/validate`, `POST /api/sources/{id}/login`, `GET /api/logins/{id}/frame`, `POST /api/logins/{id}/{input,complete}`, `DELETE /api/logins/{id}` |
 | Discovery | `GET /api/search` (SSE: `local` → `partial` → `complete`), `POST /api/search/retry`, `POST /api/resolve-url`, `GET /api/home` |
 | Library identity | `POST /api/listings/bind`, `POST /api/mappings/{merge,split,unlink,never-match}` |
@@ -79,3 +79,17 @@ Remote clients need a passkey session cookie (`oneshelf_remote`); loopback and g
 unauthenticated. `ONESHELF_TRUSTED_NETWORKS` and `ONESHELF_TRUSTED_PROXIES` seed the trust configuration, and
 First Run or Settings can extend it at runtime without a restart. Forwarded client addresses are read only from
 configured trusted proxies.
+
+## The Official Source Registry
+
+After changing an adapter under `backend/plugins/official/`, bump its version and regenerate:
+
+```bash
+cd backend
+.venv/bin/python -m plugins.registry_tool build && .venv/bin/python -m plugins.registry_tool verify
+```
+
+The suite fails if `registry/` is not exactly what the sources build. Tests that sign use a throwaway
+Ed25519 key generated inside the test's temporary directory; no key file is committed, and
+`tests/deploy/test_no_private_key_ships.py` fails if a tracked file contains private-key material or the
+build context would include a key file. Signing for real is the owner's step (`docs/plugins.md` §7).

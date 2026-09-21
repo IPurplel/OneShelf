@@ -315,6 +315,31 @@ rolled forward; an interrupted bootstrap resumes; failures are retried only when
 existing library is recorded as skipped; Needs Attention is raised and cleared; readiness is never blocked.
 Four guards verified by mutation. Frontend: the "Official · Bundled" label and the First Run copy.
 
+## WP-REG — Official Source Registry (REL-12…REL-15)
+
+| # | Requirement test | Where | State |
+|---|---|---|---|
+| 1 | registry loads; all eight appear; hashes match packages | `test_registry_tool.py`, `test_registry_api.py` | **passing** |
+| 2 | generation deterministic; Registry bytes = bundled bytes | `test_two_builds_are_byte_for_byte_identical`, `test_the_registry_package_is_the_bundled_package` | **passing** |
+| 3 | committed `registry/` is exactly what the sources build | `test_the_committed_registry_is_exactly_what_the_sources_build` | **passing** |
+| 4 | fresh library: all eight Installed | `test_a_fresh_library_reads_all_eight_official_sources_as_installed`, committed-registry test | **passing** |
+| 5 | removed → Available → reinstall through normal pipeline, no duplicate | `test_a_removed_source_reads_as_available_and_reinstalls_through_review`, lifecycle tests | **passing** |
+| 6 | same version Installed; newer Update; newer installed not downgraded | `test_registry_lifecycle.py`, `RegistryPanel.test.tsx` | **passing** |
+| 7 | atomic update with rollback; new permissions need review | `test_a_newer_version_reads_as_an_update_and_installs_with_rollback`, `test_an_update_asking_for_more_is_reviewed_not_approved` | **passing** |
+| 8 | pending update approved from its review, bound to its bytes | `test_a_pending_update_is_approved_from_the_registry_review_bound_to_its_bytes` | **passing** |
+| 9 | disabled preserved on refresh and on update / approve / upload | `test_opening_the_registry_never_enables_a_disabled_source`, lifecycle tests | **passing** |
+| 10 | ownership: registry channel persists; no bundled reclaim or downgrade after restart | lifecycle tests; live restart | **passing** |
+| 11 | review binds hash (TOCTOU); wrong sha refused | `test_an_install_whose_package_changed_after_review_is_refused`, lifecycle | **passing** |
+| 12 | corrupt / truncated / oversized / malformed / traversal / symlink / off-directory URL rejected | `test_registry_lifecycle.py` | **passing** |
+| 13 | signature cases; index keys ignored; unsigned → Community | `test_registry_lifecycle.py`, `test_registry_tool.py` | **passing** |
+| 14 | incompatible API labelled, not installed | `test_an_adapter_for_a_newer_oneshelf_is_labelled_as_such_and_not_installed` | **passing** |
+| 15 | registry unavailable / malformed / refused URL: 502, sources and readiness unaffected | `test_when_the_registry_is_unreachable_everything_else_still_works`, malformed test | **passing** |
+| 16 | no private key tracked or in the build context | `test_no_private_key_ships.py` | **passing** |
+| 17 | UI sections, states, review dialog, labels, degraded state, remove flow, en/ar | `RegistryPanel.test.tsx`, `SourcesScreen.test.tsx`; live Chromium en/ar | **passing** |
+| 18 | production-signed Registry verifies with `--require-signed` | owner key needed | **blocked (REL-14)** |
+
+Suites at completion: backend 1121 passed / 1 skipped; frontend 216 passed; `tsc` clean; deploy suite included.
+
 ## Later packages
 
 Their tests are listed in `execution-plan.md` under each package and move here when the package starts.

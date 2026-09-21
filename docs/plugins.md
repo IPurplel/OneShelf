@@ -166,3 +166,94 @@ because the owner chose that. The permission model is otherwise unchanged for bu
 To change a shipped adapter, bump its `version` in `manifest.yaml`. The builder is deterministic, so the same
 sources are always the same bytes; different content under the same version is refused rather than guessed at.
 
+## 7. The Official Source Registry
+
+The same eight adapters are also published as a **Registry**: `registry/index.json` and
+`registry/packages/<id>-<version>.osp` in this repository, served over HTTPS from
+`https://raw.githubusercontent.com/IPurplel/OneShelf/main/registry/index.json` (the default
+`ONESHELF_REGISTRY_URL`). Bundled and Registry are two ways a package *arrives*; there is one plugin
+architecture, one `PluginManager` pipeline and one lifecycle per plugin id.
+
+**Sources → Official Source Registry** reads the index and sets each entry against the library:
+
+| State | Shown as | Action |
+|---|---|---|
+| Same version installed | Installed | none |
+| Not installed, or removed by you | Not installed | Install |
+| Newer in the Registry | Update available: 1.0.0 → 1.1.0 (or *Disabled · Update available*) | Update |
+| That newer version already waits for review | Version … is waiting for your review | Review update |
+| Installed version is newer than the Registry's | Your installed version … is newer | none — no downgrade |
+| Needs a newer plugin API than this OneShelf | Requires a newer OneShelf | none |
+
+Every action opens a **review** first (`POST /api/registry/review-package`): the package is downloaded,
+hash-checked against the index, validated, and its packaged tests are run — nothing is installed. The review
+shows publisher, version, trust, capabilities, every permission with the ones an update newly asks for
+marked **New**, and the test result. The install request carries the reviewed `sha256`; if the Registry's
+package changed in between, the install is refused (`the package changed since it was reviewed`).
+
+**Ownership.** Installing or updating from the Registry makes it `channel = registry`, recorded at once —
+also while an update waits for review. The bundled bootstrap only ever maintains `channel = bundled`
+plugins, so it never reclaims or downgrades one the Registry now owns. A removed source is never
+reinstalled automatically, and neither reading the Registry nor updating a disabled source enables it.
+New permissions are never approved for you, official or not.
+
+**Trust.** The index's `trust_label` is a claim. A package is *Official* only when its sha256 carries a valid
+Ed25519 signature from a key in your local `ONESHELF_REGISTRY_TRUSTED_KEYS`; unsigned or unknown-key
+entries install as *Community*, and a bad signature from a trusted key is refused. Keys never come from the
+index. **Until the owner's signing key exists the committed Registry is unsigned**, so the Sources screen
+labels its entries *Says Official · not verified*, and a source reinstalled from it is recorded as Community.
+Bundled sources are unaffected: they come from the image itself.
+
+**If the Registry is unreachable** (offline, rate limited, malformed), the section says so with *Try again*;
+installed sources, search, reading and readiness are unaffected. Failures are cached for 60 s and good
+listings for 5 min, so nothing is hammered.
+
+**Network.** Only `https://` (or a local `file://` mirror). Core's egress policy allows the index host alone;
+every package location must be a plain relative `.osp` path beneath the index's own directory — no other
+host, no other repository on the same host, no credentials, query, `..` or encoded tricks — and redirects are
+re-checked hop by hop. Index ≤ 5 MB, package ≤ 20 MB.
+
+### Publishing the Registry
+
+The index is generated, never hand-edited:
+
+```bash
+cd backend
+.venv/bin/python -m plugins.registry_tool build     # builds, validates and packaged-tests all eight
+.venv/bin/python -m plugins.registry_tool verify    # rebuilds from source; fails on any difference
+```
+
+`build` uses the same deterministic builder as the bundled bootstrap, so Registry and bundled bytes are
+identical and a fresh library reads every entry as Installed. `verify` fails on a hand-edited hash, a
+replaced or stray package, a failing adapter, a registry that lags its sources, or a signature that does not
+verify; `tests/integration/plugins/test_registry_tool.py` runs it against the committed `registry/`.
+Bump an adapter's `version`, run `build`, commit `registry/` with the adapter.
+
+### Signing (owner only)
+
+```bash
+# Once, on a machine you trust, OUTSIDE the repository. Nothing here is committed or uploaded.
+umask 077
+mkdir -p ~/.config/oneshelf-registry
+openssl genpkey -algorithm ed25519 -out ~/.config/oneshelf-registry/official-2026.pem
+# Back this file up offline now (encrypted drive or password manager). It is the only copy.
+
+cd OneShelf/backend
+# The PUBLIC half, in the form ONESHELF_REGISTRY_TRUSTED_KEYS expects — this line is safe to publish:
+.venv/bin/python -m plugins.registry_tool public-key \
+    --signing-key ~/.config/oneshelf-registry/official-2026.pem --key-id official-2026
+# Sign the Registry, then prove it verifies against the public key alone:
+.venv/bin/python -m plugins.registry_tool build \
+    --signing-key ~/.config/oneshelf-registry/official-2026.pem --key-id official-2026
+.venv/bin/python -m plugins.registry_tool verify --trusted-keys "official-2026:<PUBLIC-BASE64>" --require-signed
+```
+
+Then set that public line as the default `ONESHELF_REGISTRY_TRUSTED_KEYS` in `deploy/compose.yaml` and
+`.env.example` (and update `tests/deploy/test_registry_defaults.py`, which pins "no key shipped yet"), and
+commit `registry/` with them. `ONESHELF_REGISTRY_SIGNING_KEY_FILE=~/.config/oneshelf-registry/official-2026.pem`
+may replace `--signing-key`. The tool refuses a key inside the work tree, and `.gitignore` and
+`.dockerignore` exclude `*.pem`, `*.key` and `*.p8`.
+
+**Rotation.** Generate a new key (`official-2027`), trust both
+(`official-2026:<old>,official-2027:<new>`), re-sign the Registry with the new key and release; once
+installations have updated, remove the old key from the trusted list. A key is never taken from the index.

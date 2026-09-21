@@ -139,6 +139,12 @@ for s in sources.values():
 ready = json.loads((p/'ready-before.json').read_text())
 assert ready['bundled_sources']['failed'] == [] and len(ready['bundled_sources']['installed']) == 8, ready
 PY
+# The Official Source Registry answers from inside the container, and reads the eight as installed.
+curl -fsS "$GATE_URL/api/registry" | tee "$EVIDENCE/registry.json"
+python3 -c "import json,sys; d=json.load(open(sys.argv[1])); assert d['configured'] and len(d['plugins'])==8 and {p['state'] for p in d['plugins']}=={'installed'}, d" "$EVIDENCE/registry.json"
+# No key file anywhere in the application (/app); system CA bundles elsewhere are expected.
+compose exec -T oneshelf sh -c 'find / -xdev \( -name "*.pem" -o -name "*.key" -o -name "*.p8" \) -path "/app/*" 2>/dev/null' | tee "$EVIDENCE/keys-in-image.txt"
+test ! -s "$EVIDENCE/keys-in-image.txt"
 ```
 
 Open the printed URL and confirm the interface loads. Keep the default loopback binding for this

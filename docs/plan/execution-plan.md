@@ -475,3 +475,12 @@ container/clean-clone installation verification open until the host evidence exi
 Remaining mandatory gate: execute `../c9/verification.md` §3a on Fedora, review recorded persistence,
 schema, uid, healthcheck, update and uninstall evidence, and only then reconcile M2/M2.1/M56 and the
 runtime-dependent REL rows. No container runtime is installed inside ai-box.
+
+## WP-REG — Official Source Registry (REL-12…REL-15), 2026-09-21
+
+T1 lifecycle and trust in `PluginManager` (review, sha binding, ownership, disabled preservation, API
+compatibility) → T2 registry hardening (path confinement, bounded sizes, cached failures) → T3 API
+(`GET /api/registry`, `POST /api/registry/review-package`, sha-bound install, degraded start) → T4
+`plugins.registry_tool` and the generated `registry/` → T5 HTTPS default and key-absence guards → T6 Sources
+UI (three sections, review, remove, en/ar) → T7 records, live verification, push. Status in `STATUS.md`;
+REL-14 waits for the owner's signing key.

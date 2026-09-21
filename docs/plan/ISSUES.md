@@ -85,5 +85,11 @@ that nothing is currently blocked that way.
 | I-32 | `deploy/.dockerignore` did not protect the repository-root build context | Root `.dockerignore` excludes env, databases, runtime directories, Git and dev dependencies | Fixed by inspection; image build gate pending |
 | I-33 | Updater accepted unsafe Git states and recommended unsupported schema downgrade | Real Git-state regressions, fast-forward-only origin/main, script re-entry; migration-aware recovery guidance | Fixed in script tests |
 | I-34 | New nested mounts could conceal legacy data, including when an old updater pulls the new release | Script preflight plus independent image startup guard on read-only legacy data view; original bytes retained | Fixed in regressions; runtime gate pending |
+| I-35 | `PluginManager._record` re-enabled a disabled plugin whenever any version activated (upload, Registry, approve) | Disabled state preserved inside `_record` for every path; regression tests; caught by mutation | Fixed |
+| I-36 | A Registry package location could point at another repository on the same host (raw.githubusercontent.com serves all of GitHub) | `resolve_package_url` confines packages beneath the index's own directory; plain relative `.osp` segments only | Fixed |
+| I-37 | A registry URL refused by Core's policy stopped the application from starting | `UnavailableRegistry`: the Registry reports it, the library starts; `test_when_the_registry_is_unreachable_everything_else_still_works` | Fixed |
+| I-38 | A `/api/registry/review` route tripped the §49 social-surface guard | Route is `/api/registry/review-package`; the guard was not weakened | Fixed |
+| I-39 | An update waiting for review could not be approved from the Registry (`already_installed`) | Installing it again from its review approves it when the stored bytes match the reviewed sha256 | Fixed |
+| I-40 | Live check: a removed source was still listed under Installed sources with an untranslated state | Filtered from the installed list; the Registry offers it as Not installed; regression test | Fixed |
 
 No verified application UI, source recipe, database migration or core behavior was rewritten.

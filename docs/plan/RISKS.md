@@ -14,6 +14,9 @@ Updated: 2026-09-21
 | R-03 | **A published repository invites use, and no licence has been chosen.** | Certain / low, but legally real | The README states plainly that no licence is granted yet | The owner's decision. Until a `LICENSE` file exists, others may read the code but have no right to use it |
 | R-04 | **Rootless Podman bind-mount ownership varies between distributions.** | Low / medium — install fails on an unusual setup | `install.sh` validates canonical dedicated directories, probes writability and only corrects ownership when needed, through the runtime, never with sudo; SELinux labels and host networking are in ADR 0003; the README's troubleshooting section names the symptom | Unknown until the gate runs on a real Fedora host |
 | R-05 | **gutendex.com times out intermittently** (E-03). | Medium / low | Diagnosed as external twice, with evidence; OneShelf reports it honestly as incomplete with a transport issue; the live suite skips only on that exact signature | Nothing to fix in OneShelf |
+| R-06 | **The published Registry is unsigned until the owner creates a signing key** (REL-14). | Medium / low — Registry reinstalls are labelled Community, not Official | Signing chain implemented and tested; owner process in `docs/plugins.md` §7; bundled sources unaffected |
+| R-07 | **Signing-key custody.** A lost key forces rotation; a leaked key lets anyone sign Official packages for every installation trusting it. | High / low | Key only outside the repository (tool refuses otherwise), ignored by Git and Docker, scanned for in tracked files; multiple trusted keys for rotation |
+| R-08 | **raw.githubusercontent.com caching or outage** delays or hides Registry updates. | Low / medium | Degraded state with Try again; installed sources unaffected; `file://` mirror supported |
 
 ## Closed
 
