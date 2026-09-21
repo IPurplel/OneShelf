@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SourcesScreen } from "./SourcesScreen";
 import { renderWithProviders } from "@/test/render";
-import { get, mockApi, post } from "@/test/http";
+import { del, get, mockApi, post } from "@/test/http";
 
 const SOURCES = {
   sources: [
@@ -46,7 +46,11 @@ describe("Sources", () => {
     renderWithProviders(<SourcesScreen />);
     const rows = await screen.findAllByRole("listitem");
 
-    expect(within(rows[0]!).queryByText(/1\.0\.0|registry|official/i)).not.toBeInTheDocument();
+    // Where a source came from is a plain label on the row (release requirement REL-13); the version,
+    // the raw channel and the trust token stay behind More.
+    expect(within(rows[0]!).queryByText(/1\.0\.0/)).not.toBeInTheDocument();
+    expect(within(rows[0]!).getByText("Official · Registry")).toBeInTheDocument();
+    expect(within(rows[0]!).queryByText(/^registry$|^official$/i)).not.toBeInTheDocument();
     await user.click(within(rows[0]!).getByRole("button", { name: /more/i }));
     const panel = await screen.findByRole("dialog", { name: /mangadex/i });
     expect(within(panel).getByText(/1\.0\.0/)).toBeInTheDocument();
@@ -79,6 +83,54 @@ describe("Sources", () => {
     const rows = await screen.findAllByRole("listitem");
     expect(within(rows[0]!).getByText("Official · Bundled")).toBeInTheDocument();
     expect(within(rows[1]!).queryByText("Official · Bundled")).toBeNull();
+  });
+
+  it("labels a source from the Registry or from a file for what it is", async () => {
+    mockApi([get("/api/sources", { sources: [
+      { ...SOURCES.sources[0], channel: "registry", trust_label: "community" },
+      { ...SOURCES.sources[1], channel: "upload", trust_label: "local" },
+    ] })]);
+    renderWithProviders(<SourcesScreen />);
+    const rows = await screen.findAllByRole("listitem");
+    expect(within(rows[0]!).getByText("Community · Registry")).toBeInTheDocument();
+    expect(within(rows[0]!).queryByText(/^official/i)).toBeNull();
+    expect(within(rows[1]!).getByText("Local upload")).toBeInTheDocument();
+  });
+
+  it("removes a source only after saying what stays, and that it will not come back by itself", async () => {
+    const calls = mockApi([
+      get("/api/sources", SOURCES),
+      del("/api/sources/oneshelf.mangadex", { id: "oneshelf.mangadex", state: "uninstalled" }),
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<SourcesScreen />);
+    const rows = await screen.findAllByRole("listitem");
+
+    await user.click(within(rows[0]!).getByRole("button", { name: /more/i }));
+    await user.click(await screen.findByRole("button", { name: /remove this source/i }));
+    const confirm = await screen.findByRole("dialog", { name: /remove mangadex/i });
+    expect(within(confirm).getByText(/reading progress stay exactly as they are/i)).toBeInTheDocument();
+    expect(within(confirm).getByText(/official source registry/i)).toBeInTheDocument();
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+
+    await user.click(within(confirm).getByRole("button", { name: /remove source/i }));
+    expect(calls.some((c) => c.method === "DELETE" && c.url === "/api/sources/oneshelf.mangadex")).toBe(true);
+  });
+
+  it("shows installed sources, the Official Source Registry and install from file as their own sections", async () => {
+    mockApi([get("/api/sources", SOURCES), get("/api/registry", { configured: false, plugins: [] })]);
+    renderWithProviders(<SourcesScreen />);
+    expect(await screen.findByRole("heading", { name: /installed sources/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /official source registry/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /install from file/i })).toBeInTheDocument();
+  });
+
+  it("keeps the installed list usable when the Registry cannot be reached", async () => {
+    mockApi([get("/api/sources", SOURCES), get("/api/registry",
+      { error: { code: "REGISTRY_UNAVAILABLE", message: "registry unavailable" } }, 502)]);
+    renderWithProviders(<SourcesScreen />);
+    expect(await screen.findByText(/installed sources keep working/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
   });
 
   it("says plainly when no source is installed", async () => {

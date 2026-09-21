@@ -2,10 +2,13 @@ import { useState } from "react";
 
 import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
 import { InstallPanel } from "./InstallPanel";
 import { LoginSession } from "./LoginSession";
+import { RegistryPanel } from "./RegistryPanel";
 import { useI18n } from "@/i18n/i18n";
+import type { StringKey } from "@/i18n/strings";
 import { useLive } from "@/app/live";
 
 type Source = {
@@ -20,6 +23,16 @@ type Source = {
   session_state: string;
 };
 
+/** Where an installed source came from, and whether a trusted signature stands behind it. */
+function originKey(source: Source): StringKey | null {
+  if (source.channel === "bundled") return "sources.bundled";
+  if (source.channel === "registry") {
+    return source.trust_label === "official" ? "sources.origin.registry" : "sources.origin.registryCommunity";
+  }
+  if (source.channel === "upload") return "sources.origin.upload";
+  return null;
+}
+
 /**
  * Sources (Master §21, §32.12): an elegant administrative list, loosely a library catalogue card.
  * What the source does and how it is doing belongs on the row; versions, channels and trust labels
@@ -33,6 +46,10 @@ export function SourcesScreen() {
   useLive(["source.session"], reload);
   const [open, setOpen] = useState<Source | null>(null);
   const [signingIn, setSigningIn] = useState<Source | null>(null);
+  const [removing, setRemoving] = useState<Source | null>(null);
+  // Anything that changes what is installed changes what the Registry section should say.
+  const [revision, setRevision] = useState(0);
+  const changed = () => { reload(); setRevision((n) => n + 1); };
 
   const sources = data?.sources ?? [];
 
@@ -41,13 +58,14 @@ export function SourcesScreen() {
       await call;
     } finally {
       setOpen(null);
-      reload();
+      changed();
     }
   };
 
   return (
     <section className="screen">
       <h1 className="screen__title">{t("sources.title")}</h1>
+      <h2 className="display">{t("sources.installed")}</h2>
 
       {data !== null && sources.length === 0 && <p className="shelf__empty">{t("sources.empty")}</p>}
 
@@ -56,8 +74,8 @@ export function SourcesScreen() {
           <li key={source.id} className="cards__row">
             <span className="cards__name display">{source.name}</span>
             <span className="cards__meta">{source.capabilities.join(" · ")}</span>
-            {/* It came with OneShelf: the person did not have to add it, and may still remove it. */}
-            {source.channel === "bundled" && <span className="chip chip--static">{t("sources.bundled")}</span>}
+            {/* Where it came from: bundled with OneShelf, the Registry, or a file the person chose. */}
+            {originKey(source) !== null && <span className="chip chip--static">{t(originKey(source)!)}</span>}
             <span className={`cards__state cards__state--${source.state}`}>
               {t(`sources.state.${source.state}` as const)}
             </span>
@@ -104,6 +122,9 @@ export function SourcesScreen() {
                 {t("sources.disconnect")}
               </button>
             )}
+            <button type="button" className="button" onClick={() => { setRemoving(open); setOpen(null); }}>
+              {t("sources.remove")}
+            </button>
           </div>
         </Drawer>
       )}
@@ -113,7 +134,21 @@ export function SourcesScreen() {
                       onClose={() => { setSigningIn(null); reload(); }} />
       )}
 
-      <InstallPanel onInstalled={reload} />
+      {removing !== null && (
+        <ConfirmDialog title={t("sources.removeConfirm.title", { name: removing.name })}
+                       body={t("sources.removeConfirm.body")}
+                       confirmLabel={t("sources.removeConfirm.action")}
+                       onCancel={() => setRemoving(null)}
+                       onConfirm={() => {
+                         const target = removing;
+                         setRemoving(null);
+                         void act(api.delete(`/api/sources/${target.id}`));
+                       }} />
+      )}
+
+      <RegistryPanel revision={revision} onChanged={changed} />
+
+      <InstallPanel onInstalled={changed} />
     </section>
   );
 }

@@ -469,6 +469,8 @@ a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4p
 .install__permissions { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
 .install__permissions li { display: grid; gap: 2px; }
 .install__permissions code { font-size: 12px; }
+/* A permission an update newly asks for: set apart so it is read, not skimmed. */
+.install__added { border-inline-start: 3px solid var(--warning-600); padding-inline-start: var(--space-2); }
 
 /* The relayed sign-in window: a plain picture of a real browser, focusable so keys reach it. */
 .login__frame { inline-size: 100%; block-size: auto; aspect-ratio: 16 / 10; display: block;
