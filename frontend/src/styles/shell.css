@@ -114,7 +114,7 @@
   background: var(--olive-500);
 }
 
-.screen { max-width: 1180px; }
+.screen { min-inline-size: 0; }
 .screen__title { font-size: clamp(27px, 3.4vw, 46px); margin: 0 0 var(--space-2); letter-spacing: -0.01em; }
 .screen__subtitle { margin: 0 0 var(--space-6); color: var(--ink-500); }
 
@@ -152,3 +152,5 @@
   .layout__main { padding: var(--space-4) var(--space-4) calc(var(--space-7) + 56px); }
   .header { padding-inline: var(--space-4); }
 }
+
+.more__nav { display: grid; gap: var(--space-3); }

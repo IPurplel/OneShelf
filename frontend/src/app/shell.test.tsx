@@ -72,3 +72,46 @@ describe("mobile shell", () => {
     expect(screen.getAllByRole("navigation")).toHaveLength(1);
   });
 });
+
+describe("mobile More drawer", () => {
+  it.each(["Downloads", "Sources", "Settings"])("navigates to %s and closes", async (name) => {
+    setViewport("mobile");
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(screen.getByRole("button", { name: "More" }));
+    const drawer = screen.getByRole("dialog", { name: "More" });
+    expect(within(drawer).getAllByRole("link").map(link => link.textContent?.trim()))
+      .toEqual(["Downloads", "Sources", "Settings"]);
+    expect(within(drawer).getByRole("button", { name: "Notifications" })).toBeInTheDocument();
+    await user.click(within(drawer).getByRole("link", { name }));
+    expect(screen.queryByRole("dialog", { name: "More" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name })).toBeInTheDocument();
+  });
+
+  it("dismisses with Escape or Close and returns focus to More", async () => {
+    setViewport("mobile");
+    const user = userEvent.setup();
+    renderApp();
+    const more = screen.getByRole("button", { name: "More" });
+    await user.click(more);
+    expect(screen.getByRole("dialog", { name: "More" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(more).toHaveFocus();
+    await user.click(more);
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(more).toHaveFocus();
+  });
+
+  it("opens Notifications and returns focus to More when dismissed", async () => {
+    setViewport("mobile");
+    const user = userEvent.setup();
+    renderApp();
+    const more = screen.getByRole("button", { name: "More" });
+    await user.click(more);
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Notifications" }));
+    expect(screen.getByRole("dialog", { name: "Notifications" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(more).toHaveFocus();
+  });
+});

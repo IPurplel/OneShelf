@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { StoragePanel } from "@/features/storage/StoragePanel";
 import { ImportPanel } from "@/features/storage/ImportPanel";
@@ -22,7 +22,10 @@ const CATEGORIES: Category[] = ["general", "reader", "downloads", "storage", "so
 /** Settings (Master §32.14): a readable document — categories beside the panel, nothing shouted. */
 export function SettingsScreen() {
   const { t, language, setLanguage } = useI18n();
-  const [category, setCategory] = useState<Category>("general");
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const section = pathname.split("/")[2];
+  const category: Category = CATEGORIES.includes(section as Category) ? section as Category : "general";
 
   return (
     <section className="screen settings">
@@ -32,7 +35,7 @@ export function SettingsScreen() {
         <div className="settings__nav" role="tablist" aria-label={t("settings.categories")} aria-orientation="vertical">
           {CATEGORIES.map((candidate) => (
             <button key={candidate} type="button" role="tab" className="settings__tab"
-                    aria-selected={category === candidate} onClick={() => setCategory(candidate)}>
+                    aria-selected={category === candidate} onClick={() => void navigate(`/settings/${candidate}`)}>
               {t(`settings.${candidate}` as StringKey)}
             </button>
           ))}

@@ -4,6 +4,7 @@ import { useResource } from "@/api/useApi";
 import { Icon } from "@/components/Icon";
 import type { ShelfResponse } from "@/api/types";
 import { WorkCard } from "@/components/WorkCard";
+import { useShelfColumns } from "./useShelfColumns";
 import { RemoveFromShelf } from "./RemoveFromShelf";
 import type { RemovalSummary } from "./RemoveFromShelf";
 import { api } from "@/api/client";
@@ -25,6 +26,7 @@ const VIEWS: { id: string; labelKey: StringKey }[] = [
  */
 export function ShelfScreen() {
   const { t, language } = useI18n();
+  const { ref: shelfRef, columns } = useShelfColumns();
   const [view, setView] = useState("all");
   const [query, setQuery] = useState("");
   const [layout, setLayout] = useState<"grid" | "list">("grid");
@@ -104,7 +106,7 @@ export function ShelfScreen() {
 
       {error !== null && <p className="notice notice--problem" role="alert">{t("state.offline")}</p>}
 
-      <section className="shelfview" role="region" aria-label={t("shelf.title")} data-layout={layout}>
+      <section ref={shelfRef} className="shelfview" role="region" aria-label={t("shelf.title")} data-layout={layout}>
         {entries.length === 0 && data !== null && <p className="shelf__empty">{t("shelf.empty")}</p>}
         {layout === "list" ? (
           <div className="shelfview__list">
@@ -117,7 +119,7 @@ export function ShelfScreen() {
           </div>
         ) : (
           /* The shelf motif belongs here too (§32.9): works stand in rows on their own planks. */
-          chunk(entries, 6).map((row, index) => (
+          chunk(entries, columns).map((row, index) => (
             <div className="shelf__case" key={row[0]?.work_id ?? index}>
               <div className="shelf__row shelf__row--wrap">
                 {row.map((entry) => (

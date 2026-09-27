@@ -1,9 +1,10 @@
 /** Master §6, §31, §32.7: search is local-first, streams, and is truthful about sources. */
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SearchScreen } from "./SearchScreen";
+import { ApiError, api } from "@/api/client";
 import { renderWithProviders } from "@/test/render";
 
 type Handler = (event: { data: string }) => void;
@@ -37,12 +38,12 @@ const LOCAL = {
 const COMPLETE = {
   ...LOCAL,
   stage: "complete",
-  source_status: { mangadex: "ok", tapas: "failed" },
-  sources_done: 2, sources_failed: 1,
+  source_status: { mangadex: { state: "done" }, tapas: { state: "failed", category: "transport" } },
+  sources_done: 1, sources_failed: 1,
 };
 
 beforeEach(() => vi.stubGlobal("EventSource", FakeEventSource));
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("Search", () => {
   it("shows what the library already knows before any source answers", async () => {
@@ -97,5 +98,64 @@ describe("Search", () => {
     expect(card).not.toBeNull();
     expect(within(card as HTMLElement).getByText(/1 source/i)).toBeInTheDocument();
     expect(screen.queryByText(/%|score|rank/i)).not.toBeInTheDocument();
+  });
+});
+
+async function startSearch(stage = "complete") {
+  const user = userEvent.setup();
+  renderWithProviders(<SearchScreen />);
+  const box = screen.getByRole("searchbox");
+  await user.type(box, "one{Enter}");
+  act(() => FakeEventSource.last!.emit(stage, COMPLETE));
+  return { user, box };
+}
+
+describe("Search regressions", () => {
+  it("offers Retry only for failed API status objects", async () => {
+    await startSearch("partial");
+    act(() => FakeEventSource.last!.emit("partial", { ...COMPLETE, source_status: {
+      working: { state: "pending" }, cached: { state: "cached" }, done: { state: "done", complete: true },
+      failed: { state: "failed", category: "transport" },
+    } }));
+    expect(screen.getAllByRole("button").map(button => button.textContent)).toEqual(["Try failed again"]);
+  });
+
+  it("clears results and status on empty submission, and ignores late stream events", async () => {
+    const { user, box } = await startSearch();
+    const old = FakeEventSource.last!;
+    await user.clear(box);
+    await user.type(box, " {Enter}");
+    expect(old.closed).toBe(true);
+    act(() => old.emit("complete", COMPLETE));
+    expect(screen.queryByText("The Irregular Chronicle")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /try/i })).not.toBeInTheDocument();
+  });
+
+  it.each([false, true])("ignores a stale retry after changing away and back (rejection=%s)", async reject => {
+    let resolve!: (value: typeof COMPLETE) => void;
+    let fail!: (reason: Error) => void;
+    vi.spyOn(api, "post").mockImplementation(() => new Promise((yes, no) => { resolve = yes; fail = no; }));
+    const { user, box } = await startSearch();
+    await user.click(screen.getByRole("button", { name: /try tapas/i }));
+    await user.clear(box);
+    await user.type(box, "two{Enter}");
+    await user.clear(box);
+    await user.type(box, "one{Enter}");
+    await act(async () => { if (reject) fail(new Error("Old failure")); else resolve(COMPLETE); });
+    expect(screen.queryByText("The Irregular Chronicle")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("reports retry errors while keeping useful results and permits another retry", async () => {
+    vi.spyOn(api, "post").mockRejectedValueOnce(new ApiError(503, "OFFLINE", "Source unavailable"))
+      .mockResolvedValueOnce({ ...COMPLETE, source_status: { tapas: { state: "done" } }, sources_failed: 0 });
+    const { user } = await startSearch();
+    await user.click(screen.getByRole("button", { name: /try tapas/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Source unavailable/);
+    expect(screen.getByText("The Irregular Chronicle")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /try tapas/i }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /try tapas/i })).not.toBeInTheDocument());
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

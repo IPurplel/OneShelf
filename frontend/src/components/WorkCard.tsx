@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
+import { languageName } from "@/i18n/language";
 import { useI18n } from "@/i18n/i18n";
 
 export type CardWork = {
@@ -19,12 +20,13 @@ export type CardWork = {
  * and — when there is progress — a slim olive bar with its percentage. Availability stays concise: a
  * language and a source count, never every internal state.
  */
-export function WorkCard({ work, size = "standard", onOpen, busy = false }: {
+export function WorkCard({ work, size = "standard", onOpen, busy = false, problem }: {
   work: CardWork;
   size?: "compact" | "standard" | "detailed";
   /** For a result with no Work yet: the card is a button that opens it (see ResultCard). */
   onOpen?: () => void;
   busy?: boolean;
+  problem?: string | null;
 }) {
   const { t, language } = useI18n();
   // A cover that fails to load becomes the placeholder; the card itself never becomes unusable (INV-28).
@@ -50,11 +52,12 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false }: {
         <span className="workcard__meta">
           {work.content_type && <span className="workcard__kind">{work.content_type}</span>}
           {languages.length > 0 && (
-            <span>{languages.map(([code]) => displayLanguage(code, language)).join(" · ")}</span>
+            <span>{languages.map(([code]) => languageName(code, language)).join(" · ")}</span>
           )}
           {sources > 0 && <span>{sources === 1 ? t("work.source") : t("work.sources", { count: sources })}</span>}
         </span>
       )}
+      {problem && <span className="notice notice--problem resultcard__problem" role="alert">{problem}</span>}
       {percent !== null && (
         <span className="workcard__progress">
           <span className="workcard__track"><span style={{ inlineSize: `${percent}%` }} /></span>
@@ -72,12 +75,4 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false }: {
     );
   }
   return <span className={`workcard workcard--${size}`}>{cover}{caption}</span>;
-}
-
-function displayLanguage(code: string, uiLanguage: string): string {
-  try {
-    return new Intl.DisplayNames([uiLanguage], { type: "language" }).of(code) ?? code;
-  } catch {
-    return code;
-  }
 }

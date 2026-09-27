@@ -123,3 +123,18 @@ export type WorkDetails = {
   continue_unit_id: string | null;
   cover_url?: string | null;
 };
+
+/** Progressive discovery status, including successful cached responses. */
+export type SearchSourceStatus =
+  | { state: "pending" | "cached" }
+  | { state: "done"; complete?: boolean }
+  | { state: "failed"; category?: string; retry_after?: number; detail?: string };
+
+export type SearchUpdate = {
+  stage: "local" | "partial" | "complete";
+  results: ResultWork[];
+  source_status: Record<string, SearchSourceStatus>;
+  sources_total: number;
+  sources_done: number;
+  sources_failed: number;
+};

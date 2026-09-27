@@ -40,7 +40,7 @@ export function SourceSwitch({ offer, onStart, onApproximate, onClose, workId }:
   onClose: () => void;
   workId: string;
 }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   return (
     <Drawer title={t("reader.changeSource")} onClose={onClose}>
       <p className="notice notice--info">{t("reader.changeSource.warning")}</p>
@@ -51,7 +51,7 @@ export function SourceSwitch({ offer, onStart, onApproximate, onClose, workId }:
           {offer.alternatives.map((alternative) => (
             <li key={alternative.track_id} className="tracks__row">
               <span className="tracks__name">
-                {alternative.source_id} · {languageName(alternative.language)}
+                {alternative.source_id} · {languageName(alternative.language, language)}
               </span>
               {alternative.confident ? (
                 <>

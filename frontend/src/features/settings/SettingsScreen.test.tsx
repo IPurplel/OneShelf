@@ -3,8 +3,9 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { useLocation, useNavigate } from "react-router-dom";
 import { SettingsScreen } from "./SettingsScreen";
-import { renderWithProviders } from "@/test/render";
+import { renderApp, renderWithProviders } from "@/test/render";
 import { del, get, mockApi, post } from "@/test/http";
 
 const AUTH = {
@@ -188,5 +189,37 @@ describe("Settings", () => {
 
     await user.click(within(panel).getByRole("button", { name: /clear the diagnostics/i }));
     expect(calls.some((call) => call.method === "DELETE" && call.url === "/api/diagnostics")).toBe(true);
+  });
+});
+
+function HistoryControls() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return <><output aria-label="Location">{location.pathname}</output>
+    <button onClick={() => void navigate(-1)}>Back</button>
+    <button onClick={() => void navigate(1)}>Forward</button><SettingsScreen /></>;
+}
+
+describe("Settings route", () => {
+  it.each([["/settings/storage", "Storage"], ["/settings", "General"], ["/settings/invalid", "General"]])(
+    "opens %s as %s", async (route, name) => {
+      mockApi([get("/api/storage", STORAGE)]);
+      renderApp({ route });
+      expect(await screen.findByRole("tabpanel", { name })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name })).toHaveAttribute("aria-selected", "true");
+    });
+
+  it("writes category URLs and follows Back and Forward", async () => {
+    mockApi([get("/api/storage", STORAGE)]);
+    const user = userEvent.setup();
+    renderWithProviders(<HistoryControls />, { route: "/settings" });
+    await user.click(screen.getByRole("tab", { name: "Storage" }));
+    expect(screen.getByLabelText("Location")).toHaveTextContent("/settings/storage");
+    await user.click(screen.getByRole("tab", { name: "General" }));
+    expect(screen.getByRole("tabpanel", { name: "General" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("tabpanel", { name: "Storage" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Forward" }));
+    expect(screen.getByRole("tabpanel", { name: "General" })).toBeInTheDocument();
   });
 });

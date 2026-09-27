@@ -1,18 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api } from "@/api/client";
-import type { ResultWork } from "@/api/types";
+import { ApiError, api } from "@/api/client";
+import type { SearchUpdate } from "@/api/types";
 import { ResultCard } from "./ResultCard";
 import { useI18n } from "@/i18n/i18n";
-
-type Update = {
-  stage: "local" | "partial" | "complete";
-  results: ResultWork[];
-  source_status: Record<string, string>;
-  sources_total: number;
-  sources_done: number;
-  sources_failed: number;
-};
 
 /**
  * Search (Master §6, §32.7).
@@ -24,8 +15,11 @@ type Update = {
 export function SearchScreen() {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
-  const [submitted, setSubmitted] = useState("");
-  const [update, setUpdate] = useState<Update | null>(null);
+  const [submitted, setSubmitted] = useState({ query: "" });
+  const [update, setUpdate] = useState<SearchUpdate | null>(null);
+  const [retryProblem, setRetryProblem] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState<string | null>(null);
+  const generation = useRef(0);
   const stream = useRef<EventSource | null>(null);
 
   const close = useCallback(() => {
@@ -34,39 +28,61 @@ export function SearchScreen() {
   }, []);
 
   useEffect(() => {
-    if (submitted === "") return;
+    const current = ++generation.current;
     close();
     setUpdate(null);
-    const source = new EventSource(`/api/search?q=${encodeURIComponent(submitted)}`);
+    setRetryProblem(null);
+    setRetrying(null);
+    if (submitted.query === "") return;
+    const source = new EventSource(`/api/search?q=${encodeURIComponent(submitted.query)}`);
     stream.current = source;
     for (const stage of ["local", "partial", "complete"] as const) {
       source.addEventListener(stage, (event) => {
-        setUpdate(JSON.parse((event as MessageEvent<string>).data) as Update);
+        if (generation.current !== current || stream.current !== source) return;
+        setUpdate(JSON.parse((event as MessageEvent<string>).data) as SearchUpdate);
         if (stage === "complete") close();
       });
     }
-    return close;
+    return () => { generation.current++; close(); };
   }, [submitted, close]);
 
   const retry = async (sourceId: string) => {
-    const result = await api.post<Update>("/api/search/retry", { query: submitted, source_id: sourceId });
-    setUpdate(result);
+    const current = generation.current;
+    setRetryProblem(null);
+    setRetrying(sourceId);
+    try {
+      const result = await api.post<SearchUpdate>("/api/search/retry", { query: submitted.query, source_id: sourceId });
+      if (current === generation.current) setUpdate(result);
+    } catch (error) {
+      if (current === generation.current) {
+        setRetryProblem(t("search.retryFailed", {
+          source: sourceId, message: error instanceof ApiError ? error.message : t("state.offline"),
+        }));
+      }
+    } finally {
+      if (current === generation.current) setRetrying(null);
+    }
   };
 
   const failedSources = Object.entries(update?.source_status ?? {})
-    .filter(([, status]) => status !== "ok").map(([id]) => id);
+    .filter(([, status]) => status.state === "failed").map(([id]) => id);
 
   return (
     <section className="screen">
       <h1 className="screen__title">{t("search.title")}</h1>
 
-      <form className="search__form" role="search" onSubmit={(event) => { event.preventDefault(); setSubmitted(query.trim()); }}>
+      <form className="search__form" role="search" onSubmit={(event) => {
+        event.preventDefault();
+        generation.current++;
+        close();
+        setSubmitted({ query: query.trim() });
+      }}>
         <input type="search" className="field field--large" aria-label={t("search.field")}
                placeholder={t("search.placeholder")} value={query}
                onChange={(event) => setQuery(event.target.value)} />
       </form>
 
-      {submitted === "" && <p className="screen__subtitle">{t("search.intro")}</p>}
+      {submitted.query === "" && <p className="screen__subtitle">{t("search.intro")}</p>}
 
       {update !== null && (
         <p className="search__status" role="status">
@@ -79,12 +95,15 @@ export function SearchScreen() {
       {failedSources.length > 0 && (
         <div className="search__retries">
           {failedSources.map((sourceId) => (
-            <button key={sourceId} type="button" className="chip" onClick={() => void retry(sourceId)}>
+            <button key={sourceId} type="button" className="chip" disabled={retrying !== null}
+                    aria-busy={retrying === sourceId || undefined} onClick={() => void retry(sourceId)}>
               {t("search.retry", { source: sourceId })}
             </button>
           ))}
         </div>
       )}
+
+      {retryProblem && <p className="notice notice--problem" role="alert">{retryProblem}</p>}
 
       <div className="search__results">
         {(update?.results ?? []).map((result) => (

@@ -64,7 +64,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
   const [search] = useSearchParams();
   const id = unitId ?? params.unitId ?? "";
   const work = workId ?? search.get("work") ?? "";
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   const { data: pageData, error: pageError } = useResource<PagesResponse>(`/api/reader/units/${id}/pages`);
   const { data: details } = useResource<WorkDetails>(`/api/works/${work}`);
@@ -369,7 +369,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
         {/* §26.16: subtle, and about this unit's own track — "English · source-a". */}
         {offer !== null && (
           <span className="reader__source" data-testid="reader-source" title={t("reader.source")}>
-            {languageName(offer.language)} · {offer.source_id}
+            {languageName(offer.language, language)} · {offer.source_id}
           </span>
         )}
         <button type="button" className="reader__button" onClick={() => setPanel("contents")}>

@@ -23,7 +23,7 @@ type Tab = "read" | "details" | "sources";
 export function WorkScreen({ workId }: { workId?: string }) {
   const params = useParams();
   const id = workId ?? params.workId ?? "";
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [tab, setTab] = useState<Tab>("read");
   // The reader can send someone here to a *named* track when it could not find their unit there (§26.16).
   const [search] = useSearchParams();
@@ -118,7 +118,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
           <p className="work__meta">
             {work.content_type && <span>{work.content_type}</span>}
             {work.creator && <span>{work.creator}</span>}
-            {current && <span>{languageName(current.language)}</span>}
+            {current && <span>{languageName(current.language, language)}</span>}
           </p>
           {work.description && <p className="work__description">{work.description}</p>}
           <div className="work__actions">
@@ -258,7 +258,7 @@ function Sources({ tracks, selected, onChoose, onRefreshed }: {
   onChoose: (track: Track) => void;
   onRefreshed: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [refreshing, setRefreshing] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -283,7 +283,7 @@ function Sources({ tracks, selected, onChoose, onRefreshed }: {
     <ul className="tracks">
       {tracks.map((track) => (
         <li key={track.id} className="tracks__row">
-          <span className="tracks__name">{track.source_id} · {languageName(track.language)}</span>
+          <span className="tracks__name">{track.source_id} · {languageName(track.language, language)}</span>
           <span className="tracks__count">{track.unit_count}</span>
           {track.id === selected ? (
             <>
@@ -296,7 +296,7 @@ function Sources({ tracks, selected, onChoose, onRefreshed }: {
             </>
           ) : (
             <button type="button" className="button"
-                    aria-label={`${t("work.track.use")}: ${track.source_id} · ${languageName(track.language)}`}
+                    aria-label={`${t("work.track.use")}: ${track.source_id} · ${languageName(track.language, language)}`}
                     onClick={() => onChoose(track)}>
               {t("work.track.use")}
             </button>

@@ -54,6 +54,12 @@
 .hero__description { margin: 0; color: rgba(250, 246, 236, 0.82); max-inline-size: 44ch; }
 .hero__progress { margin: 0; color: rgba(250, 246, 236, 0.75); font-variant-numeric: tabular-nums; }
 
+.shelf, .shelfview {
+  --shelf-card-width: 150px;
+  --shelf-card-gap: 24px;
+  --shelf-cover-height: 214px;
+  min-inline-size: 0;
+}
 .shelf { margin-bottom: var(--space-7); }
 .shelf__head { display: flex; align-items: baseline; gap: var(--space-4); margin-bottom: var(--space-4); }
 .shelf__title { font-size: 28px; margin: 0; }
@@ -70,9 +76,9 @@
 .shelf__row {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 150px;
-  grid-template-rows: 214px auto;
-  column-gap: var(--space-5);
+  grid-auto-columns: var(--shelf-card-width);
+  grid-template-rows: var(--shelf-cover-height) auto;
+  column-gap: var(--shelf-card-gap);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
@@ -80,27 +86,34 @@
   align-items: end;
   padding-bottom: var(--space-2);
 }
-.shelf--compactRow .shelf__row { grid-auto-columns: 118px; grid-template-rows: 168px auto; }
+.shelf--compactRow { --shelf-card-width: 118px; --shelf-cover-height: 168px; }
 /* On My Shelf the rows do not scroll: they fill the width and wrap into further shelves. */
-.shelf__row--wrap { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); overflow: visible; }
+.shelf__row--wrap { grid-auto-flow: column; overflow: visible; }
 .shelfview .shelf__case { margin-bottom: var(--space-6); }
 .shelf__row > * { scroll-snap-align: start; }
 /* The plank: warm wood under the covers, a soft shadow, never cartoon skeuomorphism. */
 .shelf__plank {
   position: absolute;
   inset-inline: 0;
-  top: 214px;                       /* the line the covers stand on */
+  top: var(--shelf-cover-height);                       /* the line the covers stand on */
   height: 9px;
   border-radius: 2px;
   background: linear-gradient(180deg, var(--wood-300), var(--wood-500) 45%, var(--wood-700));
   box-shadow: 0 8px 16px rgba(111, 83, 53, 0.22);
   pointer-events: none;
 }
-.shelf--compactRow .shelf__plank { top: 168px; }
-.shelf--recessed .shelf__plank { inset-inline: var(--space-4); top: calc(214px + var(--space-4)); }
+.shelf--recessed .shelf__plank { inset-inline: var(--space-4); top: calc(var(--shelf-cover-height) + var(--space-4)); }
 
-.workcard { display: grid; gap: 0; color: inherit; text-decoration: none; align-content: start; }
-.shelf__row .workcard { display: contents; }
+.workcard { min-inline-size: 0; overflow-wrap: anywhere; display: grid; gap: 0; color: inherit; text-decoration: none; align-content: start; }
+/* Each linked or live card occupies one column and shares the cover/caption rows. */
+.shelf__row .workcard {
+  grid-row: 1 / -1;
+  grid-template-rows: subgrid;
+  align-self: stretch;
+}
+.shelf__row .workcard__caption { align-self: start; }
+.shelf__row .workcard__cover { max-block-size: var(--shelf-cover-height); }
+.shelf__row .workcard:focus-visible { outline-offset: -2px; }
 .workcard__cover { transition: transform var(--motion-fast) var(--ease); }
 a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4px lift, nothing more (§32.20) */
 /* A result with no Work yet opens as a button: it must look and lift exactly like a linked card. */
@@ -108,7 +121,6 @@ button.workcard { background: none; border: 0; padding: 0; font: inherit; text-a
 button.workcard:hover:not(:disabled) .workcard__cover { transform: translateY(-3px); }
 button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .workcard:focus-visible { outline: 2px solid var(--forest-600); outline-offset: 4px; border-radius: 4px; }
-.resultcard { display: grid; }
 .resultcard__problem { margin-top: var(--space-2); font-size: 14px; }
 .choice { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: grid; gap: var(--space-2); }
 .choice__option { inline-size: 100%; justify-content: flex-start; display: grid; gap: 2px; text-align: start; }
@@ -163,7 +175,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .workcard--compact .workcard__title { font-size: 14px; }
 .workcard--detailed { display: grid; grid-template-columns: 96px 1fr; gap: var(--space-4); align-items: start; }
 
-.home__pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); gap: var(--space-6); }
+.home__pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); gap: var(--space-6); }
 
 /* System surfaces: warm paper, no shelves (§32.5). */
 .empty {
@@ -208,7 +220,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 /* Toolbars, chips and fields: operational controls in the same warm language (§32.7). */
 .toolbar { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; margin-bottom: var(--space-5); }
 .toolbar__tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.toolbar__end { margin-inline-start: auto; display: flex; gap: var(--space-2); align-items: center; }
+.toolbar__end { min-inline-size: 0; max-inline-size: 100%; flex-wrap: wrap; margin-inline-start: auto; display: flex; gap: var(--space-2); align-items: center; }
 
 .chip {
   min-height: 36px;
@@ -233,6 +245,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   font: inherit;
 }
 
+.toolbar__end .field { min-inline-size: 0; max-inline-size: 100%; flex: 1 1 180px; }
+
 .iconbutton {
   min-width: 40px; min-height: 40px;
   border: 1px solid var(--ivory-200);
@@ -245,9 +259,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .shelfview__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-6) var(--space-5); }
 .shelfview__list { display: grid; gap: var(--space-3); }
 /* A list row carries its own actions; the grid stays a shelf, so its covers keep their plank. */
-.shelfview__row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
-.shelfview__row .workcard { flex: 1; }
-.shelfview__manage { flex: none; }
+.shelfview__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.shelfview__row .workcard { flex: 1 1 260px; }
+.shelfview__manage { flex: none; max-inline-size: 100%; overflow-wrap: anywhere; }
 .shelf__empty { color: var(--ink-500); }
 
 /* Work Details: a smaller hero-like header and an index, not a table (§32.8). */
@@ -384,8 +398,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .drawer__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
 
 /* Settings: a readable document, categories beside the panel (§32.14). */
-.settings__layout { display: grid; grid-template-columns: 220px 1fr; gap: var(--space-6); align-items: start; }
-.settings__nav { display: grid; gap: 2px; }
+.settings__layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-6); align-items: start; }
+.settings__panel { min-inline-size: 0; max-inline-size: 80ch; }
+.settings__nav { min-inline-size: 0; display: grid; gap: 2px; }
 .settings__tab {
   text-align: start;
   min-height: 40px;
@@ -412,10 +427,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   .hero { min-height: 0; padding: var(--space-4); }
   .hero__cover { inline-size: 104px; }
   .hero__title { font-size: 24px; }
-  .shelf__row { grid-auto-columns: 124px; grid-template-rows: 178px auto; }
-  .shelf__plank { top: 178px; }
-  .shelf--compactRow .shelf__row { grid-auto-columns: 104px; grid-template-rows: 150px auto; }
-  .shelf--compactRow .shelf__plank { top: 150px; }
+  .shelf, .shelfview { --shelf-card-width: 124px; --shelf-cover-height: 178px; }
+  .shelf--compactRow { --shelf-card-width: 104px; --shelf-cover-height: 150px; }
   .shelf__title { font-size: 22px; }
 }
 

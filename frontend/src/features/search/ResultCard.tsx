@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -55,20 +56,19 @@ export function ResultCard({ result, size }: { result: ResultWork; size?: "compa
   };
 
   return (
-    <div className="resultcard">
-      <WorkCard work={result} size={size} onOpen={listings.length > 0 ? onOpen : undefined} busy={busy} />
-      {problem !== null && <p className="notice notice--problem resultcard__problem" role="alert">{problem}</p>}
-      {choosing && (
+    <>
+      <WorkCard work={result} size={size} onOpen={listings.length > 0 ? onOpen : undefined} busy={busy} problem={problem} />
+      {choosing && createPortal(
         <Drawer title={t("search.open.choose", { title: result.title })} onClose={() => setChoosing(false)}>
           <SourceChoice listings={listings} onChoose={(listing) => void open(listing)} />
-        </Drawer>
+        </Drawer>, document.body
       )}
-    </div>
+    </>
   );
 }
 
 function SourceChoice({ listings, onChoose }: { listings: Provenance[]; onChoose: (listing: Provenance) => void }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const { data } = useResource<{ sources: { id: string; name: string }[] }>("/api/sources");
   const names = new Map((data?.sources ?? []).map((source) => [source.id, source.name]));
   // Editions from one source can share a title exactly; their own ids are then what tells them apart.
@@ -87,7 +87,7 @@ function SourceChoice({ listings, onChoose }: { listings: Provenance[]; onChoose
         {listings.map((listing) => (
           <li key={`${listing.source_id}:${listing.listing_key}`}>
             <button type="button" className="button choice__option" onClick={() => onChoose(listing)}>
-              <span>{`${names.get(listing.source_id) ?? listing.source_id.replace(/^oneshelf\./, "")} · ${languageName(listing.language)}`}</span>
+              <span>{`${names.get(listing.source_id) ?? listing.source_id.replace(/^oneshelf\./, "")} · ${languageName(listing.language, language)}`}</span>
               {/* The listing's own title: how two editions from one source are told apart. */}
               <span className="choice__title">{label(listing)}</span>
             </button>
