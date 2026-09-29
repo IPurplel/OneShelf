@@ -28,9 +28,10 @@ stays removed: restarting, updating or recreating the container never brings it 
 ./uninstall.sh    # stop OneShelf, keeping your library
 ```
 
-> **Status.** The application and the install scripts are tested — 989 backend tests, 196 frontend
-> tests, 58 deployment-script tests, and all eight sources verified against the live sites. What has
-> *not* happened yet is a run of the whole thing on a real machine with a container runtime: the
+> **Status.** Application, browser, and deployment-script checks are recorded in the
+> [latest verification report](docs/plan/audit-fixes-verification.md). Sources are covered by offline
+> package fixtures; live availability is not established by that run. A full container deployment on a
+> real machine remains unverified: the
 > [Fedora host gate](docs/c9/verification.md#3a-the-final-release-gate--what-the-fedora-host-must-run)
 > is still open, so treat the deployment as unproven until it closes.
 

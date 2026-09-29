@@ -12,7 +12,7 @@ from oneshelf.net.domains import DomainRuleError, normalize_rule
 from oneshelf.plugins import jsonpath
 from oneshelf.plugins.transforms import TransformError, _compile, validate_pipeline
 
-API_MAJOR, API_MINOR = 1, 0
+API_MAJOR, API_MINOR = 1, 1
 MAX_SELECTOR = 512
 MAX_TEMPLATE = 512
 MAX_PAGES_CAP = 1000
@@ -23,9 +23,9 @@ LIST_CAPABILITIES = {"search", "latest", "trending", "catalog", "reader", "downl
 
 FIELDS: dict[str, dict[str, bool]] = {  # capability -> {field: required}
     "search": {"listing_key": True, "title": True, "url": False, "cover_url": False, "content_type": False,
-               "language": False, "creator": False, "description": False, "original_title": False},
+               "language": False, "creator": False, "description": False, "original_title": False, "available_languages": False},
     "work": {"title": True, "original_title": False, "aliases": False, "description": False, "creator": False,
-             "cover_url": False, "content_type": False, "language": False, "status": False},
+             "cover_url": False, "content_type": False, "language": False, "status": False, "available_languages": False},
     "catalog": {"unit_key": True, "title": False, "number": False, "volume": False, "unit_type": False,
                 "url": False, "release_date": False},
     "reader": {"url": True, "page_label": False},

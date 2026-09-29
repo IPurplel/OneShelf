@@ -9,6 +9,7 @@ import { languageName } from "@/i18n/language";
 import { ExportWizard } from "@/features/export/ExportWizard";
 import { RemoveFromShelf } from "@/features/shelf/RemoveFromShelf";
 import type { RemovalSummary } from "@/features/shelf/RemoveFromShelf";
+import { readerLink } from "@/features/reader/links";
 import { bytes } from "@/lib/format";
 
 type Tab = "read" | "details" | "sources";
@@ -123,7 +124,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
           {work.description && <p className="work__description">{work.description}</p>}
           <div className="work__actions">
             {continueUnit && (
-              <Link className="button button--primary" to={`/read/${continueUnit}`}>{t("work.continue")}</Link>
+              <Link className="button button--primary" to={readerLink(continueUnit, id, data.selected_track_id)}>{t("work.continue")}</Link>
             )}
             {shelf.on_shelf ? (
               <>
@@ -200,7 +201,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
 
       {/* The tabs switch this one panel, and say so — a tab that controls nothing announces nothing. */}
       <div role="tabpanel" id="work-tabpanel" aria-labelledby={`work-tab-${tab}`} tabIndex={-1}>
-        {tab === "read" && <UnitIndex units={units} />}
+        {tab === "read" && <UnitIndex units={units} workId={id} trackId={data.selected_track_id} />}
         {tab === "details" && <Details data={data} />}
         {tab === "sources" && (
           <Sources tracks={tracks} selected={data.selected_track_id} onChoose={(track) => setTrackId(track.id)}
@@ -212,7 +213,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
   );
 }
 
-function UnitIndex({ units }: { units: Unit[] }) {
+function UnitIndex({ units, workId, trackId }: { units: Unit[]; workId: string; trackId: string | null }) {
   const { t } = useI18n();
   if (units.length === 0) return <p className="notice">{t("work.noUnits")}</p>;
 
@@ -220,7 +221,7 @@ function UnitIndex({ units }: { units: Unit[] }) {
     <ul className="units" aria-label={t("work.units")}>
       {units.map((unit) => (
         <li key={unit.id} className="units__row">
-          <Link className="units__link" to={`/read/${unit.id}`}>
+          <Link className="units__link" to={readerLink(unit.id, workId, trackId)}>
             <span className="units__number">{unit.number ?? ""}</span>
             <span className="units__title">{unit.title ?? unit.id}</span>
           </Link>

@@ -108,7 +108,7 @@ describe("Work Details", () => {
 
     expect(await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" })).toBeInTheDocument();
     expect(screen.getByText("A. Writer")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /continue/i })).toHaveAttribute("href", "/read/u2");
+    expect(screen.getByRole("link", { name: /continue/i })).toHaveAttribute("href", "/read/u2?work=w1&track=t-en");
     for (const action of [/follow/i, /favorite/i, /pin/i]) {
       expect(screen.getByRole("button", { name: action })).toBeInTheDocument();
     }
@@ -334,4 +334,11 @@ describe("Work Details", () => {
     expect(dialog).toHaveTextContent("ملف منزَّل واحد");     // one file, not "1 ملفات"
     expect(dialog).not.toHaveTextContent("1 ملفات");
   });
+});
+
+it('includes the selected work and track in every reading link', async () => {
+  mockApi([get('/api/works/w1', DETAILS)]);
+  renderWithProviders(<WorkScreen workId="w1" />);
+  expect(await screen.findByRole('link', { name: /^continue$/i })).toHaveAttribute('href', '/read/u2?work=w1&track=t-en');
+  expect(screen.getByRole('link', { name: /prologue/i })).toHaveAttribute('href', '/read/u1?work=w1&track=t-en');
 });

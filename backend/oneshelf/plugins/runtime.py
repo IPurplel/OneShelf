@@ -323,11 +323,18 @@ class RecipeRuntime:
     def _language(value: Any) -> str | None:
         return value if isinstance(value, str) and _LANGUAGE.match(value) else None
 
+    def _languages(self, value: Any) -> list[str] | None:
+        if value is None:
+            return None
+        values = value if isinstance(value, list) else [value]
+        return list(dict.fromkeys(language for item in values if (language := self._language(item))))
+
     def _build_entry(self, capability: str, f: dict[str, Any], index: int):
         if capability in ("search", "latest", "trending"):
             return Listing(listing_key=f["listing_key"], title=f["title"], url=f.get("url"), cover_url=f.get("cover_url"),
                            content_type=self._content_type(f.get("content_type")), language=self._language(f.get("language")),
-                           creator=f.get("creator"), description=f.get("description"), original_title=f.get("original_title"))
+                           creator=f.get("creator"), description=f.get("description"), original_title=f.get("original_title"),
+                           available_languages=self._languages(f.get("available_languages")))
         if capability == "catalog":
             unit_type = (f.get("unit_type") or "").lower().replace("-", "_").replace(" ", "_")
             return UnitDescriptor(unit_key=f["unit_key"], order_index=index, raw_title=f.get("title"), number=f.get("number"),
@@ -347,7 +354,8 @@ class RecipeRuntime:
                                aliases=aliases if isinstance(aliases, list) else [aliases],
                                description=f.get("description"), creator=f.get("creator"), cover_url=f.get("cover_url"),
                                content_type=self._content_type(f.get("content_type")),
-                               language=self._language(f.get("language")), status=f.get("status"))
+                               language=self._language(f.get("language")), status=f.get("status"),
+                               available_languages=self._languages(f.get("available_languages")))
         if capability == "check_session":
             return SessionCheck(logged_in=_as_bool(f.get("logged_in")))
         return HealthCheck(ok=_as_bool(f.get("ok")))

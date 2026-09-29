@@ -69,7 +69,7 @@ export function BackupPanel() {
   };
 
   const restore = async () => {
-    if (restoring === null) return;
+    if (restoring === null || !preflight?.ok) return;
     try {
       await api.post("/api/restore", { path: restoring.path, mode });
       setMessage(t("backup.restored"));
@@ -160,7 +160,7 @@ export function BackupPanel() {
                 </section>
               )}
 
-              {preflight.compatible ? (
+              {preflight.ok ? (
                 <section className="restore__step">
                   <fieldset className="panel__group" role="radiogroup" aria-label={t("backup.how")}>
                     <legend>{t("backup.how")}</legend>
@@ -186,7 +186,7 @@ export function BackupPanel() {
 
           <div className="confirm__actions">
             <button type="button" className="button" onClick={() => setRestoring(null)}>{t("common.cancel")}</button>
-            {preflight?.compatible && (
+            {preflight?.ok && (
               <button type="button" className="button button--primary" onClick={() => void restore()}>
                 {t("backup.restore")}
               </button>

@@ -168,3 +168,52 @@ def test_search_writes_nothing_durable_about_the_query(db, cache):
     asyncio.run(collect(SearchService(db, sources, cache), "private phrase"))
     assert db.execute("SELECT count(*) FROM source_listings").fetchone()[0] == 0
     assert db.execute("SELECT count(*) FROM works").fetchone()[0] == 0
+
+
+def test_cancelled_search_cancels_and_awaits_source_tasks(db, cache):
+    async def scenario():
+        started, stopped = asyncio.Event(), asyncio.Event()
+        async def slow(_inputs):
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                stopped.set()
+        service = SearchService(db, FakeSources({'slow': slow}), cache)
+        stream = service.search('cancel me')
+        await anext(stream)
+        request = asyncio.create_task(anext(stream))
+        await started.wait()
+        request.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await request
+        assert stopped.is_set()
+    asyncio.run(scenario())
+
+
+def test_retry_state_is_bounded_and_expires_without_persisting_queries(db, cache):
+    clock = [0.0]
+    service = SearchService(db, FakeSources({}), cache, max_states=2, state_ttl_seconds=10,
+                            clock=lambda: clock[0])
+    async def scenario():
+        for query in ('first', 'second', 'third'):
+            await collect(service, query)
+        assert set(service._states) == {'second', 'third'}
+        clock[0] = 11
+        await collect(service, 'fourth')
+        assert set(service._states) == {'fourth'}
+    asyncio.run(scenario())
+
+
+def test_translation_choices_survive_search_cache_and_retry(db, cache):
+    result = ListResult('search', [Listing('series', 'Bilingual', available_languages=['en', 'ar'])],
+                        True, Evidence())
+    source = FakeSources({'source': result})
+    service = SearchService(db, source, cache)
+    async def scenario():
+        for _ in range(2):
+            final = (await collect(service, 'bilingual'))[-1]
+            assert final.results[0].availability == {'en': 1, 'ar': 1}
+        retried = [update async for update in service.retry_source('bilingual', 'source')]
+        assert retried[-1].results[0].availability == {'en': 1, 'ar': 1}
+    asyncio.run(scenario())

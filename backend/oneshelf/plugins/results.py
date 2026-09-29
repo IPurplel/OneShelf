@@ -34,6 +34,7 @@ class Listing:
     creator: str | None = None
     description: str | None = None
     original_title: str | None = None
+    available_languages: list[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -99,6 +100,7 @@ class WorkDetails:
     content_type: str | None = None
     language: str | None = None
     status: str | None = None
+    available_languages: list[str] | None = None
 
 
 @dataclass(frozen=True)

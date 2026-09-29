@@ -31,6 +31,7 @@ class LiveListing:
     cover_url: str | None = None
     creator: str | None = None
     original_title: str | None = None
+    available_languages: list[str] | None = None
 
 
 @dataclass(frozen=True)
@@ -127,8 +128,12 @@ def group_results(conn: sqlite3.Connection, listings: list[LiveListing]) -> list
                     title, content_type = work["display_title"], work["content_type"] or listing.content_type
             group = groups[key] = ResultWork(work_id=work_id, title=title, content_type=content_type, soft=soft)
         group.soft = group.soft and soft
-        group.provenance.append(Provenance(listing.source_id, listing.listing_key, listing.language or "und",
-                                           listing.title, listing.url, listing.cover_url))
+        # A series can offer several reading translations without having several identities.
+        # The UI presents each explicitly; original language is never substituted for a translation.
+        languages = listing.available_languages if listing.available_languages is not None else [listing.language or "und"]
+        for language in dict.fromkeys(languages):
+            group.provenance.append(Provenance(listing.source_id, listing.listing_key, language,
+                                               listing.title, listing.url, listing.cover_url))
         if group.cover_url is None:
             # The first cover a source offers is what the card shows. The grouping key above never sees it.
             group.cover_url = cover_path(listing.source_id, listing.cover_url)

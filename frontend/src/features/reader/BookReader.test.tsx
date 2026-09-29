@@ -38,7 +38,7 @@ function stubFile(bytes: Uint8Array, contentType: string, progress?: Record<stri
     const method = (init?.method ?? "GET").toUpperCase();
     const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
     calls.push({ url, method, body });
-    if (url.endsWith("/file")) {
+    if (url.includes("/file")) {
       return new Response(bytes as BodyInit, { status: 200, headers: { "Content-Type": contentType } });
     }
     const json = (payload: unknown) => new Response(JSON.stringify(payload), {
@@ -229,4 +229,23 @@ describe("Book Reader (EPUB)", () => {
     const frame = await screen.findByTitle(/book content/i);
     await waitFor(() => expect(frame.getAttribute("srcdoc") ?? "").toMatch(/font-size:\s*21px/));
   });
+});
+
+it("requests the explicit EPUB format when a unit also has PDF", async () => {
+  const calls = stubFile(epubBytes(), "application/epub+zip");
+  renderWithProviders(<BookReader unitId="mixed" format="epub" workId="w1" />);
+  await waitFor(() => expect(screen.getByTitle(/book content/i).getAttribute("srcdoc")).toContain("The quiet begins."));
+  expect(calls.some(call => call.url === "/api/reader/units/mixed/file?format=epub")).toBe(true);
+});
+
+it("clears a failed document when a new book is opened in the mounted reader", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { code: "MISSING", message: "Old file missing" } }), { status: 404 })));
+  const { rerender } = renderWithProviders(<BookReader unitId="old" format="epub" workId="w1" />);
+  // Offline or unavailable old content must never remain sticky on the next unit.
+  await screen.findByRole("alert");
+  stubFile(epubBytes(), "application/epub+zip");
+  const { TestProviders } = await import("@/test/providers");
+  rerender(<TestProviders><BookReader unitId="new" format="epub" workId="w1" /></TestProviders>);
+  await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.getByTitle(/book content/i).getAttribute("srcdoc")).toContain("The quiet begins."));
 });

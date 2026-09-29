@@ -106,10 +106,18 @@ class ReaderService:
             raise ValueError(f"unknown reading unit {unit_id}")
         return row
 
-    def _local_asset(self, unit_id: str) -> sqlite3.Row | None:
+    def context(self, unit_id: str) -> dict:
+        unit = self._unit(unit_id)
+        formats = [row[0] for row in self.conn.execute(
+            "SELECT DISTINCT format FROM assets WHERE reading_unit_id = ? AND integrity = 'ok' ORDER BY format",
+            (unit_id,))]
+        return {"work_id": unit["work_id"], "track_id": unit["track_id"], "formats": formats}
+
+    def _local_asset(self, unit_id: str, format: str | None = None) -> sqlite3.Row | None:
         return self.conn.execute(
-            "SELECT * FROM assets WHERE reading_unit_id = ? AND integrity = 'ok' ORDER BY created_at LIMIT 1",
-            (unit_id,)).fetchone()
+            "SELECT * FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'"
+            " AND (? IS NULL OR format = ?) ORDER BY created_at, id LIMIT 1",
+            (unit_id, format, format)).fetchone()
 
     def _local_path(self, asset: sqlite3.Row) -> Path:
         root = get_root(self.conn, asset["storage_root_id"])
@@ -164,9 +172,10 @@ class ReaderService:
         self.cache.put(unit["source_id"], unit["source_unit_key"], descriptor.url, response.body)
         return PageData(index, response.body, "online")
 
-    def local_file(self, unit_id: str) -> LocalArtefact:
+    def local_file(self, unit_id: str, *, format: str | None = None) -> LocalArtefact:
         """The downloaded artefact itself, for readers that render a whole document (§26.22)."""
-        asset = self._local_asset(unit_id)
+        self._unit(unit_id)
+        asset = self._local_asset(unit_id, format)
         if asset is None:
             raise FileNotFoundError("this reading unit has no downloaded file on this device")
         path = self._local_path(asset)
@@ -298,14 +307,15 @@ class ReaderService:
         if not enabled or not interacted or fraction < threshold or self.downloads is None:
             return []
         units = [unit_id] if self._needs_download(unit_id) else []
-        if mode == "current_plus_read_ahead":
+        if mode in ("read_ahead", "current_plus_read_ahead"):
             following = self.conn.execute(
                 "SELECT id FROM reading_units WHERE track_id = ? AND source_order > ? AND availability != 'unavailable'"
                 " ORDER BY source_order LIMIT ?", (unit["track_id"], unit["source_order"], read_ahead)).fetchall()
             units += [r[0] for r in following if self._needs_download(r[0])]
         if not units:
             return []
-        self.downloads.enqueue(units, label="auto-download while reading")
+        self.downloads.enqueue(units, label="auto-download while reading",
+                               reader_read_ahead=[u for u in units if u != unit_id])
         return units
 
     async def leaving_work(self, work_id: str) -> int:
@@ -316,7 +326,9 @@ class ReaderService:
         placeholders = ",".join("?" * len(READ_AHEAD_STATES))
         rows = self.conn.execute(
             f"SELECT j.id FROM download_jobs j JOIN reading_units u ON u.id = j.reading_unit_id"
-            f" JOIN source_tracks t ON t.id = u.track_id WHERE t.work_id = ? AND j.state IN ({placeholders})"
+            f" JOIN source_tracks t ON t.id = u.track_id JOIN download_batches b ON b.id = j.batch_id"
+            f" WHERE t.work_id = ? AND j.state IN ({placeholders})"
+            f" AND j.reading_unit_id IN (SELECT value FROM json_each(b.selection_json, '$.reader_read_ahead'))"
             f" AND j.reading_unit_id IS NOT ?", (work_id, *READ_AHEAD_STATES, current)).fetchall()
         for row in rows:
             self.downloads.cancel_job(row["id"])

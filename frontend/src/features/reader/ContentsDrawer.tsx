@@ -3,15 +3,17 @@ import { Link } from "react-router-dom";
 
 import type { Unit } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
+import { readerLink } from "./links";
 import { Drawer } from "@/components/Drawer";
 
 type Filter = "all" | "unread" | "downloaded" | "new";
 
 /** The contents drawer (Master §26.12): units, their states, light filters — never a separate page. */
-export function ContentsDrawer({ units, currentId, workId, onClose }: {
+export function ContentsDrawer({ units, currentId, workId, trackId, onClose }: {
   units: Unit[];
   currentId: string;
   workId: string;
+  trackId?: string | null;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -36,7 +38,7 @@ export function ContentsDrawer({ units, currentId, workId, onClose }: {
       <ul className="drawer__units">
         {shown.map((unit) => (
           <li key={unit.id}>
-            <Link to={`/read/${unit.id}${workId ? `?work=${workId}` : ""}`}
+            <Link to={readerLink(unit.id, workId, trackId)}
                   aria-current={unit.id === currentId ? "true" : undefined}
                   className={unit.id === currentId ? "drawer__unit is-current" : "drawer__unit"}>
               <span className="drawer__unitTitle">{unit.title ?? unit.id}</span>

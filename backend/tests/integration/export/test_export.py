@@ -88,8 +88,7 @@ def test_export_resumes_after_an_interruption(library, exports):
         library.add_work(f"Work {index}", content=f"chapter {index}".encode())
     units = [library.works[f"Work {i}"]["unit_id"] for i in range(3)]
     work = library.works["Work 0"]
-    plan = service.plan(ExportContract(work_id=work["work_id"], language="en", source_id="mangadex",
-                                       unit_ids=units, destination=str(destination)))
+    plan = service.plan_selection([contract(library, f"Work {i}", destination) for i in range(3)])
     job_id = service.start(plan)
 
     copied = {"n": 0}
@@ -114,8 +113,7 @@ def test_one_failed_file_does_not_fail_the_export_and_can_be_retried(library, ex
     good = library.add_work("Good", content=b"good chapter")
     broken = library.add_work("Broken", content=b"broken chapter")
     work = library.works["Good"]
-    plan = service.plan(ExportContract(work_id=work["work_id"], language="en", source_id="mangadex",
-                                       unit_ids=[good["unit_id"], broken["unit_id"]], destination=str(destination)))
+    plan = service.plan_selection([contract(library, "Good", destination), contract(library, "Broken", destination)])
     (library.root_path / broken["relative"]).unlink()
     job_id = service.start(plan)
     report = run(service.run(job_id))
@@ -144,8 +142,8 @@ def test_missing_content_offers_choices_and_never_converts_formats(library, expo
     service, destination = exports
     work = library.add_work("Solo Leveling", content=b"chapter bytes")
     second = library.add_work("Solo Leveling Vol 2", content=None)    # no local file
-    plan = service.plan(ExportContract(work_id=work["work_id"], language="en", source_id="mangadex",
-                                       unit_ids=[work["unit_id"], second["unit_id"]], destination=str(destination)))
+    plan = service.plan_selection([contract(library, "Solo Leveling", destination),
+                                   contract(library, "Solo Leveling Vol 2", destination)])
     assert plan.missing_units == [second["unit_id"]]
     assert plan.choices == ["export_downloaded_only", "download_missing_then_export", "cancel"]
 
@@ -160,8 +158,8 @@ def test_download_missing_requires_an_explicit_permanent_download_notice(library
     service, destination = exports
     work = library.add_work("Solo Leveling", content=b"chapter bytes")
     missing = library.add_work("Missing Chapter", content=None)
-    plan = service.plan(ExportContract(work_id=work["work_id"], language="en", source_id="mangadex",
-                                       unit_ids=[work["unit_id"], missing["unit_id"]], destination=str(destination)))
+    plan = service.plan_selection([contract(library, "Solo Leveling", destination),
+                                   contract(library, "Missing Chapter", destination)])
     with pytest.raises(ExportBlocked, match="permanently"):
         service.start(plan, missing_policy="download_missing_then_export")
     assert service.disclosure(plan)["message"].startswith("This will also permanently download")
@@ -227,3 +225,149 @@ def test_sequential_units_default_to_cbz_while_books_keep_their_original(library
 
     both = service.plan(contract(library, "Solo Leveling", destination, formats=["cbz", "pdf"]))
     assert len(both.files) == 2       # an explicit format choice still exports exactly what was asked for
+
+
+def test_export_rejects_units_belonging_to_another_work(library, exports):
+    service, destination = exports
+    first = library.add_work('First')
+    other = library.add_work('Other')
+    with pytest.raises(ExportError, match='belong'):
+        service.plan(ExportContract(first['work_id'], 'en', 'mangadex', [other['unit_id']], str(destination)))
+
+
+def test_zip_keep_both_preserves_existing_folder_and_archive(library, exports):
+    service, destination = exports
+    library.add_work('Book', content=b'selected')
+    folder = destination / 'Book (en)'
+    folder.mkdir()
+    (folder / 'personal.txt').write_bytes(b'personal')
+    old = destination / 'Book (en).zip'
+    old.write_bytes(b'old archive')
+    report = run(service.run(service.start(service.plan(contract(library, 'Book', destination,
+                                                                 output='zip', conflict='keep_both')))))
+    assert report.state == 'completed'
+    assert old.read_bytes() == b'old archive'
+    assert (folder / 'personal.txt').read_bytes() == b'personal'
+    fresh = next(p for p in destination.glob('*.zip') if p != old)
+    with zipfile.ZipFile(fresh) as z:
+        assert 'personal.txt' not in z.namelist()
+        assert len([n for n in z.namelist() if n.endswith('.cbz')]) == 1
+
+
+def test_zip_same_title_works_have_separate_archives(library, exports):
+    service, destination = exports
+    library.add_work('First', content=b'first')
+    library.add_work('Second', content=b'second')
+    contracts = [contract(library, name, destination, output='zip') for name in ['First', 'Second']]
+    library.conn.execute("UPDATE works SET display_title = 'Same'")
+    report = run(service.run(service.start(service.plan_selection(contracts))))
+    assert report.state == 'completed'
+    archives = list(destination.glob('*.zip'))
+    assert len(archives) == 2
+    contents = []
+    for path in archives:
+        with zipfile.ZipFile(path) as z:
+            contents.extend(z.read(n) for n in z.namelist() if n.endswith('.cbz'))
+    assert sorted(contents) == [b'first', b'second']
+
+
+def test_keep_both_records_actual_filename_in_job_and_metadata(library, exports):
+    service, destination = exports
+    library.add_work('Book')
+    plan = service.plan(contract(library, 'Book', destination, conflict='keep_both'))
+    original = Path(plan.files[0].target_path)
+    original.parent.mkdir()
+    original.write_bytes(b'previous')
+    job_id = service.start(plan)
+    run(service.run(job_id))
+    actual = Path(library.conn.execute('SELECT target_path FROM export_items WHERE job_id = ?', (job_id,)).fetchone()[0])
+    assert actual != original and actual.read_bytes() == b'chapter one'
+    metadata = json.loads((actual.parent / 'oneshelf-export.json').read_text())
+    assert metadata['units'][0]['files'][0]['name'] == actual.name
+
+
+def test_download_missing_cannot_report_empty_success(library, exports):
+    service, destination = exports
+    library.add_work('Missing', content=None)
+    job_id = service.start(service.plan(contract(library, 'Missing', destination)),
+                           missing_policy='download_missing_then_export', acknowledge_permanent_download=True)
+    report = run(service.run(job_id))
+    assert report.state == 'completed_with_issues' and report.failed == 1 and report.errors
+
+
+def test_export_includes_content_downloaded_after_the_job_was_created(library, exports):
+    service, destination = exports
+    work = library.add_work('Missing', content=None)
+    job_id = service.start(service.plan(contract(library, 'Missing', destination)),
+                           missing_policy='download_missing_then_export', acknowledge_permanent_download=True)
+    library.add_asset(work['unit_id'], fmt='cbz', content=b'new download')
+    report = run(service.run(job_id))
+    assert report.state == 'completed' and report.copied == 1
+    assert next(destination.rglob('*.cbz')).read_bytes() == b'new download'
+
+
+def test_invalid_existing_zip_is_a_reported_conflict(library, exports):
+    service, destination = exports
+    library.add_work('Book')
+    archive = destination / 'Book (en).zip'
+    archive.write_bytes(b'personal file')
+    job_id = service.start(service.plan(contract(library, 'Book', destination, output='zip')))
+    report = run(service.run(job_id))
+    assert report.state == 'completed_with_issues' and report.errors
+    assert service.job(job_id)['state'] == 'completed_with_issues'
+    assert archive.read_bytes() == b'personal file'
+
+
+def test_zip_retry_publishes_only_when_all_selected_files_are_ready(library, exports):
+    service, destination = exports
+    work = library.add_work('Book', content=b'comic')
+    asset_id = library.add_asset(work['unit_id'], fmt='pdf', content=b'paper')
+    relative = library.conn.execute('SELECT relative_path FROM assets WHERE id = ?', (asset_id,)).fetchone()[0]
+    missing = library.root_path / relative
+    plan = service.plan(contract(library, 'Book', destination, output='zip', formats=['cbz', 'pdf']))
+    missing.unlink()
+    job_id = service.start(plan)
+    assert run(service.run(job_id)).state == 'completed_with_issues'
+    assert list(destination.glob('*.zip')) == []
+    missing.write_bytes(b'paper')
+    service.retry_failed(job_id)
+    assert run(service.run(job_id)).state == 'completed'
+    with zipfile.ZipFile(next(destination.glob('*.zip'))) as archive:
+        assert sorted(archive.read(name) for name in archive.namelist() if name != 'oneshelf-export.json') == [b'comic', b'paper']
+
+
+def test_zip_waits_for_missing_units_before_publishing(library, exports):
+    service, destination = exports
+    first = library.add_work('Book', content=b'first')
+    second = library.add_work('Second chapter', content=None)
+    library.conn.execute('UPDATE reading_units SET track_id=?, source_order=2 WHERE id=?',
+                         (first['track_id'], second['unit_id']))
+    selection = ExportContract(first['work_id'], 'en', 'mangadex',
+                               [first['unit_id'], second['unit_id']], str(destination), output='zip')
+    job_id = service.start(service.plan(selection), missing_policy='download_missing_then_export',
+                           acknowledge_permanent_download=True)
+    assert run(service.run(job_id)).state == 'completed_with_issues'
+    assert list(destination.glob('*.zip')) == []
+    library.add_asset(second['unit_id'], fmt='cbz', content=b'second')
+    service.retry_failed(job_id)
+    assert run(service.run(job_id)).state == 'completed'
+    with zipfile.ZipFile(next(destination.glob('*.zip'))) as archive:
+        assert sorted(archive.read(name) for name in archive.namelist() if name.endswith('.cbz')) == [b'first', b'second']
+
+
+@pytest.mark.parametrize('output', ['folder', 'zip'])
+def test_export_rejects_destination_symlink(library, exports, output):
+    service, destination = exports
+    library.add_work('Book')
+    outside = destination.parent / 'outside'
+    outside.mkdir()
+    sentinel = outside / 'Book-1.cbz'
+    sentinel.write_bytes(b'private')
+    if output == 'folder':
+        (destination / 'Book (en)').symlink_to(outside, target_is_directory=True)
+    else:
+        (destination / 'Book (en).zip').symlink_to(sentinel)
+    report = run(service.run(service.start(service.plan(contract(library, 'Book', destination,
+                                                                 output=output, conflict='replace')))))
+    assert report.state == 'completed_with_issues'
+    assert sentinel.read_bytes() == b'private'

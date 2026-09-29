@@ -89,5 +89,6 @@ class UrlResolver:
             language=(details.language if details else None) or resolved.package.manifest.defaults.language,
             cover_url=details.cover_url if details else None, creator=details.creator if details else None,
             original_title=details.original_title if details else None,
+            available_languages=getattr(details, "available_languages", None),
         )
         return UrlPreview(resolved, group_results(self.conn, [listing])[0], details)

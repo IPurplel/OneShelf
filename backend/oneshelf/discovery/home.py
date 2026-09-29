@@ -93,7 +93,8 @@ class HomeService:
                 continue
             entries = [LiveListing(source_id=source_id, listing_key=e.listing_key, title=e.title, url=e.url,
                                    content_type=e.content_type, language=e.language, cover_url=e.cover_url,
-                                   creator=e.creator, original_title=e.original_title) for e in result.entries]
+                                   creator=e.creator, original_title=e.original_title,
+                                   available_languages=getattr(e, "available_languages", None)) for e in result.entries]
             self.cache.put(source_id, version, kind, kind, {"listings": [asdict(e) for e in entries]})
             listings.extend(entries)
         return group_results(self.conn, listings)[:SECTION_LIMIT] if listings else []

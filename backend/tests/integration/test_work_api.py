@@ -112,7 +112,7 @@ def test_asking_for_a_file_that_is_not_downloaded_says_so(api):
     client, tmp_path = api
     imported = import_work(client, tmp_path)
     missing = client.get("/api/reader/units/does-not-exist/file")
-    assert missing.status_code == 404 and missing.json()["error"]["code"] == "FILE_NOT_AVAILABLE"
+    assert missing.status_code == 404 and missing.json()["error"]["code"] == "UNIT_NOT_FOUND"
     # A CBZ is read page by page rather than handed over whole.
     cbz = client.get(f"/api/reader/units/{imported['reading_unit_id']}/file")
     assert cbz.status_code == 200 and cbz.headers["content-type"] == "application/vnd.comicbook+zip"

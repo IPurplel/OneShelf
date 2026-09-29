@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Callable
 from dataclasses import asdict, dataclass, field
 from typing import Any, Protocol
 
@@ -47,6 +48,7 @@ class SearchUpdate:
 
 @dataclass
 class _QueryState:
+    last_used: float = 0
     listings: dict[tuple[str, str], LiveListing] = field(default_factory=dict)
     status: dict[str, dict] = field(default_factory=dict)
     versions: dict[str, str] = field(default_factory=dict)
@@ -55,16 +57,36 @@ class _QueryState:
 def _to_live(source_id: str, entry) -> LiveListing:
     return LiveListing(source_id=source_id, listing_key=entry.listing_key, title=entry.title, url=entry.url,
                        content_type=entry.content_type, language=entry.language, cover_url=entry.cover_url,
-                       creator=entry.creator, original_title=entry.original_title)
+                       creator=entry.creator, original_title=entry.original_title,
+                       available_languages=getattr(entry, "available_languages", None))
 
 
 class SearchService:
-    def __init__(self, conn: sqlite3.Connection, sources: Sources, cache: DiscoveryCache, *, limit: int = 50) -> None:
+    def __init__(self, conn: sqlite3.Connection, sources: Sources, cache: DiscoveryCache, *, limit: int = 50,
+                 max_states: int = 128, state_ttl_seconds: float = 1800,
+                 clock: Callable[[], float] = time.monotonic) -> None:
         self.conn = conn
         self.sources = sources
         self.cache = cache
         self.limit = limit
+        self.max_states = max(1, max_states)
+        self.state_ttl_seconds = state_ttl_seconds
+        self.clock = clock
         self._states: dict[str, _QueryState] = {}
+
+    def _prune_states(self) -> None:
+        cutoff = self.clock() - self.state_ttl_seconds
+        for key, state in list(self._states.items()):
+            if state.last_used <= cutoff:
+                del self._states[key]
+        while len(self._states) > self.max_states:
+            oldest = min(self._states, key=lambda key: self._states[key].last_used)
+            del self._states[oldest]
+
+    def _remember(self, key: str, state: _QueryState) -> None:
+        state.last_used = self.clock()
+        self._states[key] = state
+        self._prune_states()
 
     # -- result assembly ---------------------------------------------------------------------------
 
@@ -136,7 +158,7 @@ class SearchService:
         key = search_keys(query).normalized
         sources = self.sources.searchable_sources()
         state = _QueryState(versions=dict(sources), status={source_id: {"state": "pending"} for source_id, _ in sources})
-        self._states[key] = state
+        self._remember(key, state)
         total = len(sources)
         yield SearchUpdate("local", self._local_results(query), dict(state.status), total)
         if not sources:
@@ -144,15 +166,26 @@ class SearchService:
             return
         pending = {asyncio.create_task(self._run_source(state, source_id, version, query, key, refresh))
                    for source_id, version in sources}
-        while pending:
-            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-            for task in done:
-                task.result()
-            yield self._update("partial" if pending else "complete", query, state, total)
+        tasks = set(pending)
+        try:
+            while pending:
+                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                for task in done:
+                    task.result()
+                state.last_used = self.clock()
+                yield self._update("partial" if pending else "complete", query, state, total)
+        finally:
+            # Closing an SSE response owns cancellation of every source it launched.
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     async def retry_source(self, query: str, source_id: str) -> AsyncIterator[SearchUpdate]:
         key = search_keys(query).normalized
-        state = self._states.setdefault(key, _QueryState())
+        self._prune_states()
+        state = self._states.get(key, _QueryState())
+        self._remember(key, state)
         version = state.versions.get(source_id) or dict(self.sources.searchable_sources()).get(source_id, "unknown")
         state.status[source_id] = {"state": "pending"}
         yield self._update("partial", query, state, len(state.status))

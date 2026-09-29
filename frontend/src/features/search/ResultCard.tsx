@@ -85,7 +85,7 @@ function SourceChoice({ listings, onChoose }: { listings: Provenance[]; onChoose
       <p className="cards__meta">{t("search.open.help")}</p>
       <ul className="choice">
         {listings.map((listing) => (
-          <li key={`${listing.source_id}:${listing.listing_key}`}>
+          <li key={`${listing.source_id}:${listing.listing_key}:${listing.language}`}>
             <button type="button" className="button choice__option" onClick={() => onChoose(listing)}>
               <span>{`${names.get(listing.source_id) ?? listing.source_id.replace(/^oneshelf\./, "")} · ${languageName(listing.language, language)}`}</span>
               {/* The listing's own title: how two editions from one source are told apart. */}

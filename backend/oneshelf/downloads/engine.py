@@ -102,6 +102,7 @@ class DownloadEngine:
         self.retry_budget = DEFAULTS.downloads.max_retries
         self.backoff_base_seconds = backoff_base_seconds
         self.notifications = notifications
+        self._tasks: dict[str, asyncio.Task] = {}
 
     # -- enqueue -----------------------------------------------------------------------------------
 
@@ -151,7 +152,8 @@ class DownloadEngine:
             (unit_id, *ACTIVE_STATES, *RUNNABLE_STATES)).fetchone() is not None
 
     def enqueue(self, unit_ids: list[str], *, root_id: str | None = None, one_time_method: str | None = None,
-                label: str | None = None, repair: bool = False) -> str:
+                label: str | None = None, repair: bool = False,
+                reader_read_ahead: list[str] | None = None) -> str:
         """`repair` re-downloads a unit whose local copy is broken (§16.5, §26.21).
 
         It is the same contract, the same method and the same validated commit as any other download —
@@ -186,7 +188,8 @@ class DownloadEngine:
                     " VALUES (?,?,?, 'QUEUED', ?, 0, ?, ?, ?, ?, ?)",
                     (new_id(), batch_id, unit_id, position, contract.to_json(), contract.method, root_id, now, now))
             self.conn.execute("UPDATE download_batches SET selection_json = ? WHERE id = ?",
-                              (json.dumps({"requested": unit_ids, "skipped": skipped, "queued": queued}), batch_id))
+                              (json.dumps({"requested": unit_ids, "skipped": skipped, "queued": queued,
+                                           "reader_read_ahead": [u for u in (reader_read_ahead or []) if u in queued]}), batch_id))
         self._emit("download.batch", {"batch_id": batch_id, "queued": len(queued), "skipped": len(skipped)})
         return batch_id
 
@@ -202,6 +205,8 @@ class DownloadEngine:
             f" ORDER BY j.queue_position LIMIT ?", (*RUNNABLE_STATES, now, limit)).fetchall()
         runnable = []
         for row in rows:
+            if row["id"] in self._tasks:
+                continue
             if row["state"] == "WAITING_FOR_SESSION" and not self._session_ready(row):
                 continue
             runnable.append(row)
@@ -228,10 +233,23 @@ class DownloadEngine:
         semaphore = asyncio.Semaphore(self.concurrency)
 
         async def guarded(job):
-            async with semaphore:
-                await self._process(job, report)
+            try:
+                async with semaphore:
+                    await self._process(job, report)
+            except asyncio.CancelledError:
+                current = self.job(job["id"])
+                if current is None or current["state"] != "CANCELED":
+                    raise
+                report.canceled += 1
+            finally:
+                self._tasks.pop(job["id"], None)
 
-        await asyncio.gather(*(guarded(job) for job in jobs))
+        tasks = []
+        for job in jobs:
+            task = asyncio.create_task(guarded(job))
+            self._tasks[job["id"]] = task
+            tasks.append(task)
+        await asyncio.gather(*tasks)
         return report
 
     async def run_until_idle(self, *, max_seconds: float = 30) -> RunReport:
@@ -243,6 +261,11 @@ class DownloadEngine:
                 setattr(total, attribute, getattr(total, attribute) + getattr(report, attribute))
             total.errors.extend(report.errors)
             if self._runnable_jobs(1):
+                continue
+            if self._tasks:
+                # Another caller (e.g. the background runner) owns these workers.
+                await asyncio.wait(list(self._tasks.values()), timeout=max(0.0, deadline - time.monotonic()),
+                                   return_when=asyncio.FIRST_COMPLETED)
                 continue
             delay = self._waiting_until()
             if delay is None:
@@ -263,7 +286,14 @@ class DownloadEngine:
 
     # -- controls ----------------------------------------------------------------------------------
 
-    def _set_state(self, job_id: str, state: str, **columns) -> None:
+    def _ensure_not_canceled(self, job_id: str) -> None:
+        job = self.job(job_id)
+        if job is None or job["state"] == "CANCELED":
+            raise asyncio.CancelledError()
+
+    def _set_state(self, job_id: str, state: str, *, allow_canceled: bool = False, **columns) -> None:
+        if state != "CANCELED" and not allow_canceled:
+            self._ensure_not_canceled(job_id)
         assignments = ", ".join(f"{k} = ?" for k in columns)
         prefix = f", {assignments}" if columns else ""
         with transaction(self.conn):
@@ -291,6 +321,12 @@ class DownloadEngine:
         job = self.conn.execute("SELECT * FROM download_jobs WHERE id = ?", (job_id,)).fetchone()
         if job is None:
             raise ValueError("unknown download job")
+        if job["state"] in ("CANCELED", "COMPLETED"):
+            return
+        self._set_state(job_id, "CANCELED", finished_at=utcnow_iso())
+        task = self._tasks.get(job_id)
+        if task is not None and job["state"] in ACTIVE_STATES:
+            task.cancel()
         keep = self.settings.get("global", None, "downloads.keep_partial_on_cancel", False)
         if delete_partial is None:
             delete_partial = not keep
@@ -299,7 +335,6 @@ class DownloadEngine:
             area = Path(root.path) / job["staging_relpath"]
             if area.is_dir():
                 shutil.rmtree(area, ignore_errors=True)
-        self._set_state(job_id, "CANCELED", finished_at=utcnow_iso())
         self._record_history(job, "canceled")
 
     def cancel_batch(self, batch_id: str) -> int:
@@ -311,10 +346,14 @@ class DownloadEngine:
 
     def retry_job(self, job_id: str, *, method: str | None = None) -> None:
         job = self.conn.execute("SELECT * FROM download_jobs WHERE id = ?", (job_id,)).fetchone()
+        if job is None:
+            raise ValueError("unknown download job")
+        if job_id in self._tasks:
+            raise ValueError("download worker is still stopping; retry when it has stopped")
         contract = ExtractionContract.from_json(job["extraction_contract_json"])
         if method is not None:
             contract = contract.with_method(method)
-        self._set_state(job_id, "QUEUED", attempts=0, next_attempt_at=None, last_error=None, error_category=None,
+        self._set_state(job_id, "QUEUED", allow_canceled=True, attempts=0, next_attempt_at=None, last_error=None, error_category=None,
                         pending_decision_json=None, extraction_contract_json=contract.to_json(), method=contract.method)
 
     def retry_all_failed(self, batch_id: str) -> int:
@@ -451,6 +490,7 @@ class DownloadEngine:
                               manifest: dict, context: sqlite3.Row) -> tuple[Path, int]:
         pages = manifest.setdefault("pages", {})
         for index, resource in enumerate(resources, start=1):
+            self._ensure_not_canceled(job_id)
             name = f"{index:04d}.img"
             target = area / name
             entry = pages.get(str(index))
@@ -459,6 +499,7 @@ class DownloadEngine:
                 continue
             response = await self.sources.fetch_resource(contract.source_id, resource.url, capability="reader",
                                                          priority=Priority.MANUAL, max_bytes=MAX_RESOURCE_BYTES)
+            self._ensure_not_canceled(job_id)
             if response.status != 200:
                 raise CapabilityError("unexpected_response", f"page {index} returned HTTP {response.status}")
             problem = _validate_image(response.body)
@@ -495,6 +536,7 @@ class DownloadEngine:
         response = await self.sources.fetch_resource(contract.source_id, resource.url, capability="downloads",
                                                      priority=Priority.MANUAL, max_bytes=MAX_RESOURCE_BYTES,
                                                      headers=headers or None)
+        self._ensure_not_canceled(job_id)
         validator = response.headers.get("ETag") or response.headers.get("Last-Modified")
         if response.status == 206 and state.get("validator") == validator:
             with open(target, "ab") as handle:
@@ -517,6 +559,7 @@ class DownloadEngine:
     async def _commit(self, job_id: str, contract: ExtractionContract, context: sqlite3.Row, root: StorageRoot,
                       staging_rel: str, artifact: Path, asset_format: str, page_count: int | None,
                       started_at: str) -> None:
+        self._ensure_not_canceled(job_id)
         sha, size = sha256_file(artifact)
         label = context["display_title"] or context["raw_title"] or context["source_unit_key"]
         relative_path = asset_relative_path(context["content_type"], context["work_title"], context["work_id"],

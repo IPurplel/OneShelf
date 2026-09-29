@@ -117,6 +117,22 @@ describe("Opening a search result", () => {
     expect(opens[0]!.body).toMatchObject({ source_id: "oneshelf.mangadex", listing_key: "a1c7", language: "en" });
   });
 
+  it("lets readers choose a translation of the same listing without defaulting to the original language", async () => {
+    const calls = mockApi([post("/api/listings/open", opened), get("/api/works/w9", DETAILS),
+      get("/api/sources", { sources: [{ id: "oneshelf.mangadex", name: "MangaDex" }] })]);
+    renderApp({ route: "/search" });
+    const user = await searchFor([result({ availability: { en: 1, ar: 1 },
+      provenance: [P_EN, { ...P_EN, language: "ar" }] })]);
+    await user.click(await screen.findByRole("button", { name: /one piece/i }));
+    expect(calls.some((c) => c.url === "/api/listings/open")).toBe(false);
+    const chooser = await screen.findByRole("dialog", { name: /one piece/i });
+    expect(within(chooser).getByRole("button", { name: /English/i })).toBeInTheDocument();
+    await user.click(within(chooser).getByRole("button", { name: /Arabic/i }));
+    expect(calls.find((c) => c.url === "/api/listings/open")?.body).toMatchObject({
+      source_id: P_EN.source_id, listing_key: P_EN.listing_key, language: "ar",
+    });
+  });
+
   it("tells apart several listings from the same source by their own titles", async () => {
     const a = { ...P_EN, listing_key: "84", title: "Frankenstein; Or, The Modern Prometheus" };
     const b = { ...P_EN, listing_key: "41445", title: "Frankenstein (1831 edition)" };

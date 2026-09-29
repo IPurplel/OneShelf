@@ -126,3 +126,59 @@ def test_offline_root_is_reported_and_never_mass_marked_missing(db, roots):
     assert report.unavailable_roots == [root.id] and report.missing == 0
     with pytest.raises(MigrationError, match="unavailable"):
         StorageMigration(db).plan(root.id, tmp_path / "new")
+
+
+@pytest.mark.parametrize('kind', ['file', 'symlink', 'parent_symlink', 'marker_symlink'])
+def test_migration_preserves_foreign_destination_content(db, roots, kind):
+    root, tmp_path = roots
+    add_asset(db, root, 'Books/one.cbz')
+    sentinel = tmp_path / 'sentinel'
+    sentinel.write_bytes(b'personal data')
+    destination = tmp_path / 'new'
+    if kind == 'parent_symlink':
+        outside = tmp_path / 'outside'
+        outside.mkdir()
+        (outside / 'one.cbz').write_bytes(b'personal data')
+        (destination / 'Books').symlink_to(outside, target_is_directory=True)
+    elif kind == 'marker_symlink':
+        (destination / '.oneshelf').mkdir()
+        (destination / '.oneshelf/root.json').symlink_to(sentinel)
+    else:
+        (destination / 'Books').mkdir()
+        target = destination / 'Books/one.cbz'
+        target.symlink_to(sentinel) if kind == 'symlink' else target.write_bytes(b'personal data')
+    migration = StorageMigration(db)
+    with pytest.raises(MigrationError):
+        migration.run(migration.plan(root.id, destination))
+    assert sentinel.read_bytes() == b'personal data'
+    if kind == 'file':
+        assert target.read_bytes() == b'personal data'
+    if kind == 'parent_symlink':
+        assert (outside / 'one.cbz').read_bytes() == b'personal data'
+    assert db.execute('SELECT path FROM storage_roots WHERE id = ?', (root.id,)).fetchone()[0] == root.path
+
+
+def test_migration_discard_refuses_changed_old_content(db, roots):
+    root, tmp_path = roots
+    add_asset(db, root, 'Books/one.cbz')
+    migration = StorageMigration(db)
+    plan = migration.plan(root.id, tmp_path / 'new')
+    migration.run(plan)
+    old = tmp_path / 'old/Books/one.cbz'
+    old.write_bytes(b'new personal data')
+    with pytest.raises(MigrationError):
+        migration.discard_old_copy(plan.id)
+    assert old.read_bytes() == b'new personal data'
+
+
+def test_migration_resumes_commit_before_database_update(db, roots):
+    root, tmp_path = roots
+    add_asset(db, root, 'Books/one.cbz')
+    def interrupt(point):
+        if point == 'file_committed':
+            raise KeyboardInterrupt()
+    migration = StorageMigration(db, fault=interrupt)
+    plan = migration.plan(root.id, tmp_path / 'new')
+    with pytest.raises(KeyboardInterrupt):
+        migration.run(plan)
+    assert StorageMigration(db).resume(plan.id).state == 'completed'

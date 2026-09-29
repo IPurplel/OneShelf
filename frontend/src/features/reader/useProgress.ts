@@ -1,91 +1,93 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ApiError, api } from "@/api/client";
 
 export type ProgressState = { read_state: string; fraction: number | null; locator: unknown; revision: number };
-
+type Position = { fraction: number; locator: unknown };
 const DEBOUNCE_MS = 1200;
 
-/**
- * Progress writes (Master §26.11, §26.23).
- *
- * Writes are debounced while reading and force-flushed when the unit changes, the tab is hidden, or the
- * reader exits. Each write carries the revision this tab last saw, so a stale tab is rejected by the
- * backend instead of quietly undoing newer progress.
- */
-export function useProgress(unitId: string) {
-  const revision = useRef(0);
-  const [stored, setStored] = useState<ProgressState | null>(null);
-  const pending = useRef<{ fraction: number; locator: unknown } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+/** Each mounted unit owns its queue and revision, including writes that finish after navigation. */
+function progressSession(unitId: string) {
+  const path = `/api/reader/units/${unitId}/progress`;
+  let revision = 0;
+  let ready = false;
+  let writing = false;
+  let due = false;
+  let pending: Position | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let initial: Promise<ProgressState> | null = null;
+  const clearTimer = () => { if (timer !== null) clearTimeout(timer); timer = null; };
 
-  const send = useCallback(async () => {
-    const payload = pending.current;
-    if (payload === null) return;
-    pending.current = null;
-    if (timer.current !== null) {
-      clearTimeout(timer.current);
-      timer.current = null;
-    }
+  const send = async () => {
+    if (!ready || writing || !due || pending === null) return;
+    const payload = pending;
+    pending = null;
+    due = false;
+    writing = true;
     try {
-      const state = await api.post<ProgressState>(`/api/reader/units/${unitId}/progress`, {
-        fraction: payload.fraction, locator: payload.locator, revision: revision.current,
-      });
-      revision.current = state.revision;
+      const state = await api.post<ProgressState>(path, { ...payload, revision });
+      revision = state.revision;
     } catch (error) {
-      // A rejected stale write is the system working: re-read the revision and let the newer tab win.
       if (error instanceof ApiError && error.code === "STALE_PROGRESS") {
-        try {
-          const current = await api.get<ProgressState>(`/api/reader/units/${unitId}/progress`);
-          revision.current = current.revision;
-        } catch {
-          // Leave the revision alone; the next write will be rejected again rather than clobbering.
-        }
+        // Another tab wins. Never replay a position recorded against the superseded revision.
+        ready = false;
+        try { revision = (await api.get<ProgressState>(path)).revision; ready = true; }
+        catch { initial = null; /* Retry the revision on the next explicit flush. */ }
+        pending = null;
+        due = false;
+        clearTimer();
+      } else {
+        // Keep the latest position for a later explicit flush; do not spin on an offline library.
+        pending ??= payload;
+        due = false;
       }
+    } finally {
+      writing = false;
     }
-  }, [unitId]);
+    void send();
+  };
+  const load = (): Promise<ProgressState> => initial ??= api.get<ProgressState>(path).then((state) => {
+      revision = state.revision;
+      ready = true;
+      void send();
+      return state;
+    }).catch((error) => { initial = null; throw error; });
+  const flush = () => {
+    clearTimer();
+    due = true;
+    if (!ready && pending !== null) void load().catch(() => {});
+    else void send();
+  };
+  return {
+    load,
+    record: (fraction: number, locator: unknown) => {
+      pending = { fraction, locator };
+      clearTimer();
+      timer = setTimeout(flush, DEBOUNCE_MS);
+    },
+    flush,
+    setRevision: (value: number) => { revision = value; },
+  };
+}
 
-  // A reader opening a unit it has read before must start from the revision the library holds, or its
-  // very first write is stale and progress silently stops being kept (§26.23). The same read carries the
-  // position the reader resumes from (§26.15); reading it writes nothing.
+/** Debounced, serialized saves; opening/resuming a reader never writes a position. */
+export function useProgress(unitId: string) {
+  const session = useMemo(() => progressSession(unitId), [unitId]);
+  const [loaded, setLoaded] = useState<{ session: typeof session; state: ProgressState } | null>(null);
   useEffect(() => {
     let live = true;
-    revision.current = 0;
-    setStored(null);
-    void (async () => {
-      try {
-        const current = await api.get<ProgressState>(`/api/reader/units/${unitId}/progress`);
-        if (!live) return;
-        revision.current = current.revision;
-        setStored(current);
-      } catch {
-        // An unreachable library leaves the revision at 0; the first write is then rejected, not lost,
-        // and the reader opens at the beginning rather than guessing a position.
-      }
-    })();
-    return () => { live = false; };
-  }, [unitId]);
-
-  const record = useCallback((fraction: number, locator: unknown) => {
-    pending.current = { fraction, locator };
-    if (timer.current !== null) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void send(), DEBOUNCE_MS);
-  }, [send]);
-
-  const flush = useCallback(() => { void send(); }, [send]);
-
-  useEffect(() => {
-    const onHidden = () => { if (document.visibilityState === "hidden") flush(); };
+    void session.load().then((state) => { if (live) setLoaded({ session, state }); }).catch(() => {});
+    const onHidden = () => { if (document.visibilityState === "hidden") session.flush(); };
     document.addEventListener("visibilitychange", onHidden);
-    window.addEventListener("pagehide", flush);
+    window.addEventListener("pagehide", session.flush);
     return () => {
+      live = false;
       document.removeEventListener("visibilitychange", onHidden);
-      window.removeEventListener("pagehide", flush);
-      flush();                                   // leaving the reader is a flush point too
+      window.removeEventListener("pagehide", session.flush);
+      session.flush();
     };
-  }, [flush]);
-
-  const setRevision = useCallback((value: number) => { revision.current = value; }, []);
-
-  return { record, flush, setRevision, stored };
+  }, [session]);
+  const record = useCallback((fraction: number, locator: unknown) => session.record(fraction, locator), [session]);
+  return { record, flush: session.flush, setRevision: session.setRevision,
+           stored: loaded?.session === session ? loaded.state : null };
 }

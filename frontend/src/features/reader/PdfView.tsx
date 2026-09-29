@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { Drawer } from "@/components/Drawer";
 import { useI18n } from "@/i18n/i18n";
+import { workLink } from "./links";
 import { HighlightPane } from "./HighlightPane";
 import { useBookMarks } from "./useBookMarks";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "./settings";
@@ -44,10 +45,11 @@ async function pageText(document_: PdfDocument, page: number): Promise<string> {
  * Search reads the text layer the document carries; a scan without one is said to carry no text rather
  * than searched with invented content. Bookmarks and highlights are kept with the library (§26.22).
  */
-export function PdfView({ unitId, data, workId, onProgress, onLeave, storedPage = null }: {
+export function PdfView({ unitId, data, workId, trackId, onProgress, onLeave, storedPage = null }: {
   unitId: string;
   data: ArrayBuffer | null;
   workId: string;
+  trackId?: string;
   onProgress: (fraction: number, locator: unknown) => void;
   onLeave: () => void;
   /** The page the library says this document was left on (§26.15); null resumes nothing. */
@@ -187,7 +189,7 @@ export function PdfView({ unitId, data, workId, onProgress, onLeave, storedPage 
   return (
     <div className="reader reader--dark book">
       <div role="toolbar" aria-label={t("reader.controls")} className="reader__bar reader__bar--top">
-        <Link className="reader__button" to={workId ? `/works/${workId}` : "/shelf"} onClick={onLeave}>
+        <Link className="reader__button" to={workLink(workId, trackId)} onClick={onLeave}>
           {t("reader.back")}
         </Link>
         <button type="button" className="reader__button" onClick={() => setPanel("search")}>

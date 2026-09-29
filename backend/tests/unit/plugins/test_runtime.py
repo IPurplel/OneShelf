@@ -392,3 +392,23 @@ def test_a_404_on_the_very_first_page_is_still_a_failure(tmp_path):
     result = run(RecipeRuntime(pkg, fetcher), "search", query="moon", page=1)
     assert result.items == [] and not result.complete
     assert [i.category for i in result.evidence.issues] == ["not_found"]
+
+
+def test_api_11_extracts_available_reading_languages_without_original_language(tmp_path):
+    manifest = copy.deepcopy(MANIFEST)
+    manifest['api'] = '1.1'
+    recipe = {
+        'capability': 'search', 'inputs': ['query'],
+        'request': {'url': '{base_url}/translations?query={query}'},
+        'response': {'format': 'json'},
+        'extract': {'items': {'json': '$.data[*]'}, 'fields': {
+            'listing_key': {'json': '$.id'}, 'title': {'json': '$.title'},
+            'available_languages': {'json': '$.translations[*]', 'all': True}}},
+    }
+    runtime = RecipeRuntime(package(tmp_path, manifest=manifest, recipes={**copy.deepcopy(RECIPES), 'search': recipe}), MemoryFetcher({
+        'https://books.example/translations?query=book': (200, json.dumps({'data': [
+            {'id': 'book', 'title': 'Book', 'originalLanguage': 'ja', 'translations': ['en', 'ar', 'en', 'not a code']}
+        ]}))}))
+    result = run(runtime, 'search', query='book')
+    assert result.entries[0].language is None
+    assert result.entries[0].available_languages == ['en', 'ar']

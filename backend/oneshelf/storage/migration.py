@@ -7,6 +7,9 @@ remap, not a migration.
 from __future__ import annotations
 
 import os
+import json
+import hashlib
+import tempfile
 import shutil
 import sqlite3
 from dataclasses import dataclass
@@ -20,6 +23,7 @@ from oneshelf.storage.paths import PathSafetyError, resolve_within
 from oneshelf.storage.roots import META_DIR, StorageRoot, check_availability, get_root, list_roots, preflight, \
     remap_root, staging_dir
 from oneshelf.storage.scanner import reconcile
+from oneshelf.storage.safe_write import publish, sync_file
 
 
 class MigrationError(RuntimeError):
@@ -57,7 +61,7 @@ class StorageMigration:
         availability = check_availability(root)
         if not availability.available:
             raise MigrationError(f"storage location unavailable ({availability.reason})")
-        destination = Path(destination)
+        destination = Path(destination).absolute()
         real_destination, real_source = os.path.realpath(destination), os.path.realpath(root.path)
         if os.path.commonpath([real_destination, real_source]) in (real_destination, real_source):
             raise MigrationError("destination overlaps the current storage location")
@@ -121,60 +125,97 @@ class StorageMigration:
             return self.state(migration_id)
         root = get_root(self.conn, row["root_id"])
         source, destination = Path(row["source_path"]), Path(row["destination_path"])
-        self._set_state(migration_id, "copying")
-        copied, copied_this_run = row["copied"], 0
-        for entry in self.conn.execute(
-                "SELECT * FROM storage_migration_files WHERE migration_id = ? AND state = 'pending'"
-                " ORDER BY relative_path", (migration_id,)).fetchall():
-            relative = entry["relative_path"]
-            try:
+        copied_this_run = 0
+        try:
+            # A disconnected source must not be interpreted as an empty replacement filesystem.
+            source_root = StorageRoot(root.id, root.name, str(source), root.is_default, root.reserve_override_bytes)
+            if not check_availability(source_root).available:
+                raise MigrationError("source storage location unavailable")
+            resolve_within(source, f"{META_DIR}/root.json")
+            if not destination.is_dir():
+                raise MigrationError("destination storage location unavailable")
+            workspace = resolve_within(destination, f".oneshelf-migration-{migration_id}")
+            owner = resolve_within(destination, f"{workspace.name}/owner.json")
+            if not workspace.exists():
+                workspace.mkdir(mode=0o700)
+                with owner.open("x") as handle:
+                    json.dump({"migration_id": migration_id, "root_id": root.id}, handle)
+            if json.loads(owner.read_text()) != {"migration_id": migration_id, "root_id": root.id}:
+                raise MigrationError("migration staging ownership mismatch")
+            marker = resolve_within(destination, f"{META_DIR}/root.json")
+            marker_staged = resolve_within(workspace, "root.json")
+            if marker.exists() and not (marker_staged.exists() and marker.samefile(marker_staged)):
+                raise MigrationError("destination marker already exists")
+            self._set_state(migration_id, "copying", error=None)
+            entries = self.conn.execute(
+                "SELECT * FROM storage_migration_files WHERE migration_id = ? ORDER BY relative_path",
+                (migration_id,)).fetchall()
+            copied = 0
+            for entry in entries:
+                relative = entry["relative_path"]
                 origin = resolve_within(source, relative)
-                target = destination / Path(relative)
-            except PathSafetyError as exc:
-                self._set_state(migration_id, "failed", error=str(exc))
-                raise MigrationError(str(exc)) from exc
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(origin, target)
-            with open(target, "rb") as handle:
-                os.fsync(handle.fileno())
-            copied += 1
-            copied_this_run += 1
-            with transaction(self.conn):
-                self.conn.execute("UPDATE storage_migration_files SET state = 'copied' WHERE migration_id = ?"
-                                  " AND relative_path = ?", (migration_id, relative))
-                self.conn.execute("UPDATE storage_migrations SET copied = ?, updated_at = ? WHERE id = ?",
-                                  (copied, utcnow_iso(), migration_id))
-            self.fault("file_copied")
+                target = resolve_within(destination, relative)
+                staged = resolve_within(workspace, hashlib.sha256(relative.encode()).hexdigest())
+                if entry["state"] == "pending":
+                    # An existing final file belongs to us only while its staging hard link proves it.
+                    if target.exists():
+                        if not staged.exists() or not target.samefile(staged):
+                            raise MigrationError(f"destination already exists: {relative}")
+                    else:
+                        expected = sha256_file(origin)
+                        if entry["sha256"] and expected != (entry["sha256"], entry["size"]):
+                            raise MigrationError(f"source checksum mismatch for {relative}")
+                        if not staged.exists() or sha256_file(staged) != expected:
+                            with tempfile.NamedTemporaryFile(dir=workspace, delete=False) as handle:
+                                temporary = Path(handle.name)
+                            try:
+                                shutil.copyfile(origin, temporary)
+                                sync_file(temporary)
+                                if sha256_file(temporary) != expected:
+                                    raise MigrationError(f"checksum mismatch for {relative}")
+                                os.replace(temporary, staged)
+                            finally:
+                                temporary.unlink(missing_ok=True)
+                        with transaction(self.conn):
+                            self.conn.execute("UPDATE storage_migration_files SET sha256 = ?, size = ?"
+                                              " WHERE migration_id = ? AND relative_path = ?",
+                                              (*expected, migration_id, relative))
+                        publish(destination, staged, target)
+                        self.fault("file_committed")
+                    with transaction(self.conn):
+                        self.conn.execute("UPDATE storage_migration_files SET state = 'copied'"
+                                          " WHERE migration_id = ? AND relative_path = ?", (migration_id, relative))
+                        self.conn.execute("UPDATE storage_migrations SET copied = copied + 1 WHERE id = ?",
+                                          (migration_id,))
+                    copied_this_run += 1
+                    self.fault("file_copied")
+                copied += 1
 
-        self._set_state(migration_id, "verifying")
-        verified = 0
-        for entry in self.conn.execute(
-                "SELECT * FROM storage_migration_files WHERE migration_id = ?", (migration_id,)).fetchall():
-            target = destination / Path(entry["relative_path"])
-            digest, size = sha256_file(target)
-            if entry["sha256"] and digest != entry["sha256"]:
-                self._set_state(migration_id, "failed", error=f"checksum mismatch for {entry['relative_path']}")
-                raise MigrationError(f"checksum mismatch for {entry['relative_path']}")
-            verified += 1
-            with transaction(self.conn):
-                self.conn.execute("UPDATE storage_migration_files SET state = 'verified' WHERE migration_id = ?"
-                                  " AND relative_path = ?", (migration_id, entry["relative_path"]))
-        self._set_state(migration_id, "switched", verified=verified)
-
-        self._prepare_destination(root, destination)
-        remap_root(self.conn, root.id, destination)
-        reconcile(self.conn)
-        self._set_state(migration_id, "completed")
+            self._set_state(migration_id, "verifying", copied=copied)
+            for entry in self.conn.execute(
+                    "SELECT * FROM storage_migration_files WHERE migration_id = ?", (migration_id,)).fetchall():
+                target = resolve_within(destination, entry["relative_path"])
+                if sha256_file(target) != (entry["sha256"], entry["size"]):
+                    raise MigrationError(f"checksum mismatch for {entry['relative_path']}")
+                with transaction(self.conn):
+                    self.conn.execute("UPDATE storage_migration_files SET state = 'verified' WHERE migration_id = ?"
+                                      " AND relative_path = ?", (migration_id, entry["relative_path"]))
+            # Publish the identity marker with the same ownership and non-replacement rules as content.
+            if not marker_staged.exists():
+                with marker_staged.open("xb") as handle:
+                    handle.write(resolve_within(source, f"{META_DIR}/root.json").read_bytes())
+            if not marker.exists():
+                publish(destination, marker_staged, marker)
+            resolve_within(destination, f"{META_DIR}/staging").mkdir(parents=True, exist_ok=True)
+            self._set_state(migration_id, "switched", verified=copied)
+            remap_root(self.conn, root.id, destination)
+            reconcile(self.conn)
+            self._set_state(migration_id, "completed")
+        except (OSError, ValueError, MigrationError) as exc:
+            self._set_state(migration_id, "failed", error=str(exc))
+            raise MigrationError(str(exc)) from exc
         report = self.state(migration_id)
         return MigrationReport(report.id, report.state, copied_this_run, report.verified, report.errors)
-
-    @staticmethod
-    def _prepare_destination(root: StorageRoot, destination: Path) -> None:
-        staging_dir(destination).mkdir(parents=True, exist_ok=True)
-        marker_source = Path(root.path) / META_DIR / "root.json"
-        marker_target = destination / META_DIR / "root.json"
-        if marker_source.is_file():
-            shutil.copyfile(marker_source, marker_target)
 
     # -- old copy ---------------------------------------------------------------------------------
 
@@ -184,16 +225,31 @@ class StorageMigration:
         if row is None or row["state"] != "completed":
             raise MigrationError("migration is not complete")
         source = Path(row["source_path"])
+        root = get_root(self.conn, row["root_id"])
+        source_root = StorageRoot(root.id, root.name, str(source), root.is_default, root.reserve_override_bytes)
+        if not check_availability(source_root).available:
+            raise MigrationError("old storage location unavailable")
         removed = 0
-        for entry in self.conn.execute("SELECT relative_path FROM storage_migration_files WHERE migration_id = ?",
-                                       (migration_id,)):
-            path = source / Path(entry[0])
-            if path.is_file():
-                path.unlink()
+        try:
+            resolve_within(source, f"{META_DIR}/root.json")
+            entries = self.conn.execute("SELECT * FROM storage_migration_files WHERE migration_id = ?",
+                                        (migration_id,)).fetchall()
+            paths = []
+            for entry in entries:
+                path = resolve_within(source, entry["relative_path"])
+                if path.exists():
+                    if sha256_file(path) != (entry["sha256"], entry["size"]):
+                        raise MigrationError(f"old file has changed: {entry['relative_path']}")
+                    # Never remove the last verified copy if the destination was lost or changed.
+                    target = resolve_within(root.path, entry["relative_path"])
+                    if not check_availability(root).available or sha256_file(target) != (entry["sha256"], entry["size"]):
+                        raise MigrationError("destination copy is unavailable or changed")
+                    paths.append(path)
+            for path in paths:
+                resolve_within(source, path.relative_to(source).as_posix()).unlink()
                 removed += 1
-        for directory in sorted((p for p in source.rglob("*") if p.is_dir()), key=lambda p: -len(p.parts)):
-            if not any(directory.iterdir()):
-                directory.rmdir()
+        except (OSError, ValueError) as exc:
+            raise MigrationError(str(exc)) from exc
         self._set_state(migration_id, "old_copy_removed")
         return removed
 

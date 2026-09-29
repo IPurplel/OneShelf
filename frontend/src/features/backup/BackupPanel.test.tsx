@@ -114,3 +114,16 @@ describe("Backup", () => {
     expect(within(rows[0]!).getByText(/23 MB/)).toBeInTheDocument();
   });
 });
+
+it('blocks a compatible backup when preflight reports insufficient space', async () => {
+  mockApi([
+    get('/api/backups', BACKUPS),
+    post('/api/restore/preflight', { ...PREFLIGHT, ok: false, issues: ['not enough free space'] }),
+  ]);
+  const user = userEvent.setup();
+  renderWithProviders(<BackupPanel />);
+  await user.click((await screen.findAllByRole('button', { name: /^restore$/i }))[0]!);
+  const dialog = await screen.findByRole('dialog');
+  expect(await within(dialog).findByText('not enough free space')).toBeInTheDocument();
+  expect(within(dialog).queryByRole('button', { name: /^restore$/i })).not.toBeInTheDocument();
+});

@@ -61,8 +61,17 @@ class FollowService:
 
     # -- helpers ----------------------------------------------------------------------------------
 
-    def _row(self, work_id: str) -> sqlite3.Row | None:
-        return self.conn.execute("SELECT * FROM follows WHERE work_id = ?", (work_id,)).fetchone()
+    def _row(self, work_id: str, language: str | None = None) -> sqlite3.Row | None:
+        # Legacy work-only callers consistently select the earliest follow.
+        return self.conn.execute(
+            "SELECT * FROM follows WHERE work_id = ? AND (? IS NULL OR language = ?)"
+            " ORDER BY created_at, language, id LIMIT 1", (work_id, language, language)).fetchone()
+
+    def _validate_track(self, work_id: str, language: str, source_id: str, track_id: str) -> None:
+        if self.conn.execute(
+            "SELECT 1 FROM source_tracks WHERE id = ? AND work_id = ? AND language = ? AND source_id = ?",
+            (track_id, work_id, language, source_id)).fetchone() is None:
+            raise ValueError("the selected track does not match this work, language and source")
 
     def _emit(self, event: str, payload: dict) -> None:
         if self.events is not None:
@@ -99,20 +108,21 @@ class FollowService:
     # -- lifecycle --------------------------------------------------------------------------------
 
     def follow(self, work_id: str, *, language: str, source_id: str, track_id: str) -> FollowRecord:
+        self._validate_track(work_id, language, source_id, track_id)
         follow_id, now = new_id(), utcnow_iso()
         with transaction(self.conn):
             self.conn.execute(
                 "INSERT INTO follows (id, work_id, language, preferred_source_id, track_id, created_at)"
                 " VALUES (?,?,?,?,?,?) ON CONFLICT(work_id, language) DO UPDATE SET preferred_source_id=excluded.preferred_source_id,"
                 " track_id=excluded.track_id", (follow_id, work_id, language, source_id, track_id, now))
-            row = self._row(work_id)
+            row = self._row(work_id, language)
             count = self._baseline(row["id"], track_id, "first_follow")
             self._schedule(row["id"])
         self._emit("follow.changed", {"work_id": work_id, "action": "followed"})
         return FollowRecord(row["id"], work_id, language, source_id, track_id, count, "first_follow")
 
-    def unfollow(self, work_id: str) -> str:
-        row = self._row(work_id)
+    def unfollow(self, work_id: str, *, language: str | None = None) -> str:
+        row = self._row(work_id, language)
         if row is None:
             raise ValueError("this work is not followed")
         token = new_id()
@@ -147,11 +157,13 @@ class FollowService:
         return FollowRecord(row["id"], row["work_id"], row["language"], row["preferred_source_id"], row["track_id"],
                             len(keys), saved["kind"])
 
-    def change_preferred_source(self, work_id: str, *, source_id: str, track_id: str) -> FollowRecord:
+    def change_preferred_source(self, work_id: str, *, source_id: str, track_id: str,
+                                language: str | None = None) -> FollowRecord:
         """A Source Change Baseline prevents reporting the new source's whole catalog as new (§20)."""
-        row = self._row(work_id)
+        row = self._row(work_id, language)
         if row is None:
             raise ValueError("this work is not followed")
+        self._validate_track(work_id, row["language"], source_id, track_id)
         with transaction(self.conn):
             self.conn.execute("UPDATE follows SET preferred_source_id = ?, track_id = ? WHERE id = ?",
                               (source_id, track_id, row["id"]))
@@ -163,8 +175,9 @@ class FollowService:
 
     # -- checking ---------------------------------------------------------------------------------
 
-    def record_attempt(self, work_id: str, *, successful: bool, category: str | None = None) -> None:
-        row = self._row(work_id)
+    def record_attempt(self, work_id: str, *, successful: bool, category: str | None = None,
+                       language: str | None = None) -> None:
+        row = self._row(work_id, language)
         if row is None:
             return
         now = utcnow_iso()
@@ -177,18 +190,18 @@ class FollowService:
                                   (now, category, row["id"]))
             self._schedule(row["id"])
 
-    def check(self, work_id: str) -> CheckOutcome:
+    def check(self, work_id: str, *, language: str | None = None) -> CheckOutcome:
         """Compare the last Trusted Catalog with the baseline; suspicious or incomplete states report nothing."""
-        row = self._row(work_id)
+        row = self._row(work_id, language)
         if row is None:
             raise ValueError("this work is not followed")
         track_id = row["track_id"]
         if self.catalog.suspicious_candidate(track_id) is not None:
-            self.record_attempt(work_id, successful=False, category="catalog_suspicious")
+            self.record_attempt(work_id, language=row["language"], successful=False, category="catalog_suspicious")
             return CheckOutcome(work_id, "catalog_suspicious", [])
         trusted = self.catalog.trusted_catalog(track_id)
         if trusted is None:
-            self.record_attempt(work_id, successful=False, category="no_trusted_catalog")
+            self.record_attempt(work_id, language=row["language"], successful=False, category="no_trusted_catalog")
             return CheckOutcome(work_id, "degraded", [])
         known = self._baseline_keys(row["id"]) | {
             r[0] for r in self.conn.execute("SELECT unit_key FROM release_events WHERE follow_id = ?", (row["id"],))}
@@ -207,13 +220,13 @@ class FollowService:
                 events.append({"unit_key": key, "reading_unit_id": unit["id"] if unit else None,
                                "title": unit["raw_title"] if unit else None,
                                "number": unit["source_number"] if unit else None})
-        self.record_attempt(work_id, successful=True)
+        self.record_attempt(work_id, language=row["language"], successful=True)
         if events:
             self._emit("follow.releases", {"work_id": work_id, "count": len(events)})
         return CheckOutcome(work_id, "new_releases" if events else "up_to_date", events)
 
-    def status(self, work_id: str) -> FollowStatus | None:
-        row = self._row(work_id)
+    def status(self, work_id: str, *, language: str | None = None) -> FollowStatus | None:
+        row = self._row(work_id, language)
         if row is None:
             return None
         unseen = self.conn.execute("SELECT count(*) FROM release_events WHERE follow_id = ? AND seen = 0",
@@ -229,14 +242,16 @@ class FollowService:
         return FollowStatus(work_id, row["track_id"], row["preferred_source_id"], row["language"], state,
                             row["last_attempted_at"], row["last_successful_at"], unseen)
 
-    def due_follows(self, *, now: str | None = None) -> list[str]:
-        now = now or utcnow_iso()
-        return [r[0] for r in self.conn.execute(
-            "SELECT work_id FROM follows WHERE next_check_at IS NULL OR next_check_at <= ? ORDER BY next_check_at",
-            (now,))]
+    def due_follow_keys(self, *, now: str | None = None) -> list[tuple[str, str]]:
+        return [(r[0], r[1]) for r in self.conn.execute(
+            "SELECT work_id, language FROM follows WHERE next_check_at IS NULL OR next_check_at <= ?"
+            " ORDER BY next_check_at, created_at, language, id", (now or utcnow_iso(),))]
 
-    def mark_releases_seen(self, work_id: str) -> int:
-        row = self._row(work_id)
+    def due_follows(self, *, now: str | None = None) -> list[str]:
+        return [work_id for work_id, _ in self.due_follow_keys(now=now)]
+
+    def mark_releases_seen(self, work_id: str, *, language: str | None = None) -> int:
+        row = self._row(work_id, language)
         if row is None:
             return 0
         with transaction(self.conn):

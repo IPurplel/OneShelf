@@ -74,8 +74,8 @@ class FollowBody(BaseModel):
 @router.get("/follows")
 async def list_follows(request: Request):
     s = services(request)
-    rows = s.conn.execute("SELECT work_id FROM follows ORDER BY created_at DESC").fetchall()
-    return {"follows": [asdict(s.follows.status(r[0])) for r in rows]}
+    rows = s.conn.execute("SELECT work_id, language FROM follows ORDER BY created_at DESC, language").fetchall()
+    return {"follows": [asdict(s.follows.status(r[0], language=r[1])) for r in rows]}
 
 
 class UndoBody(BaseModel):
@@ -98,7 +98,10 @@ async def check_all_follows(request: Request):
 @router.post("/follows/{work_id}")
 async def follow(request: Request, work_id: str, body: FollowBody):
     s = services(request)
-    record = s.follows.follow(work_id, language=body.language, source_id=body.source_id, track_id=body.track_id)
+    try:
+        record = s.follows.follow(work_id, language=body.language, source_id=body.source_id, track_id=body.track_id)
+    except ValueError as exc:
+        return error(422, "INVALID_FOLLOW", str(exc))
     return asdict(record)
 
 
@@ -106,30 +109,31 @@ async def follow(request: Request, work_id: str, body: FollowBody):
 async def change_preferred_source(request: Request, work_id: str, body: FollowBody):
     s = services(request)
     try:
-        return asdict(s.follows.change_preferred_source(work_id, source_id=body.source_id, track_id=body.track_id))
+        return asdict(s.follows.change_preferred_source(work_id, language=body.language,
+                                                          source_id=body.source_id, track_id=body.track_id))
     except ValueError as exc:
         return error(404, "NOT_FOLLOWED", str(exc))
 
 
 @router.delete("/follows/{work_id}")
-async def unfollow(request: Request, work_id: str):
+async def unfollow(request: Request, work_id: str, language: str | None = None):
     try:
-        token = services(request).follows.unfollow(work_id)
+        token = services(request).follows.unfollow(work_id, language=language)
     except ValueError as exc:
         return error(404, "NOT_FOLLOWED", str(exc))
     return {"work_id": work_id, "undo_token": token}
 
 
 @router.post("/follows/{work_id}/seen")
-async def mark_releases_seen(request: Request, work_id: str):
+async def mark_releases_seen(request: Request, work_id: str, language: str | None = None):
     """§20, §26.12: acknowledging releases is what makes "new" stop being new."""
-    return {"work_id": work_id, "marked": services(request).follows.mark_releases_seen(work_id)}
+    return {"work_id": work_id, "marked": services(request).follows.mark_releases_seen(work_id, language=language)}
 
 
 @router.post("/follows/{work_id}/check")
-async def check_follow(request: Request, work_id: str):
+async def check_follow(request: Request, work_id: str, language: str | None = None):
     try:
-        return await services(request).follow_runner.check_work(work_id)
+        return await services(request).follow_runner.check_work(work_id, language=language)
     except ValueError as exc:
         return error(404, "NOT_FOLLOWED", str(exc))
 

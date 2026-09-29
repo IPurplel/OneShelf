@@ -24,7 +24,9 @@ from oneshelf.db.migrate import migrate
 from oneshelf.db.schema import MIGRATIONS
 from oneshelf.domain.clock import utcnow_iso
 from oneshelf.storage.paths import resolve_within
-from oneshelf.storage.roots import get_root
+from oneshelf.storage.roots import get_root, check_availability, preflight as storage_preflight
+from oneshelf.storage.hashing import sha256_file
+from oneshelf.storage.safe_write import publish
 
 READ_ORDER = {"unread": 0, "partial": 1, "read": 2}
 
@@ -125,7 +127,7 @@ class RestoreService:
         if mode not in ("merge", "replace"):
             raise RestoreError("restore mode must be 'merge' or 'replace'")
         preflight = self.preflight(path)
-        if not preflight.compatible:
+        if not preflight.ok:
             raise RestoreError(preflight.issues[0])
         pending = [p for p in preflight.plugins if p.installed and p.new_permissions]
         if pending and not approve_new_permissions:
@@ -145,7 +147,7 @@ class RestoreService:
                     self._replace(staged)
                 else:
                     self._merge(staged, report)
-                report.repaired_files = self._restore_content(archive, manifest, replace_all=(mode == "replace"))
+                report.repaired_files = self._restore_content(archive, manifest, replace_all=(mode == "replace"), report=report)
         return report
 
     # -- table handling ---------------------------------------------------------------------------
@@ -160,11 +162,24 @@ class RestoreService:
     def _insert(self, table: str, rows: list[sqlite3.Row], *, ignore: bool = True) -> int:
         inserted = 0
         for row in rows:
+            row = dict(row)
+            if table == "assets":
+                # Backup metadata is not evidence that this machine has the corresponding file.
+                row["integrity"] = "missing_local_file"
+                try:
+                    root = get_root(self.conn, row["storage_root_id"])
+                    resolve_within(root.path, ".oneshelf/root.json")
+                    target = resolve_within(root.path, row["relative_path"])
+                    if check_availability(root).available and target.is_file() and sha256_file(target) == (
+                            row["sha256"], row["size_bytes"]):
+                        row["integrity"] = "ok"
+                except (OSError, ValueError, RuntimeError):
+                    pass
             columns = list(row.keys())
             placeholders = ",".join("?" * len(columns))
             verb = "INSERT OR IGNORE" if ignore else "INSERT"
             cursor = self.conn.execute(
-                f"{verb} INTO {table} ({','.join(columns)}) VALUES ({placeholders})", tuple(row))
+                f"{verb} INTO {table} ({','.join(columns)}) VALUES ({placeholders})", tuple(row.values()))
             inserted += cursor.rowcount if cursor.rowcount > 0 else 0
         return inserted
 
@@ -212,27 +227,51 @@ class RestoreService:
 
     # -- content ----------------------------------------------------------------------------------
 
-    def _restore_content(self, archive: zipfile.ZipFile, manifest: dict, *, replace_all: bool) -> int:
+    def _restore_content(self, archive: zipfile.ZipFile, manifest: dict, *, replace_all: bool,
+                         report: RestoreReport) -> int:
         repaired = 0
         for entry in manifest.get("content", []):
             asset = self.conn.execute("SELECT * FROM assets WHERE id = ?", (entry["asset_id"],)).fetchone()
             if asset is None:
+                report.issues.append(f"{entry['asset_id']}: asset record is unavailable")
                 continue
             try:
                 root = get_root(self.conn, asset["storage_root_id"])
+                resolve_within(root.path, ".oneshelf/root.json")
+                if not check_availability(root).available:
+                    raise RestoreError("storage location unavailable; reconnect or remap it before restoring content")
                 target = resolve_within(root.path, asset["relative_path"])
-            except Exception:
-                continue
-            healthy = target.is_file() and asset["integrity"] == "ok"
-            if healthy and not replace_all:
-                continue            # a healthy local file is never replaced without reason (§33.7)
-            payload = archive.read(entry["path"])
-            if hashlib.sha256(payload).hexdigest() != entry["sha256"]:
-                continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(payload)
-            with transaction(self.conn):
-                self.conn.execute("UPDATE assets SET integrity = 'ok', sha256 = ?, size_bytes = ?, updated_at = ?"
-                                  " WHERE id = ?", (entry["sha256"], entry["size"], utcnow_iso(), entry["asset_id"]))
-            repaired += 1
+                healthy = target.is_file() and asset["integrity"] == "ok"
+                if healthy and not replace_all:
+                    continue
+                # Persist an honest state before any fallible write, including process interruption.
+                with transaction(self.conn):
+                    self.conn.execute("UPDATE assets SET integrity = ?, updated_at = ? WHERE id = ?",
+                                      ("corrupt" if target.exists() else "missing_local_file", utcnow_iso(), asset["id"]))
+                usage = shutil.disk_usage(root.path)
+                if not storage_preflight(total=usage.total, free=usage.free, expected_bytes=entry["size"],
+                                         override=root.reserve_override_bytes).allowed:
+                    raise RestoreError("not enough free space in storage location")
+                payload = archive.read(entry["path"])
+                if len(payload) != entry["size"] or hashlib.sha256(payload).hexdigest() != entry["sha256"]:
+                    raise RestoreError("backup content failed verification")
+                staging = resolve_within(root.path, ".oneshelf/staging")
+                with tempfile.TemporaryDirectory(prefix="restore-", dir=staging) as workspace:
+                    staged = Path(workspace) / "content"
+                    staged.write_bytes(payload)
+                    if sha256_file(staged) != (entry["sha256"], entry["size"]):
+                        raise RestoreError("staged content failed verification")
+                    resolve_within(root.path, ".oneshelf/root.json")
+                    if not check_availability(root).available:
+                        raise RestoreError("storage location became unavailable")
+                    # Replacement is limited to the recorded corrupt file (or explicit Replace mode).
+                    publish(root.path, staged, target, replace=target.exists())
+                    if sha256_file(target) != (entry["sha256"], entry["size"]):
+                        raise RestoreError("restored content failed verification")
+                with transaction(self.conn):
+                    self.conn.execute("UPDATE assets SET integrity = 'ok', sha256 = ?, size_bytes = ?, updated_at = ?"
+                                      " WHERE id = ?", (entry["sha256"], entry["size"], utcnow_iso(), entry["asset_id"]))
+                repaired += 1
+            except (OSError, ValueError, RuntimeError, KeyError, zipfile.BadZipFile) as exc:
+                report.issues.append(f"{entry['asset_id']}: {exc}")
         return repaired

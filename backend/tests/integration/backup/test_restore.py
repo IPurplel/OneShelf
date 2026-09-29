@@ -186,3 +186,41 @@ def test_new_plugin_permissions_require_explicit_approval(library, clock):
         service.restore(record.path, mode="merge")
     report = service.restore(record.path, mode="merge", approve_new_permissions=True)
     assert report.plugins_missing == []
+
+
+def test_restore_blocks_failed_space_preflight_before_mutation(library, clock, monkeypatch):
+    from collections import namedtuple
+    import shutil
+    library.add_work('Book')
+    backup = make_backup(library, clock)
+    library.conn.execute('DELETE FROM shelf_entries')
+    usage = namedtuple('usage', 'total used free')
+    monkeypatch.setattr(shutil, 'disk_usage', lambda _: usage(100, 100, 0))
+    with pytest.raises(RestoreError, match='space'):
+        restore_service(library, clock).restore(backup.path)
+    assert library.conn.execute('SELECT count(*) FROM shelf_entries').fetchone()[0] == 0
+
+
+def test_restore_does_not_recreate_unavailable_root(library, clock):
+    library.add_work('Book')
+    backup = make_backup(library, clock, 'full', works=[library.works['Book']['work_id']])
+    library.root_path.rename(library.root_path.with_name('offline'))
+    report = restore_service(library, clock).restore(backup.path)
+    assert not library.root_path.exists()
+    assert report.repaired_files == 0 and report.issues
+
+
+def test_restore_failed_write_keeps_missing_asset_unhealthy(library, clock, monkeypatch):
+    work = library.add_work('Book')
+    backup = make_backup(library, clock, 'full', works=[library.works['Book']['work_id']])
+    library.conn.execute('DELETE FROM assets')
+    (library.root_path / work['relative']).unlink()
+    original = Path.write_bytes
+    def fail_content(path, data):
+        if path.is_relative_to(library.root_path):
+            raise OSError('simulated write failure')
+        return original(path, data)
+    monkeypatch.setattr(Path, 'write_bytes', fail_content)
+    report = restore_service(library, clock).restore(backup.path)
+    assert library.conn.execute('SELECT integrity FROM assets').fetchone()[0] != 'ok'
+    assert report.repaired_files == 0 and report.issues

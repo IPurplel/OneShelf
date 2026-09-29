@@ -12,6 +12,7 @@ import { PdfView } from "./PdfView";
 import { BOOK_TYPE, DEFAULT_SETTINGS, loadSettings, saveSettings } from "./settings";
 import type { ReaderSettings } from "./settings";
 import { useBookMarks } from "./useBookMarks";
+import { workLink } from "./links";
 import { useProgress } from "./useProgress";
 
 /**
@@ -22,7 +23,11 @@ import { useProgress } from "./useProgress";
  * own restrictive CSP, and PDFs are rendered by pdf.js with eval and PDF scripting disabled. Progress is
  * logical (chapter share for EPUB, page for PDF); there is no invented fixed page count.
  */
-export function BookReader({ unitId, format, workId }: { unitId: string; format: "epub" | "pdf"; workId: string }) {
+export function BookReader(props: { unitId: string; format: "epub" | "pdf"; workId: string; trackId?: string }) {
+  return <BookDocument key={`${props.unitId}:${props.format}`} {...props} />;
+}
+
+function BookDocument({ unitId, format, workId, trackId }: { unitId: string; format: "epub" | "pdf"; workId: string; trackId?: string }) {
   const { t, direction } = useI18n();
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
@@ -50,7 +55,7 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
     let live = true;
     void (async () => {
       try {
-        const response = await fetch(`/api/reader/units/${unitId}/file`, { credentials: "same-origin" });
+        const response = await fetch(`/api/reader/units/${unitId}/file?format=${format}`, { credentials: "same-origin" });
         if (!response.ok) {
           const payload = await response.json().catch(() => null);
           throw new ApiError(response.status, payload?.error?.code ?? "FILE_NOT_AVAILABLE",
@@ -63,7 +68,7 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
       }
     })();
     return () => { live = false; };
-  }, [unitId, t]);
+  }, [unitId, format, t]);
 
   useEffect(() => {
     if (bytes === null || format !== "epub") return;
@@ -72,6 +77,7 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
       try {
         const opened = await openEpub(bytes);
         if (live) setBook(opened);
+        else opened.close();
       } catch (error) {
         if (live) setFailure(error instanceof Error ? error.message : String(error));
       }
@@ -116,20 +122,20 @@ export function BookReader({ unitId, format, workId }: { unitId: string; format:
     return (
       <div className="reader reader--white">
         <p className="notice notice--problem" role="alert">{failure}</p>
-        <Link className="button" to={workId ? `/works/${workId}` : "/shelf"}>{t("reader.backToWork")}</Link>
+        <Link className="button" to={workLink(workId, trackId)}>{t("reader.backToWork")}</Link>
       </div>
     );
   }
 
   if (format === "pdf") {
-    return <PdfView unitId={unitId} data={bytes} workId={workId} onProgress={record} onLeave={flush}
+    return <PdfView unitId={unitId} data={bytes} workId={workId} trackId={trackId} onProgress={record} onLeave={flush}
                     storedPage={(stored?.locator as { page?: number } | null)?.page ?? null} />;
   }
 
   return (
     <div className="reader reader--white book">
       <div role="toolbar" aria-label={t("reader.controls")} className="reader__bar reader__bar--top">
-        <Link className="reader__button" to={workId ? `/works/${workId}` : "/shelf"} onClick={flush}>
+        <Link className="reader__button" to={workLink(workId, trackId)} onClick={flush}>
           {t("reader.back")}
         </Link>
         <span className="reader__title">{book?.title ?? ""}</span>

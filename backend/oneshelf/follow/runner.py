@@ -23,16 +23,16 @@ class FollowRunner:
         self.interval_seconds = interval_seconds
         self._task: asyncio.Task | None = None
 
-    async def check_work(self, work_id: str) -> dict:
+    async def check_work(self, work_id: str, *, language: str | None = None) -> dict:
         """One Follow check: refresh the catalog, then compare against the baseline (never numbers)."""
-        row = self.conn.execute("SELECT * FROM follows WHERE work_id = ?", (work_id,)).fetchone()
+        row = self.follows._row(work_id, language)
         if row is None:
             raise ValueError("this work is not followed")
         listing = self.conn.execute(
             "SELECT l.source_listing_key, t.language FROM source_tracks t"
             " JOIN source_listings l ON l.id = t.listing_id WHERE t.id = ?", (row["track_id"],)).fetchone()
         if listing is None:
-            self._failed(work_id, "no_listing", row["preferred_source_id"])
+            self._failed(work_id, "no_listing", row["preferred_source_id"], language=row["language"])
             return {"work_id": work_id, "state": "degraded", "new_units": []}
         try:
             package = self.plugins.load_active(row["preferred_source_id"])
@@ -40,38 +40,39 @@ class FollowRunner:
                                             {"listing_key": listing["source_listing_key"],
                                              "language": listing["language"]}, priority=Priority.FOLLOW)
         except AuthRequired:
-            self._failed(work_id, "auth_failure", row["preferred_source_id"])
+            self._failed(work_id, "auth_failure", row["preferred_source_id"], language=row["language"])
             if self.notifications:
                 self.notifications.reconnect_required(row["preferred_source_id"])
             return {"work_id": work_id, "state": "reconnect_required", "new_units": []}
         except RateLimited as exc:
-            self._failed(work_id, "rate_limit", row["preferred_source_id"])
+            self._failed(work_id, "rate_limit", row["preferred_source_id"], language=row["language"])
             return {"work_id": work_id, "state": "rate_limited", "retry_after": exc.retry_after, "new_units": []}
         except (CapabilityError, Exception) as exc:
             category = getattr(exc, "category", "transport")
-            self._failed(work_id, category, row["preferred_source_id"])
+            self._failed(work_id, category, row["preferred_source_id"], language=row["language"])
             return {"work_id": work_id, "state": "degraded", "category": category, "new_units": []}
         outcome = self.catalog.refresh(row["track_id"], result, plugin_version=package.version)
         if outcome.state == "suspicious" and self.notifications:
             title = self.conn.execute("SELECT display_title FROM works WHERE id = ?", (work_id,)).fetchone()[0]
             self.notifications.catalog_suspicious(row["preferred_source_id"], title)
-        check = self.follows.check(work_id)
+        check = self.follows.check(work_id, language=row["language"])
         if check.new_units and self.notifications:
             title = self.conn.execute("SELECT display_title FROM works WHERE id = ?", (work_id,)).fetchone()[0]
             self.notifications.new_releases(work_id, title, check.new_units)
         return {"work_id": work_id, "state": check.state, "new_units": check.new_units,
                 "catalog_state": outcome.state}
 
-    def _failed(self, work_id: str, category: str, source_id: str) -> None:
+    def _failed(self, work_id: str, category: str, source_id: str, *, language: str | None = None) -> None:
         """A check that did not work is worth keeping: Follow's own record, and a local diagnostic (§20, §43).
 
         The reason is a category and identifiers, never anything the source sent back.
         """
-        self.follows.record_attempt(work_id, successful=False, category=category)
+        self.follows.record_attempt(work_id, language=language, successful=False, category=category)
         logger.warning("follow check for %s via %s failed: %s", work_id, source_id, category)
 
     async def check_all(self) -> list[dict]:
-        return [await self.check_work(work_id) for work_id in self.follows.due_follows()]
+        return [await self.check_work(work_id, language=language)
+                for work_id, language in self.follows.due_follow_keys()]
 
     async def start(self) -> None:
         self._task = asyncio.create_task(self._loop())

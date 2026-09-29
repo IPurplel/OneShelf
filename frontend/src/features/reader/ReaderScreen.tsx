@@ -12,6 +12,7 @@ import { SourceSwitch } from "./SourceSwitch";
 import type { Alternative, Alternatives } from "./SourceSwitch";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "./settings";
 import type { ReaderSettings } from "./settings";
+import { readerLink, workLink } from "./links";
 import { useProgress } from "./useProgress";
 
 type Page = { index: number; label: string | null; url: string | null };
@@ -59,15 +60,16 @@ const clampZoom = (value: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Numbe
  * this tab last saw, and the end of a unit offers the *next unit in Source Track order*, never
  * "chapter + 1" (INV-24).
  */
-export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: string }) {
+export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; workId?: string; trackId?: string }) {
   const params = useParams();
   const [search] = useSearchParams();
   const id = unitId ?? params.unitId ?? "";
   const work = workId ?? search.get("work") ?? "";
+  const track = trackId ?? search.get("track");
   const { t, language } = useI18n();
 
   const { data: pageData, error: pageError } = useResource<PagesResponse>(`/api/reader/units/${id}/pages`);
-  const { data: details } = useResource<WorkDetails>(`/api/works/${work}`);
+  const { data: details } = useResource<WorkDetails>(`/api/works/${work}`, track ? { track_id: track } : undefined);
   const { data: offer } = useResource<Alternatives>(`/api/reader/units/${id}/alternatives`);
   const { data: readerDefaults } = useResource<ReaderDefaults>("/api/reader/settings");
   const pages = useMemo(() => pageData?.pages ?? [], [pageData]);
@@ -91,6 +93,17 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
   const stage = useRef<HTMLDivElement | null>(null);
   const touch = useRef<{ x: number; y: number; spread: number | null } | null>(null);
   const { record, flush, stored } = useProgress(id);
+  const interacted = useRef(false);
+  const engagement = useRef<Promise<unknown>>(Promise.resolve());
+  const engage = useCallback((fraction: number) => {
+    engagement.current = engagement.current.then(() =>
+      api.post(`/api/reader/units/${id}/engagement`, { fraction, interacted: true })).catch(() => {});
+  }, [id]);
+  const leave = useCallback(() => {
+    flush();
+    if (work) void engagement.current.then(() => api.post(`/api/reader/works/${work}/leave`, {})).catch(() => {});
+  }, [flush, work]);
+  useEffect(() => { interacted.current = false; }, [id]);
   const resumed = useRef<string | null>(null);
   const [scrollTo, setScrollTo] = useState<number | null>(null);
   const [pageHeight, setPageHeight] = useState(ESTIMATED_PAGE);
@@ -225,7 +238,8 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
     setAtEnd(false);
     const fraction = pages.length === 0 ? 0 : (clamped + 1) / pages.length;
     record(fraction, { page: clamped + 1 });
-  }, [pages, settings, record]);
+    if (pages.length > 0) engage(fraction);
+  }, [pages, settings, record, engage]);
 
   const changeZoom = useCallback((factor: number) => {
     setZoom((current) => {
@@ -291,11 +305,12 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
     indexRef.current = slot;
     setIndex(slot);
     record((slot + 1) / pages.length, { page: slot + 1 });
-  }, [settings.mode, pages.length, record]);
+    if (interacted.current) engage((slot + 1) / pages.length);
+  }, [settings.mode, pages.length, record, engage]);
 
   /** Ctrl and the wheel zooms; a plain wheel is scrolling, which Long Strip needs (§26.10). */
   const onWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
-    if (!event.ctrlKey) return;
+    if (!event.ctrlKey) { interacted.current = true; return; }
     event.preventDefault();
     changeZoom(event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP);
   }, [changeZoom]);
@@ -307,6 +322,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
   };
 
   const onTouchStart = useCallback((event: React.TouchEvent<HTMLDivElement>) => {
+    interacted.current = true;
     const first = event.touches[0];
     if (first === undefined) return;
     touch.current = { x: first.clientX, y: first.clientY, spread: spread(event.touches) };
@@ -345,7 +361,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
     flush();
     const fraction = position === "approximate" ? `&approx=${stored?.fraction ?? 0}` : "";
     setPanel(null);
-    navigate(`/read/${alternative.unit_id}?work=${work}${fraction}`);
+    navigate(`${readerLink(alternative.unit_id, work, alternative.track_id)}${fraction}`);
   }, [flush, navigate, stored?.fraction, work]);
 
   const preload = readerDefaults ?? PRELOAD;
@@ -361,7 +377,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
     <div className={`reader reader--${settings.background}`} onMouseMove={show}>
       <div role="toolbar" aria-label={t("reader.controls")} className="reader__bar reader__bar--top"
            data-hidden={controlsVisible ? "false" : "true"}>
-        <Link className="reader__button" to={work ? `/works/${work}` : "/shelf"} onClick={flush}>
+        <Link className="reader__button" to={workLink(work, track)} onClick={leave}>
           {t("reader.back")}
         </Link>
         <span className="reader__title">{details?.work.title ?? ""}</span>
@@ -421,7 +437,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
                     onClick={() => { setPanel("source"); setMore(false); }}>
               {t("reader.changeSource")}
             </button>
-            <Link className="reader__button" to={work ? `/works/${work}` : "/shelf"} onClick={flush}>
+            <Link className="reader__button" to={workLink(work, track)} onClick={leave}>
               {t("reader.workDetails")}
             </Link>
           </div>
@@ -432,7 +448,8 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
       <div className="reader__stage" data-testid="reader-stage" tabIndex={0} aria-label={t("reader.pages")}
            data-mode={settings.mode}
            data-direction={settings.direction} data-fit={settings.fit} data-zoom={zoom}
-           ref={stage} onWheel={onWheel} onScroll={onScroll} onDoubleClick={() => (zoom > 1 ? resetZoom() : changeZoom(ZOOM_STEP * 1.6))}
+           ref={stage} onPointerDown={() => { interacted.current = true; }}
+           onWheel={onWheel} onScroll={onScroll} onDoubleClick={() => (zoom > 1 ? resetZoom() : changeZoom(ZOOM_STEP * 1.6))}
            onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
            style={{ "--reader-zoom": zoom, "--reader-pan-x": `${pan.x}px`,
                     "--reader-pan-y": `${pan.y}px` } as React.CSSProperties}>
@@ -502,7 +519,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
           <div className="reader__spacer" data-spacer="after" data-pages={after} aria-hidden="true"
                style={{ blockSize: `${after * pageHeight}px` }} />
         )}
-        {atEnd && <EndOfUnit unit={unit} next={next} workId={work} />}
+        {atEnd && <EndOfUnit unit={unit} next={next} workId={work} trackId={track} onLeave={leave} />}
       </div>
 
       <div role="toolbar" aria-label={t("reader.progressBar")} className="reader__bar reader__bar--bottom"
@@ -522,6 +539,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
                    setIndex(slot);
                    setScrollTo(slot);
                    record((slot + 1) / pages.length, { page: slot + 1 });
+                   engage((slot + 1) / pages.length);
                  }} />
         )}
       </div>
@@ -539,7 +557,7 @@ export function ReaderScreen({ unitId, workId }: { unitId?: string; workId?: str
         <p className="notice notice--info reader__approximate" role="status">{t("reader.approximatePosition")}</p>
       )}
 
-      {panel === "contents" && <ContentsDrawer units={units} currentId={id} workId={work} onClose={() => setPanel(null)} />}
+      {panel === "contents" && <ContentsDrawer units={units} currentId={id} workId={work} trackId={track} onClose={() => setPanel(null)} />}
       {panel === "settings" && (
         <SettingsPanel settings={settings} onChange={changeSettings} onClose={() => setPanel(null)} />
       )}
@@ -617,17 +635,17 @@ function nextInSourceOrder(units: Unit[], currentId: string): Unit | null {
   return position >= 0 && position + 1 < ordered.length ? ordered[position + 1]! : null;
 }
 
-function EndOfUnit({ unit, next, workId }: { unit: Unit | null; next: Unit | null; workId: string }) {
+function EndOfUnit({ unit, next, workId, trackId, onLeave }: { unit: Unit | null; next: Unit | null; workId: string; trackId?: string | null; onLeave: () => void }) {
   const { t } = useI18n();
   return (
     <section className="reader__end" role="region" aria-label={t("reader.end", { unit: unit?.title ?? "" })}>
       <h2 className="display">{t("reader.end", { unit: unit?.title ?? "" })}</h2>
       {next && (
-        <Link className="button button--primary" to={`/read/${next.id}${workId ? `?work=${workId}` : ""}`}>
+        <Link className="button button--primary" to={readerLink(next.id, workId, trackId)}>
           {t("reader.next", { unit: next.title ?? next.id })}
         </Link>
       )}
-      <Link className="button" to={workId ? `/works/${workId}` : "/shelf"}>{t("reader.backToWork")}</Link>
+      <Link className="button" to={workLink(workId, trackId)} onClick={onLeave}>{t("reader.backToWork")}</Link>
     </section>
   );
 }

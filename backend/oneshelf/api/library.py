@@ -48,7 +48,7 @@ async def enqueue(request: Request, body: EnqueueBody):
 
 class AutoDownloadBody(BaseModel):
     enabled: bool | None = None
-    mode: Literal["current", "read_ahead"] | None = None
+    mode: Literal["current", "read_ahead", "current_plus_read_ahead"] | None = None
     read_ahead: int | None = Field(default=None, ge=1, le=20)
     threshold: float | None = Field(default=None, ge=0.01, le=1.0)
 
@@ -68,10 +68,11 @@ class DownloadSettingsBody(BaseModel):
 def _download_settings(settings) -> dict:
     """Exactly the knobs the engine reads (§19, §16.6, §14); the §42 registry supplies every default."""
     auto = DEFAULTS.auto_download
+    mode = settings.get("global", None, "reader.auto_download.mode", "current")
     return {
         "auto_download": {
             "enabled": settings.get("global", None, "reader.auto_download.enabled", auto.enabled),
-            "mode": settings.get("global", None, "reader.auto_download.mode", "current"),
+            "mode": "read_ahead" if mode == "current_plus_read_ahead" else mode,
             "read_ahead": settings.get("global", None, "reader.auto_download.read_ahead", auto.read_ahead_units),
             "threshold": settings.get("global", None, "reader.auto_download.threshold", auto.engagement_threshold),
         },
@@ -213,8 +214,16 @@ async def reader_page(request: Request, unit_id: str, index: int):
 MEDIA_TYPES = {"pdf": "application/pdf", "epub": "application/epub+zip", "cbz": "application/vnd.comicbook+zip"}
 
 
+@router.get("/reader/units/{unit_id}/context")
+async def reader_context(request: Request, unit_id: str):
+    try:
+        return services(request).reader.context(unit_id)
+    except ValueError as exc:
+        return error(404, "UNIT_NOT_FOUND", str(exc))
+
+
 @router.get("/reader/units/{unit_id}/file")
-async def reader_file(request: Request, unit_id: str):
+async def reader_file(request: Request, unit_id: str, format: Literal["epub", "pdf", "cbz"] | None = None):
     """The whole local artefact, for the isolated Book Reader (§26.22, §27).
 
     It is served with a sandbox CSP and nosniff so the document can never reach the application origin,
@@ -222,9 +231,11 @@ async def reader_file(request: Request, unit_id: str):
     """
     s = services(request)
     try:
-        artefact = s.reader.local_file(unit_id)
+        artefact = s.reader.local_file(unit_id, format=format)
     except FileNotFoundError as exc:
         return error(404, "FILE_NOT_AVAILABLE", str(exc))
+    except ValueError as exc:
+        return error(404, "UNIT_NOT_FOUND", str(exc))
     media_type = MEDIA_TYPES.get(artefact.format, "application/octet-stream")
     return Response(artefact.data, media_type=media_type, headers={
         **CONTENT_HEADERS,

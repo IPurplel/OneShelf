@@ -45,6 +45,12 @@ Permissions are derived from this, never declared separately: `network:domain:â€
 `network:http`, `browser:<capability>`, `session:required|optional:<capability>`. The user approves that exact
 list at install time, and a version that asks for more must be approved again.
 
+API 1.1 adds optional `available_languages` to search, discovery and work results. Extract this with
+`all: true` when a listing offers multiple reading translations. The returned codes become explicit
+source/language choices; `language` remains the single-language fallback for older adapters. An empty
+list means no available translations, and the work's original language must not stand in for one.
+Adapters using this field must declare `api: '1.1'` so older Core versions reject them cleanly.
+
 ## 3. Recipes
 
 One file per capability. A recipe is a request plus an extraction:

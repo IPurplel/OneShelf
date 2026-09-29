@@ -48,9 +48,9 @@ def test_nothing_in_the_product_builds_an_annotation_system():
 
 
 def test_linking_is_only_how_a_file_is_moved_into_place():
-    """`os.link` appears once, as the atomic half of a same-filesystem move — not as a shared copy."""
+    """Links publish staged files atomically; they never share content between library assets."""
     users = {path.relative_to(BACKEND).as_posix() for path, _, line in code_lines(python_sources())
              if re.search(r"\bos\.link\s*\(", line)}
-    assert users == {"oneshelf/storage/commit.py"}
+    assert users == {"oneshelf/storage/commit.py", "oneshelf/storage/safe_write.py"}
     commit = (BACKEND / "oneshelf" / "storage" / "commit.py").read_text(encoding="utf-8")
     assert "os.unlink(src)" in commit or "os.remove(src)" in commit    # the link is not left behind

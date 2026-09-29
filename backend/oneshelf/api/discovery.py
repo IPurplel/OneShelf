@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import aclosing
 from dataclasses import asdict
 from typing import Literal
 
@@ -48,8 +49,9 @@ async def search(request: Request, q: str, refresh: bool = False):
     service = services(request).search
 
     async def stream():
-        async for update in service.search(q, refresh=refresh):
-            yield _sse(_update(update))
+        async with aclosing(service.search(q, refresh=refresh)) as updates:
+            async for update in updates:
+                yield _sse(_update(update))
 
     return StreamingResponse(stream(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
