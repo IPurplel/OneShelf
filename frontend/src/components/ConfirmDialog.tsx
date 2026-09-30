@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { ModalSurface } from "./ModalSurface";
 import type { ReactNode } from "react";
 
 import { useI18n } from "@/i18n/i18n";
@@ -16,17 +16,8 @@ export function ConfirmDialog({ title, body, confirmLabel, onConfirm, onCancel, 
   children?: ReactNode;
 }) {
   const { t } = useI18n();
-  const panel = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    panel.current?.focus();
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onCancel(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
-
   return (
-    <div className="confirm" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={panel}>
+    <ModalSurface className="confirm" title={title} onClose={onCancel}>
       <h2 className="display">{title}</h2>
       <p>{body}</p>
       {children}
@@ -34,6 +25,6 @@ export function ConfirmDialog({ title, body, confirmLabel, onConfirm, onCancel, 
         <button type="button" className="button" onClick={onCancel}>{t("common.cancel")}</button>
         <button type="button" className="button button--primary" onClick={onConfirm}>{confirmLabel}</button>
       </div>
-    </div>
+    </ModalSurface>
   );
 }

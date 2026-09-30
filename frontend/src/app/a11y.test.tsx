@@ -1,4 +1,5 @@
 /** Master §45–§46, §2.3: keyboard reach, focus return, landmarks, and direction independence. */
+import { useState } from "react";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -47,14 +48,14 @@ describe("Accessibility", () => {
   it("returns focus to the control that opened a drawer", async () => {
     const user = userEvent.setup();
     function Harness() {
-      return (
-        <>
-          <button type="button" id="opener">Open</button>
-          <Drawer title="Contents" onClose={() => document.getElementById("opener")?.focus()}>content</Drawer>
-        </>
-      );
+      const [open, setOpen] = useState(false);
+      return <>
+        <button type="button" id="opener" onClick={() => setOpen(true)}>Open</button>
+        {open && <Drawer title="Contents" onClose={() => setOpen(false)}>content</Drawer>}
+      </>;
     }
     renderWithProviders(<Harness />);
+    await user.click(screen.getByRole("button", { name: "Open" }));
     const drawer = screen.getByRole("dialog", { name: "Contents" });
     expect(document.activeElement).toBe(drawer);
 

@@ -22,7 +22,7 @@ const MODES = ["preferred_ask", "strict", "automatic"] as const;
  */
 export function DownloadSettingsPanel() {
   const { t } = useI18n();
-  const { data, reload } = useResource<DownloadSettings>("/api/downloads/settings");
+  const { data, error, loading, reload } = useResource<DownloadSettings>("/api/downloads/settings");
 
   const write = async (body: Record<string, unknown>) => {
     try {
@@ -32,6 +32,10 @@ export function DownloadSettingsPanel() {
     }
   };
 
+  if (error !== null && !loading) return <section className="paper">
+    <p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+    <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button>
+  </section>;
   if (data === null) return <section className="paper"><p>{t("state.loading")}</p></section>;
   const auto = data.auto_download;
 

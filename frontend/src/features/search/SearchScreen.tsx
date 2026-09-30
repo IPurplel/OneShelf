@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useSearchParams } from "react-router-dom";
+
 import { ApiError, api } from "@/api/client";
 import type { SearchUpdate } from "@/api/types";
 import { ResultCard } from "./ResultCard";
@@ -14,13 +16,18 @@ import { useI18n } from "@/i18n/i18n";
  */
 export function SearchScreen() {
   const { t } = useI18n();
-  const [query, setQuery] = useState("");
-  const [submitted, setSubmitted] = useState({ query: "" });
+  const [params, setParams] = useSearchParams();
+  const submitted = (params.get("q") ?? "").trim();
+  const [query, setQuery] = useState(submitted);
+  const [attempt, setAttempt] = useState(0);
+  const [streamFailed, setStreamFailed] = useState(false);
+  useEffect(() => setQuery(submitted), [submitted]);
   const [update, setUpdate] = useState<SearchUpdate | null>(null);
   const [retryProblem, setRetryProblem] = useState<string | null>(null);
   const [retrying, setRetrying] = useState<string | null>(null);
   const generation = useRef(0);
   const stream = useRef<EventSource | null>(null);
+  const retainResults = useRef(false);
 
   const close = useCallback(() => {
     stream.current?.close();
@@ -30,12 +37,19 @@ export function SearchScreen() {
   useEffect(() => {
     const current = ++generation.current;
     close();
-    setUpdate(null);
+    if (!retainResults.current) setUpdate(null);
+    retainResults.current = false;
+    setStreamFailed(false);
     setRetryProblem(null);
     setRetrying(null);
-    if (submitted.query === "") return;
-    const source = new EventSource(`/api/search?q=${encodeURIComponent(submitted.query)}`);
+    if (submitted === "") return;
+    const source = new EventSource(`/api/search?q=${encodeURIComponent(submitted)}`);
     stream.current = source;
+    source.addEventListener("error", () => {
+      if (generation.current !== current || stream.current !== source) return;
+      setStreamFailed(true);
+      close();
+    });
     for (const stage of ["local", "partial", "complete"] as const) {
       source.addEventListener(stage, (event) => {
         if (generation.current !== current || stream.current !== source) return;
@@ -44,14 +58,14 @@ export function SearchScreen() {
       });
     }
     return () => { generation.current++; close(); };
-  }, [submitted, close]);
+  }, [submitted, attempt, close]);
 
   const retry = async (sourceId: string) => {
     const current = generation.current;
     setRetryProblem(null);
     setRetrying(sourceId);
     try {
-      const result = await api.post<SearchUpdate>("/api/search/retry", { query: submitted.query, source_id: sourceId });
+      const result = await api.post<SearchUpdate>("/api/search/retry", { query: submitted, source_id: sourceId });
       if (current === generation.current) setUpdate(result);
     } catch (error) {
       if (current === generation.current) {
@@ -75,16 +89,29 @@ export function SearchScreen() {
         event.preventDefault();
         generation.current++;
         close();
-        setSubmitted({ query: query.trim() });
+        const next = query.trim();
+        setQuery(next);
+        if (next === submitted) setAttempt(value => value + 1);
+        else setParams(next ? { q: next } : {});
       }}>
         <input type="search" className="field field--large" aria-label={t("search.field")}
                placeholder={t("search.placeholder")} value={query}
                onChange={(event) => setQuery(event.target.value)} />
       </form>
 
-      {submitted.query === "" && <p className="screen__subtitle">{t("search.intro")}</p>}
+      {submitted === "" && <p className="screen__subtitle">{t("search.intro")}</p>}
 
-      {update !== null && (
+      {submitted !== "" && update === null && !streamFailed && <p role="status">{t("state.loading")}</p>}
+      {streamFailed && (
+        <div className="notice notice--problem">
+          <p role="alert">{t("search.connectionFailed")}</p>
+          <button className="button" type="button" onClick={() => { retainResults.current = true; setAttempt(value => value + 1); }}>
+            {t("reader.retry")}
+          </button>
+        </div>
+      )}
+
+      {update !== null && !streamFailed && (
         <p className="search__status" role="status">
           {update.stage === "complete" && update.sources_failed > 0
             ? t(update.sources_failed === 1 ? "search.failed" : "search.failedMany", { count: update.sources_failed })

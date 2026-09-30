@@ -1,3 +1,4 @@
+import { ModalSurface } from "@/components/ModalSurface";
 import { useI18n } from "@/i18n/i18n";
 import { bytes } from "@/lib/format";
 
@@ -28,7 +29,7 @@ export function RemoveFromShelf({ title, summary, onKeep, onDelete, onCancel }: 
   const { t } = useI18n();
 
   return (
-    <div className="confirm confirm--wide" role="dialog" aria-modal="true" aria-label={t("shelf.remove.title")}>
+    <ModalSurface className="confirm confirm--wide" title={t("shelf.remove.title")} onClose={onCancel}>
       <h2 className="display">{t("shelf.remove.title")}</h2>
       <p>{t("shelf.remove.lede", { title })}</p>
 
@@ -63,6 +64,6 @@ export function RemoveFromShelf({ title, summary, onKeep, onDelete, onCancel }: 
           {summary.files > 0 ? t("shelf.remove.keep") : t("shelf.remove.confirm")}
         </button>
       </div>
-    </div>
+    </ModalSurface>
   );
 }

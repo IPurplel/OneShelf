@@ -64,3 +64,10 @@ input[type="file"]::file-selector-button {
   cursor: pointer;
 }
 input[type="file"]::file-selector-button:hover { background: var(--ivory-50); }
+
+/* Remove native dialog sizing while retaining its top layer and inert background. */
+.modal { border: 0; margin: 0; padding: 0; max-inline-size: none; max-block-size: none; color: inherit; }
+.modal:not([open]) { display: none; }
+.modal::backdrop { background: rgb(26 32 26 / 38%); }
+.modal.drawer { inset-inline-start: auto; block-size: 100dvh; }
+.modal.confirm { inset-block-end: auto; max-block-size: 80dvh; overflow: auto; box-shadow: var(--shadow-raised); }

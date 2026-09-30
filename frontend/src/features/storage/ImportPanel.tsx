@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ApiError, api } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
@@ -30,7 +30,17 @@ export function ImportPanel() {
   const [problem, setProblem] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  const [reviewing, setReviewing] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const generation = useRef(0);
+  const submitting = useRef(false);
+  useEffect(() => () => { generation.current++; }, []);
+
   const choose = async (file: File) => {
+    if (submitting.current) return;
+    const current = ++generation.current;
+    setReview(null);
+    setReviewing(true);
     setProblem(null);
     setDone(false);
     try {
@@ -43,18 +53,23 @@ export function ImportPanel() {
         throw new ApiError(response.status, payload?.error?.code ?? "IMPORT_REJECTED",
                            payload?.error?.message ?? t("state.offline"));
       }
+      if (current !== generation.current) return;
       const reviewed = payload as Review;
       setReview(reviewed);
       setTitle(reviewed.suggested_title);
       const confident = reviewed.suggestions.find((candidate) => candidate.confident);
       setTarget(confident ? confident.work_id : "new");
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      if (current === generation.current) setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+    } finally {
+      if (current === generation.current) setReviewing(false);
     }
   };
 
   const importFile = async () => {
-    if (review === null) return;
+    if (review === null || reviewing || submitting.current) return;
+    submitting.current = true;
+    setImporting(true);
     setProblem(null);
     try {
       await api.post("/api/import", {
@@ -68,6 +83,9 @@ export function ImportPanel() {
       setDone(true);
     } catch (error) {
       setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+    } finally {
+      submitting.current = false;
+      setImporting(false);
     }
   };
 
@@ -77,11 +95,12 @@ export function ImportPanel() {
       <p className="firstrun__lede">{t("import.help")}</p>
 
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+      {reviewing && <p role="status">{t("state.loading")}</p>}
       {done && <p className="notice" role="status">{t("import.done")}</p>}
 
       <label className="field__label">
         {t("import.choose")}
-        <input type="file" accept=".cbz,.pdf,.epub" className="field"
+        <input type="file" accept=".cbz,.pdf,.epub" className="field" disabled={importing}
                onChange={(event) => {
                  const file = event.target.files?.[0];
                  if (file) void choose(file);
@@ -126,7 +145,7 @@ export function ImportPanel() {
           )}
 
           <div className="firstrun__actions">
-            <button type="button" className="button button--primary" onClick={() => void importFile()}>
+            <button type="button" className="button button--primary" disabled={importing} aria-busy={importing} onClick={() => void importFile()}>
               {t("import.action")}
             </button>
           </div>

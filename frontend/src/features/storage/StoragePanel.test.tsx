@@ -1,5 +1,5 @@
 /** Master §24, §37, §32.14: storage locations and the import flow, on operational paper. */
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -120,5 +120,54 @@ describe("Import", () => {
     const file = new File([new Uint8Array([1, 2])], "notes.cbz", { type: "application/zip" });
     await user.upload(screen.getByLabelText(/choose a file/i), file);
     expect(await screen.findByRole("alert")).toHaveTextContent(/not a CBZ, PDF or EPUB/i);
+  });
+});
+
+
+describe("Import selection regressions", () => {
+  const review = { upload_id: "A", format: "pdf", suggested_title: "First book", language: "en",
+    page_count: 4, warnings: [], suggestions: [] };
+  const file = (name: string) => new File(["test"], name, { type: "application/pdf" });
+
+  it("removes the previous review when the next file is refused", async () => {
+    const user = userEvent.setup();
+    const respond = vi.fn().mockResolvedValueOnce(Response.json(review)).mockResolvedValueOnce(
+      Response.json({ error: { message: "Invalid PDF" } }, { status: 422 }));
+    vi.stubGlobal("fetch", respond);
+    renderWithProviders(<ImportPanel />);
+    await user.upload(screen.getByLabelText(/choose a file/i), file("a.pdf"));
+    expect(await screen.findByRole("button", { name: /^import$/i })).toBeEnabled();
+    await user.upload(screen.getByLabelText(/choose a file/i), file("b.pdf"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Invalid PDF");
+    expect(screen.queryByRole("button", { name: /^import$/i })).not.toBeInTheDocument();
+  });
+
+  it("ignores an older review arriving after the latest file", async () => {
+    let finish!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn().mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }))
+      .mockResolvedValueOnce(Response.json({ ...review, upload_id: "B", suggested_title: "Second book" })));
+    const user = userEvent.setup();
+    renderWithProviders(<ImportPanel />);
+    await user.upload(screen.getByLabelText(/choose a file/i), file("a.pdf"));
+    await user.upload(screen.getByLabelText(/choose a file/i), file("b.pdf"));
+    expect(await screen.findByRole("textbox", { name: /title/i })).toHaveValue("Second book");
+    await act(async () => finish(Response.json(review)));
+    expect(screen.getByRole("textbox", { name: /title/i })).toHaveValue("Second book");
+  });
+
+  it("blocks repeat imports while the request is pending", async () => {
+    let finish!: (response: Response) => void;
+    const fetcher = vi.fn().mockResolvedValueOnce(Response.json(review))
+      .mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    vi.stubGlobal("fetch", fetcher);
+    const user = userEvent.setup();
+    renderWithProviders(<ImportPanel />);
+    await user.upload(screen.getByLabelText(/choose a file/i), file("a.pdf"));
+    const button = await screen.findByRole("button", { name: /^import$/i });
+    await user.dblClick(button);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(button).toBeDisabled();
+    await act(async () => finish(Response.json({})));
+    expect(await screen.findByRole("status")).toHaveTextContent(/import/i);
   });
 });

@@ -3,6 +3,7 @@ import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { Routes, Route, useNavigate } from "react-router-dom";
 import { SearchScreen } from "./SearchScreen";
 import { ApiError, api } from "@/api/client";
 import { renderWithProviders } from "@/test/render";
@@ -157,5 +158,54 @@ describe("Search regressions", () => {
     await user.click(screen.getByRole("button", { name: /try tapas/i }));
     await waitFor(() => expect(screen.queryByRole("button", { name: /try tapas/i })).not.toBeInTheDocument());
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+
+describe("Search navigation and transport failures", () => {
+  it("starts from a bookmarked query", () => {
+    renderWithProviders(<SearchScreen />, { route: "/search?q=irregular" });
+    expect(screen.getByRole("searchbox")).toHaveValue("irregular");
+    expect(FakeEventSource.last!.url).toContain("q=irregular");
+    expect(screen.getByRole("status")).toHaveTextContent(/loading/i);
+  });
+
+  it("restores a submitted search after opening a result and going back", async () => {
+    function Work() { const navigate = useNavigate(); return <button onClick={() => navigate(-1)}>Back</button>; }
+    const user = userEvent.setup();
+    renderWithProviders(<Routes><Route path="/search" element={<SearchScreen />} />
+      <Route path="/works/:id" element={<Work />} /></Routes>, { route: "/search" });
+    await user.type(screen.getByRole("searchbox"), "irregular{Enter}");
+    act(() => FakeEventSource.last!.emit("complete", COMPLETE));
+    await user.click(screen.getByRole("link", { name: /Irregular Chronicle/i }));
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("searchbox")).toHaveValue("irregular");
+    act(() => FakeEventSource.last!.emit("complete", COMPLETE));
+    expect(screen.getByText("The Irregular Chronicle")).toBeInTheDocument();
+  });
+
+  it.each([false, true])("shows a stream failure and retries without discarding received results (partial=%s)", async partial => {
+    const user = userEvent.setup();
+    renderWithProviders(<SearchScreen />);
+    await user.type(screen.getByRole("searchbox"), "irregular{Enter}");
+    const failed = FakeEventSource.last!;
+    if (partial) act(() => failed.emit("local", LOCAL));
+    act(() => failed.emit("error", {}));
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(failed.closed).toBe(true);
+    if (partial) expect(screen.getByText("The Irregular Chronicle")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^try again$/i }));
+    expect(FakeEventSource.last).not.toBe(failed);
+    if (partial) expect(screen.getByText("The Irregular Chronicle")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    act(() => FakeEventSource.last!.emit("complete", COMPLETE));
+    expect(screen.getByText("The Irregular Chronicle")).toBeInTheDocument();
+  });
+
+  it("reruns the same query on explicit submission", async () => {
+    const { user, box } = await startSearch();
+    const first = FakeEventSource.last;
+    await user.type(box, "{Enter}");
+    expect(FakeEventSource.last).not.toBe(first);
   });
 });

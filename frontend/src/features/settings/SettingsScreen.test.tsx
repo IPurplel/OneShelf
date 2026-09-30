@@ -1,5 +1,5 @@
 /** Master §32.14, §45: a readable document, categories beside the panel, progressive disclosure. */
-import { screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -221,5 +221,72 @@ describe("Settings route", () => {
     expect(screen.getByRole("tabpanel", { name: "Storage" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Forward" }));
     expect(screen.getByRole("tabpanel", { name: "General" })).toBeInTheDocument();
+  });
+});
+
+
+describe("Settings failure recovery", () => {
+  async function reader() {
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsScreen />, { route: "/settings/reader" });
+    await user.click(screen.getByRole("button", { name: /show advanced/i }));
+    return { user, threshold: await screen.findByRole("spinbutton", { name: /count a unit/i }) };
+  }
+
+  it.each(["101", "49", "", "97.5"])("does not save invalid completion percentage %s", async value => {
+    const calls = mockApi([get("/api/reader/settings", READER), post("/api/reader/settings", READER)]);
+    const { user, threshold } = await reader();
+    await user.clear(threshold);
+    if (value) await user.type(threshold, value);
+    await user.tab();
+    expect(threshold).toHaveAttribute("aria-invalid", "true");
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(calls.filter(c => c.method === "POST")).toHaveLength(0);
+  });
+
+  it("keeps a rejected draft visibly unsaved and can retry it", async () => {
+    let reject = true;
+    let setting = READER;
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        if (reject) return Response.json({ error: { message: "Disk unavailable" } }, { status: 503 });
+        setting = { ...READER, auto_mark_read_threshold: .9 };
+      }
+      return Response.json(setting);
+    }));
+    const { user, threshold } = await reader();
+    await user.clear(threshold); await user.type(threshold, "90"); await user.tab();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/not saved.*Disk unavailable/i);
+    expect(threshold).toHaveValue(90);
+    reject = false;
+    await user.click(screen.getByRole("button", { name: /^try again$/i }));
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+    expect(threshold).toHaveValue(90);
+  });
+
+  it("blocks overlapping reader writes while a save is pending", async () => {
+    let finish!: (response: Response) => void;
+    const fetcher = vi.fn((_url: string, init?: RequestInit) => init?.method === "POST"
+      ? new Promise<Response>(resolve => { finish = resolve; }) : Promise.resolve(Response.json(READER)));
+    vi.stubGlobal("fetch", fetcher);
+    const { user, threshold } = await reader();
+    await user.clear(threshold); await user.type(threshold, "90"); await user.tab();
+    expect(screen.getByRole("spinbutton", { name: /pages ahead/i })).toBeDisabled();
+    expect(screen.getByRole("checkbox", { name: /remember/i })).toBeDisabled();
+    await act(async () => finish(Response.json(READER)));
+  });
+
+  it("offers a retry after download settings fail to load", async () => {
+    let failed = true;
+    vi.stubGlobal("fetch", vi.fn(async () => failed
+      ? Response.json({ error: { message: "Service unavailable" } }, { status: 503 })
+      : Response.json(DOWNLOADS)));
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsScreen />, { route: "/settings/downloads" });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Service unavailable");
+    expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+    failed = false;
+    await user.click(screen.getByRole("button", { name: /^try again$/i }));
+    expect(await screen.findByRole("checkbox", { name: /download while/i })).toBeInTheDocument();
   });
 });

@@ -24,3 +24,7 @@ beforeEach(() => {
     // Blocked storage is a valid state for the app, and for its tests.
   }
 });
+
+// jsdom has no top layer. Browser tests verify real focus trapping and inertness.
+HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
+HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };

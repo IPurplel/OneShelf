@@ -40,6 +40,8 @@ def fixture(route, count):
             units=[dict(id='u0', title='Chapter One', number='1', unit_type='chapter', volume=None, order=1,
                         release_date=None, availability='available', url=None, downloaded=True, formats=['cbz'],
                         read_state='unread', fraction=0, read_at=None, integrity='ok', is_new=False)]))
+    if path == '/api/reader/units/u0/context':
+        return route.fulfill(json=dict(work_id='w0', track_id='t0', formats=['cbz']))
     if path == '/api/reader/units/u0/pages':
         return route.fulfill(json=dict(reading_unit_id='u0', pages=[dict(index=1, label='1', url=None)]))
     if path == '/api/reader/units/u0/pages/1':
@@ -244,13 +246,13 @@ def run(args):
                 page.locator('.work__actions a[href^="/read/"]').click()
                 page.locator('[data-testid=reader-stage]').wait_for()
                 expect(page.locator('[data-testid=reader-stage] img').first).to_be_visible()
-                # Existing Work links omit ?work= and Reader returns to My Shelf.
-                page.locator('.reader__bar--top a[href="/shelf"]').click()
-                page.locator('.shelfview').wait_for()
+                # Work entry carries context and returns to that Work.
+                page.locator('.reader__bar--top a[href="/works/w0?track=t0"]').click()
+                page.locator('.work__header').wait_for()
                 # Reader routes with work context return to that Work.
                 page.goto(args.url + '/read/u0?work=w0')
                 page.locator('[data-testid=reader-stage]').wait_for()
-                page.locator('.reader__bar--top a[href="/works/w0"]').click()
+                page.locator('.reader__bar--top a[href="/works/w0?track=t0"]').click()
                 page.locator('.work__header').wait_for()
             print(f'{language}: viewport matrix, resize, settings history and Reader smoke complete', flush=True)
             page.close()
