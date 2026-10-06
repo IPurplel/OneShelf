@@ -26,7 +26,7 @@ def manifest(api="1.2"):
 
 
 def html_reader(**field_overrides):
-    fields = {"html": {"css": "#text", "markup": True}, "title": {"css": "#text h2::text"}}
+    fields = {"html": {"css": "#text", "markup": "inner"}, "title": {"css": "#text h2::text"}}
     fields.update(field_overrides)
     return {
         "capability": "reader", "inputs": ["unit_key"],
@@ -90,7 +90,7 @@ def test_text_units_need_api_12(tmp_path):
 
 def test_markup_anywhere_needs_api_12(tmp_path):
     reader = copy.deepcopy(RECIPES["catalog"])
-    reader["extract"]["fields"]["title"] = {"css": "h1", "markup": True}
+    reader["extract"]["fields"]["title"] = {"css": "h1", "markup": "inner"}
     recipes = {**copy.deepcopy(RECIPES), "catalog": reader}
     with pytest.raises(PackageError, match="need api '1.2'"):
         load_package(build_osp(tmp_path / "p.osp", recipes=recipes))
@@ -107,7 +107,7 @@ def test_a_reader_extracts_exactly_one_of_url_or_html(tmp_path):
 
 def test_markup_needs_an_element_selector(tmp_path):
     with pytest.raises(PackageError, match="markup applies"):
-        package(tmp_path, html_reader(html={"json": "$.text", "markup": True}))
+        package(tmp_path, html_reader(html={"json": "$.text", "markup": "inner"}))
 
 
 def text_tests(**expect):
@@ -145,3 +145,25 @@ def test_image_readers_are_unchanged(tmp_path):
                  unit_key="7")
     assert [r.url for r in result.resources] == ["https://books.example/p/1.png", "https://books.example/p/2.png"]
     assert all(r.html is None for r in result.resources)
+
+
+def test_outer_markup_joins_chosen_blocks_and_leaves_navigation_out(tmp_path):
+    page = ("<html><body><section><div class='nav noexport'><a href='/prev'>Previous</a></div>"
+            "<h2>Chapter 1</h2><p>It is a truth.</p><p>Universally acknowledged.</p></section></body></html>")
+    blocks = "//section/*[not(contains(@class, 'noexport'))]"
+    reader = html_reader(html={"xpath": blocks, "markup": "outer", "all": True, "transforms": [{"join": {"sep": ""}}]})
+    reader["extract"]["items"] = {"css": "html"}
+    result = run(package(tmp_path, reader), {CHAPTER_URL: (200, page)}, unit_key="7")
+    assert result.resources[0].html == "<h2>Chapter 1</h2><p>It is a truth.</p><p>Universally acknowledged.</p>"
+
+
+def test_inner_markup_keeps_only_what_is_inside(tmp_path):
+    page = "<html><body><div id='text'><p>a</p><p>b</p></div></body></html>"
+    reader = html_reader(html={"css": "#text", "markup": "inner"})
+    result = run(package(tmp_path, reader), {CHAPTER_URL: (200, page)}, unit_key="7")
+    assert result.resources[0].html == "<p>a</p><p>b</p>"
+
+
+def test_markup_is_inner_or_outer_only(tmp_path):
+    with pytest.raises(PackageError):
+        package(tmp_path, html_reader(html={"css": "#text", "markup": "both"}))

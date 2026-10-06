@@ -155,8 +155,9 @@ def _raw_for(node: Any, spec) -> list[Any]:
         return [bool(results)]
     values = []
     for result in results:
-        if spec.markup and hasattr(result, "html_content"):
-            values.append(_inner_markup(result.html_content))
+        if spec.markup is not None and hasattr(result, "html_content"):
+            outer = result.html_content
+            values.append(outer if spec.markup == "outer" else _inner_markup(outer))
         elif textual or not hasattr(result, "get_all_text"):
             values.append(str(result.get()) if hasattr(result, "get") else str(result))
         else:

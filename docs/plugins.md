@@ -52,7 +52,7 @@ list means no available translations, and the work's original language must not 
 Adapters using this field must declare `api: '1.1'` so older Core versions reject them cleanly.
 
 API 1.2 adds **text reading units** (section 3a). Unlike 1.1, this one is enforced per feature: a package
-that extracts a reader `html` field, sets `markup: true` on any field, or uses the `text_contains` /
+that extracts a reader `html` field, sets `markup` on any field, or uses the `text_contains` /
 `min_text_chars` test checks is refused unless it declares `api: '1.2'` or newer.
 
 ## 3. Recipes
@@ -125,8 +125,14 @@ extract:
     title: {json: "$.title"}
 ```
 
-On an HTML response, `markup: true` returns the matched element's inner markup instead of its text:
-`html: {css: "#chapter-body", markup: true}`.
+On an HTML response, `markup` returns markup instead of text. `markup: inner` gives what is inside the
+matched element: `html: {css: "#chapter-body", markup: inner}`. `markup: outer` gives the element itself.
+Use it with `all: true` and `join` to keep chosen blocks and leave a site's navigation out:
+
+```yaml
+html: {xpath: "//section/*[not(contains(@class, 'noexport'))]", markup: outer, all: true,
+       transforms: [{join: {sep: ""}}]}
+```
 
 Core sanitises every unit before anything else sees it, and again before storing it (Master §27). It uses
 nh3 with the allowlist of the Book Reader's EPUB sanitiser (`backend/oneshelf/text/sanitise.py`):
