@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { api } from "@/api/client";
+import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
+import { languageName } from "@/i18n/language";
 import { useLive } from "@/app/live";
+import { workLink } from "@/features/reader/links";
 
 type Follow = {
   work_id: string;
+  work_title: string;
   track_id: string;
   source_id: string;
   language: string;
@@ -19,12 +22,13 @@ type Follow = {
 
 /** Following (Master §20, §32.10): a reading journal on warm paper rows. No charts, ever. */
 export function FollowingScreen() {
-  const { t } = useI18n();
-  const { data, reload } = useResource<{ follows: Follow[] }>("/api/follows");
+  const { t, language } = useI18n();
+  const { data, error, reload } = useResource<{ follows: Follow[] }>("/api/follows");
 
   // §20, §36: a check that finishes elsewhere lands here without waiting for a refresh.
   useLive(["follow.changed", "follow.releases"], reload);
   const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
 
   const follows = data?.follows ?? [];
   const fresh = follows.filter((follow) => follow.unseen_releases > 0);
@@ -34,8 +38,11 @@ export function FollowingScreen() {
 
   const check = async (call: Promise<unknown>) => {
     setBusy(true);
+    setProblem(null);
     try {
       await call;
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
     } finally {
       setBusy(false);
       reload();
@@ -52,20 +59,25 @@ export function FollowingScreen() {
         </button>
       </div>
 
+      {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+        <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
+      {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+
       {data !== null && follows.length === 0 && <p className="shelf__empty">{t("follow.empty")}</p>}
 
-      <Section id="new" title={t("follow.new")} follows={fresh} onCheck={check} />
-      <Section id="attention" title={t("follow.attention")} follows={attention} onCheck={check} />
-      <Section id="current" title={t("follow.current")} follows={current} onCheck={check} />
+      <Section id="new" title={t("follow.new")} follows={fresh} onCheck={check} language={language} />
+      <Section id="attention" title={t("follow.attention")} follows={attention} onCheck={check} language={language} />
+      <Section id="current" title={t("follow.current")} follows={current} onCheck={check} language={language} />
     </section>
   );
 }
 
-function Section({ id, title, follows, onCheck }: {
+function Section({ id, title, follows, onCheck, language }: {
   id: string;
   title: string;
   follows: Follow[];
   onCheck: (call: Promise<unknown>) => void;
+  language: "en" | "ar";
 }) {
   const { t } = useI18n();
   if (follows.length === 0) return null;
@@ -75,9 +87,9 @@ function Section({ id, title, follows, onCheck }: {
       <h2 className="journal__title display" id={`${id}-title`}>{title}</h2>
       <ul className="journal__rows">
         {follows.map((follow) => (
-          <li key={follow.work_id} className="journal__row">
-            <Link className="journal__work" to={`/works/${follow.work_id}`}>{follow.work_id}</Link>
-            <span className="journal__source">{follow.source_id} · {follow.language}</span>
+          <li key={`${follow.work_id}:${follow.language}`} className="journal__row">
+            <Link className="journal__work" to={workLink(follow.work_id, follow.track_id)}>{follow.work_title}</Link>
+            <span className="journal__source">{follow.source_id} · {languageName(follow.language, language)}</span>
             {follow.unseen_releases > 0 && (
               <span className="journal__badge">{t("follow.count", { count: follow.unseen_releases })}</span>
             )}
@@ -85,10 +97,10 @@ function Section({ id, title, follows, onCheck }: {
               <span className="journal__state">{t(`follow.state.${follow.state}` as const)}</span>
             )}
             <span className="journal__when">
-              {t("follow.lastAnswered", { when: relative(follow.last_successful_at) })}
+              {t("follow.lastAnswered", { when: relative(follow.last_successful_at, language) })}
             </span>
             <button type="button" className="chip"
-                    onClick={() => onCheck(api.post(`/api/follows/${follow.work_id}/check`))}>
+                    onClick={() => onCheck(api.post(`/api/follows/${follow.work_id}/check?${new URLSearchParams({ language: follow.language })}`))}>
               {t("follow.check")}
             </button>
           </li>
@@ -98,9 +110,9 @@ function Section({ id, title, follows, onCheck }: {
   );
 }
 
-function relative(when: string | null): string {
+function relative(when: string | null, language: "en" | "ar"): string {
   if (when === null) return "—";
   const date = new Date(when);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString();
+  return date.toLocaleDateString(language);
 }

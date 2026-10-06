@@ -19,6 +19,23 @@ const BATCHES = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Downloads", () => {
+  it("reports a failed batch action while keeping the batch visible", async () => {
+    mockApi([get("/api/downloads", BATCHES),
+      post("/api/downloads/b1/pause", { error: { message: "Pause unavailable" } }, 503)]);
+    const user = userEvent.setup();
+    renderWithProviders(<DownloadsScreen />);
+    const rows = await screen.findAllByRole("listitem");
+    await user.click(within(rows[0]!).getByRole("button", { name: /pause/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Pause unavailable");
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+  it("names batch states in Arabic instead of exposing status tokens", async () => {
+    mockApi([get("/api/downloads", BATCHES)]);
+    renderWithProviders(<DownloadsScreen />, { language: "ar" });
+    const rows = await screen.findAllByRole("listitem");
+    expect(within(rows[1]!).getByText("اكتمل مع مشكلات")).toBeInTheDocument();
+    expect(rows[1]).not.toHaveTextContent("completed with issues");
+  });
   it("shows each batch with its real state and counts", async () => {
     mockApi([get("/api/downloads", BATCHES)]);
     renderWithProviders(<DownloadsScreen />);

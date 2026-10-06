@@ -5,14 +5,20 @@ import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import type { Track, Unit, WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
+import type { StringKey } from "@/i18n/strings";
 import { languageName } from "@/i18n/language";
 import { ExportWizard } from "@/features/export/ExportWizard";
+import { ModalSurface } from "@/components/ModalSurface";
 import { RemoveFromShelf } from "@/features/shelf/RemoveFromShelf";
 import type { RemovalSummary } from "@/features/shelf/RemoveFromShelf";
 import { readerLink } from "@/features/reader/links";
 import { bytes } from "@/lib/format";
 
 type Tab = "read" | "details" | "sources";
+const CONTENT_TYPES = ["manga", "manhwa", "manhua", "comic", "book", "paper"];
+function typeLabel(value: string, t: ReturnType<typeof useI18n>["t"]): string {
+  return CONTENT_TYPES.includes(value) ? t(`work.type.${value}` as StringKey) : value.replaceAll("_", " ");
+}
 
 /**
  * Work Details (Master §32.8).
@@ -27,19 +33,21 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const { t, language } = useI18n();
   const [tab, setTab] = useState<Tab>("read");
   // The reader can send someone here to a *named* track when it could not find their unit there (§26.16).
-  const [search] = useSearchParams();
-  const [trackId, setTrackId] = useState<string | null>(search.get("track"));
+  const [search, setSearch] = useSearchParams();
+  const trackId = search.get("track");
   const [exporting, setExporting] = useState(false);
   const [removing, setRemoving] = useState<RemovalSummary | null>(null);
   const [completedOffer, setCompletedOffer] = useState<RemovalSummary | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${id}`,
     trackId ? { track_id: trackId } : undefined);
+  const [problem, setProblem] = useState<string | null>(null);
 
   if (error !== null) {
     return (
       <section className="screen">
-        <p className="notice notice--problem" role="alert">{error}</p>
+        <p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+        <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button>
       </section>
     );
   }
@@ -49,10 +57,14 @@ export function WorkScreen({ workId }: { workId?: string }) {
 
   const { work, shelf, follow, tracks, units, continue_unit_id: continueUnit } = data;
   const current = tracks.find((track) => track.id === data.selected_track_id) ?? null;
+  const selectedFollowing = current !== null && follow.following && follow.track_id === current.id;
 
   const toggle = async (call: Promise<unknown>) => {
+    setProblem(null);
     try {
       await call;
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
     } finally {
       reload();
     }
@@ -117,7 +129,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
           <h1 className="work__title display">{work.title}</h1>
           {work.original_title && <p className="work__original">{work.original_title}</p>}
           <p className="work__meta">
-            {work.content_type && <span>{work.content_type}</span>}
+            {work.content_type && <span>{typeLabel(work.content_type, t)}</span>}
             {work.creator && <span>{work.creator}</span>}
             {current && <span>{languageName(current.language, language)}</span>}
           </p>
@@ -141,10 +153,19 @@ export function WorkScreen({ workId }: { workId?: string }) {
                 {t("work.addShelf")}
               </button>
             )}
-            <button type="button" className="button" aria-pressed={follow.following}
-                    onClick={() => toggle(follow.following ? api.delete(`/api/follows/${id}`)
-                                                           : api.post(`/api/follows/${id}`))}>
-              {follow.following ? t("work.unfollow") : t("work.follow")}
+            <button type="button" className="button" aria-pressed={selectedFollowing}
+                    disabled={current === null}
+                    onClick={() => {
+                      if (current === null) return;
+                      void toggle(selectedFollowing
+                        ? api.delete(`/api/follows/${id}?${new URLSearchParams({ language: current.language })}`)
+                        : follow.following && follow.language === current.language
+                        ? api.post(`/api/follows/${id}/preferred-source`, { language: current.language,
+                          source_id: current.source_id, track_id: current.id })
+                        : api.post(`/api/follows/${id}`, { language: current.language,
+                          source_id: current.source_id, track_id: current.id }));
+                    }}>
+              {selectedFollowing ? t("work.unfollow") : t("work.follow")}
             </button>
             <button type="button" className="button" aria-pressed={shelf.favorite}
                     onClick={() => toggle(api.post(`/api/shelf/${id}`, { favorite: !shelf.favorite }))}>
@@ -170,6 +191,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
       </div>
 
       {notice !== null && <p className="notice" role="status">{notice}</p>}
+      {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
 
       {removing !== null && (
         <RemoveFromShelf title={work.title} summary={removing}
@@ -179,7 +201,8 @@ export function WorkScreen({ workId }: { workId?: string }) {
       )}
 
       {completedOffer !== null && (
-        <div className="confirm" role="dialog" aria-modal="true" aria-label={t("shelf.completed.title")}>
+        <ModalSurface className="confirm" title={t("shelf.completed.title")}
+                      onClose={() => setCompletedOffer(null)}>
           <h2 className="display">{t("shelf.completed.title")}</h2>
           <p>{t("shelf.completed.body", { title: work.title })}</p>
           <p>{t("shelf.completed.offer", { files: completedOffer.files, size: bytes(completedOffer.bytes) })}</p>
@@ -196,7 +219,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
               {t("shelf.completed.delete")}
             </button>
           </div>
-        </div>
+        </ModalSurface>
       )}
 
       {/* The tabs switch this one panel, and say so — a tab that controls nothing announces nothing. */}
@@ -204,20 +227,28 @@ export function WorkScreen({ workId }: { workId?: string }) {
         {tab === "read" && <UnitIndex units={units} workId={id} trackId={data.selected_track_id} />}
         {tab === "details" && <Details data={data} />}
         {tab === "sources" && (
-          <Sources tracks={tracks} selected={data.selected_track_id} onChoose={(track) => setTrackId(track.id)}
+          <Sources tracks={tracks} selected={data.selected_track_id} onChoose={(track) => {
+            const next = new URLSearchParams(search);
+            next.set("track", track.id);
+            setSearch(next);
+          }}
                    onRefreshed={reload} />
         )}
       </div>
-      {exporting && <ExportWizard workId={id} onClose={() => setExporting(false)} />}
+      {exporting && <ExportWizard workId={id} trackId={data.selected_track_id}
+                                   onClose={() => setExporting(false)} />}
     </article>
   );
 }
 
 function UnitIndex({ units, workId, trackId }: { units: Unit[]; workId: string; trackId: string | null }) {
   const { t } = useI18n();
+  const [problem, setProblem] = useState<string | null>(null);
   if (units.length === 0) return <p className="notice">{t("work.noUnits")}</p>;
 
   return (
+    <>
+    {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
     <ul className="units" aria-label={t("work.units")}>
       {units.map((unit) => (
         <li key={unit.id} className="units__row">
@@ -232,23 +263,29 @@ function UnitIndex({ units, workId, trackId }: { units: Unit[]; workId: string; 
           {unit.downloaded
             ? <span className="units__badge">{t("work.downloaded")}</span>
             : <button type="button" className="units__action"
-                      onClick={() => api.post("/api/downloads", { unit_ids: [unit.id] })}>
+                      onClick={() => {
+                        setProblem(null);
+                        void api.post("/api/downloads", { unit_ids: [unit.id] }).catch((error: unknown) =>
+                          setProblem(error instanceof ApiError ? error.message : t("state.offline")));
+                      }}>
                 {t("work.download")}
               </button>}
         </li>
       ))}
     </ul>
+    </>
   );
 }
 
 function Details({ data }: { data: WorkDetails }) {
+  const { t } = useI18n();
   const { work } = data;
   return (
     <dl className="details">
-      {work.creator && <><dt>Creator</dt><dd>{work.creator}</dd></>}
-      {work.content_type && <><dt>Type</dt><dd>{work.content_type}</dd></>}
-      {work.aliases.length > 0 && <><dt>Also known as</dt><dd>{work.aliases.join(" · ")}</dd></>}
-      {work.description && <><dt>Description</dt><dd>{work.description}</dd></>}
+      {work.creator && <><dt>{t("work.detail.creator")}</dt><dd>{work.creator}</dd></>}
+      {work.content_type && <><dt>{t("work.detail.type")}</dt><dd>{typeLabel(work.content_type, t)}</dd></>}
+      {work.aliases.length > 0 && <><dt>{t("work.detail.aliases")}</dt><dd>{work.aliases.join(" · ")}</dd></>}
+      {work.description && <><dt>{t("work.detail.description")}</dt><dd>{work.description}</dd></>}
     </dl>
   );
 }

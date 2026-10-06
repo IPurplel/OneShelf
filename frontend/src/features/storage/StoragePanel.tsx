@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ModalSurface } from "@/components/ModalSurface";
 import { useI18n } from "@/i18n/i18n";
 import { bytes } from "@/lib/format";
 
@@ -19,7 +20,7 @@ type Root = {
  */
 export function StoragePanel() {
   const { t } = useI18n();
-  const { data, reload } = useResource<{ roots: Root[] }>("/api/storage");
+  const { data, error, reload } = useResource<{ roots: Root[] }>("/api/storage");
   const [adding, setAdding] = useState(false);
   const [moving, setMoving] = useState<Root | null>(null);
   const [path, setPath] = useState("");
@@ -53,6 +54,8 @@ export function StoragePanel() {
 
   return (
     <section className="paper">
+      {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+        <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
       {message !== null && <p className="notice" role="status">{message}</p>}
 
@@ -92,7 +95,8 @@ export function StoragePanel() {
       </div>
 
       {adding && (
-        <div className="confirm" role="dialog" aria-modal="true" aria-label={t("storage.addTitle")}>
+        <ModalSurface className="confirm" title={t("storage.addTitle")} onClose={() => setAdding(false)}>
+          {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
           <h2 className="display">{t("storage.addTitle")}</h2>
           <label className="field__label">
             {t("storage.folder")}
@@ -109,7 +113,7 @@ export function StoragePanel() {
               {t("storage.addAction")}
             </button>
           </div>
-        </div>
+        </ModalSurface>
       )}
 
       {moving !== null && (

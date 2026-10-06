@@ -82,6 +82,37 @@ def test_a_second_language_is_a_separate_track_and_must_be_chosen_explicitly(api
     assert chosen["units"][0]["title"] == "الفصل ١"
 
 
+def test_follow_state_and_following_rows_belong_to_each_selected_language(api):
+    client, tmp_path = api
+    first = import_work(client, tmp_path, name="en-follow.cbz")
+    client.post("/api/import", json={
+        "upload_id": client.post("/api/import/uploads?filename=ar-follow.cbz",
+                                 content=make_cbz(tmp_path / "ar-follow.cbz").read_bytes(),
+                                 headers={"Content-Type": "application/octet-stream"}).json()["upload_id"],
+        "work_id": first["work_id"], "language": "ar", "unit_label": "الفصل ١"})
+    work = first["work_id"]
+    tracks = client.get(f"/api/works/{work}").json()["tracks"]
+    en = next(track for track in tracks if track["language"] == "en")
+    ar = next(track for track in tracks if track["language"] == "ar")
+
+    assert client.post(f"/api/follows/{work}", json={
+        "language": "en", "source_id": en["source_id"], "track_id": en["id"]}).status_code == 200
+    assert client.get(f"/api/works/{work}", params={"track_id": ar["id"]}).json()["follow"]["following"] is False
+    assert client.post(f"/api/follows/{work}", json={
+        "language": "ar", "source_id": ar["source_id"], "track_id": ar["id"]}).status_code == 200
+
+    rows = client.get("/api/follows").json()["follows"]
+    assert {(row["work_id"], row["language"], row["track_id"], row["work_title"]) for row in rows} == {
+        (work, "en", en["id"], "The Irregular Chronicle"),
+        (work, "ar", ar["id"], "The Irregular Chronicle"),
+    }
+    assert client.get(f"/api/works/{work}", params={"track_id": en["id"]}).json()["follow"]["language"] == "en"
+    assert client.get(f"/api/works/{work}", params={"track_id": ar["id"]}).json()["follow"]["language"] == "ar"
+    assert client.delete(f"/api/follows/{work}", params={"language": "ar"}).status_code == 200
+    assert client.get(f"/api/works/{work}", params={"track_id": ar["id"]}).json()["follow"]["following"] is False
+    assert client.get(f"/api/works/{work}", params={"track_id": en["id"]}).json()["follow"]["following"] is True
+
+
 def test_unknown_work_is_a_plain_404(api):
     client, _ = api
     response = client.get("/api/works/does-not-exist")

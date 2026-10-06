@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 
 import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
+import { ModalSurface } from "@/components/ModalSurface";
 import type { WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
@@ -28,9 +29,10 @@ type Report = { job_id: string; state: string; copied: number; skipped: number; 
  * request carries that acknowledgement explicitly (INV-21). Formats are chosen from what exists — nothing
  * is converted.
  */
-export function ExportWizard({ workId, onClose }: { workId: string; onClose: () => void }) {
+export function ExportWizard({ workId, trackId, onClose }: { workId: string; trackId?: string | null; onClose: () => void }) {
   const { t } = useI18n();
-  const { data } = useResource<WorkDetails>(`/api/works/${workId}`);
+  const { data, error, reload } = useResource<WorkDetails>(`/api/works/${workId}`,
+    trackId ? { track_id: trackId } : undefined);
   const [step, setStep] = useState<Step>("content");
   const [selected, setSelected] = useState<Set<string> | null>(null);
   const [output, setOutput] = useState<"folder" | "zip">("folder");
@@ -87,7 +89,7 @@ export function ExportWizard({ workId, onClose }: { workId: string; onClose: () 
   };
 
   return (
-    <div className="confirm confirm--wide" role="dialog" aria-modal="true" aria-label={t("export.title")}>
+    <ModalSurface className="confirm confirm--wide" title={t("export.title")} onClose={onClose}>
       <h2 className="display">{t("export.title")}</h2>
       <ol className="wizard__steps">
         {(["content", "format", "destination", "review"] as Step[]).map((candidate) => (
@@ -98,6 +100,8 @@ export function ExportWizard({ workId, onClose }: { workId: string; onClose: () 
       </ol>
 
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+      {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+        <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
 
       {step === "content" && (
         <fieldset className="panel__group" aria-label={t("export.content")}>
@@ -185,7 +189,8 @@ export function ExportWizard({ workId, onClose }: { workId: string; onClose: () 
           {report === null ? t("common.cancel") : t("export.close")}
         </button>
         {step === "content" && (
-          <button type="button" className="button button--primary" onClick={() => setStep("format")}>
+          <button type="button" className="button button--primary" disabled={data === null}
+                  onClick={() => setStep("format")}>
             {t("export.next")}
           </button>
         )}
@@ -205,6 +210,6 @@ export function ExportWizard({ workId, onClose }: { workId: string; onClose: () 
           </button>
         )}
       </div>
-    </div>
+    </ModalSurface>
   );
 }

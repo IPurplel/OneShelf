@@ -13,6 +13,7 @@ const PAGES = [
 ];
 
 const scales: number[] = [];
+const pdfFailures = vi.hoisted(() => ({ renderOnce: false }));
 
 vi.mock("pdfjs-dist", () => ({
   GlobalWorkerOptions: { workerSrc: "" },
@@ -24,7 +25,9 @@ vi.mock("pdfjs-dist", () => ({
           scales.push(scale);
           return { width: 100 * scale, height: 140 * scale };
         },
-        render: () => ({ promise: Promise.resolve() }),
+        render: () => ({ promise: pdfFailures.renderOnce
+          ? (pdfFailures.renderOnce = false, Promise.reject(new Error("PDF page could not render")))
+          : Promise.resolve() }),
         getTextContent: () => Promise.resolve({
           items: PAGES[number - 1]!.split(" ").map((word) => ({ str: `${word} ` })),
         }),
@@ -81,9 +84,38 @@ const view = () => (
   <PdfView unitId="u9" data={new ArrayBuffer(8)} workId="w1" onProgress={() => {}} onLeave={() => {}} />
 );
 
-afterEach(() => { scales.length = 0; vi.unstubAllGlobals(); });
+afterEach(() => { scales.length = 0; pdfFailures.renderOnce = false; vi.unstubAllGlobals(); });
 
 describe("Book Reader (PDF)", () => {
+  it("retries a failed PDF file request without losing its Work link", async () => {
+    stubMarks();
+    const original = globalThis.fetch;
+    let fail = true;
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/file?format=pdf") && fail) {
+        return Promise.resolve(Response.json({ error: { message: "PDF unavailable" } }, { status: 503 }));
+      }
+      return original(input, init);
+    }));
+    const user = userEvent.setup();
+    renderWithProviders(<BookReader unitId="u9" format="pdf" workId="w1" trackId="t1" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("PDF unavailable");
+    expect(screen.getByRole("link", { name: /back to the work/i })).toHaveAttribute("href", "/works/w1?track=t1");
+    fail = false;
+    await user.click(screen.getByRole("button", { name: /try again/i }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/1 of 2/i));
+  });
+  it("reports a PDF render failure and retries the page", async () => {
+    stubMarks();
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({} as CanvasRenderingContext2D);
+    pdfFailures.renderOnce = true;
+    const user = userEvent.setup();
+    renderWithProviders(view());
+    expect(await screen.findByRole("alert")).toHaveTextContent("PDF page could not render");
+    await user.click(screen.getByRole("button", { name: /try again/i }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/1 of 2/i));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
   it("moves through the pages it actually has", async () => {
     stubMarks();
     const user = userEvent.setup();

@@ -35,13 +35,16 @@ export function SettingsScreen() {
         <div className="settings__nav" role="tablist" aria-label={t("settings.categories")} aria-orientation="vertical">
           {CATEGORIES.map((candidate) => (
             <button key={candidate} type="button" role="tab" className="settings__tab"
-                    aria-selected={category === candidate} onClick={() => void navigate(`/settings/${candidate}`)}>
+                    id={`settings-tab-${candidate}`} aria-controls="settings-tabpanel"
+                    aria-selected={category === candidate}
+                    onClick={() => void navigate(`/settings/${candidate}`)}>
               {t(`settings.${candidate}` as StringKey)}
             </button>
           ))}
         </div>
 
-        <div className="settings__panel" role="tabpanel" aria-label={t(`settings.${category}` as StringKey)}>
+        <div className="settings__panel" role="tabpanel" id="settings-tabpanel"
+             aria-labelledby={`settings-tab-${category}`} tabIndex={0}>
           {category === "general" && (
             <section className="paper">
               <h2 className="display">{t("settings.language")}</h2>
@@ -85,4 +88,3 @@ export function SettingsScreen() {
     </section>
   );
 }
-

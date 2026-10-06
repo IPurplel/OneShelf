@@ -31,6 +31,7 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
   const { t, direction } = useI18n();
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [book, setBook] = useState<Epub | null>(null);
   const [chapterIndex, setChapterIndex] = useState(0);
   const [html, setHtml] = useState("");
@@ -68,7 +69,7 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
       }
     })();
     return () => { live = false; };
-  }, [unitId, format, t]);
+  }, [unitId, format, t, attempt]);
 
   useEffect(() => {
     if (bytes === null || format !== "epub") return;
@@ -121,8 +122,18 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
   if (failure !== null) {
     return (
       <div className="reader reader--white">
-        <p className="notice notice--problem" role="alert">{failure}</p>
-        <Link className="button" to={workLink(workId, trackId)}>{t("reader.backToWork")}</Link>
+        <div className="reader__failure">
+          <p className="notice notice--problem" role="alert">{failure}</p>
+          <div className="reader__failureActions">
+            <button type="button" className="button" onClick={() => {
+              setFailure(null);
+              setBytes(null);
+              setBook(null);
+              setAttempt(current => current + 1);
+            }}>{t("reader.retry")}</button>
+            <Link className="button" to={workLink(workId, trackId)} onClick={flush}>{t("reader.backToWork")}</Link>
+          </div>
+        </div>
       </div>
     );
   }
@@ -236,12 +247,14 @@ function BookContents({ book, current, marks, onGo, onClose }: {
       <div className="drawer__filters" role="tablist" aria-label={t("reader.contents")}>
         {(["toc", "bookmarks", "highlights"] as const).map((candidate) => (
           <button key={candidate} type="button" role="tab" className="chip" aria-selected={tab === candidate}
+                  id={`book-contents-tab-${candidate}`} aria-controls="book-contents-panel"
                   onClick={() => setTab(candidate)}>
             {t(`book.tab.${candidate}` as const)}
           </button>
         ))}
       </div>
 
+      <div role="tabpanel" id="book-contents-panel" aria-labelledby={`book-contents-tab-${tab}`} tabIndex={0}>
       {tab === "toc" && (
         <ul className="drawer__units">
           {(book?.spine ?? []).map((item, index) => (
@@ -286,6 +299,7 @@ function BookContents({ book, current, marks, onGo, onClose }: {
           {marks.highlights.length === 0 && <li className="shelf__empty">{t("book.noHighlights")}</li>}
         </ul>
       )}
+      </div>
     </Drawer>
   );
 }

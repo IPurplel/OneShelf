@@ -1,4 +1,6 @@
-import { api } from "@/api/client";
+import { useState } from "react";
+
+import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 
@@ -13,20 +15,26 @@ type NotificationSettings = { source_recovered: boolean };
  */
 export function NotificationSettingsPanel() {
   const { t } = useI18n();
-  const { data, reload } = useResource<NotificationSettings>("/api/notifications/settings");
+  const { data, error, reload } = useResource<NotificationSettings>("/api/notifications/settings");
+  const [problem, setProblem] = useState<string | null>(null);
 
-  if (data === null) return <section className="paper"><p>{t("state.loading")}</p></section>;
+  if (data === null) return <section className="paper">{error !== null ? <>
+    <p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+    <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button>
+  </> : <p>{t("state.loading")}</p>}</section>;
 
   return (
     <section className="paper">
       <h2 className="display">{t("settings.notifications")}</h2>
       <p className="firstrun__lede">{t("settings.notifications.help")}</p>
+      {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
 
       <label className="panel__choice">
         <input type="checkbox" checked={data.source_recovered}
                onChange={() => {
+                 setProblem(null);
                  void api.post("/api/notifications/settings", { source_recovered: !data.source_recovered })
-                   .finally(reload);
+                   .then(reload).catch(error => setProblem(error instanceof ApiError ? error.message : t("state.offline")));
                }} />
         <span>
           <span className="panel__choiceTitle">{t("settings.notifications.recovered")}</span>

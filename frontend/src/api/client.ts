@@ -29,7 +29,8 @@ async function request<T>(method: string, path: string, options: { body?: unknow
   const payload = text ? JSON.parse(text) : null;
   if (!response.ok) {
     const error = payload?.error ?? {};
-    throw new ApiError(response.status, error.code ?? "REQUEST_FAILED", error.message ?? response.statusText);
+    throw new ApiError(response.status, error.code ?? "REQUEST_FAILED",
+      error.message || response.statusText || `Could not complete the request (HTTP ${response.status}).`);
   }
   return payload as T;
 }

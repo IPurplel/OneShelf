@@ -40,6 +40,15 @@ async function openWizard() {
 }
 
 describe("Export", () => {
+  it("loads the Work track selected on the Details page", async () => {
+    const arabic = { ...WORK, tracks: [...WORK.tracks, { ...WORK.tracks[0], id: "t-ar", source_id: "alpha", language: "ar" }],
+      selected_track_id: "t-ar", units: [{ ...WORK.units[0], id: "u-ar", title: "الفصل ١" }] };
+    const calls = mockApi([get("/api/works/w1", arabic)]);
+    renderWithProviders(<ExportWizard workId="w1" trackId="t-ar" onClose={() => {}} />);
+    expect(await screen.findByText("الفصل ١")).toBeInTheDocument();
+    expect(calls).toContainEqual({ url: "/api/works/w1?track_id=t-ar", method: "GET", body: undefined });
+  });
+
   it("walks content, format, destination and review in that order", async () => {
     mockApi([get("/api/works/w1", WORK), post("/api/export/preview", { ...PREVIEW, missing_units: [], disclosure: null })]);
     const user = await openWizard();

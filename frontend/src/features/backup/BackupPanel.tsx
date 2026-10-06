@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
+import { ModalSurface } from "@/components/ModalSurface";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
 import { bytes } from "@/lib/format";
@@ -25,6 +26,8 @@ type Preflight = {
   ok: boolean; compatible: boolean; kind: string; schema_version: number;
   counts: Record<string, number>; plugins: PluginRequirement[]; space_needed: number; issues: string[];
 };
+const COUNT_KEYS = new Set(["works", "source_tracks", "reading_units", "assets", "shelf_entries", "follows",
+  "reading_state", "work_mappings", "user_overrides", "settings", "reading_bookmarks", "reading_highlights"]);
 
 /**
  * Backup and Restore (Master §33, §32.15).
@@ -34,8 +37,8 @@ type Preflight = {
  * takes a Safety Snapshot first — and only then can it run. An archive OneShelf cannot accept says why.
  */
 export function BackupPanel() {
-  const { t } = useI18n();
-  const { data, reload } = useResource<BackupsResponse>("/api/backups");
+  const { t, language } = useI18n();
+  const { data, error, reload } = useResource<BackupsResponse>("/api/backups");
   const [restoring, setRestoring] = useState<Backup | null>(null);
   const [preflight, setPreflight] = useState<Preflight | null>(null);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
@@ -85,6 +88,9 @@ export function BackupPanel() {
     <section className="paper">
       <h2 className="display">{t("backup.title")}</h2>
 
+      {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+        <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
+
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
       {message !== null && <p className="notice" role="status">{message}</p>}
       {data?.location_warning?.same_device_as_library && (
@@ -96,7 +102,7 @@ export function BackupPanel() {
         {backups.map((backup) => (
           <li key={backup.path} className="cards__row">
             <span className="cards__name display">{t(`backup.kind.${backup.kind}` as StringKey)}</span>
-            <span className="cards__meta">{new Date(backup.created_at).toLocaleString()}</span>
+            <span className="cards__meta">{new Date(backup.created_at).toLocaleString(language)}</span>
             {backup.present ? (
               <>
                 <span className="cards__meta">{bytes(backup.size_bytes)}</span>
@@ -124,8 +130,10 @@ export function BackupPanel() {
       </div>
 
       {restoring !== null && (
-        <div className="confirm confirm--wide" role="dialog" aria-modal="true" aria-label={t("backup.restoreTitle")}>
+        <ModalSurface className="confirm confirm--wide" title={t("backup.restoreTitle")}
+                      onClose={() => setRestoring(null)}>
           <h2 className="display">{t("backup.restoreTitle")}</h2>
+          {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
 
           {preflight === null && problem === null && <p>{t("state.loading")}</p>}
 
@@ -135,7 +143,7 @@ export function BackupPanel() {
                 <h3>{t("backup.holds")}</h3>
                 <ul className="restore__counts">
                   {Object.entries(preflight.counts).map(([what, count]) => (
-                    <li key={what}>{count} {what.replace(/_/g, " ")}</li>
+                    <li key={what}>{count} {COUNT_KEYS.has(what) ? t(`backup.count.${what}` as StringKey) : what.replaceAll("_", " ")}</li>
                   ))}
                 </ul>
               </section>
@@ -192,7 +200,7 @@ export function BackupPanel() {
               </button>
             )}
           </div>
-        </div>
+        </ModalSurface>
       )}
     </section>
   );

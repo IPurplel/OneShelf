@@ -1,8 +1,11 @@
-import { api } from "@/api/client";
+import { useState } from "react";
+
+import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
 import { Advanced } from "./Advanced";
+import { NumberSetting } from "./NumberSetting";
 
 type DownloadSettings = {
   auto_download: { enabled: boolean; mode: "current" | "read_ahead"; read_ahead: number; threshold: number };
@@ -23,12 +26,15 @@ const MODES = ["preferred_ask", "strict", "automatic"] as const;
 export function DownloadSettingsPanel() {
   const { t } = useI18n();
   const { data, error, loading, reload } = useResource<DownloadSettings>("/api/downloads/settings");
+  const [problem, setProblem] = useState<string | null>(null);
 
   const write = async (body: Record<string, unknown>) => {
+    setProblem(null);
     try {
       await api.post("/api/downloads/settings", body);
-    } finally {
       reload();
+    } catch (error) {
+      setProblem(t("settings.notSaved", { message: error instanceof ApiError ? error.message : t("state.offline") }));
     }
   };
 
@@ -41,6 +47,7 @@ export function DownloadSettingsPanel() {
 
   return (
     <section className="paper">
+      {problem && <p className="notice notice--problem" role="alert">{problem}</p>}
       <h2 className="display">{t("settings.downloads")}</h2>
       <p className="firstrun__lede">{t("settings.downloads.help")}</p>
 
@@ -66,14 +73,11 @@ export function DownloadSettingsPanel() {
             ))}
           </fieldset>
           {auto.mode === "read_ahead" && (
-            <label className="field__label">
-              {t("settings.downloads.readAhead")}
-              <input type="number" className="field" min={1} max={20} defaultValue={auto.read_ahead}
-                     onBlur={(event) => {
-                       const value = Number(event.target.value);
-                       if (value !== auto.read_ahead) void write({ auto_download: { read_ahead: value } });
-                     }} />
-            </label>
+            <NumberSetting label={t("settings.downloads.readAhead")} value={auto.read_ahead} min={1} max={20}
+              onSave={async value => {
+                await api.post("/api/downloads/settings", { auto_download: { read_ahead: value } });
+                reload();
+              }} />
           )}
         </>
       )}

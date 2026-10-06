@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
+import { capabilityLabel, channelLabel, trustLabel } from "@/i18n/sourceLabels";
 import { Advanced } from "./Advanced";
 
 type Source = {
@@ -20,13 +21,15 @@ type Source = {
  */
 export function SourceSettingsPanel() {
   const { t } = useI18n();
-  const { data } = useResource<{ sources: Source[] }>("/api/sources");
+  const { data, error, reload } = useResource<{ sources: Source[] }>("/api/sources");
   const sources = data?.sources ?? [];
 
   return (
     <section className="paper">
       <h2 className="display">{t("settings.sources")}</h2>
       <p className="firstrun__lede">{t("settings.sources.help")}</p>
+      {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+        <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
 
       {data !== null && sources.length === 0 && <p className="shelf__empty">{t("sources.empty")}</p>}
 
@@ -34,7 +37,7 @@ export function SourceSettingsPanel() {
         {sources.map((source) => (
           <li key={source.id} className="cards__row">
             <span className="cards__name display">{source.name}</span>
-            <span className="cards__meta">{source.capabilities.join(" · ")}</span>
+            <span className="cards__meta">{source.capabilities.map(value => capabilityLabel(value, t)).join(" · ")}</span>
             <span className={`cards__state cards__state--${source.state}`}>
               {t(`sources.state.${source.state}` as StringKey)}
             </span>
@@ -53,8 +56,8 @@ export function SourceSettingsPanel() {
             <li key={source.id} className="cards__row">
               <span className="cards__name">{source.id}</span>
               <span className="cards__meta">{source.version ?? "—"}</span>
-              <span className="cards__meta">{source.trust_label}</span>
-              <span className="cards__meta">{source.channel}</span>
+              <span className="cards__meta">{trustLabel(source.trust_label, t)}</span>
+              <span className="cards__meta">{channelLabel(source.channel, t)}</span>
             </li>
           ))}
         </ul>

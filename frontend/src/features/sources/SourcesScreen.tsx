@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { api } from "@/api/client";
+import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
@@ -9,6 +9,7 @@ import { LoginSession } from "./LoginSession";
 import { RegistryPanel } from "./RegistryPanel";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
+import { capabilityLabel, channelLabel, trustLabel } from "@/i18n/sourceLabels";
 import { useLive } from "@/app/live";
 
 type Source = {
@@ -42,13 +43,14 @@ function originKey(source: Source): StringKey | null {
  */
 export function SourcesScreen() {
   const { t } = useI18n();
-  const { data, reload } = useResource<{ sources: Source[] }>("/api/sources");
+  const { data, error, reload } = useResource<{ sources: Source[] }>("/api/sources");
 
   // §21, §36: a session that connects or expires elsewhere shows here without a refresh.
   useLive(["source.session"], reload);
   const [open, setOpen] = useState<Source | null>(null);
   const [signingIn, setSigningIn] = useState<Source | null>(null);
   const [removing, setRemoving] = useState<Source | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   // Anything that changes what is installed changes what the Registry section should say.
   const [revision, setRevision] = useState(0);
   const changed = () => { reload(); setRevision((n) => n + 1); };
@@ -57,10 +59,14 @@ export function SourcesScreen() {
   const sources = (data?.sources ?? []).filter((source) => source.state !== "uninstalled");
 
   const act = async (call: Promise<unknown>) => {
+    setProblem(null);
     try {
       await call;
-    } finally {
       setOpen(null);
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setOpen(null);
+    } finally {
       changed();
     }
   };
@@ -70,13 +76,17 @@ export function SourcesScreen() {
       <h1 className="screen__title">{t("sources.title")}</h1>
       <h2 className="display">{t("sources.installed")}</h2>
 
+      {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+        <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
+      {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+
       {data !== null && sources.length === 0 && <p className="shelf__empty">{t("sources.empty")}</p>}
 
       <ul className="cards">
         {sources.map((source) => (
           <li key={source.id} className="cards__row">
             <span className="cards__name display">{source.name}</span>
-            <span className="cards__meta">{source.capabilities.join(" · ")}</span>
+            <span className="cards__meta">{source.capabilities.map(value => capabilityLabel(value, t)).join(" · ")}</span>
             {/* Where it came from: bundled with OneShelf, the Registry, or a file the person chose. */}
             {originKey(source) !== null && <span className="chip chip--static">{t(originKey(source)!)}</span>}
             <span className={`cards__state cards__state--${source.state}`}>
@@ -93,9 +103,9 @@ export function SourcesScreen() {
         <Drawer title={open.name} onClose={() => setOpen(null)}>
           <dl className="details">
             <dt>{t("sources.version")}</dt><dd>{open.version ?? "—"}</dd>
-            <dt>{t("sources.channel")}</dt><dd>{open.channel}</dd>
-            <dt>{t("sources.trust")}</dt><dd>{open.trust_label}</dd>
-            <dt>{t("sources.capabilities")}</dt><dd>{open.capabilities.join(", ")}</dd>
+            <dt>{t("sources.channel")}</dt><dd>{channelLabel(open.channel, t)}</dd>
+            <dt>{t("sources.trust")}</dt><dd>{trustLabel(open.trust_label, t)}</dd>
+            <dt>{t("sources.capabilities")}</dt><dd>{open.capabilities.map(value => capabilityLabel(value, t)).join(", ")}</dd>
           </dl>
           <div className="drawer__actions">
             {open.state === "active" ? (

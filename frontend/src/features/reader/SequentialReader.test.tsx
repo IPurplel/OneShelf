@@ -604,9 +604,31 @@ describe("Sequential Reader", () => {
     expect(within(failure).getByRole("button", { name: /try again/i })).toBeInTheDocument();
     expect(within(failure).getByRole("button", { name: /skip this page/i })).toBeInTheDocument();
 
+    await user.click(within(failure).getByRole("button", { name: /try again/i }));
+    expect(screen.getByRole("img", { name: /page 2/i })).toHaveAttribute("src", "/api/reader/units/u2/pages/2?retry=1");
+    fireEvent.error(screen.getByRole("img", { name: /page 2/i }));
+
     await user.click(within(failure).getByRole("button", { name: /repair from the source/i }));
     const repair = calls.find((call) => call.method === "POST" && call.url === "/api/downloads");
     expect(repair?.body).toEqual({ unit_ids: ["u2"], repair: true });
+  });
+
+  it("retries a failed pages request and then renders the returned pages", async () => {
+    stub();
+    const original = globalThis.fetch;
+    let fail = true;
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/reader/units/u2/pages" && fail) {
+        return Promise.resolve(Response.json({ error: { message: "Pages unavailable" } }, { status: 503 }));
+      }
+      return original(input, init);
+    }));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Pages unavailable");
+    fail = false;
+    await user.click(screen.getByRole("button", { name: /try again/i }));
+    expect(await screen.findAllByRole("img", { name: /page \d/i })).toHaveLength(3);
   });
 
   it("moves through the unit with a scrubber that respects reading direction", async () => {

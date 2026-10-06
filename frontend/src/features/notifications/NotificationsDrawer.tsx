@@ -1,4 +1,5 @@
-import { api } from "@/api/client";
+import { ApiError, api } from "@/api/client";
+import { useState } from "react";
 import { useResource } from "@/api/useApi";
 import type { NotificationsResponse } from "@/api/types";
 import { Drawer } from "@/components/Drawer";
@@ -17,14 +18,18 @@ export function NotificationsDrawer({ attentionOnly = false, onClose }: {
 }) {
   const { t } = useI18n();
   const counts = useNotifications();
-  const { data, reload } = useResource<NotificationsResponse>("/api/notifications",
+  const { data, error, reload } = useResource<NotificationsResponse>("/api/notifications",
     attentionOnly ? { attention: true } : undefined);
+  const [problem, setProblem] = useState<string | null>(null);
 
   const items = data?.notifications ?? [];
 
   const act = async (call: Promise<unknown>) => {
+    setProblem(null);
     try {
       await call;
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
     } finally {
       reload();
       void counts.refresh();
@@ -33,6 +38,9 @@ export function NotificationsDrawer({ attentionOnly = false, onClose }: {
 
   return (
     <Drawer title={attentionOnly ? t("notify.attention") : t("notify.title")} onClose={onClose}>
+      {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+        <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
+      {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
       {!attentionOnly && (
         <div className="drawer__filters">
           <button type="button" className="chip" onClick={() => void act(api.post("/api/notifications/mark-all-seen"))}>

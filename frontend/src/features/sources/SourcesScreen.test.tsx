@@ -23,6 +23,18 @@ const HEALTH = { source_id: "oneshelf.mangadex", state: "healthy", last_successf
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Sources", () => {
+  it("uses Arabic labels for capabilities and technical source details", async () => {
+    mockApi([get("/api/sources", SOURCES)]);
+    const user = userEvent.setup();
+    renderWithProviders(<SourcesScreen />, { language: "ar" });
+    const rows = await screen.findAllByRole("listitem");
+    expect(rows[0]).toHaveTextContent("بحث");
+    expect(rows[0]).not.toHaveTextContent("search · work");
+    await user.click(within(rows[0]!).getByRole("button", { name: /المزيد/i }));
+    const dialog = screen.getByRole("dialog", { name: "MangaDex" });
+    expect(within(dialog).getByText("السجلّ")).toBeInTheDocument();
+    expect(within(dialog).getByText("رسمي")).toBeInTheDocument();
+  });
   it("lists each source with what it does and how it is doing", async () => {
     mockApi([get("/api/sources", SOURCES), get("/api/sources/oneshelf.mangadex/health/state", HEALTH)]);
     renderWithProviders(<SourcesScreen />);

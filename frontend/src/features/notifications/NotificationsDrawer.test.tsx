@@ -23,6 +23,15 @@ const ITEMS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Notifications", () => {
+  it("shows a failed inbox action without closing the drawer", async () => {
+    mockApi([get("/api/notifications", ITEMS),
+      post("/api/notifications/mark-all-seen", { error: { message: "Could not mark seen" } }, 503)]);
+    const user = userEvent.setup();
+    renderWithProviders(<NotificationsDrawer onClose={() => {}} />);
+    await user.click(await screen.findByRole("button", { name: /mark all as seen/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not mark seen");
+    expect(screen.getByRole("dialog", { name: /notifications/i })).toBeInTheDocument();
+  });
   it("lists what happened, newest first, marking what is unseen", async () => {
     mockApi([get("/api/notifications", ITEMS)]);
     renderWithProviders(<NotificationsDrawer onClose={() => {}} />);

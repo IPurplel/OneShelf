@@ -102,7 +102,8 @@ async def work_details(request: Request, work_id: str, track_id: str | None = No
 
     units = _units(conn, selected["id"]) if selected else []
     shelf = conn.execute("SELECT * FROM shelf_entries WHERE work_id = ?", (work_id,)).fetchone()
-    follow = conn.execute("SELECT * FROM follows WHERE work_id = ?", (work_id,)).fetchone()
+    follow = conn.execute("SELECT * FROM follows WHERE work_id = ? AND language = ?",
+                          (work_id, selected["language"])).fetchone() if selected else None
     aliases = [r[0] for r in conn.execute("SELECT title FROM work_aliases WHERE work_id = ?", (work_id,))]
 
     return {

@@ -20,6 +20,19 @@ const ROOTS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Storage", () => {
+  it("keeps a failed Add dialog open with its entered values", async () => {
+    mockApi([get("/api/storage", ROOTS),
+      post("/api/storage/roots", { error: { message: "Location unavailable" } }, 503)]);
+    const user = userEvent.setup();
+    renderWithProviders(<StoragePanel />);
+    await user.click(await screen.findByRole("button", { name: /add a location/i }));
+    const dialog = screen.getByRole("dialog", { name: /add a storage location/i });
+    await user.type(within(dialog).getByRole("textbox", { name: /folder/i }), "/books");
+    await user.type(within(dialog).getByRole("textbox", { name: /name/i }), "Books");
+    await user.click(within(dialog).getByRole("button", { name: /^add$/i }));
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Location unavailable");
+    expect(within(dialog).getByRole("textbox", { name: /folder/i })).toHaveValue("/books");
+  });
   it("shows each location with its space, and names an unavailable one without alarm", async () => {
     mockApi([get("/api/storage", ROOTS)]);
     renderWithProviders(<StoragePanel />);

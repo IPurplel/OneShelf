@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { ApiError, api } from "@/api/client";
+import { ModalSurface } from "@/components/ModalSurface";
 import { useI18n } from "@/i18n/i18n";
 
 /** The window OneShelf opens is a real browser at this size; clicks are relayed in its own pixels. */
@@ -101,7 +102,7 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
   const connected = outcome?.outcome === "connected";
 
   return (
-    <div className="confirm confirm--wide" role="dialog" aria-modal="true" aria-label={t("login.title")}>
+    <ModalSurface className="confirm confirm--wide" title={t("login.title")} onClose={() => void cancel()}>
       <h2 className="display">{t("login.title", { name: sourceName })}</h2>
 
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
@@ -149,6 +150,6 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
           </button>
         )}
       </div>
-    </div>
+    </ModalSurface>
   );
 }

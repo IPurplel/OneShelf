@@ -2,6 +2,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { WorkScreen } from "./WorkScreen";
 import { renderWithProviders } from "@/test/render";
@@ -33,6 +34,103 @@ const DETAILS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Work Details", () => {
+  it("localizes its metadata labels in Arabic", async () => {
+    mockApi([get("/api/works/w1", DETAILS)]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />, { language: "ar" });
+    await user.click(await screen.findByRole("tab", { name: /التفاصيل/i }));
+    const panel = screen.getByRole("tabpanel");
+    expect(within(panel).getByText("المؤلف")).toBeInTheDocument();
+    expect(within(panel).getByText("النوع")).toBeInTheDocument();
+    expect(within(panel).queryByText("Creator")).toBeNull();
+  });
+  it("keeps a chosen track in the URL through history navigation", async () => {
+    const calls = mockApi([
+      { match: url => url === "/api/works/w1?track_id=t-ar",
+        payload: { ...DETAILS, selected_track_id: "t-ar" } },
+      get("/api/works/w1", DETAILS),
+    ]);
+    function Location() {
+      const location = useLocation();
+      const navigate = useNavigate();
+      return <><output data-testid="location">{location.pathname + location.search}</output>
+        <button type="button" onClick={() => navigate(-1)}>Go back</button></>;
+    }
+    const user = userEvent.setup();
+    renderWithProviders(<><WorkScreen workId="w1" /><Location /></>, { route: "/works/w1?track=t-en" });
+    await screen.findByRole("heading", { level: 1 });
+    await user.click(screen.getByRole("tab", { name: /sources/i }));
+    await user.click(await screen.findByRole("button", { name: /mangadex/i }));
+    expect(screen.getByTestId("location")).toHaveTextContent("/works/w1?track=t-ar");
+    await user.click(screen.getByRole("button", { name: "Go back" }));
+    expect(screen.getByTestId("location")).toHaveTextContent("/works/w1?track=t-en");
+    expect(calls.at(-1)?.url).toBe("/api/works/w1?track_id=t-en");
+  });
+  it("follows the selected language and source track with the required API body", async () => {
+    const calls = mockApi([
+      get("/api/works/w1", { ...DETAILS, selected_track_id: "t-ar" }),
+      post("/api/follows/w1", { work_id: "w1" }),
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-ar" });
+    await user.click(await screen.findByRole("button", { name: /^follow$/i }));
+    expect(calls).toContainEqual({
+      url: "/api/follows/w1", method: "POST",
+      body: { language: "ar", source_id: "mangadex", track_id: "t-ar" },
+    });
+  });
+
+  it("unfollows only the selected language", async () => {
+    const calls = mockApi([
+      get("/api/works/w1", { ...DETAILS, selected_track_id: "t-ar",
+        follow: { following: true, preferred_source_id: "mangadex", track_id: "t-ar", language: "ar",
+          last_successful_at: null } }),
+      del("/api/follows/w1", { undo_token: "undo" }),
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-ar" });
+    await user.click(await screen.findByRole("button", { name: /^unfollow$/i }));
+    expect(calls).toContainEqual({ url: "/api/follows/w1?language=ar", method: "DELETE", body: undefined });
+  });
+
+  it("offers to follow a different track in the same language by changing the preferred source", async () => {
+    const alternate = { id: "t-en-other", source_id: "other", language: "en", kind: "source",
+      availability: "available", unit_count: 3 };
+    const calls = mockApi([
+      get("/api/works/w1", { ...DETAILS, tracks: [...DETAILS.tracks, alternate],
+        selected_track_id: alternate.id,
+        follow: { following: true, preferred_source_id: "local", track_id: "t-en", language: "en",
+          last_successful_at: null } }),
+      post("/api/follows/w1/preferred-source", { work_id: "w1" }),
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-en-other" });
+    const follow = await screen.findByRole("button", { name: /^follow$/i });
+    expect(follow).toHaveAttribute("aria-pressed", "false");
+    await user.click(follow);
+    expect(calls).toContainEqual({ url: "/api/follows/w1/preferred-source", method: "POST",
+      body: { language: "en", source_id: "other", track_id: "t-en-other" } });
+  });
+
+  it("keeps the follow action available and reports a failed request", async () => {
+    mockApi([get("/api/works/w1", DETAILS),
+      post("/api/follows/w1", { error: { message: "Follow could not be saved" } }, 503)]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await user.click(await screen.findByRole("button", { name: /^follow$/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Follow could not be saved");
+    expect(screen.getByRole("button", { name: /^follow$/i })).toBeInTheDocument();
+  });
+  it("reports a failed unit download without losing the reading index", async () => {
+    mockApi([get("/api/works/w1", DETAILS),
+      post("/api/downloads", { error: { message: "Download unavailable" } }, 503)]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    const index = await screen.findByRole("list", { name: /reading units/i });
+    await user.click(within(index).getByRole("button", { name: /^download$/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Download unavailable");
+    expect(within(index).getByText("Chapter 3.5")).toBeInTheDocument();
+  });
   it("can refresh the selected track's catalogue, as its empty state says", async () => {
     const empty = { ...DETAILS, units: [], continue_unit_id: null,
                     tracks: [{ ...DETAILS.tracks[1], unit_count: 0 }], selected_track_id: "t-ar" };

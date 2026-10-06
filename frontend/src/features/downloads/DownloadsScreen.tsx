@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { api } from "@/api/client";
+import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 import { useLive } from "@/app/live";
@@ -20,15 +20,19 @@ type Batch = {
 /** Downloads (Master §16, §32.11): warm paper panels, real states, no shelves and no analytics. */
 export function DownloadsScreen() {
   const { t } = useI18n();
-  const { data, reload } = useResource<{ batches: Batch[] }>("/api/downloads");
+  const { data, error, reload } = useResource<{ batches: Batch[] }>("/api/downloads");
 
   // §36: the queue moves on its own, so the screen follows the library rather than a guess or a refresh.
   useLive(["download.batch", "download.job"], reload);
   const [confirming, setConfirming] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
 
   const act = async (call: Promise<unknown>) => {
+    setProblem(null);
     try {
       await call;
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
     } finally {
       reload();
     }
@@ -45,12 +49,16 @@ export function DownloadsScreen() {
         )}
       </div>
 
+      {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+        <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
+      {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+
       {data !== null && batches.length === 0 && <p className="shelf__empty">{t("downloads.empty")}</p>}
 
       <ul className="batches">
         {batches.map((batch) => (
           <li key={batch.batch_id} className="batches__row">
-            <span className={`batches__state batches__state--${batch.state}`}>{batch.state.replace(/_/g, " ")}</span>
+            <span className={`batches__state batches__state--${batch.state}`}>{t(`downloads.state.${batch.state}`)}</span>
             <span className="batches__counts">
               <span>{t("downloads.done", { count: batch.completed })}</span>
               {batch.pending > 0 && <span>{t("downloads.waiting", { count: batch.pending })}</span>}

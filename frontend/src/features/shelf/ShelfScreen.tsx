@@ -2,12 +2,13 @@ import { useMemo, useState } from "react";
 
 import { useResource } from "@/api/useApi";
 import { Icon } from "@/components/Icon";
+import { ModalSurface } from "@/components/ModalSurface";
 import type { ShelfResponse } from "@/api/types";
 import { WorkCard } from "@/components/WorkCard";
 import { useShelfColumns } from "./useShelfColumns";
 import { RemoveFromShelf } from "./RemoveFromShelf";
 import type { RemovalSummary } from "./RemoveFromShelf";
-import { api } from "@/api/client";
+import { ApiError, api } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
 
@@ -33,6 +34,7 @@ export function ShelfScreen() {
   const [sort, setSort] = useState<"added" | "title">("added");
   const [managing, setManaging] = useState<{ work_id: string; title: string } | null>(null);
   const [removing, setRemoving] = useState<{ summary: RemovalSummary; title: string } | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
   const { data, error, reload } = useResource<ShelfResponse>("/api/shelf",
     query.trim() ? { q: query.trim() } : { view });
 
@@ -48,6 +50,7 @@ export function ShelfScreen() {
 
   /** The same removal a work's own page offers, from a row, with the same facts and the same words. */
   const startRemoval = async (work_id: string, title: string) => {
+    setProblem(null);
     setManaging(null);
     try {
       const summary = await api.get<RemovalSummary>(`/api/shelf/${work_id}/removal-summary`);
@@ -57,15 +60,18 @@ export function ShelfScreen() {
         return;
       }
       setRemoving({ summary, title });
-    } catch {
-      // A library that cannot be reached removes nothing; the row stays as it is.
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
     }
   };
 
   const remove = async (summary: RemovalSummary, deleteFiles: boolean) => {
     setRemoving(null);
+    setProblem(null);
     try {
       await api.delete(`/api/shelf/${summary.work_id}?delete_files=${deleteFiles}`);
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
     } finally {
       reload();
     }
@@ -79,6 +85,7 @@ export function ShelfScreen() {
         <div className="toolbar__tabs" role="tablist" aria-label={t("shelf.views")}>
           {VIEWS.map((candidate) => (
             <button key={candidate.id} type="button" role="tab" className="chip"
+                    id={`shelf-tab-${candidate.id}`} aria-controls="shelf-tabpanel"
                     aria-selected={view === candidate.id && query.trim() === ""}
                     onClick={() => { setView(candidate.id); setQuery(""); }}>
               {t(candidate.labelKey)}
@@ -104,8 +111,11 @@ export function ShelfScreen() {
         </div>
       </div>
 
-      {error !== null && <p className="notice notice--problem" role="alert">{t("state.offline")}</p>}
+      {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+        <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
+      {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
 
+      <div role="tabpanel" id="shelf-tabpanel" aria-labelledby={`shelf-tab-${view}`} tabIndex={0}>
       <section ref={shelfRef} className="shelfview" role="region" aria-label={t("shelf.title")} data-layout={layout}>
         {entries.length === 0 && data !== null && <p className="shelf__empty">{t("shelf.empty")}</p>}
         {layout === "list" ? (
@@ -131,10 +141,11 @@ export function ShelfScreen() {
           ))
         )}
       </section>
+      </div>
 
       {managing !== null && (
-        <div className="confirm" role="dialog" aria-modal="true"
-             aria-label={t("shelf.manage.title", { title: managing.title })}>
+        <ModalSurface className="confirm" title={t("shelf.manage.title", { title: managing.title })}
+                      onClose={() => setManaging(null)}>
           <h2 className="display">{managing.title}</h2>
           <div className="confirm__actions">
             <button type="button" className="button" onClick={() => setManaging(null)}>{t("common.cancel")}</button>
@@ -143,7 +154,7 @@ export function ShelfScreen() {
               {t("shelf.remove.action")}
             </button>
           </div>
-        </div>
+        </ModalSurface>
       )}
 
       {removing !== null && (

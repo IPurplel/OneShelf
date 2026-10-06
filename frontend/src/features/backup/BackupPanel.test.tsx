@@ -31,6 +31,16 @@ const PREFLIGHT = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Backup", () => {
+  it("names archive contents in Arabic instead of exposing database table names", async () => {
+    mockApi([get("/api/backups", BACKUPS), post("/api/restore/preflight", PREFLIGHT)]);
+    const user = userEvent.setup();
+    renderWithProviders(<BackupPanel />, { language: "ar" });
+    await user.click((await screen.findAllByRole("button", { name: /استعادة/i }))[0]!);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("12 عملًا")).toBeInTheDocument();
+    expect(within(dialog).getByText("12 مدخل رفّ")).toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent("shelf entries");
+  });
   it("lists archives and warns when they share a disk with the library", async () => {
     mockApi([get("/api/backups", BACKUPS)]);
     renderWithProviders(<BackupPanel />);

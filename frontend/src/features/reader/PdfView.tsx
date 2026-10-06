@@ -62,6 +62,7 @@ export function PdfView({ unitId, data, workId, trackId, onProgress, onLeave, st
   const [text, setText] = useState("");
   const [panel, setPanel] = useState<null | "search" | "highlight" | "marks">(null);
   const [failure, setFailure] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const marks = useBookMarks(unitId);
   const resumed = useRef<string | null>(null);
   const frame = useRef<HTMLDivElement | null>(null);
@@ -144,30 +145,34 @@ export function PdfView({ unitId, data, workId, trackId, onProgress, onLeave, st
       }
     })();
     return () => { live = false; };
-  }, [data]);
+  }, [data, attempt]);
 
   useEffect(() => {
     if (document_ === null) return;
     let live = true;
     void (async () => {
-      const rendered = await document_.getPage(page);
-      if (!live) return;
-      // Measure at the base scale, then draw at the scale the fit and the zoom ask for.
-      const measured = rendered.getViewport({ scale: BASE_SCALE });
-      const viewport = rendered.getViewport({ scale: scaleFor(measured) });
-      const target = canvas.current;
-      if (target !== null) {
-        target.width = viewport.width;
-        target.height = viewport.height;
-        const context = target.getContext("2d");
-        if (context !== null) await rendered.render({ canvasContext: context, viewport, canvas: target }).promise;
+      try {
+        const rendered = await document_.getPage(page);
+        if (!live) return;
+        // Measure at the base scale, then draw at the scale the fit and the zoom ask for.
+        const measured = rendered.getViewport({ scale: BASE_SCALE });
+        const viewport = rendered.getViewport({ scale: scaleFor(measured) });
+        const target = canvas.current;
+        if (target !== null) {
+          target.width = viewport.width;
+          target.height = viewport.height;
+          const context = target.getContext("2d");
+          if (context !== null) await rendered.render({ canvasContext: context, viewport, canvas: target }).promise;
+        }
+        if (!live) return;
+        setText(await pageText(document_, page));
+        onProgress(page / document_.numPages, { page });
+      } catch (error) {
+        if (live) setFailure(error instanceof Error ? error.message : t("state.offline"));
       }
-      if (!live) return;
-      setText(await pageText(document_, page));
-      onProgress(page / document_.numPages, { page });
     })();
     return () => { live = false; };
-  }, [document_, page, onProgress, scaleFor]);
+  }, [document_, page, onProgress, scaleFor, t]);
 
   useEffect(() => {
     if (document_ === null || storedPage === null || resumed.current === unitId) return;
@@ -183,7 +188,15 @@ export function PdfView({ unitId, data, workId, trackId, onProgress, onLeave, st
   }, [document_]);
 
   if (failure !== null) {
-    return <div className="reader reader--white"><p className="notice notice--problem" role="alert">{failure}</p></div>;
+    return <div className="reader reader--white">
+      <p className="notice notice--problem" role="alert">{failure}</p>
+      <button type="button" className="button" onClick={() => {
+        setFailure(null);
+        setDocument(null);
+        setAttempt(current => current + 1);
+      }}>{t("reader.retry")}</button>
+      <Link className="button" to={workLink(workId, trackId)} onClick={onLeave}>{t("reader.backToWork")}</Link>
+    </div>;
   }
 
   return (

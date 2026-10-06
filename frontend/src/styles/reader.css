@@ -9,6 +9,8 @@
 }
 .reader--dark { background: #1d1d1d; }
 .reader--white { background: #fff; color: #1c1b18; }
+.reader__failure { width: min(32rem, calc(100% - 2rem)); margin: auto; }
+.reader__failureActions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-block-start: var(--space-4); }
 
 .reader__bar {
   position: absolute;
@@ -128,6 +130,7 @@
   display: grid; gap: var(--space-3); justify-items: center;
   padding: var(--space-6); color: inherit;
 }
+.reader__failed .cards__meta { color: inherit; opacity: 0.8; }
 
 .reader__end {
   display: grid;

@@ -226,6 +226,21 @@ describe("Settings route", () => {
 
 
 describe("Settings failure recovery", () => {
+  it.each(["", "0", "21", "2.5"])("does not save invalid read-ahead value %s", async value => {
+    const enabled = { ...DOWNLOADS, auto_download: { ...DOWNLOADS.auto_download,
+      enabled: true, mode: "read_ahead" } };
+    const calls = mockApi([get("/api/downloads/settings", enabled)]);
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsScreen />, { route: "/settings/downloads" });
+    const input = await screen.findByRole("spinbutton", { name: /how many units ahead/i });
+    await user.clear(input);
+    if (value) await user.type(input, value);
+    await user.tab();
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(calls.filter(call => call.method === "POST")).toHaveLength(0);
+  });
+
   async function reader() {
     const user = userEvent.setup();
     renderWithProviders(<SettingsScreen />, { route: "/settings/reader" });

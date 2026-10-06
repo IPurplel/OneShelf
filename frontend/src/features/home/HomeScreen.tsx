@@ -16,13 +16,14 @@ import { useI18n } from "@/i18n/i18n";
  */
 export function HomeScreen() {
   const { t } = useI18n();
-  const { data, error } = useResource<HomeResponse>("/api/home");
+  const { data, error, reload } = useResource<HomeResponse>("/api/home");
 
   if (error !== null) {
     return (
       <section className="screen">
         <h1 className="screen__title">{t("home.welcome")}</h1>
-        <p className="notice notice--problem" role="alert">{t("state.offline")}</p>
+        <p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+        <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button>
       </section>
     );
   }

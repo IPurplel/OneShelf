@@ -68,7 +68,7 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
   const track = trackId ?? search.get("track");
   const { t, language } = useI18n();
 
-  const { data: pageData, error: pageError } = useResource<PagesResponse>(`/api/reader/units/${id}/pages`);
+  const { data: pageData, error: pageError, reload: reloadPages } = useResource<PagesResponse>(`/api/reader/units/${id}/pages`);
   const { data: details } = useResource<WorkDetails>(`/api/works/${work}`, track ? { track_id: track } : undefined);
   const { data: offer } = useResource<Alternatives>(`/api/reader/units/${id}/alternatives`);
   const { data: readerDefaults } = useResource<ReaderDefaults>("/api/reader/settings");
@@ -83,6 +83,7 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
   const [index, setIndex] = useState(0);
   const [atEnd, setAtEnd] = useState(false);
   const [failed, setFailed] = useState<Set<number>>(new Set());
+  const [pageRetries, setPageRetries] = useState<Map<number, number>>(new Map());
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
   const [repairing, setRepairing] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -162,6 +163,7 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
    */
   useEffect(() => {
     setFailed(new Set());
+    setPageRetries(new Map());
     setSkipped(new Set());
     setLoaded(new Set());
     setAtEnd(false);
@@ -453,7 +455,10 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
            onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
            style={{ "--reader-zoom": zoom, "--reader-pan-x": `${pan.x}px`,
                     "--reader-pan-y": `${pan.y}px` } as React.CSSProperties}>
-        {pageError !== null && <p className="notice notice--problem" role="alert">{t("state.offline")}</p>}
+        {pageError !== null && <>
+          <p className="notice notice--problem" role="alert">{pageError === "offline" ? t("state.offline") : pageError}</p>
+          <button type="button" className="button" onClick={reloadPages}>{t("reader.retry")}</button>
+        </>}
         {before > 0 && (
           <div className="reader__spacer" data-spacer="before" data-pages={before} aria-hidden="true"
                style={{ blockSize: `${before * pageHeight}px` }} />
@@ -466,11 +471,14 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
               <p>{t("reader.pageFailed")}</p>
               <p className="cards__meta">{t("reader.pageFailedHelp")}</p>
               <div className="firstrun__actions">
-                <button type="button" className="button" onClick={() => setFailed((set) => {
-                  const copy = new Set(set);
-                  copy.delete(page.index);
-                  return copy;
-                })}>{t("reader.retry")}</button>
+                <button type="button" className="button" onClick={() => {
+                  setPageRetries((retries) => new Map(retries).set(page.index, (retries.get(page.index) ?? 0) + 1));
+                  setFailed((set) => {
+                    const copy = new Set(set);
+                    copy.delete(page.index);
+                    return copy;
+                  });
+                }}>{t("reader.retry")}</button>
                 {/* Repair is the same download again, through the normal validated commit (§16.5). */}
                 <button type="button" className="button" disabled={repairing || unit?.integrity === "none"}
                         onClick={() => {
@@ -493,7 +501,7 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
                  className={`reader__frame${loaded.has(page.index) ? "" : " reader__page--skeleton"}`}
                  style={settings.mode === "long_strip" ? { minBlockSize: `${pageHeight}px` } : undefined}>
               <img className="reader__page"
-                   src={`/api/reader/units/${id}/pages/${page.index}`}
+                   src={`/api/reader/units/${id}/pages/${page.index}${pageRetries.has(page.index) ? `?retry=${pageRetries.get(page.index)}` : ""}`}
                    alt={t("reader.page", { index: page.label ?? page.index })} loading="lazy"
                    onLoad={(event) => {
                      setLoaded((set) => new Set(set).add(page.index));

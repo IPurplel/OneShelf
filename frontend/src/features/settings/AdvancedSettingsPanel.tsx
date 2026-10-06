@@ -29,13 +29,16 @@ type AuthState = {
  */
 export function AdvancedSettingsPanel() {
   const { t } = useI18n();
-  const { data, reload } = useResource<AuthState>("/api/auth/state");
-  const { data: diagnostics, reload: reloadDiagnostics } = useResource<Diagnostics>("/api/diagnostics");
+  const { data, error, reload } = useResource<AuthState>("/api/auth/state");
+  const { data: diagnostics, error: diagnosticsError, reload: reloadDiagnostics } = useResource<Diagnostics>("/api/diagnostics");
   const [networks, setNetworks] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  if (data === null) return <section className="paper"><p>{t("state.loading")}</p></section>;
+  if (data === null) return <section className="paper">{error !== null ? <>
+    <p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+    <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button>
+  </> : <p>{t("state.loading")}</p>}</section>;
   const current = networks ?? data.network.trusted_networks.join("\n");
 
   const save = async () => {
@@ -82,7 +85,10 @@ export function AdvancedSettingsPanel() {
       </div>
 
       <Advanced label={t("settings.advanced.diagnostics")}>
-        {diagnostics === null ? <p>{t("state.loading")}</p> : (
+        {diagnostics === null ? diagnosticsError !== null ? <>
+          <p className="notice notice--problem" role="alert">{diagnosticsError === "offline" ? t("state.offline") : diagnosticsError}</p>
+          <button type="button" className="button" onClick={reloadDiagnostics}>{t("reader.retry")}</button>
+        </> : <p>{t("state.loading")}</p> : (
           <>
             <p>{t("settings.advanced.diagnosticsHelp")}</p>
             <ul className="restore__counts">
@@ -94,7 +100,8 @@ export function AdvancedSettingsPanel() {
             <p className="cards__meta">{t("settings.advanced.diagnosticsLocal")}</p>
             <div className="firstrun__actions">
               <button type="button" className="button"
-                      onClick={() => { void api.delete("/api/diagnostics").finally(reloadDiagnostics); }}>
+                      onClick={() => { setProblem(null); void api.delete("/api/diagnostics")
+                        .then(reloadDiagnostics).catch(error => setProblem(error instanceof ApiError ? error.message : t("state.offline"))); }}>
                 {t("settings.advanced.diagnosticsClear")}
               </button>
             </div>

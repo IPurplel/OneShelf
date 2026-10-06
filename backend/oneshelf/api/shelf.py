@@ -74,8 +74,12 @@ class FollowBody(BaseModel):
 @router.get("/follows")
 async def list_follows(request: Request):
     s = services(request)
-    rows = s.conn.execute("SELECT work_id, language FROM follows ORDER BY created_at DESC, language").fetchall()
-    return {"follows": [asdict(s.follows.status(r[0], language=r[1])) for r in rows]}
+    rows = s.conn.execute(
+        "SELECT f.work_id, f.language, w.display_title AS work_title"
+        " FROM follows f JOIN works w ON w.id = f.work_id"
+        " ORDER BY f.created_at DESC, f.language").fetchall()
+    return {"follows": [{**asdict(s.follows.status(r["work_id"], language=r["language"])),
+                          "work_title": r["work_title"]} for r in rows]}
 
 
 class UndoBody(BaseModel):
