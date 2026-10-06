@@ -167,3 +167,17 @@ def test_inner_markup_keeps_only_what_is_inside(tmp_path):
 def test_markup_is_inner_or_outer_only(tmp_path):
     with pytest.raises(PackageError):
         package(tmp_path, html_reader(html={"css": "#text", "markup": "both"}))
+
+
+def test_links_resolve_against_the_document_s_own_base(tmp_path):
+    page = ("<html><head><base href='//wiki.example/wiki/'></head><body><div id='text'>"
+            "<p><a href='./Next_chapter'>next</a></p></div></body></html>")
+    result = run(package(tmp_path, html_reader()), {CHAPTER_URL: (200, page)}, unit_key="7")
+    assert 'href="https://wiki.example/wiki/Next_chapter"' in result.resources[0].html
+
+
+def test_a_base_that_is_not_http_is_ignored(tmp_path):
+    page = ("<html><head><base href='javascript:alert(1)//'></head><body><div id='text'>"
+            "<p><a href='/glossary'>g</a></p></div></body></html>")
+    result = run(package(tmp_path, html_reader()), {CHAPTER_URL: (200, page)}, unit_key="7")
+    assert 'href="https://books.example/glossary"' in result.resources[0].html

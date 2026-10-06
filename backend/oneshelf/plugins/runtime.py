@@ -172,6 +172,19 @@ def _inner_markup(outer: str) -> str:
                                           for child in element)
 
 
+def document_base(document: Any, url: str) -> str:
+    """Where a document's relative links point: its own <base href> when it declares one (as MediaWiki's
+    Parsoid HTML does), else the address it came from. Used only to resolve links in text units — never
+    to decide what is fetched."""
+    if isinstance(document, Selector):
+        declared = document.css("head base::attr(href)")
+        if declared:
+            base = _normalize_url(str(declared[0]), url)
+            if base and urlsplit(base).scheme in ("http", "https"):
+                return base
+    return url
+
+
 def required_fields(recipe: Recipe) -> list[str]:
     """Fields an item must carry. A reader item is an image page (url) or a text unit (html)."""
     required = [name for name, needed in FIELDS[recipe.capability].items() if needed]
@@ -427,6 +440,7 @@ class RecipeRuntime:
             evidence.pages += 1
 
             item_nodes = self._raw_items(recipe, document)[:MAX_ITEMS_PER_PAGE]
+            link_base = document_base(document, response.url) if text_units else response.url
             page_values = resolve_values(document, recipe.extract)
             page_fields = []
             for node in item_nodes:
@@ -435,7 +449,7 @@ class RecipeRuntime:
                 if text_units and isinstance(fields.get("html"), str):
                     # Sanitised here, so no caller ever holds unsanitised source markup (Master §27).
                     try:
-                        fields["html"] = sanitise(fields["html"], base_url=response.url) or None
+                        fields["html"] = sanitise(fields["html"], base_url=link_base) or None
                     except TextUnitTooLarge as exc:
                         fields["html"] = None
                         evidence.issues.append(Issue("catalog_validation_failure", str(exc), page_index + 1))
