@@ -152,7 +152,7 @@ def _api_at_least(declared: str, needed: tuple[int, int]) -> bool:
 def _uses_text_units(recipe: Recipe) -> bool:
     extract, pagination = recipe.extract, recipe.pagination
     specs = [*extract.fields.values(), *extract.values.values(), extract.items, pagination.total, pagination.next]
-    return "html" in extract.fields or any(spec is not None and spec.markup for spec in specs)
+    return "html" in extract.fields or any(spec is not None and spec.markup is not None for spec in specs)
 
 
 def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str, Recipe], tests: TestSuite,

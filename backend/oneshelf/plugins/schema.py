@@ -157,9 +157,11 @@ class FieldSpec(Strict):
     all: bool = False
     exists: bool = False
     required: bool = False
-    # The matched element's inner markup instead of its text (text reading units, API 1.2). A JSON
-    # string value is already markup, so this applies to css and xpath only.
-    markup: bool = False
+    # The matched element's markup instead of its text (text reading units, API 1.2): `inner` is what is
+    # inside it, `outer` includes the element itself — for joining chosen blocks with `all` and `join`,
+    # which is how a recipe leaves a site's navigation out. A JSON string value is already markup, so
+    # this applies to css and xpath only.
+    markup: Literal["inner", "outer"] | None = None
     transforms: list = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -169,7 +171,7 @@ class FieldSpec(Strict):
             raise ValueError("exactly one of css, xpath, json or template is required")
         if self.template is not None and (self.all or self.exists):
             raise ValueError("a template field cannot use all or exists")
-        if self.markup and (self.css is None and self.xpath is None or self.exists):
+        if self.markup is not None and (self.css is None and self.xpath is None or self.exists):
             raise ValueError("markup applies to a css or xpath selector that matches elements")
         try:
             if self.css is not None:
