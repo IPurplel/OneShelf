@@ -200,7 +200,7 @@ function firstHeading(html: string): string | null {
   return null;
 }
 
-function stripTags(html: string): string {
+export function stripTags(html: string): string {
   const document_ = new DOMParser().parseFromString(html, "text/html");
   for (const tag of ["script", "style"]) {
     for (const element of Array.from(document_.getElementsByTagName(tag))) element.remove();

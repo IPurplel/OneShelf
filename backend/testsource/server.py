@@ -24,7 +24,25 @@ WORKS = {
     "broken": {"title": "Broken Media", "type": "manga", "language": "en"},
     "manual": {"title": "The Manual", "type": "book", "language": "en"},
     "malformed": {"title": "  Weird   Metadata ", "type": "not-a-type", "language": "Klingon!!"},
+    "novel": {"title": "A Quiet Novel", "type": "novel", "language": "en"},
+    "riwaya": {"title": "رواية هادئة", "type": "novel", "language": "ar"},
 }
+
+
+def chapter_text(unit: str) -> dict:
+    """A text source's chapter: real prose wrapped in the hostile markup a source might send."""
+    if unit == "nov-empty":
+        return {"title": "Nothing", "html": "<script>alert('only script')</script><style>p{}</style>"}
+    if unit.startswith("rw-"):
+        body = "".join(f"<p>كان المصباح ما يزال مضاءً في الغرفة رقم {i}.</p>" for i in range(1, 40))
+        return {"title": "الفصل الأول", "html": f"<h2>الفصل الأول</h2>{body}"}
+    number = unit.split("-")[-1]
+    body = "".join(f"<p>Paragraph {i}. The lamp was still burning when she came back to the room.</p>"
+                   for i in range(1, 40))
+    return {"title": f"Chapter {number}", "html": (
+        f"<h2 onclick=\"steal()\">Chapter {number}</h2><script>document.cookie</script>{body}"
+        "<p><a href=\"javascript:alert(1)\">bad link</a> <a href=\"/work/novel\">contents</a></p>"
+        "<iframe src=\"https://evil.example/\"></iframe>")}
 
 IRREGULAR_UNITS = [
     {"id": "irr-prologue", "title": "Prologue", "label": "Prologue", "type": "prologue"},
@@ -90,6 +108,11 @@ def units_for(work: str, scenario: Scenario) -> list[dict]:
                 {"id": "bad-limited", "title": "Rate limited media", "label": "Chapter 3", "type": "chapter"}]
     if work == "manual":
         return [{"id": "manual-1", "title": "The Manual (PDF)", "label": "Manual", "type": "other"}]
+    if work == "novel":
+        return [{"id": f"nov-{i}", "title": f"Chapter {i}", "label": f"Chapter {i}", "type": "chapter"}
+                for i in range(1, 4)] + [{"id": "nov-empty", "title": "Empty", "label": "Chapter 4", "type": "chapter"}]
+    if work == "riwaya":
+        return [{"id": "rw-1", "title": "الفصل الأول", "label": "الفصل ١", "type": "chapter"}]
     if work == "malformed":
         return [{"id": "mal-1", "title": None, "label": "???", "type": "Chapter-ish"}, {"title": "no id at all"}]
     raise web.HTTPNotFound()
@@ -162,6 +185,9 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
             return web.json_response({"pages": [{"url": f"http://{CDN_HOST}/media/corrupt.png", "label": "1"}]})
         return web.json_response({"pages": [
             {"url": f"http://{CDN_HOST}/img/{unit}/{i}.png", "label": str(i)} for i in range(1, 4)]})
+
+    async def text(request: web.Request) -> web.Response:
+        return web.json_response({"chapter": chapter_text(request.match_info["unit"])})
 
     async def pages_split(request: web.Request) -> web.Response:
         """Pages given as a base URL, a hash and bare filenames (the shape MangaDex's at-home API uses)."""
@@ -310,7 +336,8 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
 
     app.add_routes([
         web.get("/search", search), web.get("/work/{work}", work), web.get("/api/works/{work}/units", catalog),
-        web.get("/api/units/{unit}/pages", pages), web.get("/api/units/{unit}/pages-split", pages_split), web.get("/api/units/{unit}/files", files), web.get("/img/{unit}/{page}.png", image),
+        web.get("/api/units/{unit}/pages", pages), web.get("/api/units/{unit}/pages-split", pages_split),
+        web.get("/api/units/{unit}/text", text), web.get("/api/units/{unit}/files", files), web.get("/img/{unit}/{page}.png", image),
         web.get("/covers/{work}.png", image), web.get("/media/html-as-image.png", html_as_image),
         web.get("/media/corrupt.png", corrupt_image), web.get("/files/versioned.pdf", versioned_file),
         web.get("/files/interrupted.pdf", interrupted), web.get("/limited", limited), web.get("/flaky", flaky),

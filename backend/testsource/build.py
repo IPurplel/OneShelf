@@ -5,13 +5,20 @@ import zipfile
 from pathlib import Path
 
 PACKAGE_DIR = Path(__file__).parent / "package"
+# The same source as a text source (plugin API 1.2): these files replace the package's own.
+TEXT_OVERLAY_DIR = Path(__file__).parent / "text_overlay"
 
 
-def build_package(destination: str | Path) -> Path:
+def _files(directory: Path) -> dict[str, bytes]:
+    return {p.relative_to(directory).as_posix(): p.read_bytes() for p in directory.rglob("*") if p.is_file()}
+
+
+def build_package(destination: str | Path, *, text: bool = False) -> Path:
     destination = Path(destination)
+    files = _files(PACKAGE_DIR) | (_files(TEXT_OVERLAY_DIR) if text else {})
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as z:
-        for path in sorted(p for p in PACKAGE_DIR.rglob("*") if p.is_file()):
-            info = zipfile.ZipInfo(path.relative_to(PACKAGE_DIR).as_posix(), date_time=(2026, 1, 1, 0, 0, 0))
+        for name in sorted(files):
+            info = zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
-            z.writestr(info, path.read_bytes())
+            z.writestr(info, files[name])
     return destination

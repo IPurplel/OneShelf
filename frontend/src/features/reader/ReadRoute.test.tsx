@@ -29,3 +29,19 @@ it('shows a missing-unit error instead of falling back to the page reader', asyn
   expect(await screen.findByRole('alert')).toHaveTextContent(/reading unit/i);
   expect(screen.queryByText('page reader')).not.toBeInTheDocument();
 });
+it('opens a text unit in the Book Reader whether or not it is downloaded', async () => {
+  mockApi([get('/api/reader/units/u/context', { ...context, formats: [], kind: 'text' }), get('/api/works/w', details)]);
+  open('/read/u');
+  expect(await screen.findByText('text reader u')).toBeInTheDocument();
+  expect(screen.queryByText('page reader')).not.toBeInTheDocument();
+});
+it('opens a downloaded text unit as text', async () => {
+  mockApi([get('/api/reader/units/u/context', { ...context, formats: ['text'], kind: 'text' }), get('/api/works/w', details)]);
+  open('/read/u');
+  expect(await screen.findByText('text reader u')).toBeInTheDocument();
+});
+it('keeps image units in the page reader', async () => {
+  mockApi([get('/api/reader/units/u/context', { ...context, formats: [], kind: 'images' }), get('/api/works/w', details)]);
+  open('/read/u');
+  expect(await screen.findByText('page reader')).toBeInTheDocument();
+});

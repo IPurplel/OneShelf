@@ -18,6 +18,9 @@ from defusedxml import ElementTree as SafeET
 from PIL import Image, features
 from pypdf import PdfReader
 
+from oneshelf.text.container import TEXT_MIMETYPE, TextContainerError, read_text_container
+from oneshelf.text.sanitise import TextUnitTooLarge, plain_text, sanitise
+
 MAX_ENTRIES = 20_000
 MAX_TOTAL_UNCOMPRESSED = 8 * 1024**3
 MAX_ENTRY_BYTES = 256 * 1024**2
@@ -105,6 +108,9 @@ def detect_format(path: str | Path) -> str | None:
             names = set(z.namelist())
             if "mimetype" in names and z.read("mimetype").strip() == EPUB_MIMETYPE:
                 return "epub"
+            # Before the image check: a text unit is a zip too, and must never be taken for a CBZ.
+            if "mimetype" in names and z.read("mimetype").strip() == TEXT_MIMETYPE:
+                return "text"
             if any(_is_image_entry(info) for info in z.infolist()):
                 return "cbz"
     except (zipfile.BadZipFile, OSError, RuntimeError):
@@ -116,7 +122,8 @@ def validate(path: str | Path) -> ValidationResult:
     fmt = detect_format(path)
     if fmt is None:
         return ValidationResult(False, None, "unrecognized or unsupported format")
-    return {"cbz": _validate_cbz, "pdf": _validate_pdf, "epub": _validate_epub}[fmt](Path(path))
+    validators = {"cbz": _validate_cbz, "pdf": _validate_pdf, "epub": _validate_epub, "text": _validate_text}
+    return validators[fmt](Path(path))
 
 
 def _validate_image(data: bytes) -> str | None:
@@ -229,4 +236,35 @@ def _validate_epub(path: Path) -> ValidationResult:
         result.reason = f"invalid epub xml ({type(exc).__name__})"
         return result
     result.ok = True
+    return result
+
+
+def _validate_text(path: Path) -> ValidationResult:
+    """A stored text unit: well-formed, and every section already in its sanitised form, so content
+    that did not pass through the sanitiser is refused rather than served (Master §27)."""
+    try:
+        with zipfile.ZipFile(path) as z:
+            problem = _check_archive(z)
+            if problem:
+                return ValidationResult(False, "text", problem)
+            if z.testzip() is not None:
+                return ValidationResult(False, "text", "archive CRC check failed")
+            unit = read_text_container(z)
+    except TextContainerError as exc:
+        return ValidationResult(False, "text", str(exc))
+    except (zipfile.BadZipFile, OSError, RuntimeError) as exc:
+        return ValidationResult(False, "text", f"unreadable archive ({type(exc).__name__})")
+    for number, section in enumerate(unit.sections, start=1):
+        try:
+            clean = sanitise(section.html)
+        except TextUnitTooLarge:
+            return ValidationResult(False, "text", f"section {number} is too large")
+        if clean != section.html:
+            return ValidationResult(False, "text", f"section {number} is not sanitised")
+        if not plain_text(clean):
+            return ValidationResult(False, "text", f"section {number} has no text")
+    result = ValidationResult(True, "text", page_count=len(unit.sections))
+    for key in ("title", "language"):
+        if getattr(unit, key):
+            result.metadata[key] = getattr(unit, key)
     return result

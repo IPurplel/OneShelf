@@ -11,6 +11,7 @@ from oneshelf.net.http import HttpClient, HttpResponse
 from oneshelf.net.policy import policy_for_plugin
 from oneshelf.plugins.manager import PluginManager
 from oneshelf.plugins.package import PluginPackage
+from oneshelf.plugins.schema import is_text_reader
 from oneshelf.plugins.results import ListResult
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited, RecipeRuntime
 from oneshelf.sessions.manager import SessionManager
@@ -134,6 +135,14 @@ class SourceService:
             if capability in package.recipes:
                 found.append((record.id, package.version))
         return found
+
+    def reads_text(self, plugin_id: str) -> bool:
+        """Whether this source's reader yields text units rather than image pages (plugin API 1.2)."""
+        try:
+            package = self.plugins.load_active(plugin_id)
+        except Exception:
+            return False
+        return is_text_reader(package.recipes.get("reader"))
 
     def searchable_sources(self) -> list[tuple[str, str]]:
         return self.sources_with_capability("search")

@@ -18,6 +18,8 @@ dependencies = [
     "playwright>=1.63.0",
     # Parser only. Never install the "fetchers" extra (stealth/fingerprint stack; ledger K1).
     "scrapling>=0.4.15",
+    # Allowlist HTML sanitiser (Rust ammonia) for text reading units (Master §27).
+    "nh3>=0.3.7",
 ]
 
 [project.optional-dependencies]
