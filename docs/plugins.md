@@ -51,6 +51,10 @@ source/language choices; `language` remains the single-language fallback for old
 list means no available translations, and the work's original language must not stand in for one.
 Adapters using this field must declare `api: '1.1'` so older Core versions reject them cleanly.
 
+API 1.2 adds **text reading units** (section 3a). Unlike 1.1, this one is enforced per feature: a package
+that extracts a reader `html` field, sets `markup: true` on any field, or uses the `text_contains` /
+`min_text_chars` test checks is refused unless it declares `api: '1.2'` or newer.
+
 ## 3. Recipes
 
 One file per capability. A recipe is a request plus an extraction:
@@ -98,6 +102,48 @@ Two rules exist because real sources need them, and neither widens the security 
 Field names are fixed per capability (for example `catalog` accepts `unit_key`, `title`, `number`, `volume`,
 `unit_type`, `url`, `release_date`), so a recipe cannot invent library concepts.
 
+## 3a. Text reading units (API 1.2)
+
+A `reader` recipe yields either image pages or text. It extracts exactly one of:
+
+- `url` (with optional `page_label`): image pages, read in the page reader and downloaded as CBZ (books
+  from a `downloads` recipe keep their own file format);
+- `html` (with optional `title`): one text unit per item, read in the Book Reader and downloaded as a
+  `text` asset (`.ostext`). That is a zip holding a `mimetype` entry (`application/vnd.oneshelf.text+zip`),
+  `unit.json` and one sanitised HTML file per section. It is the source's own text, never converted to
+  EPUB (Master §34.4).
+
+```yaml
+capability: reader
+inputs: [unit_key]
+request: {url: "{base_url}/w/api.php?action=parse&page={unit_key:url}&prop=text&format=json&formatversion=2"}
+response: {format: json}
+extract:
+  items: {json: "$.parse"}
+  fields:
+    html: {json: "$.text"}          # a JSON string is markup already
+    title: {json: "$.title"}
+```
+
+On an HTML response, `markup: true` returns the matched element's inner markup instead of its text:
+`html: {css: "#chapter-body", markup: true}`.
+
+Core sanitises every unit before anything else sees it, and again before storing it (Master §27). It uses
+nh3 with the allowlist of the Book Reader's EPUB sanitiser (`backend/oneshelf/text/sanitise.py`):
+
+- **Kept:** text structure, ruby, tables, lists, and `dir`/`lang` attributes.
+- **Removed with their content:** scripts, styles, embeds, forms, SVG and MathML.
+- **Dropped:** event handlers and `style` attributes.
+- **Links:** kept only as absolute http, https or mailto links. A relative link is resolved against the page
+  it came from.
+- **Images:** version 1 stores none. Each `<img>` is replaced by its alt text.
+
+A unit larger than 1 MiB, or one with no text left after sanitising, counts as a missing item and makes
+the result incomplete. Long units are split into sections of about 16,000 characters at block boundaries.
+Sections are what give the reader its progress, bookmarks and search, because the sandboxed frame cannot
+report a scroll position. A unit's direction comes from its track's language (Arabic, Hebrew, Persian,
+Urdu… run right to left), never from the interface language.
+
 ## 4. Packaged tests are mandatory
 
 `tests/tests.yaml` declares cases with the fixtures they run against:
@@ -114,6 +160,9 @@ cases:
     fields_present: [listing_key, title]
     first: {listing_key: '84', title: 'Frankenstein'}
 ```
+
+A text reader case can also check the first unit's sanitised text with `text_contains: "a phrase"` and
+`min_text_chars: 200`. It also fails if the unit is not stable under sanitising.
 
 They run offline during install (the Tested stage of Staged → Validated → Tested → Active). A package whose
 own tests fail is not activated.

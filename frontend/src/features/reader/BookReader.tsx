@@ -9,6 +9,7 @@ import type { Epub } from "./epub";
 import { BookSettings } from "./BookSettings";
 import { HighlightPane } from "./HighlightPane";
 import { PdfView } from "./PdfView";
+import { openTextUnit } from "./textUnit";
 import { BOOK_TYPE, DEFAULT_SETTINGS, loadSettings, saveSettings } from "./settings";
 import type { ReaderSettings } from "./settings";
 import { useBookMarks } from "./useBookMarks";
@@ -23,12 +24,17 @@ import { useProgress } from "./useProgress";
  * own restrictive CSP, and PDFs are rendered by pdf.js with eval and PDF scripting disabled. Progress is
  * logical (chapter share for EPUB, page for PDF); there is no invented fixed page count.
  */
-export function BookReader(props: { unitId: string; format: "epub" | "pdf"; workId: string; trackId?: string }) {
+export type BookFormat = "epub" | "pdf" | "text";
+
+export function BookReader(props: { unitId: string; format: BookFormat; workId: string; trackId?: string }) {
   return <BookDocument key={`${props.unitId}:${props.format}`} {...props} />;
 }
 
-function BookDocument({ unitId, format, workId, trackId }: { unitId: string; format: "epub" | "pdf"; workId: string; trackId?: string }) {
-  const { t, direction } = useI18n();
+function BookDocument({ unitId, format, workId, trackId }: { unitId: string; format: BookFormat; workId: string; trackId?: string }) {
+  const { t, direction: interfaceDirection } = useI18n();
+  // A text unit runs in its own language's direction (§26.22); an EPUB keeps the frame as it was.
+  const [contentDirection, setContentDirection] = useState<"ltr" | "rtl" | null>(null);
+  const direction = contentDirection ?? interfaceDirection;
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -53,6 +59,24 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
   }, [workId]);
 
   useEffect(() => {
+    if (format !== "text") return;
+    let live = true;
+    void (async () => {
+      try {
+        // The server answers 404 rather than an empty unit, so an opened unit always has a section.
+        const opened = await openTextUnit(unitId);
+        if (!live) return;
+        setContentDirection(opened.direction);
+        setBook(opened);
+      } catch (error) {
+        if (live) setFailure(error instanceof ApiError ? error.message : t("state.offline"));
+      }
+    })();
+    return () => { live = false; };
+  }, [unitId, format, t, attempt]);
+
+  useEffect(() => {
+    if (format === "text") return;
     let live = true;
     void (async () => {
       try {

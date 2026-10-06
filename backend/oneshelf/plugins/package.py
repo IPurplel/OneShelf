@@ -18,7 +18,9 @@ from pydantic import ValidationError
 
 from oneshelf.integrity.validators import _unsafe_entry_name
 from oneshelf.net.domains import host_allowed
-from oneshelf.plugins.schema import FIELDS, LIST_CAPABILITIES, Manifest, Recipe, SourceConfig, TestSuite
+from oneshelf.plugins.schema import (
+    FIELDS, LIST_CAPABILITIES, TEXT_UNITS_API, Manifest, Recipe, SourceConfig, TestSuite, is_text_reader,
+)
 from oneshelf.plugins.templates import TemplateError, validate_url_template
 from oneshelf.plugins.yamlsafe import YamlError, load_yaml
 
@@ -142,6 +144,17 @@ def validate_templates(extract, *, capability: str, inputs: list[str]) -> None:
             raise PackageError(f"recipes/{capability}: value {value_name!r} must read the document, not a template")
 
 
+def _api_at_least(declared: str, needed: tuple[int, int]) -> bool:
+    major, minor = (int(p) for p in declared.split("."))
+    return (major, minor) >= needed
+
+
+def _uses_text_units(recipe: Recipe) -> bool:
+    extract, pagination = recipe.extract, recipe.pagination
+    specs = [*extract.fields.values(), *extract.values.values(), extract.items, pagination.total, pagination.next]
+    return "html" in extract.fields or any(spec is not None and spec.markup for spec in specs)
+
+
 def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str, Recipe], tests: TestSuite,
                     files: dict[str, bytes]) -> None:
     declared = set(manifest.capabilities)
@@ -204,8 +217,17 @@ def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str,
             raise PackageError(f"recipes/{capability}: items selector {'required' if is_list else 'not allowed'}")
         if not is_list and recipe.pagination.mode != "none":
             raise PackageError(f"recipes/{capability}: pagination only applies to list capabilities")
+        if capability == "reader" and ("url" in recipe.extract.fields) == ("html" in recipe.extract.fields):
+            raise PackageError("recipes/reader: extract exactly one of url (image pages) or html (text units)")
+        if _uses_text_units(recipe) and not _api_at_least(manifest.api, TEXT_UNITS_API):
+            raise PackageError(f"recipes/{capability}: text units (html, markup) need api "
+                               f"'{TEXT_UNITS_API[0]}.{TEXT_UNITS_API[1]}' or newer in manifest.yaml")
 
     for index, case in enumerate(tests.cases):
+        expect = case.expect
+        if (expect.text_contains is not None or expect.min_text_chars is not None) and not (
+                case.capability == "reader" and "reader" in recipes and is_text_reader(recipes["reader"])):
+            raise PackageError(f"tests: case {index} checks text, which only a text reader recipe yields")
         if case.capability not in declared:
             raise PackageError(f"tests: case {index} uses undeclared capability {case.capability!r}")
         for fixture in case.fixtures:

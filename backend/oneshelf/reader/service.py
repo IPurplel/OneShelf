@@ -10,7 +10,7 @@ import asyncio
 import json
 import sqlite3
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from oneshelf.db.connection import transaction
@@ -23,6 +23,9 @@ from oneshelf.reader.cache import ReaderCache
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.storage.paths import resolve_within
 from oneshelf.storage.roots import get_root
+from oneshelf.text.container import TextUnit, open_text_container
+from oneshelf.text.direction import content_direction
+from oneshelf.text.sanitise import sanitise, split_sections
 
 READ_AHEAD_STATES = ("QUEUED",)
 
@@ -111,7 +114,12 @@ class ReaderService:
         formats = [row[0] for row in self.conn.execute(
             "SELECT DISTINCT format FROM assets WHERE reading_unit_id = ? AND integrity = 'ok' ORDER BY format",
             (unit_id,))]
-        return {"work_id": unit["work_id"], "track_id": unit["track_id"], "formats": formats}
+        kind = "text" if "text" in formats or self._reads_text(unit["source_id"]) else "images"
+        return {"work_id": unit["work_id"], "track_id": unit["track_id"], "formats": formats, "kind": kind}
+
+    def _reads_text(self, source_id: str) -> bool:
+        reads_text = getattr(self.sources, "reads_text", None)
+        return bool(reads_text and source_id != "local" and reads_text(source_id))
 
     def _local_asset(self, unit_id: str, format: str | None = None) -> sqlite3.Row | None:
         return self.conn.execute(
@@ -132,12 +140,44 @@ class ReaderService:
 
     # -- pages -------------------------------------------------------------------------------------
 
+    # -- text units ----------------------------------------------------------------------------------
+
+    async def text(self, unit_id: str) -> tuple[TextUnit, str]:
+        """A text unit's sanitised sections: the downloaded container, else the source's reader output.
+
+        Online markup was sanitised by the runtime; it is sanitised again here, as stored markup is
+        by the validator, so the reader never depends on one layer alone (Master §27).
+        """
+        asset = self._local_asset(unit_id, "text")
+        if asset is not None:
+            path = self._local_path(asset)
+            if path.is_file():
+                return open_text_container(path), "local"
+        unit = self._unit(unit_id)
+        if not self._reads_text(unit["source_id"]):
+            raise FileNotFoundError("this reading unit has no text")
+        descriptors = await self._online_descriptors(unit_id)
+        sections = []
+        for descriptor in descriptors:
+            pieces = split_sections(sanitise(descriptor.html or ""))
+            if pieces and descriptor.title and pieces[0].title is None:
+                pieces[0] = replace(pieces[0], title=descriptor.title)
+            sections.extend(pieces)
+        if not sections:
+            raise FileNotFoundError("the source returned no text for this reading unit")
+        title = next((d.title for d in descriptors if d.title), None)
+        language = unit["language"] if unit["language"] != "und" else None
+        return TextUnit(title=title, language=language, direction=content_direction(language),
+                        source_url=unit["url_hint"], sections=sections), "online"
+
     async def pages(self, unit_id: str) -> list[PageInfo]:
         asset = self._local_asset(unit_id)
         if asset is not None and asset["format"] == "cbz":
             names = self._archive_pages(self._local_path(asset))
             return [PageInfo(index=i, label=str(i)) for i, _ in enumerate(names, start=1)]
         descriptors = await self._online_descriptors(unit_id)
+        if any(d.url is None for d in descriptors):
+            raise ValueError("this reading unit is text, not pages; open it in the Book Reader")
         return [PageInfo(index=i, label=d.page_label, url=d.url) for i, d in enumerate(descriptors, start=1)]
 
     async def _online_descriptors(self, unit_id: str) -> list:
@@ -160,6 +200,8 @@ class ReaderService:
         unit = self._unit(unit_id)
         descriptors = await self._online_descriptors(unit_id)
         descriptor = descriptors[index - 1]
+        if descriptor.url is None:
+            raise ValueError("this reading unit is text, not pages; open it in the Book Reader")
         cached = self.cache.get(unit["source_id"], unit["source_unit_key"], descriptor.url)
         if cached is not None:
             return PageData(index, cached, "cache")

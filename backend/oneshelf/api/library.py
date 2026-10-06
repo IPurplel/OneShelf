@@ -5,7 +5,7 @@ from dataclasses import asdict
 from typing import Literal
 
 from fastapi import APIRouter, Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from oneshelf.api.sources import error, services
@@ -211,7 +211,9 @@ async def reader_page(request: Request, unit_id: str, index: int):
                     headers={**CONTENT_HEADERS, "X-OneShelf-Origin": page.origin})
 
 
-MEDIA_TYPES = {"pdf": "application/pdf", "epub": "application/epub+zip", "cbz": "application/vnd.comicbook+zip"}
+MEDIA_TYPES = {"pdf": "application/pdf", "epub": "application/epub+zip", "cbz": "application/vnd.comicbook+zip",
+               "text": "application/vnd.oneshelf.text+zip"}
+EXTENSIONS = {"text": "ostext"}
 
 
 @router.get("/reader/units/{unit_id}/context")
@@ -223,7 +225,7 @@ async def reader_context(request: Request, unit_id: str):
 
 
 @router.get("/reader/units/{unit_id}/file")
-async def reader_file(request: Request, unit_id: str, format: Literal["epub", "pdf", "cbz"] | None = None):
+async def reader_file(request: Request, unit_id: str, format: Literal["epub", "pdf", "cbz", "text"] | None = None):
     """The whole local artefact, for the isolated Book Reader (§26.22, §27).
 
     It is served with a sandbox CSP and nosniff so the document can never reach the application origin,
@@ -240,8 +242,34 @@ async def reader_file(request: Request, unit_id: str, format: Literal["epub", "p
     return Response(artefact.data, media_type=media_type, headers={
         **CONTENT_HEADERS,
         "Content-Security-Policy": "sandbox; default-src 'none'",
-        "Content-Disposition": f'inline; filename="{unit_id}.{artefact.format}"',
+        "Content-Disposition": f'inline; filename="{unit_id}.{EXTENSIONS.get(artefact.format, artefact.format)}"',
     })
+
+
+@router.get("/reader/units/{unit_id}/text")
+async def reader_text(request: Request, unit_id: str):
+    """A text unit's sanitised sections for the isolated Book Reader (§26.22, §27).
+
+    The markup was reduced to an allowlist on the server; the reader still renders it only inside its
+    empty-sandbox frame with its own CSP, never in the application document.
+    """
+    s = services(request)
+    try:
+        unit, origin = await s.reader.text(unit_id)
+    except FileNotFoundError as exc:
+        return error(404, "TEXT_NOT_AVAILABLE", str(exc))
+    except ValueError as exc:
+        return error(404, "UNIT_NOT_FOUND", str(exc))
+    except AuthRequired:
+        return error(409, "SESSION_REQUIRED", "This source needs a connected account.")
+    except RateLimited as exc:
+        return error(429, "RATE_LIMITED", f"The source is rate limited (retry after {exc.retry_after}s).")
+    except CapabilityError as exc:
+        return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
+    body = {"reading_unit_id": unit_id, "origin": origin, "title": unit.title, "language": unit.language,
+            "direction": unit.direction,
+            "sections": [{"title": x.title, "html": x.html, "characters": x.characters} for x in unit.sections]}
+    return JSONResponse(body, headers={**CONTENT_HEADERS, "Content-Security-Policy": "sandbox; default-src 'none'"})
 
 
 class ProgressBody(BaseModel):

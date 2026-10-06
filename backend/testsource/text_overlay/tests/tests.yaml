@@ -1,0 +1,68 @@
+# The Test Source as a text source: the same package with a text reader (plugin API 1.2).
+cases:
+- capability: search
+  inputs:
+    query: chronicle
+    page: 1
+  fixtures:
+  - url: http://testsource.example/search?q=chronicle&page=1
+    file: fixtures/search.html
+  expect:
+    min_items: 1
+    fields_present:
+    - listing_key
+    - title
+    - url
+    first:
+      listing_key: irregular
+      title: The Irregular Chronicle
+      content_type: manga
+- capability: catalog
+  inputs:
+    listing_key: irregular
+  fixtures:
+  - url: http://testsource.example/api/works/irregular/units?page=1
+    file: fixtures/irregular-units.json
+  expect:
+    min_items: 9
+    complete: true
+    fields_present:
+    - unit_key
+    - title
+    first:
+      unit_key: irr-prologue
+      number: null
+      unit_type: prologue
+- capability: reader
+  inputs:
+    unit_key: nov-1
+  fixtures:
+  - url: http://testsource.example/api/units/nov-1/text
+    file: fixtures/text.json
+  expect:
+    min_items: 1
+    complete: true
+    fields_present:
+    - html
+    - title
+    text_contains: The lamp was still burning
+    min_text_chars: 100
+- capability: check_session
+  fixtures:
+  - url: http://testsource.example/account
+    file: fixtures/account-logged-out.html
+  expect:
+    first:
+      logged_in: 'False'
+- capability: downloads
+  inputs:
+    unit_key: manual-1
+  fixtures:
+  - url: http://testsource.example/api/units/manual-1/files
+    file: fixtures/files.json
+  expect:
+    min_items: 1
+    complete: true
+    fields_present:
+    - url
+    - format

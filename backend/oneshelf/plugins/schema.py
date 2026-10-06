@@ -12,7 +12,9 @@ from oneshelf.net.domains import DomainRuleError, normalize_rule
 from oneshelf.plugins import jsonpath
 from oneshelf.plugins.transforms import TransformError, _compile, validate_pipeline
 
-API_MAJOR, API_MINOR = 1, 1
+API_MAJOR, API_MINOR = 1, 2
+# Features and the plugin API that introduced them; a package using one must declare at least that API.
+TEXT_UNITS_API = (1, 2)
 MAX_SELECTOR = 512
 MAX_TEMPLATE = 512
 MAX_PAGES_CAP = 1000
@@ -28,7 +30,9 @@ FIELDS: dict[str, dict[str, bool]] = {  # capability -> {field: required}
              "cover_url": False, "content_type": False, "language": False, "status": False, "available_languages": False},
     "catalog": {"unit_key": True, "title": False, "number": False, "volume": False, "unit_type": False,
                 "url": False, "release_date": False},
-    "reader": {"url": True, "page_label": False},
+    # A reader item is either an image (url) or a text unit (html, API 1.2); package validation requires
+    # exactly one of the two, so neither is individually required here.
+    "reader": {"url": False, "html": False, "title": False, "page_label": False},
     "downloads": {"url": True, "format": True, "variant": False, "size_bytes": False, "language": False},
     "check_session": {"logged_in": True},
     "health": {"ok": False},
@@ -153,6 +157,9 @@ class FieldSpec(Strict):
     all: bool = False
     exists: bool = False
     required: bool = False
+    # The matched element's inner markup instead of its text (text reading units, API 1.2). A JSON
+    # string value is already markup, so this applies to css and xpath only.
+    markup: bool = False
     transforms: list = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -162,6 +169,8 @@ class FieldSpec(Strict):
             raise ValueError("exactly one of css, xpath, json or template is required")
         if self.template is not None and (self.all or self.exists):
             raise ValueError("a template field cannot use all or exists")
+        if self.markup and (self.css is None and self.xpath is None or self.exists):
+            raise ValueError("markup applies to a css or xpath selector that matches elements")
         try:
             if self.css is not None:
                 _TRANSLATOR.css_to_xpath(self.css)
@@ -286,6 +295,9 @@ class Expectation(Strict):
     fields_present: list[str] = Field(default_factory=list)
     complete: bool | None = None
     first: dict[str, str | None] = Field(default_factory=dict)
+    # Text reading units: checked on the first entry's sanitised text (API 1.2).
+    text_contains: str | None = Field(default=None, min_length=1, max_length=200)
+    min_text_chars: int | None = Field(default=None, ge=1)
 
 
 class TestCase(Strict):
@@ -297,3 +309,8 @@ class TestCase(Strict):
 
 class TestSuite(Strict):
     cases: list[TestCase] = Field(min_length=1, max_length=100)
+
+
+def is_text_reader(recipe: Recipe | None) -> bool:
+    """A reader recipe whose items are text units (html) rather than image pages (url)."""
+    return recipe is not None and recipe.capability == "reader" and "html" in recipe.extract.fields

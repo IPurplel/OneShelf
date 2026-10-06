@@ -7,7 +7,7 @@ import { BookReader } from "./BookReader";
 import { ReaderScreen } from "./ReaderScreen";
 import { workLink } from "./links";
 
-type UnitContext = { work_id: string; track_id: string; formats: string[] };
+type UnitContext = { work_id: string; track_id: string; formats: string[]; kind?: "images" | "text" };
 
 /** Resolve old unit-only links as well as explicit work/track links before selecting a reader. */
 export function ReadRoute() {
@@ -22,9 +22,10 @@ function ResolveUnit({ unitId, workId, trackId }: { unitId: string; workId: stri
   const { data, error, loading, reload } = useResource<UnitContext>(`/api/reader/units/${unitId}/context`);
   if (error !== null) return <Unavailable message={error} back={workLink(workId ?? "", trackId)} retry={reload} />;
   if (loading || data === null) return <p className="screen__subtitle">{t("state.loading")}</p>;
-  return <OpenUnit unitId={unitId} workId={workId ?? data.work_id} trackId={trackId ?? data.track_id} formats={data.formats} />;
+  return <OpenUnit unitId={unitId} workId={workId ?? data.work_id} trackId={trackId ?? data.track_id} formats={data.formats}
+                   text={data.kind === "text"} />;
 }
-function OpenUnit({ unitId, workId, trackId, formats }: { unitId: string; workId: string; trackId: string; formats: string[] }) {
+function OpenUnit({ unitId, workId, trackId, formats, text }: { unitId: string; workId: string; trackId: string; formats: string[]; text: boolean }) {
   const { t } = useI18n();
   const { data, error, loading, reload } = useResource<WorkDetails>(`/api/works/${workId}`, { track_id: trackId });
   if (error !== null) return <Unavailable message={error} back={workLink(workId, trackId)} retry={reload} />;
@@ -34,6 +35,8 @@ function OpenUnit({ unitId, workId, trackId, formats }: { unitId: string; workId
   }
   if (formats.includes("epub")) return <BookReader unitId={unitId} format="epub" workId={workId} trackId={trackId} />;
   if (formats.includes("pdf")) return <BookReader unitId={unitId} format="pdf" workId={workId} trackId={trackId} />;
+  // A text unit is read in the Book Reader, downloaded or not: it has no pages to show (plugin API 1.2).
+  if (text || formats.includes("text")) return <BookReader unitId={unitId} format="text" workId={workId} trackId={trackId} />;
   return <ReaderScreen unitId={unitId} workId={workId} trackId={trackId} />;
 }
 function Unavailable({ message, back, retry }: { message: string; back: string; retry: () => void }) {
