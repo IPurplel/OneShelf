@@ -30,3 +30,32 @@ Screenshots: `/tmp/oneshelf-current-layout`, `/tmp/oneshelf-current-ux`, and `/t
 - [2026-09-30 UX verification](2026-09-30-ux-fixes-verification.md): the seven existing modal, search, import, and settings browser scenarios remain green. The six newly migrated dialogs and the Reader error states were checked separately.
 
 No commit or push was made.
+
+## 2026-10-06 targeted audit and fix pass
+
+The six failures reproduced in the 2026-10-06 Chromium audit were fixed without changing the MangaDex adapter. The reviewable UI diff was verified in a clean worktree based on `origin/main`; unrelated text-format work in the shared checkout was not included. Before/after screenshots and the controlled request trace are stored in [2026-10-06 evidence](evidence/2026-10-06/).
+
+| Finding | Cause and correction | Regression evidence |
+| --- | --- | --- |
+| Work track switch used stale actions | `useResource` exposed the previous query's data until the next effect ran. Responses are now tied to a request generation; changing track hides old details immediately, while refreshing the same query keeps its content. Work Details also rejects a response whose selected track differs from `?track=`. | Work tests delay EN→AR and A→B→A responses, assert no pending Follow/Reader action, and inspect the exact AR Follow body. Controlled Chromium trace records only the AR POST. |
+| Mobile Book Reader controls were clipped and covered | The book toolbar did not wrap, and the app bottom navigation painted over the Reader. Book controls now wrap, the Reader hides the app navigation while open, and its bottom bar includes the safe-area inset. | Chromium checks every Reader button and the position indicator for viewport bounds and hit testing at 390, 768, and 1440px in English and Arabic. 390px screenshots show both locales. |
+| Late Login Session creation leaked | Cancel saw no `login_id` while creation was pending, and the later response updated a closed component. Each dialog now records closure, deletes any late-created session exactly once, and keeps old and reopened dialogs separate. | Race tests cover late success, late failure, close/reopen, and normal login. Chromium request trace shows DELETE of the exact late `login_id`. |
+| Empty EPUB spine rendered `1 of 0` | The parser returned an empty spine and the chapter effect requested index zero without handling rejection. The Reader now shows a localized recoverable failure before chapter rendering, catches chapter errors, and localizes malformed-file failures. | Tests cover empty spine, missing chapter references, malformed EPUB, and a valid one-chapter EPUB. Chromium shows an alert and Back to Work with no page error. |
+| Completed save looked failed after summary GET error | One `try/catch` treated the successful POST and optional cleanup-summary GET as one mutation. The completed state now updates after POST, while summary failure has its own warning and GET-only retry. | Tests cover failed POST, successful POST/summary, failed summary, and successful retry. Chromium trace shows one successful POST followed by GET 503 and retry GET 200. |
+| Bookmark failure had no feedback | Reader add actions discarded rejected mark promises. A shared EPUB/PDF mark-save handler now catches failures, shows an accessible alert, and retries the exact bookmark or highlight operation without optimistic state. | EPUB and PDF tests cover success, failure, retry, and highlight failure. Chromium shows the alert, no uncaught page error, and two bookmark POST attempts with the second saved. |
+
+| Final check | Result |
+| --- | --- |
+| `npm test --prefix frontend` | 330 passed across 33 files; existing jsdom canvas and React `act()` messages remain warnings |
+| `npm run build --prefix frontend` | TypeScript and Vite production build passed |
+| Relevant Work, Shelf, Follow, Export, Login Session, and Reader backend tests | 132 passed |
+| Chromium layout matrix | 154 passed at 390, 768, and 1440px in English and Arabic |
+| Existing Chromium UX suite | 7 passed |
+| Extended Chromium UI audit | 98 passed |
+| Real-backend Chromium Reader suite | 6 scenarios passed |
+| Targeted six-bug Chromium matrix | Passed at 390, 768, and 1440px in English and Arabic |
+| Reader control geometry and hit testing | 6 viewport/locale cases passed; no clipped or covered controls, no horizontal overflow |
+
+The final Chromium matrix ran against the production build served by Vite preview; a bundled font request returned HTTP 200. This keeps the captured English and Arabic screenshots representative of shipped typography.
+
+Logs: `/tmp/oneshelf-ui-isolated-frontend.log`, `/tmp/oneshelf-ui-isolated-build.log`, `/tmp/oneshelf-ui-isolated-backend.log`, `/tmp/oneshelf-ui-isolated-layout.log`, `/tmp/oneshelf-ui-isolated-ux.log`, `/tmp/oneshelf-ui-isolated-extended.log`, `/tmp/oneshelf-ui-isolated-reader.log`, `/tmp/oneshelf-ui-isolated-reader-controls.log`, and `/tmp/oneshelf-ui-isolated-targeted.log`. The [request trace](evidence/2026-10-06/after/request-trace.json) and [targeted screenshots](evidence/2026-10-06/after/) include pending Work track loading, empty EPUB recovery, Completed summary warning, and bookmark error in both locales at 390px. [Reader screenshots](evidence/2026-10-06/reader/) cover all six viewport/locale combinations; [before-fix captures](evidence/2026-10-06/before/) show the original failures. **I-51 MangaDex remains open**; its adapter and snapshot were not changed in this pass.

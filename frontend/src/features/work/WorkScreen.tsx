@@ -39,6 +39,8 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const [removing, setRemoving] = useState<RemovalSummary | null>(null);
   const [completedOffer, setCompletedOffer] = useState<RemovalSummary | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [completion, setCompletion] = useState<{ workId: string; value: boolean } | null>(null);
+  const [summaryProblemId, setSummaryProblemId] = useState<string | null>(null);
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${id}`,
     trackId ? { track_id: trackId } : undefined);
   const [problem, setProblem] = useState<string | null>(null);
@@ -54,8 +56,15 @@ export function WorkScreen({ workId }: { workId?: string }) {
   if (data === null) {
     return <section className="screen"><p className="screen__subtitle">{t("state.loading")}</p></section>;
   }
+  if (trackId !== null && data.selected_track_id !== trackId) {
+    return <section className="screen">
+      <p className="notice notice--problem" role="alert">{t("work.trackUnavailable")}</p>
+      <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button>
+    </section>;
+  }
 
   const { work, shelf, follow, tracks, units, continue_unit_id: continueUnit } = data;
+  const completed = completion?.workId === id ? completion.value : shelf.completed;
   const current = tracks.find((track) => track.id === data.selected_track_id) ?? null;
   const selectedFollowing = current !== null && follow.following && follow.track_id === current.id;
 
@@ -106,18 +115,32 @@ export function WorkScreen({ workId }: { workId?: string }) {
     }
   };
 
-  /** Completed keeps the work, its status and its progress; deleting the files is only ever offered. */
-  const markCompleted = async (completed: boolean) => {
-    setNotice(null);
+  const loadCompletionSummary = async () => {
     try {
-      await api.post(`/api/shelf/${id}`, { completed });
-      if (!completed) return;
       const summary = await api.get<RemovalSummary>(`/api/shelf/${id}/removal-summary`);
+      setSummaryProblemId(null);
       if (summary.files > 0) setCompletedOffer(summary);
     } catch {
-      setNotice(t("state.offline"));
-    } finally {
-      reload();
+      setSummaryProblemId(id);
+    }
+  };
+
+  /** Completed keeps the work, its status and its progress; deleting the files is only ever offered. */
+  const markCompleted = async (next: boolean) => {
+    setNotice(null);
+    setProblem(null);
+    setSummaryProblemId(null);
+    try {
+      await api.post(`/api/shelf/${id}`, { completed: next });
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      return;
+    }
+    setCompletion({ workId: id, value: next });
+    reload();
+    if (next) {
+      setNotice(t("shelf.completed.title"));
+      await loadCompletionSummary();
     }
   };
 
@@ -143,9 +166,9 @@ export function WorkScreen({ workId }: { workId?: string }) {
                 <button type="button" className="button" onClick={() => void startRemoval()}>
                   {t("shelf.remove.action")}
                 </button>
-                <button type="button" className="button" aria-pressed={shelf.completed}
-                        onClick={() => void markCompleted(!shelf.completed)}>
-                  {shelf.completed ? t("shelf.completed.undo") : t("shelf.completed.action")}
+                <button type="button" className="button" aria-pressed={completed}
+                        onClick={() => void markCompleted(!completed)}>
+                  {completed ? t("shelf.completed.undo") : t("shelf.completed.action")}
                 </button>
               </>
             ) : (
@@ -192,6 +215,12 @@ export function WorkScreen({ workId }: { workId?: string }) {
 
       {notice !== null && <p className="notice" role="status">{notice}</p>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+      {summaryProblemId === id && <div className="notice notice--problem">
+        <p role="alert">{t("shelf.completed.summaryFailed")}</p>
+        <button type="button" className="button" onClick={() => void loadCompletionSummary()}>
+          {t("shelf.completed.retrySummary")}
+        </button>
+      </div>}
 
       {removing !== null && (
         <RemoveFromShelf title={work.title} summary={removing}

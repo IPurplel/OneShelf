@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n/i18n";
 import { workLink } from "./links";
 import { HighlightPane } from "./HighlightPane";
 import { useBookMarks } from "./useBookMarks";
+import { MarkSaveNotice, useMarkSave } from "./useMarkSave";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "./settings";
 import type { PdfFit, ReaderSettings } from "./settings";
 
@@ -64,6 +65,7 @@ export function PdfView({ unitId, data, workId, trackId, onProgress, onLeave, st
   const [failure, setFailure] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const marks = useBookMarks(unitId);
+  const markSave = useMarkSave();
   const resumed = useRef<string | null>(null);
   const frame = useRef<HTMLDivElement | null>(null);
   const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
@@ -209,7 +211,7 @@ export function PdfView({ unitId, data, workId, trackId, onProgress, onLeave, st
           {t("pdf.search")}
         </button>
         <button type="button" className="reader__button"
-                onClick={() => void marks.addBookmark({ page }, t("pdf.page", { page }))}>
+                onClick={() => void markSave.save(() => marks.addBookmark({ page }, t("pdf.page", { page })))}>
           {t("book.bookmark")}
         </button>
         <button type="button" className="reader__button" onClick={() => setPanel("highlight")}>
@@ -233,6 +235,8 @@ export function PdfView({ unitId, data, workId, trackId, onProgress, onLeave, st
           {t("pdf.fitPage")}
         </button>
       </div>
+
+      <MarkSaveNotice {...markSave} />
 
       {/* Zooming makes this pane scroll, so the keyboard must be able to reach it (WCAG 2.1.1). */}
       <div className="book__pdf" ref={frame} tabIndex={0} aria-label={t("pdf.pane")}>
@@ -261,8 +265,8 @@ export function PdfView({ unitId, data, workId, trackId, onProgress, onLeave, st
         ) : (
           <HighlightPane text={text} onClose={() => setPanel(null)}
                          onKeep={(selection) => {
-                           void marks.addHighlight({ page, start: selection.start, end: selection.end },
-                                                   selection.text);
+                           void markSave.save(() => marks.addHighlight({ page, start: selection.start,
+                                                                          end: selection.end }, selection.text));
                            setPanel(null);
                          }} />
         )

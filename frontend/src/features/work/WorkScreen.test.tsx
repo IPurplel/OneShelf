@@ -1,5 +1,5 @@
 /** Master §32.8, §4, §22, §47: Work Details shows one Work, its tracks, and an index of units. */
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -34,6 +34,68 @@ const DETAILS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Work Details", () => {
+  it("cannot follow the old track while the selected track is loading", async () => {
+    let answerArabic!: (response: Response) => void;
+    const arabic = new Promise<Response>((resolve) => { answerArabic = resolve; });
+    const calls: { url: string; method: string; body: unknown }[] = [];
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      calls.push({ url, method, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+      if (url === "/api/works/w1?track_id=t-ar") return arabic;
+      if (url.startsWith("/api/works/w1")) return Promise.resolve(Response.json(DETAILS));
+      return Promise.resolve(Response.json({ work_id: "w1" }));
+    }));
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-en" });
+    await screen.findByRole("button", { name: /^follow$/i });
+    await user.click(screen.getByRole("tab", { name: /sources/i }));
+    await user.click(screen.getByRole("button", { name: /mangadex/i }));
+    expect(screen.queryByRole("button", { name: /^follow$/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^continue$/i })).toBeNull();
+    expect(calls.filter(call => call.url === "/api/follows/w1")).toHaveLength(0);
+    answerArabic(Response.json({ ...DETAILS, selected_track_id: "t-ar" }));
+    await user.click(await screen.findByRole("button", { name: /^follow$/i }));
+    expect(calls.find(call => call.url === "/api/follows/w1")?.body)
+      .toEqual({ language: "ar", source_id: "mangadex", track_id: "t-ar" });
+  });
+
+  it("ignores a late B response after switching A to B to A", async () => {
+    let answerB!: (response: Response) => void;
+    let answerA!: (response: Response) => void;
+    const b = new Promise<Response>(resolve => { answerB = resolve; });
+    const a = new Promise<Response>(resolve => { answerA = resolve; });
+    let aRequests = 0;
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("track_id=t-ar")) return b;
+      if (url.endsWith("track_id=t-en")) return ++aRequests === 1 ? Promise.resolve(Response.json(DETAILS)) : a;
+      return Promise.resolve(Response.json({}));
+    }));
+    function Navigate() {
+      const navigate = useNavigate();
+      return <><button onClick={() => navigate("/works/w1?track=t-ar")}>Arabic track</button>
+        <button onClick={() => navigate("/works/w1?track=t-en")}>English track</button></>;
+    }
+    const user = userEvent.setup();
+    renderWithProviders(<><WorkScreen workId="w1" /><Navigate /></>, { route: "/works/w1?track=t-en" });
+    await screen.findByRole("button", { name: /^follow$/i });
+    await user.click(screen.getByRole("button", { name: "Arabic track" }));
+    await user.click(screen.getByRole("button", { name: "English track" }));
+    answerB(Response.json({ ...DETAILS, selected_track_id: "t-ar" }));
+    expect(screen.queryByRole("button", { name: /^follow$/i })).toBeNull();
+    answerA(Response.json(DETAILS));
+    await waitFor(() => expect(screen.getByRole("link", { name: /^continue$/i }))
+      .toHaveAttribute("href", "/read/u2?work=w1&track=t-en"));
+  });
+
+  it("does not present actions when the response names a different track", async () => {
+    mockApi([get("/api/works/w1", DETAILS)]);
+    renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-ar" });
+    expect(await screen.findByRole("alert")).toHaveTextContent(/selected track/i);
+    expect(screen.queryByRole("button", { name: /^follow$/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /^continue$/i })).toBeNull();
+  });
   it("localizes its metadata labels in Arabic", async () => {
     mockApi([get("/api/works/w1", DETAILS)]);
     const user = userEvent.setup();
@@ -362,11 +424,51 @@ describe("Work Details", () => {
       .toEqual({ completed: true });
 
     const offer = await screen.findByRole("dialog", { name: /completed/i });
+    expect(screen.getByRole("button", { name: /not completed after all/i })).toHaveAttribute("aria-pressed", "true");
     expect(offer).toHaveTextContent(/progress/i);
     expect(calls.some((call) => call.method === "DELETE")).toBe(false);
 
     await user.click(within(offer).getByRole("button", { name: /keep the files/i }));
     expect(calls.some((call) => call.method === "DELETE")).toBe(false);
+  });
+
+  it("keeps a work uncompleted and reports a failed completion POST", async () => {
+    mockApi([get("/api/works/w1", DETAILS),
+      post("/api/shelf/w1", { error: { message: "Completion was not saved" } }, 503)]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await user.click(await screen.findByRole("button", { name: /mark completed/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Completion was not saved");
+    expect(screen.getByRole("button", { name: /mark completed/i })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("retains completed state when summary fails, then retries only the summary", async () => {
+    let summaryAttempts = 0;
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      calls.push(`${method} ${url}`);
+      if (url === "/api/works/w1") return Promise.resolve(Response.json(DETAILS));
+      if (url === "/api/shelf/w1" && method === "POST") return Promise.resolve(Response.json({ work_id: "w1" }));
+      if (url === "/api/shelf/w1/removal-summary") {
+        return Promise.resolve(++summaryAttempts === 1
+          ? Response.json({ error: { message: "Summary unavailable" } }, { status: 503 })
+          : Response.json(SUMMARY));
+      }
+      return Promise.resolve(Response.json({}));
+    }));
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await user.click(await screen.findByRole("button", { name: /mark completed/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/cleanup information/i);
+    expect(screen.getByRole("button", { name: /not completed after all/i })).toHaveAttribute("aria-pressed", "true");
+    expect(calls.filter(call => call === "POST /api/shelf/w1")).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: /retry cleanup information/i }));
+    expect(await screen.findByRole("dialog", { name: /completed/i })).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(calls.filter(call => call === "POST /api/shelf/w1")).toHaveLength(1);
+    expect(calls.filter(call => call === "GET /api/shelf/w1/removal-summary")).toHaveLength(2);
   });
 
   it("says the same things in Arabic, where the interface mirrors", async () => {

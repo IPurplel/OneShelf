@@ -27,10 +27,20 @@ function epubBytes(): Uint8Array {
   });
 }
 
+function epubWithSpine(spine: string): Uint8Array {
+  return zipSync({
+    "META-INF/container.xml": strToU8('<container><rootfiles><rootfile full-path="OEBPS/content.opf"/></rootfiles></container>'),
+    "OEBPS/content.opf": strToU8(`<package><metadata><title>Small Book</title></metadata>
+      <manifest><item id="c0" href="one.xhtml"/></manifest><spine>${spine}</spine></package>`),
+    "OEBPS/one.xhtml": strToU8("<html><body><p>One readable chapter.</p></body></html>"),
+  });
+}
+
 type Call = { url: string; method: string; body: unknown };
 
 /** The file, the marks the library holds, and progress — the three things the Book Reader talks to. */
-function stubFile(bytes: Uint8Array, contentType: string, progress?: Record<string, unknown>): Call[] {
+function stubFile(bytes: Uint8Array, contentType: string, progress?: Record<string, unknown>,
+                  failures?: { bookmarks?: boolean; highlights?: boolean }): Call[] {
   const calls: Call[] = [];
   const marks: { bookmarks: unknown[]; highlights: unknown[] } = { bookmarks: [], highlights: [] };
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -46,12 +56,16 @@ function stubFile(bytes: Uint8Array, contentType: string, progress?: Record<stri
     });
     if (url.endsWith("/marks")) return json(marks);
     if (url.endsWith("/bookmarks") && method === "POST") {
+      if (failures?.bookmarks) return new Response(JSON.stringify({ error: { message: "Marks unavailable" } }),
+        { status: 503, headers: { "Content-Type": "application/json" } });
       const made = { id: `b${marks.bookmarks.length + 1}`, locator: body.locator, label: body.label,
                      created_at: "2026-09-18T10:00:00+00:00" };
       marks.bookmarks.push(made);
       return json(made);
     }
     if (url.endsWith("/highlights") && method === "POST") {
+      if (failures?.highlights) return new Response(JSON.stringify({ error: { message: "Marks unavailable" } }),
+        { status: 503, headers: { "Content-Type": "application/json" } });
       const made = { id: `h${marks.highlights.length + 1}`, locator: body.locator, text: body.text,
                      colour: "yellow", created_at: "2026-09-18T10:00:00+00:00" };
       marks.highlights.push(made);
@@ -76,6 +90,36 @@ function selectWithin(element: HTMLElement, start: number, end: number) {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Book Reader (EPUB)", () => {
+  it("shows a recoverable localized error for an empty spine instead of 1 of 0", async () => {
+    stubFile(epubWithSpine(""), "application/epub+zip");
+    renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" trackId="t-ar" />, { language: "ar" });
+    expect(await screen.findByRole("alert")).toHaveTextContent("لا يحتوي هذا الكتاب على فصول قابلة للقراءة");
+    expect(screen.queryByText(/1 of 0|1 من 0/)).toBeNull();
+    expect(screen.getByRole("link", { name: /العودة إلى العمل/i }))
+      .toHaveAttribute("href", "/works/w1?track=t-ar");
+    expect(screen.getByRole("button", { name: /أعد المحاولة/i })).toBeInTheDocument();
+  });
+
+  it("reports a spine whose chapter files are all missing", async () => {
+    stubFile(epubWithSpine('<itemref idref="missing"/>'), "application/epub+zip");
+    renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/no readable chapters/i);
+  });
+
+  it("shows a localized recovery message for a malformed EPUB", async () => {
+    stubFile(strToU8("not a zip"), "application/epub+zip");
+    renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />, { language: "ar" });
+    expect(await screen.findByRole("alert")).toHaveTextContent("تعذّر فتح ملف EPUB");
+    expect(screen.getByRole("link", { name: /العودة إلى العمل/i })).toBeInTheDocument();
+  });
+
+  it("still opens a valid one-chapter EPUB", async () => {
+    stubFile(epubWithSpine('<itemref idref="c0"/>'), "application/epub+zip");
+    renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("1 of 1"));
+    await waitFor(() => expect(screen.getByTitle(/book content/i).getAttribute("srcdoc"))
+      .toContain("One readable chapter."));
+  });
   it("renders the chapter inside a sandboxed frame that cannot run scripts or reach the app", async () => {
     stubFile(epubBytes(), "application/epub+zip");
     renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
@@ -132,6 +176,29 @@ describe("Book Reader (EPUB)", () => {
     expect(await within(drawer).findByText(/chapter one/i)).toBeInTheDocument();
   });
 
+  it("reports a failed bookmark and retries it without claiming it was saved", async () => {
+    const failures = { bookmarks: true };
+    const calls = stubFile(epubBytes(), "application/epub+zip", undefined, failures);
+    const user = userEvent.setup();
+    renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("1 of 2"));
+    await user.click(screen.getByRole("button", { name: /bookmark this place/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not save.*marks unavailable/i);
+    await user.click(screen.getByRole("button", { name: /contents/i }));
+    let drawer = await screen.findByRole("dialog", { name: /contents/i });
+    await user.click(within(drawer).getByRole("tab", { name: /bookmarks/i }));
+    expect(within(drawer).queryByText(/chapter one/i)).toBeNull();
+    await user.keyboard("{Escape}");
+    failures.bookmarks = false;
+    await user.click(screen.getByRole("button", { name: /retry saving mark/i }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    await user.click(screen.getByRole("button", { name: /contents/i }));
+    drawer = await screen.findByRole("dialog", { name: /contents/i });
+    await user.click(within(drawer).getByRole("tab", { name: /bookmarks/i }));
+    expect(await within(drawer).findByText(/chapter one/i)).toBeInTheDocument();
+    expect(calls.filter(call => call.url.endsWith("/bookmarks") && call.method === "POST")).toHaveLength(2);
+  });
+
   it("captures a highlight from the chapter's own text, and keeps it with the library", async () => {
     const calls = stubFile(epubBytes(), "application/epub+zip");
     const user = userEvent.setup();
@@ -152,6 +219,21 @@ describe("Book Reader (EPUB)", () => {
     const made = calls.find((c) => c.url.endsWith("/highlights") && c.method === "POST");
     expect(made?.body).toMatchObject({ text: "quiet",
                                        locator: { chapter: 0, start, end: start + "quiet".length } });
+  });
+
+  it("reports a failed highlight save through the same mark error surface", async () => {
+    const failures = { highlights: true };
+    stubFile(epubBytes(), "application/epub+zip", undefined, failures);
+    const user = userEvent.setup();
+    renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("1 of 2"));
+    await user.click(screen.getByRole("button", { name: /highlight/i }));
+    const panel = await screen.findByRole("dialog", { name: /highlight/i });
+    const passage = await within(panel).findByText(/the quiet begins/i);
+    const start = passage.textContent!.indexOf("quiet");
+    selectWithin(passage, start, start + 5);
+    await user.click(within(panel).getByRole("button", { name: /keep this highlight/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not save.*marks unavailable/i);
   });
 
   it("says when nothing is selected rather than keeping an empty highlight", async () => {
