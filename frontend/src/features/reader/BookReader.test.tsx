@@ -168,7 +168,8 @@ describe("Book Reader (EPUB)", () => {
     await user.click(screen.getByRole("button", { name: /bookmark/i }));
 
     const made = calls.find((c) => c.url.endsWith("/bookmarks") && c.method === "POST");
-    expect(made?.body).toEqual({ locator: { chapter: 0 }, label: "Chapter One" });
+    expect(made?.body).toMatchObject({ locator: { chapter: 0 }, label: "Chapter One",
+      operation_id: expect.any(String) });
 
     await user.click(screen.getByRole("button", { name: /contents/i }));
     const drawer = await screen.findByRole("dialog", { name: /contents/i });
@@ -196,7 +197,10 @@ describe("Book Reader (EPUB)", () => {
     drawer = await screen.findByRole("dialog", { name: /contents/i });
     await user.click(within(drawer).getByRole("tab", { name: /bookmarks/i }));
     expect(await within(drawer).findByText(/chapter one/i)).toBeInTheDocument();
-    expect(calls.filter(call => call.url.endsWith("/bookmarks") && call.method === "POST")).toHaveLength(2);
+    const attempts = calls.filter(call => call.url.endsWith("/bookmarks") && call.method === "POST");
+    expect(attempts).toHaveLength(2);
+    expect((attempts[0]?.body as { operation_id: string }).operation_id)
+      .toBe((attempts[1]?.body as { operation_id: string }).operation_id);
   });
 
   it("captures a highlight from the chapter's own text, and keeps it with the library", async () => {
@@ -223,7 +227,7 @@ describe("Book Reader (EPUB)", () => {
 
   it("reports a failed highlight save through the same mark error surface", async () => {
     const failures = { highlights: true };
-    stubFile(epubBytes(), "application/epub+zip", undefined, failures);
+    const calls = stubFile(epubBytes(), "application/epub+zip", undefined, failures);
     const user = userEvent.setup();
     renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("1 of 2"));
@@ -234,6 +238,13 @@ describe("Book Reader (EPUB)", () => {
     selectWithin(passage, start, start + 5);
     await user.click(within(panel).getByRole("button", { name: /keep this highlight/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/could not save.*marks unavailable/i);
+    failures.highlights = false;
+    await user.click(screen.getByRole("button", { name: /retry saving mark/i }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    const attempts = calls.filter(call => call.url.endsWith("/highlights") && call.method === "POST");
+    expect(attempts).toHaveLength(2);
+    expect((attempts[0]?.body as { operation_id: string }).operation_id)
+      .toBe((attempts[1]?.body as { operation_id: string }).operation_id);
   });
 
   it("says when nothing is selected rather than keeping an empty highlight", async () => {

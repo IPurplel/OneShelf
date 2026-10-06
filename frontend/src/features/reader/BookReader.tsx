@@ -166,8 +166,8 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
           {t("book.search")}
         </button>
         <button type="button" className="reader__button"
-                onClick={() => void markSave.save(() => marks.addBookmark({ chapter: chapterIndex },
-                                                               chapterLabel(book, chapterIndex)))}>
+                onClick={() => void markSave.save((operationId) => marks.addBookmark({ chapter: chapterIndex },
+                                                               chapterLabel(book, chapterIndex), operationId))}>
           {t("book.bookmark")}
         </button>
         <button type="button" className="reader__button" onClick={() => setPanel("highlight")}>
@@ -206,8 +206,8 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
       {panel === "highlight" && (
         <HighlightPane text={chapterText} onClose={() => setPanel(null)}
                        onKeep={(selection) => {
-                         void markSave.save(() => marks.addHighlight({ chapter: chapterIndex, start: selection.start,
-                                                                  end: selection.end }, selection.text));
+                         void markSave.save((operationId) => marks.addHighlight({ chapter: chapterIndex,
+                           start: selection.start, end: selection.end }, selection.text, operationId));
                          setPanel(null);
                        }} />
       )}

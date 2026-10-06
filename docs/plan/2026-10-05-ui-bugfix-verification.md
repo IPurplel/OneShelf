@@ -59,3 +59,25 @@ The six failures reproduced in the 2026-10-06 Chromium audit were fixed without 
 The final Chromium matrix ran against the production build served by Vite preview; a bundled font request returned HTTP 200. This keeps the captured English and Arabic screenshots representative of shipped typography.
 
 Logs: `/tmp/oneshelf-ui-isolated-frontend.log`, `/tmp/oneshelf-ui-isolated-build.log`, `/tmp/oneshelf-ui-isolated-backend.log`, `/tmp/oneshelf-ui-isolated-layout.log`, `/tmp/oneshelf-ui-isolated-ux.log`, `/tmp/oneshelf-ui-isolated-extended.log`, `/tmp/oneshelf-ui-isolated-reader.log`, `/tmp/oneshelf-ui-isolated-reader-controls.log`, and `/tmp/oneshelf-ui-isolated-targeted.log`. The [request trace](evidence/2026-10-06/after/request-trace.json) and [targeted screenshots](evidence/2026-10-06/after/) include pending Work track loading, empty EPUB recovery, Completed summary warning, and bookmark error in both locales at 390px. [Reader screenshots](evidence/2026-10-06/reader/) cover all six viewport/locale combinations; [before-fix captures](evidence/2026-10-06/before/) show the original failures. **I-51 MangaDex remains open**; its adapter and snapshot were not changed in this pass.
+
+## PR #1 review follow-up
+
+Three review findings were reproduced and fixed on `fix/ui-six-audit-bugs` without changing the earlier six fixes.
+
+| Finding | Cause and correction | Regression evidence |
+| --- | --- | --- |
+| Obsolete completion summary could offer file deletion | The summary response had no Work or completion-action identity. Each request now carries its Work ID and action generation; undo, another action, or changing Work invalidates it. The offer and its delete action are guarded by that identity and the current completed state. | Work tests hold a summary through Undo and a Work A→B switch, confirm no old dialog, and retain normal offer and GET-only retry coverage. Controlled Chromium holds the summary through Undo and confirms no modal or DELETE. |
+| Failed Login Session cleanup was marked done | The login ID entered `deleted` before DELETE succeeded. Successful deletions and in-flight attempts are tracked separately. A transient failure receives one delayed retry; failed cleanup remains eligible for a later attempt. | Login tests cover a late login, a failed first DELETE followed by success, no duplicate successful cleanup, reopening, and normal cancel. Controlled Chromium records DELETE 503 then 200 for the old ID while the new session remains open. |
+| Highlight retry could create two records | Retry sent an indistinguishable second POST. Each mark action now has a UUID operation ID reused on retry. Migration 0016 stores it with a unique index; the API returns the existing mark for the same operation and rejects reuse with different content. New IDs still create distinct highlights with the same text. Bookmark locator deduplication remains. | Backend tests cover normal marks, repeated highlight and bookmark operations, distinct highlight actions, and conflicting ID reuse. Frontend tests prove exact operation ID reuse across EPUB/PDF mark retries. |
+
+| Follow-up check | Result |
+| --- | --- |
+| `npm test --prefix frontend` | 334 passed across 34 files |
+| `npm run build --prefix frontend` | TypeScript and Vite production build passed |
+| Relevant backend integration and migration tests | 156 passed |
+| Controlled Chromium completion/Login races | 6 viewport/locale cases passed at 390, 768, and 1440px in English and Arabic |
+| Original six-bug Chromium matrix | 6 viewport/locale cases passed again |
+| Real-backend Chromium Reader suite | 6 scenarios passed again with migration 0016 |
+| `git diff --check` | Passed |
+
+The [follow-up screenshots and request trace](evidence/2026-10-06/pr-review/) preserve the delayed completion summary and failed-then-successful Login Session DELETE. Browser responses in this race test are controlled fixtures. **I-51 MangaDex remains open**; the adapter was not touched.

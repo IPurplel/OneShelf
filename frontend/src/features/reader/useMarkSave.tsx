@@ -9,27 +9,27 @@ export function useMarkSave() {
   const [failure, setFailure] = useState<string | null>(null);
   const [retry, setRetry] = useState<(() => Promise<void>) | null>(null);
 
-  const save = async (action: () => Promise<void>) => {
+  const save = async (action: (operationId: string) => Promise<void>, operationId = crypto.randomUUID()) => {
     setFailure(null);
     try {
-      await action();
+      await action(operationId);
       setRetry(null);
     } catch (error) {
       const reason = error instanceof ApiError ? error.message : t("state.offline");
       setFailure(t("book.markSaveFailed", { reason }));
-      setRetry(() => action);
+      setRetry(() => () => save(action, operationId));
     }
   };
 
   return { failure, retry, save };
 }
 
-export function MarkSaveNotice({ failure, retry, save }: ReturnType<typeof useMarkSave>) {
+export function MarkSaveNotice({ failure, retry }: ReturnType<typeof useMarkSave>) {
   const { t } = useI18n();
   if (failure === null) return null;
   return <div className="notice notice--problem book__markProblem">
     <p role="alert">{failure}</p>
     {retry !== null && <button type="button" className="button"
-      onClick={() => void save(retry)}>{t("book.retryMark")}</button>}
+      onClick={() => void retry()}>{t("book.retryMark")}</button>}
   </div>;
 }

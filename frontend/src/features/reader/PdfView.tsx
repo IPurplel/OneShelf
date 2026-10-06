@@ -211,7 +211,8 @@ export function PdfView({ unitId, data, workId, trackId, onProgress, onLeave, st
           {t("pdf.search")}
         </button>
         <button type="button" className="reader__button"
-                onClick={() => void markSave.save(() => marks.addBookmark({ page }, t("pdf.page", { page })))}>
+                onClick={() => void markSave.save((operationId) => marks.addBookmark({ page },
+                  t("pdf.page", { page }), operationId))}>
           {t("book.bookmark")}
         </button>
         <button type="button" className="reader__button" onClick={() => setPanel("highlight")}>
@@ -265,8 +266,8 @@ export function PdfView({ unitId, data, workId, trackId, onProgress, onLeave, st
         ) : (
           <HighlightPane text={text} onClose={() => setPanel(null)}
                          onKeep={(selection) => {
-                           void markSave.save(() => marks.addHighlight({ page, start: selection.start,
-                                                                          end: selection.end }, selection.text));
+                           void markSave.save((operationId) => marks.addHighlight({ page,
+                             start: selection.start, end: selection.end }, selection.text, operationId));
                            setPanel(null);
                          }} />
         )

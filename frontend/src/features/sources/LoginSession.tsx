@@ -35,14 +35,29 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
   const closed = useRef(false);
   const activeLogin = useRef<string | null>(null);
   const deleted = useRef(new Set<string>());
+  const deleting = useRef(new Map<string, Promise<boolean>>());
 
-  const discard = useCallback(async (id: string) => {
-    if (deleted.current.has(id)) return;
-    deleted.current.add(id);
+  const discard = useCallback(async (id: string): Promise<boolean> => {
+    if (deleted.current.has(id)) return true;
+    const pending = deleting.current.get(id);
+    if (pending !== undefined) return pending;
+    const request = (async () => {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          await api.delete(`/api/logins/${id}`);
+          deleted.current.add(id);
+          return true;
+        } catch {
+          if (attempt === 0) await new Promise(resolve => window.setTimeout(resolve, 150));
+        }
+      }
+      return false;
+    })();
+    deleting.current.set(id, request);
     try {
-      await api.delete(`/api/logins/${id}`);
-    } catch {
-      // The server may have already closed the window.
+      return await request;
+    } finally {
+      deleting.current.delete(id);
     }
   }, []);
 

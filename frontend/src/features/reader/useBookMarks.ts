@@ -43,15 +43,20 @@ export function useBookMarks(unitId: string) {
     return () => { owner.live = false; };
   }, [owner, reload]);
 
-  const addBookmark = useCallback(async (locator: Locator, label: string | null) => {
-    const made = await api.post<Bookmark>(`/api/reader/units/${unitId}/bookmarks`, { locator, label });
+  const addBookmark = useCallback(async (locator: Locator, label: string | null,
+                                   operationId: string = crypto.randomUUID()) => {
+    const made = await api.post<Bookmark>(`/api/reader/units/${unitId}/bookmarks`,
+      { locator, label, operation_id: operationId });
     setMarks((current) => current.bookmarks.some((entry) => entry.id === made.id)
       ? current : { ...current, bookmarks: [...current.bookmarks, made] });
   }, [unitId, setMarks]);
 
-  const addHighlight = useCallback(async (locator: Locator, text: string) => {
-    const made = await api.post<Highlight>(`/api/reader/units/${unitId}/highlights`, { locator, text });
-    setMarks((current) => ({ ...current, highlights: [...current.highlights, made] }));
+  const addHighlight = useCallback(async (locator: Locator, text: string,
+                                    operationId: string = crypto.randomUUID()) => {
+    const made = await api.post<Highlight>(`/api/reader/units/${unitId}/highlights`,
+      { locator, text, operation_id: operationId });
+    setMarks((current) => current.highlights.some((entry) => entry.id === made.id)
+      ? current : { ...current, highlights: [...current.highlights, made] });
   }, [unitId, setMarks]);
 
   const removeBookmark = useCallback(async (id: string) => {

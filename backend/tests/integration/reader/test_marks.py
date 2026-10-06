@@ -64,6 +64,40 @@ def test_the_same_place_is_not_bookmarked_twice(api):
     assert len(client.get(f"/api/reader/units/{unit}/marks").json()["bookmarks"]) == 1
 
 
+def test_mark_operation_id_makes_ambiguous_retries_idempotent_without_merging_new_highlights(api):
+    client, tmp_path = api
+    unit = import_unit(client, tmp_path)["reading_unit_id"]
+    highlight = {"locator": {"chapter": 1, "start": 2, "end": 8}, "text": "same text",
+                 "operation_id": "00000000-0000-4000-8000-000000000001"}
+    path = f"/api/reader/units/{unit}/highlights"
+    first = client.post(path, json=highlight)
+    retry = client.post(path, json=highlight)  # first response may have been lost after commit
+    assert first.status_code == retry.status_code == 200
+    assert retry.json()["id"] == first.json()["id"]
+    assert len(client.get(f"/api/reader/units/{unit}/marks").json()["highlights"]) == 1
+
+    distinct = client.post(path, json={**highlight, "operation_id": "00000000-0000-4000-8000-000000000002"})
+    assert distinct.status_code == 200
+    assert distinct.json()["id"] != first.json()["id"]
+    assert len(client.get(f"/api/reader/units/{unit}/marks").json()["highlights"]) == 2
+
+    changed_payload = client.post(path, json={**highlight, "text": "different text"})
+    assert changed_payload.status_code == 409
+    assert changed_payload.json()["error"]["code"] == "MARK_OPERATION_CONFLICT"
+    assert len(client.get(f"/api/reader/units/{unit}/marks").json()["highlights"]) == 2
+
+    bookmark = {"locator": {"chapter": 2}, "label": "Chapter 3",
+                "operation_id": "00000000-0000-4000-8000-000000000003"}
+    bookmark_path = f"/api/reader/units/{unit}/bookmarks"
+    saved = client.post(bookmark_path, json=bookmark)
+    again = client.post(bookmark_path, json=bookmark)
+    same_place_new_action = client.post(bookmark_path, json={**bookmark,
+        "operation_id": "00000000-0000-4000-8000-000000000004"})
+    assert saved.status_code == again.status_code == same_place_new_action.status_code == 200
+    assert saved.json()["id"] == again.json()["id"] == same_place_new_action.json()["id"]
+    assert len(client.get(f"/api/reader/units/{unit}/marks").json()["bookmarks"]) == 1
+
+
 def test_marks_for_a_unit_that_does_not_exist_are_refused(api):
     client, _ = api
     response = client.post("/api/reader/units/nope/bookmarks", json={"locator": {"chapter": 1}, "label": "x"})

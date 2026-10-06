@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { ApiError, api } from "@/api/client";
@@ -37,10 +37,21 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const trackId = search.get("track");
   const [exporting, setExporting] = useState(false);
   const [removing, setRemoving] = useState<RemovalSummary | null>(null);
-  const [completedOffer, setCompletedOffer] = useState<RemovalSummary | null>(null);
+  const [completedOffer, setCompletedOffer] = useState<{
+    workId: string; generation: number; summary: RemovalSummary;
+  } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [completion, setCompletion] = useState<{ workId: string; value: boolean } | null>(null);
-  const [summaryProblemId, setSummaryProblemId] = useState<string | null>(null);
+  const [summaryProblem, setSummaryProblem] = useState<{ workId: string; generation: number } | null>(null);
+  const completionRequest = useRef({ workId: id, generation: 0, completed: false });
+  if (completionRequest.current.workId !== id) {
+    completionRequest.current = { workId: id, generation: completionRequest.current.generation + 1,
+      completed: false };
+  }
+  useEffect(() => {
+    setCompletedOffer(null);
+    setSummaryProblem(null);
+  }, [id]);
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${id}`,
     trackId ? { track_id: trackId } : undefined);
   const [problem, setProblem] = useState<string | null>(null);
@@ -115,32 +126,46 @@ export function WorkScreen({ workId }: { workId?: string }) {
     }
   };
 
-  const loadCompletionSummary = async () => {
+  const completionIsCurrent = (workId: string, generation: number) => {
+    const current = completionRequest.current;
+    return current.workId === workId && current.generation === generation && current.completed;
+  };
+
+  const loadCompletionSummary = async (workId: string, generation: number) => {
+    if (!completionIsCurrent(workId, generation)) return;
     try {
-      const summary = await api.get<RemovalSummary>(`/api/shelf/${id}/removal-summary`);
-      setSummaryProblemId(null);
-      if (summary.files > 0) setCompletedOffer(summary);
+      const summary = await api.get<RemovalSummary>(`/api/shelf/${workId}/removal-summary`);
+      if (!completionIsCurrent(workId, generation)) return;
+      setSummaryProblem(null);
+      if (summary.files > 0) setCompletedOffer({ workId, generation, summary });
     } catch {
-      setSummaryProblemId(id);
+      if (completionIsCurrent(workId, generation)) setSummaryProblem({ workId, generation });
     }
   };
 
   /** Completed keeps the work, its status and its progress; deleting the files is only ever offered. */
   const markCompleted = async (next: boolean) => {
+    const workId = id;
+    const generation = ++completionRequest.current.generation;
+    completionRequest.current.completed = false;
     setNotice(null);
     setProblem(null);
-    setSummaryProblemId(null);
+    setSummaryProblem(null);
+    setCompletedOffer(null);
     try {
-      await api.post(`/api/shelf/${id}`, { completed: next });
+      await api.post(`/api/shelf/${workId}`, { completed: next });
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      if (completionRequest.current.workId === workId && completionRequest.current.generation === generation)
+        setProblem(error instanceof ApiError ? error.message : t("state.offline"));
       return;
     }
-    setCompletion({ workId: id, value: next });
+    if (completionRequest.current.workId !== workId || completionRequest.current.generation !== generation) return;
+    completionRequest.current.completed = next;
+    setCompletion({ workId, value: next });
     reload();
     if (next) {
       setNotice(t("shelf.completed.title"));
-      await loadCompletionSummary();
+      await loadCompletionSummary(workId, generation);
     }
   };
 
@@ -215,9 +240,11 @@ export function WorkScreen({ workId }: { workId?: string }) {
 
       {notice !== null && <p className="notice" role="status">{notice}</p>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
-      {summaryProblemId === id && <div className="notice notice--problem">
+      {summaryProblem?.workId === id && summaryProblem.generation === completionRequest.current.generation
+        && completed && <div className="notice notice--problem">
         <p role="alert">{t("shelf.completed.summaryFailed")}</p>
-        <button type="button" className="button" onClick={() => void loadCompletionSummary()}>
+        <button type="button" className="button"
+                onClick={() => void loadCompletionSummary(summaryProblem.workId, summaryProblem.generation)}>
           {t("shelf.completed.retrySummary")}
         </button>
       </div>}
@@ -229,20 +256,23 @@ export function WorkScreen({ workId }: { workId?: string }) {
                          onCancel={() => setRemoving(null)} />
       )}
 
-      {completedOffer !== null && (
+      {completedOffer?.workId === id && completedOffer.generation === completionRequest.current.generation
+        && completed && (
         <ModalSurface className="confirm" title={t("shelf.completed.title")}
                       onClose={() => setCompletedOffer(null)}>
           <h2 className="display">{t("shelf.completed.title")}</h2>
           <p>{t("shelf.completed.body", { title: work.title })}</p>
-          <p>{t("shelf.completed.offer", { files: completedOffer.files, size: bytes(completedOffer.bytes) })}</p>
+          <p>{t("shelf.completed.offer", { files: completedOffer.summary.files,
+            size: bytes(completedOffer.summary.bytes) })}</p>
           <div className="confirm__actions">
             <button type="button" className="button button--primary" onClick={() => setCompletedOffer(null)}>
               {t("shelf.completed.keep")}
             </button>
             <button type="button" className="button"
                     onClick={() => {
+                      if (!completionIsCurrent(completedOffer.workId, completedOffer.generation)) return;
                       setCompletedOffer(null);
-                      void toggle(api.delete<{ deleted_files: number }>(`/api/works/${id}/files`)
+                      void toggle(api.delete<{ deleted_files: number }>(`/api/works/${completedOffer.workId}/files`)
                         .then((done) => setNotice(t("shelf.filesDeleted", { files: done.deleted_files }))));
                     }}>
               {t("shelf.completed.delete")}

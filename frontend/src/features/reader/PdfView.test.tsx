@@ -153,7 +153,7 @@ describe("Book Reader (PDF)", () => {
 
     await user.click(screen.getByRole("button", { name: /bookmark this place/i }));
     expect(calls.find((c) => c.url.endsWith("/bookmarks") && c.method === "POST")?.body)
-      .toEqual({ locator: { page: 1 }, label: "Page 1" });
+      .toMatchObject({ locator: { page: 1 }, label: "Page 1", operation_id: expect.any(String) });
 
     await user.click(screen.getByRole("button", { name: /^highlight$/i }));
     const panel = await screen.findByRole("dialog", { name: /highlight/i });
@@ -177,11 +177,10 @@ describe("Book Reader (PDF)", () => {
     failures.bookmarks = false;
     await user.click(screen.getByRole("button", { name: /retry saving mark/i }));
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
-    expect(calls.filter(call => call.url.endsWith("/bookmarks") && call.method === "POST"))
-      .toEqual([
-        expect.objectContaining({ body: { locator: { page: 1 }, label: "Page 1" } }),
-        expect.objectContaining({ body: { locator: { page: 1 }, label: "Page 1" } }),
-      ]);
+    const attempts = calls.filter(call => call.url.endsWith("/bookmarks") && call.method === "POST");
+    expect(attempts).toHaveLength(2);
+    expect(attempts[0]?.body).toMatchObject({ locator: { page: 1 }, label: "Page 1" });
+    expect(attempts[1]?.body).toEqual(attempts[0]?.body);
   });
 
   it("says when a document has no text to search", async () => {

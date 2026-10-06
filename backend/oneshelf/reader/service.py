@@ -31,6 +31,10 @@ class StaleProgress(RuntimeError):
     """A newer progress revision exists; a stale tab must not undo it (§26.23)."""
 
 
+class MarkOperationConflict(RuntimeError):
+    """One mark operation ID cannot be reused for different content."""
+
+
 @dataclass(frozen=True)
 class PageInfo:
     index: int
@@ -248,30 +252,52 @@ class ReaderService:
                           (unit_id,))]
         return Marks(bookmarks, highlights)
 
-    def add_bookmark(self, unit_id: str, *, locator: dict, label: str | None = None) -> Bookmark:
+    def add_bookmark(self, unit_id: str, *, locator: dict, label: str | None = None,
+                     operation_id: str | None = None) -> Bookmark:
         self._unit(unit_id)
         key = self._locator_key(locator)
-        existing = self.conn.execute(
-            "SELECT * FROM reading_bookmarks WHERE reading_unit_id = ? AND locator_key = ?", (unit_id, key)).fetchone()
-        if existing is not None:      # the same place is never bookmarked twice
-            return Bookmark(existing["id"], json.loads(existing["locator_json"]), existing["label"],
-                            existing["created_at"])
-        record = Bookmark(new_id(), locator, label, utcnow_iso())
         with transaction(self.conn):
+            if operation_id is not None:
+                prior = self.conn.execute(
+                    "SELECT * FROM reading_bookmarks WHERE operation_id = ?", (operation_id,)).fetchone()
+                if prior is not None:
+                    if (prior["reading_unit_id"] != unit_id or prior["locator_key"] != key
+                            or prior["label"] != label):
+                        raise MarkOperationConflict("mark operation ID was used for another bookmark")
+                    return Bookmark(prior["id"], json.loads(prior["locator_json"]), prior["label"],
+                                    prior["created_at"])
+            existing = self.conn.execute(
+                "SELECT * FROM reading_bookmarks WHERE reading_unit_id = ? AND locator_key = ?",
+                (unit_id, key)).fetchone()
+            if existing is not None:  # the same place is never bookmarked twice
+                return Bookmark(existing["id"], json.loads(existing["locator_json"]), existing["label"],
+                                existing["created_at"])
+            record = Bookmark(new_id(), locator, label, utcnow_iso())
             self.conn.execute(
-                "INSERT INTO reading_bookmarks (id, reading_unit_id, locator_json, locator_key, label, created_at)"
-                " VALUES (?,?,?,?,?,?)",
-                (record.id, unit_id, json.dumps(locator), key, label, record.created_at))
+                "INSERT INTO reading_bookmarks (id, reading_unit_id, locator_json, locator_key, label, created_at, operation_id)"
+                " VALUES (?,?,?,?,?,?,?)",
+                (record.id, unit_id, json.dumps(locator), key, label, record.created_at, operation_id))
         return record
 
-    def add_highlight(self, unit_id: str, *, locator: dict, text: str, colour: str = "yellow") -> Highlight:
+    def add_highlight(self, unit_id: str, *, locator: dict, text: str, colour: str = "yellow",
+                      operation_id: str | None = None) -> Highlight:
         self._unit(unit_id)
-        record = Highlight(new_id(), locator, text, colour, utcnow_iso())
         with transaction(self.conn):
+            if operation_id is not None:
+                prior = self.conn.execute(
+                    "SELECT * FROM reading_highlights WHERE operation_id = ?", (operation_id,)).fetchone()
+                if prior is not None:
+                    if (prior["reading_unit_id"] != unit_id
+                            or self._locator_key(json.loads(prior["locator_json"])) != self._locator_key(locator)
+                            or prior["text"] != text or prior["colour"] != colour):
+                        raise MarkOperationConflict("mark operation ID was used for another highlight")
+                    return Highlight(prior["id"], json.loads(prior["locator_json"]), prior["text"],
+                                     prior["colour"], prior["created_at"])
+            record = Highlight(new_id(), locator, text, colour, utcnow_iso())
             self.conn.execute(
-                "INSERT INTO reading_highlights (id, reading_unit_id, locator_json, text, colour, created_at)"
-                " VALUES (?,?,?,?,?,?)",
-                (record.id, unit_id, json.dumps(locator), text, colour, record.created_at))
+                "INSERT INTO reading_highlights (id, reading_unit_id, locator_json, text, colour, created_at, operation_id)"
+                " VALUES (?,?,?,?,?,?,?)",
+                (record.id, unit_id, json.dumps(locator), text, colour, record.created_at, operation_id))
         return record
 
     def remove_mark(self, kind: str, mark_id: str) -> bool:

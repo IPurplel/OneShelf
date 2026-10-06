@@ -1,6 +1,7 @@
 /** Master §32.8, §4, §22, §47: Work Details shows one Work, its tracks, and an index of units. */
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -469,6 +470,59 @@ describe("Work Details", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(calls.filter(call => call === "POST /api/shelf/w1")).toHaveLength(1);
     expect(calls.filter(call => call === "GET /api/shelf/w1/removal-summary")).toHaveLength(2);
+  });
+
+  it("does not offer file deletion when an old summary arrives after completion is undone", async () => {
+    let answerSummary!: (response: Response) => void;
+    const summary = new Promise<Response>(resolve => { answerSummary = resolve; });
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      calls.push(`${method} ${url}`);
+      if (url === "/api/works/w1") return Promise.resolve(Response.json(DETAILS));
+      if (url === "/api/shelf/w1/removal-summary") return summary;
+      return Promise.resolve(Response.json({ work_id: "w1" }));
+    }));
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await user.click(await screen.findByRole("button", { name: /mark completed/i }));
+    await waitFor(() => expect(calls).toContain("GET /api/shelf/w1/removal-summary"));
+    await user.click(screen.getByRole("button", { name: /not completed after all/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /mark completed/i }))
+      .toHaveAttribute("aria-pressed", "false"));
+    await act(async () => { answerSummary(Response.json(SUMMARY)); });
+    expect(screen.queryByRole("dialog", { name: /completed/i })).toBeNull();
+    expect(calls).not.toContain("DELETE /api/works/w1/files");
+  });
+
+  it("does not show Work A's late file offer on Work B", async () => {
+    let answerSummary!: (response: Response) => void;
+    const summary = new Promise<Response>(resolve => { answerSummary = resolve; });
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+      calls.push(`${method} ${url}`);
+      if (url === "/api/works/w1") return Promise.resolve(Response.json(DETAILS));
+      if (url === "/api/works/w2") return Promise.resolve(Response.json({ ...DETAILS,
+        work: { ...DETAILS.work, id: "w2", title: "Second Work" } }));
+      if (url === "/api/shelf/w1/removal-summary") return summary;
+      return Promise.resolve(Response.json({ work_id: "w1" }));
+    }));
+    function Host() {
+      const [id, setId] = useState("w1");
+      return <><button onClick={() => setId("w2")}>Go to Work B</button><WorkScreen workId={id} /></>;
+    }
+    const user = userEvent.setup();
+    renderWithProviders(<Host />);
+    await user.click(await screen.findByRole("button", { name: /mark completed/i }));
+    await waitFor(() => expect(calls).toContain("GET /api/shelf/w1/removal-summary"));
+    await user.click(screen.getByRole("button", { name: "Go to Work B" }));
+    expect(await screen.findByRole("heading", { name: "Second Work" })).toBeInTheDocument();
+    await act(async () => { answerSummary(Response.json(SUMMARY)); });
+    expect(screen.queryByRole("dialog", { name: /completed/i })).toBeNull();
+    expect(calls).not.toContain("DELETE /api/works/w2/files");
   });
 
   it("says the same things in Arabic, where the interface mirrors", async () => {
