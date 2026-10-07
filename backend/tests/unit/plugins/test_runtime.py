@@ -525,3 +525,17 @@ def test_the_segments_encoder_needs_api_12(tmp_path):
     recipes["catalog"]["request"]["url"] = "{base_url}/items/{listing_key:segments}/units"
     with pytest.raises(PackageError, match="segments encoder need api '1.2'"):
         package(tmp_path, recipes=recipes)
+
+
+def test_a_form_value_is_sent_as_it_is_and_encoded_once_by_the_client(tmp_path):
+    """Found 2026-10-07 on MEK: "{query}" in a form was percent-encoded before the client form-encoded the
+    body, so "Egri csillagok" arrived as "Egri%20csillagok" and found nothing."""
+    recipes = copy.deepcopy(RECIPES)
+    recipes["search"]["request"] = {"method": "POST", "url": "{base_url}/search",
+                                    "form": {"q": "{query}", "exact": "{query:url}", "size": "50"}}
+    recipes["search"]["inputs"] = ["query"]
+    recipes["search"]["pagination"] = {"mode": "none"}
+    fetcher = MemoryFetcher({"https://books.example/search": (200, search_page(("Egri csillagok", 7)))})
+    rt = RecipeRuntime(package(tmp_path, recipes=recipes), fetcher)
+    assert [i.title for i in run(rt, "search", query="Egri csillagok").items] == ["Egri csillagok"]
+    assert fetcher.requests[0].form == {"q": "Egri csillagok", "exact": "Egri%20csillagok", "size": "50"}
