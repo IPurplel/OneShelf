@@ -1,4 +1,8 @@
-"""Request URL templates: literal text plus {input} / {input:encoder}. No expressions, no attribute access."""
+"""Request URL templates: literal text plus {input} / {input:encoder}. No expressions, no attribute access.
+
+Encoders: url and path (the whole value as one percent-encoded component), segments (a relative path whose
+"/" are kept, plugin API 1.2), absolute (a whole http(s) URL the source gave).
+"""
 from __future__ import annotations
 
 import re
@@ -25,9 +29,21 @@ def _absolute(value: object) -> str:
     return text
 
 
+def _segments(value: object) -> str:
+    """A key that is itself a short path ("00500/00597", "work/chapter"): each segment is percent-encoded
+    and the "/" between segments is kept. An empty, "." or ".." segment is refused, so a key can never
+    climb out of the path the recipe puts it in, and a leading or trailing "/" is refused with it."""
+    text = str(value)
+    parts = text.split("/")
+    if len(text) > MAX_TEMPLATE or any(p in ("", ".", "..") for p in parts):
+        raise TemplateError(f"not a relative path of segments: {text[:64]!r}")
+    return "/".join(quote(part, safe="") for part in parts)
+
+
 ENCODERS = {
     "url": lambda v: quote(str(v), safe=""),
     "path": lambda v: quote(str(v), safe=""),
+    "segments": _segments,
     "absolute": _absolute,
 }
 _PLACEHOLDER = re.compile(r"\{([^{}]*)\}")

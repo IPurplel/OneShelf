@@ -499,3 +499,29 @@ def test_a_template_may_not_use_a_name_it_does_not_have(tmp_path):
     recipes["search"]["extract"]["fields"]["cover_url"] = {"template": "https://books.example/{cover_id}.jpg"}
     with pytest.raises(PackageError, match=r"unknown names \['cover_id'\]"):
         package(tmp_path, recipes=recipes)
+
+
+def test_a_key_that_is_a_short_path_keeps_its_slashes_with_the_segments_encoder(tmp_path):
+    """MEK's items live at /00500/00597/: the key is a path, and its "/" must reach the URL as "/"."""
+    manifest = copy.deepcopy(MANIFEST)
+    manifest["api"] = "1.2"
+    recipes = copy.deepcopy(RECIPES)
+    recipes["catalog"]["request"]["url"] = "{base_url}/items/{listing_key:segments}/units"
+    rt = RecipeRuntime(package(tmp_path, manifest=manifest, recipes=recipes), MemoryFetcher({
+        "https://books.example/items/00500/00597%20b/units": (200, json.dumps({"units": [{"id": "u1"}]}))}))
+    assert [u.unit_key for u in run(rt, "catalog", listing_key="00500/00597 b").units] == ["u1"]
+
+
+@pytest.mark.parametrize("key", ["../etc", "a/../b", "/root", "trailing/", "a//b", ".", "a/./b"])
+def test_the_segments_encoder_refuses_anything_but_plain_segments(key):
+    from oneshelf.plugins.templates import TemplateError, render
+    with pytest.raises(TemplateError):
+        render("{base_url}/items/{listing_key:segments}", {"listing_key": key}, base_url="https://books.example")
+
+
+def test_the_segments_encoder_needs_api_12(tmp_path):
+    from oneshelf.plugins.package import PackageError
+    recipes = copy.deepcopy(RECIPES)
+    recipes["catalog"]["request"]["url"] = "{base_url}/items/{listing_key:segments}/units"
+    with pytest.raises(PackageError, match="segments encoder need api '1.2'"):
+        package(tmp_path, recipes=recipes)
