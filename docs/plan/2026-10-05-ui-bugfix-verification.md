@@ -81,3 +81,21 @@ Three review findings were reproduced and fixed on `fix/ui-six-audit-bugs` witho
 | `git diff --check` | Passed |
 
 The [follow-up screenshots and request trace](evidence/2026-10-06/pr-review/) preserve the delayed completion summary and failed-then-successful Login Session DELETE. Browser responses in this race test are controlled fixtures. **I-51 MangaDex remains open**; the adapter was not touched.
+
+## 2026-10-07 PR #1 LAN HTTP mark-ID follow-up
+
+OneShelf supports plain-HTTP access from trusted LAN devices. `crypto.randomUUID()` is absent outside a secure context, so mark creation could fail before the save handler caught an error. There was no existing frontend UUID helper. A small `newOperationId()` helper now uses `randomUUID()` when present and otherwise makes a valid UUID v4 from `crypto.getRandomValues()`; it never uses `Math.random()`. Both mark entry paths use the helper, and `useMarkSave` generates the ID inside its error handler's `try` block. A retry keeps the original ID; a new action gets a new one. The backend idempotency migration and service from the preceding follow-up are unchanged.
+
+Unit tests explicitly provide `randomUUID()` and then remove it while retaining `getRandomValues()`. They check UUID v4 shape, Bookmark and Highlight POSTs, retry identity, and a different ID for a new highlight action. The Chromium regression removes `randomUUID` from `Crypto.prototype` before the app loads while retaining native `getRandomValues`; it saves and retries both mark types in EN and AR at 390px. Loopback `127.0.0.1` is treated as potentially trustworthy by Chromium, so this setup reproduces the relevant crypto API surface, not an actual private-LAN origin. The [screenshots and request trace](evidence/2026-10-07-lan-mark-ids/) preserve that result. The existing Login Session race tests now explicitly close their reopened session after assertions so cleanup cannot leak into a later test; no Login Session production code changed.
+
+| Check | Result |
+| --- | --- |
+| `npm test --prefix frontend` | 335 passed across 34 files |
+| `npm run build --prefix frontend` | TypeScript and Vite production build passed |
+| Backend mark, schema, and migration tests | 29 passed |
+| Existing EPUB/PDF mark retry tests | 34 focused tests passed |
+| Chromium fallback mark regression | EN and AR at 390px passed |
+| Original six-bug Chromium matrix | All 6 viewport/locale cases passed again |
+| `git diff --check` | Passed |
+
+**I-51 MangaDex remains open**; the adapter is untouched.

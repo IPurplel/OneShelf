@@ -1,0 +1,106 @@
+{
+  "en": {
+    "environment": {
+      "secure": true,
+      "randomUUID": "undefined",
+      "getRandomValues": "function"
+    },
+    "bookmarks": [
+      {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "a7fdc179-7c57-45f2-8e9f-476eb3483982"
+      },
+      {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "a7fdc179-7c57-45f2-8e9f-476eb3483982"
+      }
+    ],
+    "highlights": [
+      {
+        "locator": {
+          "chapter": 0,
+          "start": 0,
+          "end": 4
+        },
+        "text": "Text",
+        "operation_id": "891218f2-cc1b-4d93-ad8d-a680b0fa67f8"
+      },
+      {
+        "locator": {
+          "chapter": 0,
+          "start": 0,
+          "end": 4
+        },
+        "text": "Text",
+        "operation_id": "891218f2-cc1b-4d93-ad8d-a680b0fa67f8"
+      },
+      {
+        "locator": {
+          "chapter": 0,
+          "start": 0,
+          "end": 4
+        },
+        "text": "Text",
+        "operation_id": "609b823a-0a76-4ae4-98b7-362701f0c4c7"
+      }
+    ]
+  },
+  "ar": {
+    "environment": {
+      "secure": true,
+      "randomUUID": "undefined",
+      "getRandomValues": "function"
+    },
+    "bookmarks": [
+      {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "6de4444e-7d07-4b18-960e-2d1e813ca91f"
+      },
+      {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "6de4444e-7d07-4b18-960e-2d1e813ca91f"
+      }
+    ],
+    "highlights": [
+      {
+        "locator": {
+          "chapter": 0,
+          "start": 0,
+          "end": 4
+        },
+        "text": "Text",
+        "operation_id": "3240a7cc-7736-46a1-8fbf-9587dae3c11c"
+      },
+      {
+        "locator": {
+          "chapter": 0,
+          "start": 0,
+          "end": 4
+        },
+        "text": "Text",
+        "operation_id": "3240a7cc-7736-46a1-8fbf-9587dae3c11c"
+      },
+      {
+        "locator": {
+          "chapter": 0,
+          "start": 0,
+          "end": 4
+        },
+        "text": "Text",
+        "operation_id": "edb59dc5-2360-444d-aa1c-e1b11dc2b3e6"
+      }
+    ]
+  }
+}

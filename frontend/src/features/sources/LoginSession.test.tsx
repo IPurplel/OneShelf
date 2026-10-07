@@ -77,6 +77,8 @@ describe("Use My Session", () => {
     await waitFor(() => expect(calls.filter(call => call === "DELETE /api/logins/old-1")).toHaveLength(2));
     expect(calls).not.toContain("DELETE /api/logins/new-2");
     expect(screen.getByRole("img", { name: /sign-in window/i })).toHaveAttribute("src", "/api/logins/new-2/frame?f=0");
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+    await waitFor(() => expect(calls.filter(call => call === "DELETE /api/logins/new-2")).toHaveLength(1));
   });
 
   it("does not delete a nonexistent login when startup rejects after closing", async () => {
@@ -118,6 +120,8 @@ describe("Use My Session", () => {
     await waitFor(() => expect(calls).toContain("DELETE /api/logins/old-1"));
     expect(calls).not.toContain("DELETE /api/logins/new-2");
     expect(screen.getByRole("img", { name: /sign-in window/i })).toHaveAttribute("src", "/api/logins/new-2/frame?f=0");
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+    await waitFor(() => expect(calls.filter(call => call === "DELETE /api/logins/new-2")).toHaveLength(1));
   });
   it("says what it does and does not keep before opening anything", async () => {
     const calls = mockApi([post("/api/sources/oneshelf.example/login", OPEN)]);
