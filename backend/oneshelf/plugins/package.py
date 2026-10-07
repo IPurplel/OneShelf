@@ -132,7 +132,7 @@ def validate_templates(extract, *, capability: str, inputs: list[str]) -> None:
     """A template may only use document values, the current item and the recipe's own inputs."""
     from oneshelf.plugins.runtime import template_names
 
-    known = set(extract.values) | {"item"} | set(inputs)
+    known = set(extract.values) | {"item"} | set(inputs) | ({"position"} if capability in LIST_CAPABILITIES else set())
     for name, spec in extract.fields.items():
         if spec.template is None:
             continue
@@ -149,10 +149,19 @@ def _api_at_least(declared: str, needed: tuple[int, int]) -> bool:
     return (major, minor) >= needed
 
 
-def _uses_text_units(recipe: Recipe) -> bool:
+def _api_12_features(recipe: Recipe) -> list[str]:
+    """Plugin API 1.2 features a recipe uses: text units (html, markup) and an item's {position}."""
+    from oneshelf.plugins.runtime import template_names
+
     extract, pagination = recipe.extract, recipe.pagination
     specs = [*extract.fields.values(), *extract.values.values(), extract.items, pagination.total, pagination.next]
-    return "html" in extract.fields or any(spec is not None and spec.markup is not None for spec in specs)
+    used = []
+    if "html" in extract.fields or any(spec is not None and spec.markup is not None for spec in specs):
+        used.append("text units (html, markup)")
+    if any(spec.template is not None and "position" in template_names(spec.template)
+           for spec in extract.fields.values()):
+        used.append("{position}")
+    return used
 
 
 def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str, Recipe], tests: TestSuite,
@@ -212,6 +221,7 @@ def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str,
         for field, required in allowed_fields.items():
             if required and field not in recipe.extract.fields:
                 raise PackageError(f"recipes/{capability}: required field {field!r} is not extracted")
+        validate_templates(recipe.extract, capability=capability, inputs=recipe.inputs)
         is_list = capability in LIST_CAPABILITIES
         if is_list != (recipe.extract.items is not None):
             raise PackageError(f"recipes/{capability}: items selector {'required' if is_list else 'not allowed'}")
@@ -219,8 +229,9 @@ def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str,
             raise PackageError(f"recipes/{capability}: pagination only applies to list capabilities")
         if capability == "reader" and ("url" in recipe.extract.fields) == ("html" in recipe.extract.fields):
             raise PackageError("recipes/reader: extract exactly one of url (image pages) or html (text units)")
-        if _uses_text_units(recipe) and not _api_at_least(manifest.api, TEXT_UNITS_API):
-            raise PackageError(f"recipes/{capability}: text units (html, markup) need api "
+        features = _api_12_features(recipe)
+        if features and not _api_at_least(manifest.api, TEXT_UNITS_API):
+            raise PackageError(f"recipes/{capability}: {' and '.join(features)} need api "
                                f"'{TEXT_UNITS_API[0]}.{TEXT_UNITS_API[1]}' or newer in manifest.yaml")
 
     for index, case in enumerate(tests.cases):

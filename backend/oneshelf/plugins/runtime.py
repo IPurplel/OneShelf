@@ -125,11 +125,17 @@ def template_names(template: str) -> set[str]:
 
 
 def render_template(template: str, values: dict[str, Any], *, item: Any = None,
-                    inputs: dict[str, Any] | None = None) -> str | None:
-    """Substitutes known names; a missing value yields nothing rather than a half-built URL."""
+                    inputs: dict[str, Any] | None = None, position: int | None = None) -> str | None:
+    """Substitutes known names; a missing value yields nothing rather than a half-built URL.
+
+    `position` is the item's 1-based place in the whole list (across pages), for sources whose only
+    identity for an entry is where it stands — a chapter in a list of chapter lengths (API 1.2).
+    """
     available: dict[str, Any] = {**(inputs or {}), **values}
     if item is not None:
         available["item"] = item
+    if position is not None:
+        available["position"] = position
     rendered = template
     for name in template_names(template):
         value = available.get(name)
@@ -315,10 +321,11 @@ class RecipeRuntime:
 
     def _field(self, node: Any, spec: FieldSpec, base_url: str, issues: list[Issue],
                values: dict[str, Any] | None = None, item: Any = None,
-               inputs: dict[str, Any] | None = None) -> Any:
+               inputs: dict[str, Any] | None = None, position: int | None = None) -> Any:
         if spec.template is not None:
             rendered = render_template(spec.template, values or {},
-                                       item=self._scalar(item) if item is not None else None, inputs=inputs)
+                                       item=self._scalar(item) if item is not None else None, inputs=inputs,
+                                       position=position)
             return apply_pipeline(rendered, spec.transforms, base_url=base_url) if rendered else None
         raw = self._raw_values(node, spec)
         if spec.exists:
@@ -338,9 +345,9 @@ class RecipeRuntime:
 
     def _extract_fields(self, recipe: Recipe, node: Any, base_url: str, specs: dict[str, FieldSpec],
                         issues: list[Issue] | None = None, values: dict[str, Any] | None = None,
-                        inputs: dict[str, Any] | None = None) -> dict[str, Any]:
+                        inputs: dict[str, Any] | None = None, position: int | None = None) -> dict[str, Any]:
         issues = issues if issues is not None else []
-        out = {name: self._field(node, spec, base_url, issues, values, item=node, inputs=inputs)
+        out = {name: self._field(node, spec, base_url, issues, values, item=node, inputs=inputs, position=position)
                for name, spec in specs.items()}
         for name in _URL_FIELDS & out.keys():
             if isinstance(out[name], str):
@@ -411,6 +418,7 @@ class RecipeRuntime:
         next_request: RecipeRequest | None = None
         max_pages = 1 if pagination.mode == "none" else pagination.max_pages
         truncated = False
+        position = 0  # 1-based place of an item in the whole list, across pages
 
         for page_index in range(max_pages):
             page_values = dict(values)
@@ -453,8 +461,9 @@ class RecipeRuntime:
             page_values = resolve_values(document, recipe.extract)
             page_fields = []
             for node in item_nodes:
+                position += 1
                 fields = self._extract_fields(recipe, node, response.url, recipe.extract.fields, evidence.issues,
-                                              page_values, inputs=values)
+                                              page_values, inputs=values, position=position)
                 if text_units and isinstance(fields.get("html"), str):
                     # Sanitised here, so no caller ever holds unsanitised source markup (Master §27).
                     try:
