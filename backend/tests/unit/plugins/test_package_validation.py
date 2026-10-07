@@ -254,3 +254,19 @@ def test_following_a_url_without_saying_it_is_absolute_is_refused_rather_than_si
     with pytest.raises(PackageError, match="absolute"):
         load_package(build_osp(tmp_path / "bare.osp", recipes=recipes,
                                manifest=variant(MANIFEST, capabilities=["search", "catalog", "reader"])))
+
+
+
+@pytest.mark.parametrize("expression", ["normalize-space(.)", "string(@href)", "count(//li)", "boolean(//a)"])
+def test_an_xpath_that_yields_a_string_or_number_is_refused(tmp_path, expression):
+    """Found 2026-10-07: the parser splits such a result into characters and crashes at run time."""
+    recipes = copy.deepcopy(RECIPES)
+    recipes["search"]["extract"]["fields"]["title"] = {"xpath": expression}
+    rejects(tmp_path, match="xpath must select nodes", recipes=recipes)
+
+
+@pytest.mark.parametrize("expression", ["a/text()", "@href", "(//a)[1]", "//li[contains(., 'x')]"])
+def test_node_selecting_xpath_is_accepted(tmp_path, expression):
+    recipes = copy.deepcopy(RECIPES)
+    recipes["search"]["extract"]["fields"]["title"] = {"xpath": expression, "required": True}
+    assert load(tmp_path, recipes=recipes)
