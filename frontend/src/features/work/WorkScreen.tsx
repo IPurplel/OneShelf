@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { ApiError, api } from "@/api/client";
@@ -37,8 +37,21 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const trackId = search.get("track");
   const [exporting, setExporting] = useState(false);
   const [removing, setRemoving] = useState<RemovalSummary | null>(null);
-  const [completedOffer, setCompletedOffer] = useState<RemovalSummary | null>(null);
+  const [completedOffer, setCompletedOffer] = useState<{
+    workId: string; generation: number; summary: RemovalSummary;
+  } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [completion, setCompletion] = useState<{ workId: string; value: boolean } | null>(null);
+  const [summaryProblem, setSummaryProblem] = useState<{ workId: string; generation: number } | null>(null);
+  const completionRequest = useRef({ workId: id, generation: 0, completed: false });
+  if (completionRequest.current.workId !== id) {
+    completionRequest.current = { workId: id, generation: completionRequest.current.generation + 1,
+      completed: false };
+  }
+  useEffect(() => {
+    setCompletedOffer(null);
+    setSummaryProblem(null);
+  }, [id]);
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${id}`,
     trackId ? { track_id: trackId } : undefined);
   const [problem, setProblem] = useState<string | null>(null);
@@ -54,8 +67,15 @@ export function WorkScreen({ workId }: { workId?: string }) {
   if (data === null) {
     return <section className="screen"><p className="screen__subtitle">{t("state.loading")}</p></section>;
   }
+  if (trackId !== null && data.selected_track_id !== trackId) {
+    return <section className="screen">
+      <p className="notice notice--problem" role="alert">{t("work.trackUnavailable")}</p>
+      <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button>
+    </section>;
+  }
 
   const { work, shelf, follow, tracks, units, continue_unit_id: continueUnit } = data;
+  const completed = completion?.workId === id ? completion.value : shelf.completed;
   const current = tracks.find((track) => track.id === data.selected_track_id) ?? null;
   const selectedFollowing = current !== null && follow.following && follow.track_id === current.id;
 
@@ -106,18 +126,46 @@ export function WorkScreen({ workId }: { workId?: string }) {
     }
   };
 
-  /** Completed keeps the work, its status and its progress; deleting the files is only ever offered. */
-  const markCompleted = async (completed: boolean) => {
-    setNotice(null);
+  const completionIsCurrent = (workId: string, generation: number) => {
+    const current = completionRequest.current;
+    return current.workId === workId && current.generation === generation && current.completed;
+  };
+
+  const loadCompletionSummary = async (workId: string, generation: number) => {
+    if (!completionIsCurrent(workId, generation)) return;
     try {
-      await api.post(`/api/shelf/${id}`, { completed });
-      if (!completed) return;
-      const summary = await api.get<RemovalSummary>(`/api/shelf/${id}/removal-summary`);
-      if (summary.files > 0) setCompletedOffer(summary);
+      const summary = await api.get<RemovalSummary>(`/api/shelf/${workId}/removal-summary`);
+      if (!completionIsCurrent(workId, generation)) return;
+      setSummaryProblem(null);
+      if (summary.files > 0) setCompletedOffer({ workId, generation, summary });
     } catch {
-      setNotice(t("state.offline"));
-    } finally {
-      reload();
+      if (completionIsCurrent(workId, generation)) setSummaryProblem({ workId, generation });
+    }
+  };
+
+  /** Completed keeps the work, its status and its progress; deleting the files is only ever offered. */
+  const markCompleted = async (next: boolean) => {
+    const workId = id;
+    const generation = ++completionRequest.current.generation;
+    completionRequest.current.completed = false;
+    setNotice(null);
+    setProblem(null);
+    setSummaryProblem(null);
+    setCompletedOffer(null);
+    try {
+      await api.post(`/api/shelf/${workId}`, { completed: next });
+    } catch (error) {
+      if (completionRequest.current.workId === workId && completionRequest.current.generation === generation)
+        setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      return;
+    }
+    if (completionRequest.current.workId !== workId || completionRequest.current.generation !== generation) return;
+    completionRequest.current.completed = next;
+    setCompletion({ workId, value: next });
+    reload();
+    if (next) {
+      setNotice(t("shelf.completed.title"));
+      await loadCompletionSummary(workId, generation);
     }
   };
 
@@ -143,9 +191,9 @@ export function WorkScreen({ workId }: { workId?: string }) {
                 <button type="button" className="button" onClick={() => void startRemoval()}>
                   {t("shelf.remove.action")}
                 </button>
-                <button type="button" className="button" aria-pressed={shelf.completed}
-                        onClick={() => void markCompleted(!shelf.completed)}>
-                  {shelf.completed ? t("shelf.completed.undo") : t("shelf.completed.action")}
+                <button type="button" className="button" aria-pressed={completed}
+                        onClick={() => void markCompleted(!completed)}>
+                  {completed ? t("shelf.completed.undo") : t("shelf.completed.action")}
                 </button>
               </>
             ) : (
@@ -192,6 +240,14 @@ export function WorkScreen({ workId }: { workId?: string }) {
 
       {notice !== null && <p className="notice" role="status">{notice}</p>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+      {summaryProblem?.workId === id && summaryProblem.generation === completionRequest.current.generation
+        && completed && <div className="notice notice--problem">
+        <p role="alert">{t("shelf.completed.summaryFailed")}</p>
+        <button type="button" className="button"
+                onClick={() => void loadCompletionSummary(summaryProblem.workId, summaryProblem.generation)}>
+          {t("shelf.completed.retrySummary")}
+        </button>
+      </div>}
 
       {removing !== null && (
         <RemoveFromShelf title={work.title} summary={removing}
@@ -200,20 +256,23 @@ export function WorkScreen({ workId }: { workId?: string }) {
                          onCancel={() => setRemoving(null)} />
       )}
 
-      {completedOffer !== null && (
+      {completedOffer?.workId === id && completedOffer.generation === completionRequest.current.generation
+        && completed && (
         <ModalSurface className="confirm" title={t("shelf.completed.title")}
                       onClose={() => setCompletedOffer(null)}>
           <h2 className="display">{t("shelf.completed.title")}</h2>
           <p>{t("shelf.completed.body", { title: work.title })}</p>
-          <p>{t("shelf.completed.offer", { files: completedOffer.files, size: bytes(completedOffer.bytes) })}</p>
+          <p>{t("shelf.completed.offer", { files: completedOffer.summary.files,
+            size: bytes(completedOffer.summary.bytes) })}</p>
           <div className="confirm__actions">
             <button type="button" className="button button--primary" onClick={() => setCompletedOffer(null)}>
               {t("shelf.completed.keep")}
             </button>
             <button type="button" className="button"
                     onClick={() => {
+                      if (!completionIsCurrent(completedOffer.workId, completedOffer.generation)) return;
                       setCompletedOffer(null);
-                      void toggle(api.delete<{ deleted_files: number }>(`/api/works/${id}/files`)
+                      void toggle(api.delete<{ deleted_files: number }>(`/api/works/${completedOffer.workId}/files`)
                         .then((done) => setNotice(t("shelf.filesDeleted", { files: done.deleted_files }))));
                     }}>
               {t("shelf.completed.delete")}

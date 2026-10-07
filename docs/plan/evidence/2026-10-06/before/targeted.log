@@ -1,0 +1,24 @@
+TRACK {"url": "http://127.0.0.1:5175/works/w0?track=t-ar", "follow_payload": {"language": "en", "source_id": "local", "track_id": "t-en"}, "ar_pending": 2}
+LOGIN {"late_login_deletes": [], "dialog_closed": true}
+EPUB {"status": ["1 of 0"], "alerts": [], "page_errors": ["There is no such chapter in this book."]}
+COMPLETE {"completed_server": true, "notice": ["OneShelf is not responding. It may be restarting."]}
+MOBILE_READER {"viewport": 390, "docWidth": 390, "bars": [{"x": 0, "y": 0, "width": 390, "height": 96, "top": 0, "right": 390, "bottom": 96, "left": 0}, {"x": 0, "y": 780, "width": 390, "height": 64, "top": 780, "right": 390, "bottom": 844, "left": 0}], "buttons": [{"name": "Contents", "rect": {"x": 144.609375, "y": 28, "width": 91.8125, "height": 40, "top": 28, "right": 236.421875, "bottom": 68, "left": 144.609375}}, {"name": "Search this book", "rect": {"x": 252.421875, "y": 12, "width": 74.640625, "height": 72, "top": 12, "right": 327.0625, "bottom": 84, "left": 252.421875}}, {"name": "Bookmark this place", "rect": {"x": 343.0625, "y": 24, "width": 101.40625, "height": 48, "top": 24, "right": 444.46875, "bottom": 72, "left": 343.0625}}, {"name": "Highlight", "rect": {"x": 460.46875, "y": 28, "width": 93.484375, "height": 40, "top": 28, "right": 553.953125, "bottom": 68, "left": 460.46875}}, {"name": "Reading comfort", "rect": {"x": 569.953125, "y": 24, "width": 85.65625, "height": 48, "top": 24, "right": 655.609375, "bottom": 72, "left": 569.953125}}], "bottomnav": {"x": 0, "y": 771.5, "width": 390, "height": 72.5, "top": 771.5, "right": 390, "bottom": 844, "left": 0}}
+BOOKMARK {"calls": [["POST", "/api/reader/units/u0/bookmarks"]], "alerts": [], "page_errors": ["Marks unavailable"]}
+Exception in callback Connection.dispatch.<locals>._done_callback() at /workspace/Oneshelfv1/backend/.venv/lib64/python3.14/site-packages/playwright/_impl/_connection.py:542
+handle: <Handle Connection.dispatch.<locals>._done_callback() at /workspace/Oneshelfv1/backend/.venv/lib64/python3.14/site-packages/playwright/_impl/_connection.py:542>
+Traceback (most recent call last):
+  File "/usr/lib64/python3.14/asyncio/events.py", line 94, in _run
+    self._context.run(self._callback, *self._args)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/Oneshelfv1/backend/.venv/lib64/python3.14/site-packages/playwright/_impl/_connection.py", line 543, in _done_callback
+    exc = future.exception()
+  File "/workspace/Oneshelfv1/backend/.venv/lib64/python3.14/site-packages/playwright/_impl/_page.py", line 310, in _on_route
+    handled = await route_handler.handle(route)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/Oneshelfv1/backend/.venv/lib64/python3.14/site-packages/playwright/_impl/_helper.py", line 442, in handle
+    return await self._handle_internal(route)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/Oneshelfv1/backend/.venv/lib64/python3.14/site-packages/playwright/_impl/_helper.py", line 484, in _handle_internal
+    return await handled_future
+           ^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError

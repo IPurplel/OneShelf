@@ -38,7 +38,7 @@ vi.mock("pdfjs-dist", () => ({
 
 type Call = { url: string; method: string; body: unknown };
 
-function stubMarks(progress?: Record<string, unknown>): Call[] {
+function stubMarks(progress?: Record<string, unknown>, failures?: { bookmarks?: boolean }): Call[] {
   const calls: Call[] = [];
   const marks: { bookmarks: unknown[]; highlights: unknown[] } = { bookmarks: [], highlights: [] };
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -55,6 +55,8 @@ function stubMarks(progress?: Record<string, unknown>): Call[] {
     }
     if (url.endsWith("/marks")) return json(marks);
     if (url.endsWith("/bookmarks") && method === "POST") {
+      if (failures?.bookmarks) return new Response(JSON.stringify({ error: { message: "Marks unavailable" } }),
+        { status: 503, headers: { "Content-Type": "application/json" } });
       const made = { id: "b1", locator: body.locator, label: body.label, created_at: "2026-09-18T10:00:00+00:00" };
       marks.bookmarks.push(made);
       return json(made);
@@ -151,7 +153,7 @@ describe("Book Reader (PDF)", () => {
 
     await user.click(screen.getByRole("button", { name: /bookmark this place/i }));
     expect(calls.find((c) => c.url.endsWith("/bookmarks") && c.method === "POST")?.body)
-      .toEqual({ locator: { page: 1 }, label: "Page 1" });
+      .toMatchObject({ locator: { page: 1 }, label: "Page 1", operation_id: expect.any(String) });
 
     await user.click(screen.getByRole("button", { name: /^highlight$/i }));
     const panel = await screen.findByRole("dialog", { name: /highlight/i });
@@ -162,6 +164,23 @@ describe("Book Reader (PDF)", () => {
 
     expect(calls.find((c) => c.url.endsWith("/highlights") && c.method === "POST")?.body)
       .toMatchObject({ text: "quiet", locator: { page: 1, start } });
+  });
+
+  it("reports a failed PDF bookmark and retries the same page", async () => {
+    const failures = { bookmarks: true };
+    const calls = stubMarks(undefined, failures);
+    const user = userEvent.setup();
+    renderWithProviders(view());
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/1 of 2/i));
+    await user.click(screen.getByRole("button", { name: /bookmark this place/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not save.*marks unavailable/i);
+    failures.bookmarks = false;
+    await user.click(screen.getByRole("button", { name: /retry saving mark/i }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    const attempts = calls.filter(call => call.url.endsWith("/bookmarks") && call.method === "POST");
+    expect(attempts).toHaveLength(2);
+    expect(attempts[0]?.body).toMatchObject({ locator: { page: 1 }, label: "Page 1" });
+    expect(attempts[1]?.body).toEqual(attempts[0]?.body);
   });
 
   it("says when a document has no text to search", async () => {

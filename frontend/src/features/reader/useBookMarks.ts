@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { api } from "@/api/client";
+import { newOperationId } from "@/lib/operationId";
 
 /** Where a mark is: `{chapter}` for a book's spine, `{page}` for a PDF, plus offsets for a highlight. */
 export type Locator = { chapter?: number; page?: number; start?: number; end?: number };
@@ -43,15 +44,20 @@ export function useBookMarks(unitId: string) {
     return () => { owner.live = false; };
   }, [owner, reload]);
 
-  const addBookmark = useCallback(async (locator: Locator, label: string | null) => {
-    const made = await api.post<Bookmark>(`/api/reader/units/${unitId}/bookmarks`, { locator, label });
+  const addBookmark = useCallback(async (locator: Locator, label: string | null,
+                                   operationId: string = newOperationId()) => {
+    const made = await api.post<Bookmark>(`/api/reader/units/${unitId}/bookmarks`,
+      { locator, label, operation_id: operationId });
     setMarks((current) => current.bookmarks.some((entry) => entry.id === made.id)
       ? current : { ...current, bookmarks: [...current.bookmarks, made] });
   }, [unitId, setMarks]);
 
-  const addHighlight = useCallback(async (locator: Locator, text: string) => {
-    const made = await api.post<Highlight>(`/api/reader/units/${unitId}/highlights`, { locator, text });
-    setMarks((current) => ({ ...current, highlights: [...current.highlights, made] }));
+  const addHighlight = useCallback(async (locator: Locator, text: string,
+                                    operationId: string = newOperationId()) => {
+    const made = await api.post<Highlight>(`/api/reader/units/${unitId}/highlights`,
+      { locator, text, operation_id: operationId });
+    setMarks((current) => current.highlights.some((entry) => entry.id === made.id)
+      ? current : { ...current, highlights: [...current.highlights, made] });
   }, [unitId, setMarks]);
 
   const removeBookmark = useCallback(async (id: string) => {

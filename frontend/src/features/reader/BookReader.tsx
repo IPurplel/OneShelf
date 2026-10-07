@@ -12,6 +12,7 @@ import { PdfView } from "./PdfView";
 import { BOOK_TYPE, DEFAULT_SETTINGS, loadSettings, saveSettings } from "./settings";
 import type { ReaderSettings } from "./settings";
 import { useBookMarks } from "./useBookMarks";
+import { MarkSaveNotice, useMarkSave } from "./useMarkSave";
 import { workLink } from "./links";
 import { useProgress } from "./useProgress";
 
@@ -39,6 +40,7 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
   const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
   const [chapterText, setChapterText] = useState("");
   const marks = useBookMarks(unitId);
+  const markSave = useMarkSave();
   const { record, flush, stored } = useProgress(unitId);
   const resumed = useRef<string | null>(null);
 
@@ -77,14 +79,17 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
     void (async () => {
       try {
         const opened = await openEpub(bytes);
-        if (live) setBook(opened);
-        else opened.close();
-      } catch (error) {
-        if (live) setFailure(error instanceof Error ? error.message : String(error));
+        if (!live) opened.close();
+        else if (opened.spine.length === 0) {
+          opened.close();
+          setFailure(t("book.noReadableChapters"));
+        } else setBook(opened);
+      } catch {
+        if (live) setFailure(t("book.cannotOpen"));
       }
     })();
     return () => { live = false; };
-  }, [bytes, format]);
+  }, [bytes, format, t]);
 
   useEffect(() => () => book?.close(), [book]);
 
@@ -92,15 +97,19 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
     if (book === null) return;
     let live = true;
     void (async () => {
-      const chapter = await book.chapter(chapterIndex);
-      if (!live) return;
-      setHtml(frameDocument(chapter.html, direction, settings));
-      setChapterText(chapter.text);
-      const read = book.spine.slice(0, chapterIndex + 1).reduce((total, item) => total + item.characters, 0);
-      record(book.characters === 0 ? 0 : read / book.characters, { chapter: chapterIndex });
+      try {
+        const chapter = await book.chapter(chapterIndex);
+        if (!live) return;
+        setHtml(frameDocument(chapter.html, direction, settings));
+        setChapterText(chapter.text);
+        const read = book.spine.slice(0, chapterIndex + 1).reduce((total, item) => total + item.characters, 0);
+        record(book.characters === 0 ? 0 : read / book.characters, { chapter: chapterIndex });
+      } catch (error) {
+        if (live) setFailure(error instanceof Error ? error.message : t("state.offline"));
+      }
     })();
     return () => { live = false; };
-  }, [book, chapterIndex, direction, record, settings]);
+  }, [book, chapterIndex, direction, record, settings, t]);
 
   /** Resume the chapter this book was left on (§26.15); reading the position writes nothing. */
   useEffect(() => {
@@ -157,8 +166,8 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
           {t("book.search")}
         </button>
         <button type="button" className="reader__button"
-                onClick={() => void marks.addBookmark({ chapter: chapterIndex },
-                                                      chapterLabel(book, chapterIndex))}>
+                onClick={() => void markSave.save((operationId) => marks.addBookmark({ chapter: chapterIndex },
+                                                               chapterLabel(book, chapterIndex), operationId))}>
           {t("book.bookmark")}
         </button>
         <button type="button" className="reader__button" onClick={() => setPanel("highlight")}>
@@ -168,6 +177,8 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
           {t("book.comfort")}
         </button>
       </div>
+
+      <MarkSaveNotice {...markSave} />
 
       <iframe className="book__frame" title={t("book.content")} sandbox="" srcDoc={html} />
 
@@ -195,8 +206,8 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
       {panel === "highlight" && (
         <HighlightPane text={chapterText} onClose={() => setPanel(null)}
                        onKeep={(selection) => {
-                         void marks.addHighlight({ chapter: chapterIndex, start: selection.start,
-                                                   end: selection.end }, selection.text);
+                         void markSave.save((operationId) => marks.addHighlight({ chapter: chapterIndex,
+                           start: selection.start, end: selection.end }, selection.text, operationId));
                          setPanel(null);
                        }} />
       )}

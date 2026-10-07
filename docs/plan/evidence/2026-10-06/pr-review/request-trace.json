@@ -1,0 +1,176 @@
+{
+  "en-390-completion": [
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "completed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "delayed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "completed": false
+    }
+  ],
+  "en-390-login": [
+    {
+      "method": "DELETE",
+      "path": "/api/logins/old-en-390",
+      "status": 503
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/logins/old-en-390",
+      "status": 200
+    }
+  ],
+  "en-768-completion": [
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "completed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "delayed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "completed": false
+    }
+  ],
+  "en-768-login": [
+    {
+      "method": "DELETE",
+      "path": "/api/logins/old-en-768",
+      "status": 503
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/logins/old-en-768",
+      "status": 200
+    }
+  ],
+  "en-1440-completion": [
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "completed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "delayed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "completed": false
+    }
+  ],
+  "en-1440-login": [
+    {
+      "method": "DELETE",
+      "path": "/api/logins/old-en-1440",
+      "status": 503
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/logins/old-en-1440",
+      "status": 200
+    }
+  ],
+  "ar-390-completion": [
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "completed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "delayed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "completed": false
+    }
+  ],
+  "ar-390-login": [
+    {
+      "method": "DELETE",
+      "path": "/api/logins/old-ar-390",
+      "status": 503
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/logins/old-ar-390",
+      "status": 200
+    }
+  ],
+  "ar-768-completion": [
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "completed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "delayed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "completed": false
+    }
+  ],
+  "ar-768-login": [
+    {
+      "method": "DELETE",
+      "path": "/api/logins/old-ar-768",
+      "status": 503
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/logins/old-ar-768",
+      "status": 200
+    }
+  ],
+  "ar-1440-completion": [
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "completed": true
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "delayed": true
+    },
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "completed": false
+    }
+  ],
+  "ar-1440-login": [
+    {
+      "method": "DELETE",
+      "path": "/api/logins/old-ar-1440",
+      "status": 503
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/logins/old-ar-1440",
+      "status": 200
+    }
+  ]
+}

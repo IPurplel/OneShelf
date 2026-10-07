@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from typing import Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
@@ -13,7 +14,7 @@ from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.plugins.manager import PluginUnavailable
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
 from oneshelf.reader.alternatives import alternatives
-from oneshelf.reader.service import StaleProgress
+from oneshelf.reader.service import MarkOperationConflict, StaleProgress
 
 router = APIRouter(prefix="/api")
 
@@ -342,12 +343,14 @@ async def leave_work(request: Request, work_id: str):
 class BookmarkBody(BaseModel):
     locator: dict
     label: str | None = Field(default=None, max_length=200)
+    operation_id: UUID | None = None
 
 
 class HighlightBody(BaseModel):
     locator: dict
     text: str = Field(min_length=1, max_length=4000)
     colour: Literal["yellow", "green", "blue", "pink"] = "yellow"
+    operation_id: UUID | None = None
 
 
 @router.get("/reader/units/{unit_id}/marks")
@@ -363,7 +366,10 @@ async def marks(request: Request, unit_id: str):
 @router.post("/reader/units/{unit_id}/bookmarks")
 async def add_bookmark(request: Request, unit_id: str, body: BookmarkBody):
     try:
-        return asdict(services(request).reader.add_bookmark(unit_id, locator=body.locator, label=body.label))
+        return asdict(services(request).reader.add_bookmark(unit_id, locator=body.locator, label=body.label,
+                                                            operation_id=str(body.operation_id) if body.operation_id else None))
+    except MarkOperationConflict as exc:
+        return error(409, "MARK_OPERATION_CONFLICT", str(exc))
     except ValueError as exc:
         return error(404, "UNIT_NOT_FOUND", str(exc))
 
@@ -372,7 +378,10 @@ async def add_bookmark(request: Request, unit_id: str, body: BookmarkBody):
 async def add_highlight(request: Request, unit_id: str, body: HighlightBody):
     try:
         return asdict(services(request).reader.add_highlight(unit_id, locator=body.locator, text=body.text,
-                                                             colour=body.colour))
+                                                             colour=body.colour,
+                                                             operation_id=str(body.operation_id) if body.operation_id else None))
+    except MarkOperationConflict as exc:
+        return error(409, "MARK_OPERATION_CONFLICT", str(exc))
     except ValueError as exc:
         return error(404, "UNIT_NOT_FOUND", str(exc))
 

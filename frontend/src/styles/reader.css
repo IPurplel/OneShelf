@@ -230,6 +230,14 @@
 }
 .reader__bar { position: relative; }
 
+/* A book's own navigation occupies the full screen; the library's mobile navigation is behind it. */
+body:has(.reader) .bottomnav { display: none; }
+.book .reader__bar--top { flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
+.book .reader__bar--top .reader__button,
+.book .reader__bar--top .reader__title { min-inline-size: 0; overflow-wrap: anywhere; }
+.book .reader__bar--bottom { padding-block-end: calc(var(--space-3) + env(safe-area-inset-bottom, 0px)); }
+.book__frame { min-block-size: 0; }
+
 /* The preload band and the spacers are structure, not content: no space, no sound, no interaction. */
 .reader__preload { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
 .reader__spacer { inline-size: 100%; flex: none; pointer-events: none; }

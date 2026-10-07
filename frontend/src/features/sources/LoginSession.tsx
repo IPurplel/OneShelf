@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError, api } from "@/api/client";
 import { ModalSurface } from "@/components/ModalSurface";
@@ -32,21 +32,63 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
   const [busy, setBusy] = useState(false);
   const frame = useRef<HTMLImageElement | null>(null);
   const timer = useRef<number | null>(null);
+  const closed = useRef(false);
+  const activeLogin = useRef<string | null>(null);
+  const deleted = useRef(new Set<string>());
+  const deleting = useRef(new Map<string, Promise<boolean>>());
 
-  useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
+  const discard = useCallback(async (id: string): Promise<boolean> => {
+    if (deleted.current.has(id)) return true;
+    const pending = deleting.current.get(id);
+    if (pending !== undefined) return pending;
+    const request = (async () => {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          await api.delete(`/api/logins/${id}`);
+          deleted.current.add(id);
+          return true;
+        } catch {
+          if (attempt === 0) await new Promise(resolve => window.setTimeout(resolve, 150));
+        }
+      }
+      return false;
+    })();
+    deleting.current.set(id, request);
+    try {
+      return await request;
+    } finally {
+      deleting.current.delete(id);
+    }
+  }, []);
 
-  const say = (error: unknown) =>
-    setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+  useEffect(() => {
+    closed.current = false;
+    return () => {
+      closed.current = true;
+      if (timer.current !== null) window.clearTimeout(timer.current);
+      if (activeLogin.current !== null) void discard(activeLogin.current);
+    };
+  }, [discard]);
+
+  const say = (error: unknown) => {
+    if (!closed.current) setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+  };
 
   const open = async () => {
     setProblem(null);
     setBusy(true);
     try {
-      setLogin(await api.post<Login>(`/api/sources/${sourceId}/login`));
+      const created = await api.post<Login>(`/api/sources/${sourceId}/login`);
+      if (closed.current) {
+        await discard(created.login_id);
+        return;
+      }
+      activeLogin.current = created.login_id;
+      setLogin(created);
     } catch (error) {
       say(error);
     } finally {
-      setBusy(false);
+      if (!closed.current) setBusy(false);
     }
   };
 
@@ -54,7 +96,7 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
   const send = (body: Record<string, string | number>) => {
     if (login === null) return;
     api.post(`/api/logins/${login.login_id}/input`, body)
-      .then(() => setTick((n) => n + 1))
+      .then(() => { if (!closed.current) setTick((n) => n + 1); })
       .catch(say);
   };
 
@@ -81,19 +123,20 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
     setProblem(null);
     setBusy(true);
     try {
-      setOutcome(await api.post<Completion>(`/api/logins/${login.login_id}/complete`));
+      const result = await api.post<Completion>(`/api/logins/${login.login_id}/complete`);
+      if (!closed.current) setOutcome(result);
     } catch (error) {
       say(error);
     } finally {
-      setBusy(false);
+      if (!closed.current) setBusy(false);
     }
   };
 
   const cancel = async () => {
+    if (closed.current) return;
+    closed.current = true;
     try {
-      if (login !== null) await api.delete(`/api/logins/${login.login_id}`);
-    } catch {
-      // A window that has already closed is not a problem worth reporting.
+      if (activeLogin.current !== null) await discard(activeLogin.current);
     } finally {
       onClose();
     }
@@ -126,8 +169,11 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
                    src={`/api/logins/${login.login_id}/frame?f=${tick}`}
                    onClick={onClick} onKeyDown={onKeyDown}
                    onLoad={() => {
+                     if (closed.current) return;
                      if (timer.current !== null) window.clearTimeout(timer.current);
-                     timer.current = window.setTimeout(() => setTick((n) => n + 1), 150);
+                     timer.current = window.setTimeout(() => {
+                       if (!closed.current) setTick((n) => n + 1);
+                     }, 150);
                    }} />
               <p className="cards__meta">{t("login.relayHelp")}</p>
             </>
