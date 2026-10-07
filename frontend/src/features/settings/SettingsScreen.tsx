@@ -12,6 +12,7 @@ import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { SourceSettingsPanel } from "./SourceSettingsPanel";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
+import { handleTabKeys } from "@/components/tabKeyboard";
 
 type Category = "general" | "reader" | "downloads" | "storage" | "sources" | "notifications" | "backup"
   | "remote" | "advanced" | "developer";
@@ -32,11 +33,13 @@ export function SettingsScreen() {
       <h1 className="screen__title">{t("settings.title")}</h1>
 
       <div className="settings__layout">
-        <div className="settings__nav" role="tablist" aria-label={t("settings.categories")} aria-orientation="vertical">
+        <div className="settings__nav" role="tablist" aria-label={t("settings.categories")}
+             aria-orientation="vertical" onKeyDown={handleTabKeys}>
           {CATEGORIES.map((candidate) => (
             <button key={candidate} type="button" role="tab" className="settings__tab"
                     id={`settings-tab-${candidate}`} aria-controls="settings-tabpanel"
                     aria-selected={category === candidate}
+                    tabIndex={category === candidate ? 0 : -1}
                     onClick={() => void navigate(`/settings/${candidate}`)}>
               {t(`settings.${candidate}` as StringKey)}
             </button>

@@ -86,6 +86,7 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
   const [pageRetries, setPageRetries] = useState<Map<number, number>>(new Map());
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
   const [repairing, setRepairing] = useState(false);
+  const [repairProblem, setRepairProblem] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [fullscreen, setFullscreen] = useState(false);
@@ -163,6 +164,7 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
    */
   useEffect(() => {
     setFailed(new Set());
+    setRepairProblem(null);
     setPageRetries(new Map());
     setSkipped(new Set());
     setLoaded(new Set());
@@ -459,6 +461,13 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
           <p className="notice notice--problem" role="alert">{pageError === "offline" ? t("state.offline") : pageError}</p>
           <button type="button" className="button" onClick={reloadPages}>{t("reader.retry")}</button>
         </>}
+        {repairProblem !== null && <p className="notice notice--problem" role="alert">{repairProblem}</p>}
+        {pageData !== null && pageError === null && pages.length === 0 && (
+          <div className="reader__failure" role="alert">
+            <p>{t("reader.emptyPages")}</p>
+            <Link className="button" to={workLink(work, track)} onClick={leave}>{t("reader.backToWork")}</Link>
+          </div>
+        )}
         {before > 0 && (
           <div className="reader__spacer" data-spacer="before" data-pages={before} aria-hidden="true"
                style={{ blockSize: `${before * pageHeight}px` }} />
@@ -483,7 +492,9 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
                 <button type="button" className="button" disabled={repairing || unit?.integrity === "none"}
                         onClick={() => {
                           setRepairing(true);
+                          setRepairProblem(null);
                           void api.post("/api/downloads", { unit_ids: [id], repair: true })
+                            .catch(() => setRepairProblem(t("reader.repairFailed")))
                             .finally(() => setRepairing(false));
                         }}>
                   {t("reader.repair")}

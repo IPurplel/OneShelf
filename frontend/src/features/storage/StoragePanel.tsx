@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
@@ -28,6 +28,25 @@ export function StoragePanel() {
   const [destination, setDestination] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const addLocked = useRef(false);
+  const [addBusy, setAddBusy] = useState(false);
+
+  const addRoot = async () => {
+    if (addLocked.current) return;
+    addLocked.current = true;
+    setAddBusy(true);
+    setProblem(null);
+    try {
+      await api.post("/api/storage/roots", { name, path });
+      setAdding(false);
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+    } finally {
+      addLocked.current = false;
+      setAddBusy(false);
+      reload();
+    }
+  };
 
   const run = async (call: Promise<unknown>, after?: () => void) => {
     setProblem(null);
@@ -95,7 +114,8 @@ export function StoragePanel() {
       </div>
 
       {adding && (
-        <ModalSurface className="confirm" title={t("storage.addTitle")} onClose={() => setAdding(false)}>
+        <ModalSurface className="confirm" title={t("storage.addTitle")}
+                      onClose={() => { if (!addLocked.current) setAdding(false); }}>
           {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
           <h2 className="display">{t("storage.addTitle")}</h2>
           <label className="field__label">
@@ -107,12 +127,14 @@ export function StoragePanel() {
             <input type="text" className="field" value={name} onChange={(event) => setName(event.target.value)} />
           </label>
           <div className="confirm__actions">
-            <button type="button" className="button" onClick={() => setAdding(false)}>{t("common.cancel")}</button>
-            <button type="button" className="button button--primary"
-                    onClick={() => void run(api.post("/api/storage/roots", { name, path }), () => setAdding(false))}>
+            <button type="button" className="button" disabled={addBusy}
+                    onClick={() => setAdding(false)}>{t("common.cancel")}</button>
+            <button type="button" className="button button--primary" disabled={addBusy}
+                    onClick={() => void addRoot()}>
               {t("storage.addAction")}
             </button>
           </div>
+          {addBusy && <p role="status">{t("state.loading")}</p>}
         </ModalSurface>
       )}
 

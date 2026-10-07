@@ -1,0 +1,14 @@
+[
+  {
+    "language": "en",
+    "alert": "This unit has no pages to read. Return to the work to choose another unit.\n\nBack to the work",
+    "back": "/works/w0?track=t0",
+    "page_requests": []
+  },
+  {
+    "language": "ar",
+    "alert": "لا توجد صفحات لقراءتها في هذه الوحدة. عُد إلى العمل لاختيار وحدة أخرى.\n\nالعودة إلى العمل",
+    "back": "/works/w0?track=t0",
+    "page_requests": []
+  }
+]

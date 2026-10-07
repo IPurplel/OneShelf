@@ -26,6 +26,22 @@ describe("Shelf covers", () => {
 });
 
 describe("My Shelf", () => {
+  it.each(["en", "ar"] as const)("moves shelf tab focus and selection by keyboard in %s", async (language) => {
+    mockApi([get("/api/shelf", { view: "all", entries: [ENTRY] })]);
+    const user = userEvent.setup();
+    renderWithProviders(<ShelfScreen />, { language });
+    const tabs = within(await screen.findByRole("tablist")).getAllByRole("tab");
+    tabs[0]!.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(tabs[1]).toHaveFocus();
+    expect(tabs[1]).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{Home}{ArrowLeft}");
+    expect(tabs.at(-1)).toHaveFocus();
+    expect(tabs.at(-1)).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{End}");
+    expect(tabs.at(-1)).toHaveAttribute("tabindex", "0");
+    expect(tabs[0]).toHaveAttribute("tabindex", "-1");
+  });
   it("shows the saved works on shelves", async () => {
     mockApi([get("/api/shelf", { view: "all", entries: [ENTRY] })]);
     renderWithProviders(<ShelfScreen />);

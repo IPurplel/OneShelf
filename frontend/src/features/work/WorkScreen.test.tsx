@@ -35,6 +35,23 @@ const DETAILS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Work Details", () => {
+  it.each(["en", "ar"] as const)("moves horizontal tab focus and selection by keyboard in %s", async (language) => {
+    mockApi([get("/api/works/w1", DETAILS)]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />, { language });
+    const tabs = within(await screen.findByRole("tablist")).getAllByRole("tab");
+    tabs[0]!.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(tabs[1]).toHaveFocus();
+    expect(tabs[1]).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{Home}");
+    expect(tabs[0]).toHaveFocus();
+    await user.keyboard("{ArrowLeft}");
+    expect(tabs[2]).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(tabs[2]).toHaveAttribute("tabindex", "0");
+    expect(tabs[0]).toHaveAttribute("tabindex", "-1");
+  });
   it("cannot follow the old track while the selected track is loading", async () => {
     let answerArabic!: (response: Response) => void;
     const arabic = new Promise<Response>((resolve) => { answerArabic = resolve; });

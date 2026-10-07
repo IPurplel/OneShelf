@@ -11,6 +11,7 @@ import type { RemovalSummary } from "./RemoveFromShelf";
 import { ApiError, api } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
+import { handleTabKeys } from "@/components/tabKeyboard";
 
 const VIEWS: { id: string; labelKey: StringKey }[] = [
   { id: "all", labelKey: "shelf.view.all" },
@@ -82,11 +83,12 @@ export function ShelfScreen() {
       <h1 className="screen__title">{t("shelf.title")}</h1>
 
       <div className="toolbar">
-        <div className="toolbar__tabs" role="tablist" aria-label={t("shelf.views")}>
+        <div className="toolbar__tabs" role="tablist" aria-label={t("shelf.views")} onKeyDown={handleTabKeys}>
           {VIEWS.map((candidate) => (
             <button key={candidate.id} type="button" role="tab" className="chip"
                     id={`shelf-tab-${candidate.id}`} aria-controls="shelf-tabpanel"
                     aria-selected={view === candidate.id && query.trim() === ""}
+                    tabIndex={view === candidate.id ? 0 : -1}
                     onClick={() => { setView(candidate.id); setQuery(""); }}>
               {t(candidate.labelKey)}
             </button>

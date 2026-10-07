@@ -1,0 +1,326 @@
+[
+  {
+    "width": 390,
+    "scrollWidth": 390,
+    "controls": [
+      {
+        "text": "Back",
+        "left": 16,
+        "right": 75.609375,
+        "top": 12,
+        "bottom": 52,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "Contents",
+        "left": 16,
+        "right": 107.8125,
+        "top": 56,
+        "bottom": 96,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "Reader settings",
+        "left": 115.8125,
+        "right": 257.171875,
+        "top": 56,
+        "bottom": 96,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "Full screen",
+        "left": 16,
+        "right": 120.1875,
+        "top": 100,
+        "bottom": 140,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "More",
+        "left": 128.1875,
+        "right": 191.703125,
+        "top": 100,
+        "bottom": 140,
+        "inside": true,
+        "hit": true
+      }
+    ],
+    "bottomInside": true,
+    "appNavHidden": true,
+    "language": "en"
+  },
+  {
+    "width": 768,
+    "scrollWidth": 768,
+    "controls": [
+      {
+        "text": "Back",
+        "left": 16,
+        "right": 75.609375,
+        "top": 16,
+        "bottom": 56,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "Contents",
+        "left": 269.125,
+        "right": 360.9375,
+        "top": 16,
+        "bottom": 56,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "Reader settings",
+        "left": 376.9375,
+        "right": 471.90625,
+        "top": 12,
+        "bottom": 60,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "Full screen",
+        "left": 598.90625,
+        "right": 672.484375,
+        "top": 12,
+        "bottom": 60,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "More",
+        "left": 688.484375,
+        "right": 752,
+        "top": 16,
+        "bottom": 56,
+        "inside": true,
+        "hit": true
+      }
+    ],
+    "bottomInside": true,
+    "appNavHidden": true,
+    "language": "en"
+  },
+  {
+    "width": 1440,
+    "scrollWidth": 1440,
+    "controls": [
+      {
+        "text": "Back",
+        "left": 16,
+        "right": 75.609375,
+        "top": 12,
+        "bottom": 52,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "Contents",
+        "left": 360.40625,
+        "right": 452.21875,
+        "top": 12,
+        "bottom": 52,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "Reader settings",
+        "left": 468.21875,
+        "right": 609.578125,
+        "top": 12,
+        "bottom": 52,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "Full screen",
+        "left": 736.578125,
+        "right": 840.765625,
+        "top": 12,
+        "bottom": 52,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "More",
+        "left": 856.765625,
+        "right": 920.28125,
+        "top": 12,
+        "bottom": 52,
+        "inside": true,
+        "hit": true
+      }
+    ],
+    "bottomInside": true,
+    "appNavHidden": true,
+    "language": "en"
+  },
+  {
+    "width": 390,
+    "scrollWidth": 390,
+    "controls": [
+      {
+        "text": "رجوع",
+        "left": 317,
+        "right": 374,
+        "top": 12,
+        "bottom": 52,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "المحتويات",
+        "left": 291,
+        "right": 374,
+        "top": 56,
+        "bottom": 96,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "إعدادات القارئ",
+        "left": 175,
+        "right": 283,
+        "top": 56,
+        "bottom": 96,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "ملء الشاشة",
+        "left": 40,
+        "right": 131,
+        "top": 56,
+        "bottom": 96,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "المزيد",
+        "left": 317,
+        "right": 374,
+        "top": 100,
+        "bottom": 140,
+        "inside": true,
+        "hit": true
+      }
+    ],
+    "bottomInside": true,
+    "appNavHidden": true,
+    "language": "ar"
+  },
+  {
+    "width": 768,
+    "scrollWidth": 768,
+    "controls": [
+      {
+        "text": "رجوع",
+        "left": 695,
+        "right": 752,
+        "top": 16,
+        "bottom": 56,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "المحتويات",
+        "left": 349.734375,
+        "right": 432.734375,
+        "top": 16,
+        "bottom": 56,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "إعدادات القارئ",
+        "left": 233.671875,
+        "right": 333.734375,
+        "top": 12,
+        "bottom": 60,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "ملء الشاشة",
+        "left": 89,
+        "right": 173.671875,
+        "top": 12,
+        "bottom": 60,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "المزيد",
+        "left": 16,
+        "right": 73,
+        "top": 16,
+        "bottom": 56,
+        "inside": true,
+        "hit": true
+      }
+    ],
+    "bottomInside": true,
+    "appNavHidden": true,
+    "language": "ar"
+  },
+  {
+    "width": 1440,
+    "scrollWidth": 1440,
+    "controls": [
+      {
+        "text": "رجوع",
+        "left": 1367,
+        "right": 1424,
+        "top": 12,
+        "bottom": 52,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "المحتويات",
+        "left": 999.359375,
+        "right": 1082.359375,
+        "top": 12,
+        "bottom": 52,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "إعدادات القارئ",
+        "left": 875.359375,
+        "right": 983.359375,
+        "top": 12,
+        "bottom": 52,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "ملء الشاشة",
+        "left": 724.359375,
+        "right": 815.359375,
+        "top": 12,
+        "bottom": 52,
+        "inside": true,
+        "hit": true
+      },
+      {
+        "text": "المزيد",
+        "left": 651.359375,
+        "right": 708.359375,
+        "top": 12,
+        "bottom": 52,
+        "inside": true,
+        "hit": true
+      }
+    ],
+    "bottomInside": true,
+    "appNavHidden": true,
+    "language": "ar"
+  }
+]

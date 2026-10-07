@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
@@ -40,12 +40,25 @@ export function BackupPanel() {
   const { t, language } = useI18n();
   const { data, error, reload } = useResource<BackupsResponse>("/api/backups");
   const [restoring, setRestoring] = useState<Backup | null>(null);
-  const [preflight, setPreflight] = useState<Preflight | null>(null);
+  const [preflight, setPreflight] = useState<{ generation: number; path: string; result: Preflight } | null>(null);
+  const preflightGeneration = useRef(0);
+  const restoreLocked = useRef(false);
+  const [restoreBusy, setRestoreBusy] = useState(false);
   const [mode, setMode] = useState<"merge" | "replace">("merge");
   const [problem, setProblem] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const backups = data?.backups ?? [];
+  const currentPreflight = preflight?.generation === preflightGeneration.current
+    && preflight.path === restoring?.path ? preflight.result : null;
+
+  const closeRestore = () => {
+    if (restoreLocked.current) return;
+    preflightGeneration.current += 1;
+    setRestoring(null);
+    setPreflight(null);
+    setProblem(null);
+  };
 
   const makeBackup = async (kind: "library" | "full") => {
     setProblem(null);
@@ -60,26 +73,35 @@ export function BackupPanel() {
   };
 
   const openRestore = async (backup: Backup) => {
+    const generation = ++preflightGeneration.current;
     setRestoring(backup);
     setPreflight(null);
     setProblem(null);
     setMode("merge");
     try {
-      setPreflight(await api.post<Preflight>("/api/restore/preflight", { path: backup.path }));
+      const result = await api.post<Preflight>("/api/restore/preflight", { path: backup.path });
+      if (preflightGeneration.current === generation) setPreflight({ generation, path: backup.path, result });
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      if (preflightGeneration.current === generation)
+        setProblem(error instanceof ApiError ? error.message : t("state.offline"));
     }
   };
 
   const restore = async () => {
-    if (restoring === null || !preflight?.ok) return;
+    if (restoring === null || !currentPreflight?.ok || restoreLocked.current) return;
+    restoreLocked.current = true;
+    setRestoreBusy(true);
     try {
       await api.post("/api/restore", { path: restoring.path, mode });
       setMessage(t("backup.restored"));
+      preflightGeneration.current += 1;
       setRestoring(null);
+      setPreflight(null);
     } catch (error) {
       setProblem(error instanceof ApiError ? error.message : t("state.offline"));
     } finally {
+      restoreLocked.current = false;
+      setRestoreBusy(false);
       reload();
     }
   };
@@ -131,28 +153,29 @@ export function BackupPanel() {
 
       {restoring !== null && (
         <ModalSurface className="confirm confirm--wide" title={t("backup.restoreTitle")}
-                      onClose={() => setRestoring(null)}>
+                      onClose={closeRestore}>
           <h2 className="display">{t("backup.restoreTitle")}</h2>
           {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
 
-          {preflight === null && problem === null && <p>{t("state.loading")}</p>}
+          {currentPreflight === null && problem === null && <p>{t("state.loading")}</p>}
+          {restoreBusy && <p role="status">{t("state.loading")}</p>}
 
-          {preflight !== null && (
+          {currentPreflight !== null && (
             <>
               <section className="restore__step">
                 <h3>{t("backup.holds")}</h3>
                 <ul className="restore__counts">
-                  {Object.entries(preflight.counts).map(([what, count]) => (
+                  {Object.entries(currentPreflight.counts).map(([what, count]) => (
                     <li key={what}>{count} {COUNT_KEYS.has(what) ? t(`backup.count.${what}` as StringKey) : what.replaceAll("_", " ")}</li>
                   ))}
                 </ul>
               </section>
 
-              {preflight.plugins.length > 0 && (
+              {currentPreflight.plugins.length > 0 && (
                 <section className="restore__step">
                   <h3>{t("backup.sources")}</h3>
                   <ul className="restore__plugins">
-                    {preflight.plugins.map((plugin) => (
+                    {currentPreflight.plugins.map((plugin) => (
                       <li key={plugin.id}>
                         <span>{plugin.id} {plugin.version}</span>
                         <span className="cards__meta">
@@ -168,7 +191,7 @@ export function BackupPanel() {
                 </section>
               )}
 
-              {preflight.ok ? (
+              {currentPreflight.ok ? (
                 <section className="restore__step">
                   <fieldset className="panel__group" role="radiogroup" aria-label={t("backup.how")}>
                     <legend>{t("backup.how")}</legend>
@@ -186,16 +209,16 @@ export function BackupPanel() {
                 </section>
               ) : (
                 <ul className="restore__issues">
-                  {preflight.issues.map((issue) => <li key={issue} className="cards__warn">{issue}</li>)}
+                  {currentPreflight.issues.map((issue) => <li key={issue} className="cards__warn">{issue}</li>)}
                 </ul>
               )}
             </>
           )}
 
           <div className="confirm__actions">
-            <button type="button" className="button" onClick={() => setRestoring(null)}>{t("common.cancel")}</button>
-            {preflight?.ok && (
-              <button type="button" className="button button--primary" onClick={() => void restore()}>
+            <button type="button" className="button" disabled={restoreBusy} onClick={closeRestore}>{t("common.cancel")}</button>
+            {currentPreflight?.ok && (
+              <button type="button" className="button button--primary" disabled={restoreBusy} onClick={() => void restore()}>
                 {t("backup.restore")}
               </button>
             )}

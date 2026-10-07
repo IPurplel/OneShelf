@@ -33,6 +33,22 @@ const STORAGE = { roots: [{ id: "r1", name: "Library", path: "/library", availab
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Settings", () => {
+  it.each(["en", "ar"] as const)("moves vertical settings tabs by keyboard in %s", async (language) => {
+    mockApi([get("/api/auth/state", AUTH), get("/api/reader/settings", READER)]);
+    const user = userEvent.setup();
+    renderWithProviders(<SettingsScreen />, { language, route: "/settings/general" });
+    const tabs = within(await screen.findByRole("tablist")).getAllByRole("tab");
+    tabs[0]!.focus();
+    await user.keyboard("{ArrowDown}");
+    expect(tabs[1]).toHaveFocus();
+    expect(tabs[1]).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{Home}{ArrowUp}");
+    expect(tabs.at(-1)).toHaveFocus();
+    expect(tabs.at(-1)).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{End}");
+    expect(tabs.at(-1)).toHaveAttribute("tabindex", "0");
+    expect(tabs[0]).toHaveAttribute("tabindex", "-1");
+  });
   it("offers the Master's categories", async () => {
     mockApi([get("/api/auth/state", AUTH), get("/api/storage", STORAGE), get("/api/sources", { sources: [] }),
              get("/api/reader/settings", READER), get("/api/downloads/settings", DOWNLOADS),

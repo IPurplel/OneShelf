@@ -1,0 +1,46 @@
+[
+  {
+    "preview": {
+      "work_id": "w0",
+      "language": "en",
+      "source_id": "local",
+      "unit_ids": [
+        "u0"
+      ],
+      "destination": "/export/A",
+      "output": "folder",
+      "conflict": "skip_identical"
+    }
+  },
+  {
+    "preview": {
+      "work_id": "w0",
+      "language": "en",
+      "source_id": "local",
+      "unit_ids": [
+        "u0"
+      ],
+      "destination": "/export/B",
+      "output": "folder",
+      "conflict": "skip_identical"
+    }
+  },
+  {
+    "review_after_late": "Export\nContent\nFormat\nDestination\nReview\n\n2 files, 2.0 KB.\n\nCancel\nExport"
+  },
+  {
+    "export": {
+      "work_id": "w0",
+      "language": "en",
+      "source_id": "local",
+      "unit_ids": [
+        "u0"
+      ],
+      "destination": "/export/B",
+      "output": "folder",
+      "conflict": "skip_identical",
+      "missing_policy": "export_downloaded_only",
+      "acknowledge_permanent_download": false
+    }
+  }
+]

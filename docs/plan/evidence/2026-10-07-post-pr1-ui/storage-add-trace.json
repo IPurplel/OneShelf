@@ -1,0 +1,10 @@
+{
+  "posts": [
+    {
+      "name": "Second Disk",
+      "path": "/library2"
+    }
+  ],
+  "root_visible": true,
+  "alert_count": 0
+}

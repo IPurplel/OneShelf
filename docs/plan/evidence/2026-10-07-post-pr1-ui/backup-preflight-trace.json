@@ -1,0 +1,17 @@
+[
+  {
+    "preflight": "/backups/A.zip"
+  },
+  {
+    "preflight": "/backups/B.zip"
+  },
+  {
+    "visible_after_late": "Restore from this backup\nWhat this archive holds\n222 works\nHow should this restore?\nMerge into my library\nAdds what you no longer have and keeps every decision you have made since. It never moves your reading progress backwards, and only replaces files that are missing or damaged.\nReplace my library\nPuts the library back exactly as the archive has it. A Safety Snapshot of your current library is taken first, so this can be undone.\nCancel\nRestore"
+  },
+  {
+    "restore": {
+      "path": "/backups/B.zip",
+      "mode": "merge"
+    }
+  }
+]

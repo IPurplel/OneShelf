@@ -1,0 +1,19 @@
+{
+  "posts": [
+    {
+      "body": {
+        "path": "/backups/B.zip",
+        "mode": "replace"
+      },
+      "status": 503
+    },
+    {
+      "body": {
+        "path": "/backups/B.zip",
+        "mode": "replace"
+      },
+      "status": 200
+    }
+  ],
+  "first_failure_retry": true
+}

@@ -1,5 +1,5 @@
 /** Master §34, §32.16: Content → Format → Destination → Review, and never a silent download. */
-import { screen, within } from "@testing-library/react";
+import { act, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -40,6 +40,84 @@ async function openWizard() {
 }
 
 describe("Export", () => {
+  it("keeps the newest destination preview and exports the same selection", async () => {
+    let resolveA!: (response: Response) => void;
+    const a = new Promise<Response>((resolve) => { resolveA = resolve; });
+    const requests: { path: string; body: Record<string, unknown> }[] = [];
+    vi.stubGlobal("fetch", vi.fn((path: string, init?: RequestInit) => {
+      if (path.startsWith("/api/works/")) return Promise.resolve(Response.json(WORK));
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      requests.push({ path, body });
+      if (path === "/api/export/preview") return body.destination === "/A" ? a
+        : Promise.resolve(Response.json({ ...PREVIEW, files: 2, total_bytes: 2000, missing_units: [], disclosure: null }));
+      return Promise.resolve(Response.json({ job_id: "j1", state: "completed", copied: 2, skipped: 0,
+        failed: 0, errors: [] }));
+    }));
+    const user = await openWizard();
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Next" }));
+    await user.click(within(dialog).getByRole("button", { name: "Next" }));
+    const field = within(dialog).getByRole("textbox");
+    await user.type(field, "/A");
+    await user.click(within(dialog).getByRole("button", { name: "Next" }));
+    await user.clear(field);
+    await user.type(field, "/B");
+    await user.click(within(dialog).getByRole("button", { name: "Next" }));
+    expect(await within(dialog).findByText("2 files, 2.0 KB.")).toBeInTheDocument();
+    await act(async () => resolveA(Response.json({ ...PREVIEW, files: 1 })));
+    expect(within(dialog).getByText("2 files, 2.0 KB.")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Export" }));
+    expect(requests.at(-1)).toMatchObject({ path: "/api/export", body: { destination: "/B" } });
+  });
+
+  it.each(["failure", "older same-destination success"] as const)(
+    "ignores a stale preview %s after a newer generation", async (late) => {
+      let finishFirst!: (response: Response) => void;
+      const first = new Promise<Response>((resolve) => { finishFirst = resolve; });
+      let checks = 0;
+      vi.stubGlobal("fetch", vi.fn((path: string) => {
+        if (path.startsWith("/api/works/")) return Promise.resolve(Response.json(WORK));
+        if (path === "/api/export/preview") {
+          checks += 1;
+          return checks === 1 ? first : Promise.resolve(Response.json({ ...PREVIEW, files: 2,
+            total_bytes: 2000, missing_units: [], disclosure: null }));
+        }
+        return Promise.resolve(Response.json({}));
+      }));
+      const user = await openWizard();
+      const dialog = screen.getByRole("dialog");
+      await user.click(within(dialog).getByRole("button", { name: "Next" }));
+      await user.click(within(dialog).getByRole("button", { name: "Next" }));
+      const field = within(dialog).getByRole("textbox");
+      await user.type(field, "/A");
+      await user.click(within(dialog).getByRole("button", { name: "Next" }));
+      await user.clear(field);
+      await user.type(field, "/B");
+      if (late === "older same-destination success") {
+        await user.clear(field);
+        await user.type(field, "/A");
+      }
+      await user.click(within(dialog).getByRole("button", { name: "Next" }));
+      await within(dialog).findByText("2 files, 2.0 KB.");
+      await act(async () => finishFirst(late === "failure"
+        ? Response.json({ error: { message: "Old preview failed" } }, { status: 503 })
+        : Response.json({ ...PREVIEW, files: 1 })));
+      expect(within(dialog).getByText("2 files, 2.0 KB.")).toBeInTheDocument();
+      expect(within(dialog).queryByText("Old preview failed")).toBeNull();
+    });
+
+  it.each([[0, "0 files"], [1, "1 file"], [2, "2 files"]])("pluralizes %i files as %s", async (count, expected) => {
+    mockApi([get("/api/works/w1", WORK), post("/api/export/preview",
+      { ...PREVIEW, files: count, missing_units: [], disclosure: null })]);
+    const user = await openWizard();
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Next" }));
+    await user.click(within(dialog).getByRole("button", { name: "Next" }));
+    await user.type(within(dialog).getByRole("textbox"), "/destination");
+    await user.click(within(dialog).getByRole("button", { name: "Next" }));
+    expect(await within(dialog).findByText(new RegExp(`^${expected},`))).toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent("file(s)");
+  });
   it("loads the Work track selected on the Details page", async () => {
     const arabic = { ...WORK, tracks: [...WORK.tracks, { ...WORK.tracks[0], id: "t-ar", source_id: "alpha", language: "ar" }],
       selected_track_id: "t-ar", units: [{ ...WORK.units[0], id: "u-ar", title: "الفصل ١" }] };

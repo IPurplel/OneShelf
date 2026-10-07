@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
@@ -38,7 +38,10 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
   const [output, setOutput] = useState<"folder" | "zip">("folder");
   const [conflict, setConflict] = useState<"skip_identical" | "replace" | "keep_both">("skip_identical");
   const [destination, setDestination] = useState("");
-  const [preview, setPreview] = useState<Preview | null>(null);
+  const [preview, setPreview] = useState<{ key: string; result: Preview } | null>(null);
+  const previewGeneration = useRef(0);
+  const latestSelection = useRef("");
+  const [checking, setChecking] = useState(false);
   const [policy, setPolicy] = useState<MissingPolicy>("export_downloaded_only");
   const [report, setReport] = useState<Report | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -56,8 +59,19 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
     output,
     conflict,
   });
+  const selectionKey = JSON.stringify(body());
+  latestSelection.current = selectionKey;
+  const currentPreview = preview?.key === selectionKey ? preview.result : null;
+
+  const invalidatePreview = () => {
+    previewGeneration.current += 1;
+    setPreview(null);
+    setChecking(false);
+    setProblem(null);
+  };
 
   const toggle = (id: string) => {
+    invalidatePreview();
     const next = new Set(chosen);
     if (next.has(id)) next.delete(id);
     else next.add(id);
@@ -65,17 +79,29 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
   };
 
   const check = async () => {
+    if (checking) return;
+    const request = body();
+    const key = JSON.stringify(request);
+    const generation = ++previewGeneration.current;
     setProblem(null);
+    setPreview(null);
+    setChecking(true);
     try {
-      const result = await api.post<Preview>("/api/export/preview", body());
-      setPreview(result);
-      setStep("review");
+      const result = await api.post<Preview>("/api/export/preview", request);
+      if (previewGeneration.current === generation && latestSelection.current === key) {
+        setPreview({ key, result });
+        setStep("review");
+      }
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      if (previewGeneration.current === generation && latestSelection.current === key)
+        setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+    } finally {
+      if (previewGeneration.current === generation) setChecking(false);
     }
   };
 
   const run = async () => {
+    if (currentPreview === null) return;
     setProblem(null);
     try {
       setReport(await api.post<Report>("/api/export", {
@@ -124,8 +150,8 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
             <legend>{t("export.format")}</legend>
             {(["folder", "zip"] as const).map((candidate) => (
               <label key={candidate} className="panel__choice">
-                <input type="radio" name="output" value={candidate} checked={output === candidate}
-                       onChange={() => setOutput(candidate)} />
+              <input type="radio" name="output" value={candidate} checked={output === candidate}
+                       onChange={() => { invalidatePreview(); setOutput(candidate); }} />
                 <span>
                   <span className="panel__choiceTitle">{t(`export.output.${candidate}` as StringKey)}</span>
                   <span className="panel__choiceHelp">{t(`export.output.${candidate}Help` as StringKey)}</span>
@@ -142,14 +168,14 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
           <label className="field__label">
             {t("export.destination")}
             <input type="text" className="field" value={destination}
-                   onChange={(event) => setDestination(event.target.value)} />
+                   onChange={(event) => { invalidatePreview(); setDestination(event.target.value); }} />
           </label>
           <fieldset className="panel__group" role="radiogroup" aria-label={t("export.conflict")}>
             <legend>{t("export.conflict")}</legend>
             {(["skip_identical", "replace", "keep_both"] as const).map((candidate) => (
               <label key={candidate} className="panel__choice">
                 <input type="radio" name="conflict" value={candidate} checked={conflict === candidate}
-                       onChange={() => setConflict(candidate)} />
+                       onChange={() => { invalidatePreview(); setConflict(candidate); }} />
                 <span>{t(`export.conflict.${candidate}` as StringKey)}</span>
               </label>
             ))}
@@ -157,12 +183,13 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
         </>
       )}
 
-      {step === "review" && preview !== null && report === null && (
+      {step === "review" && currentPreview !== null && report === null && (
         <>
-          <p>{t("export.summary", { files: preview.files, size: bytes(preview.total_bytes) })}</p>
-          {preview.disclosure !== null && (
+          <p>{t(currentPreview.files === 1 ? "export.summary.one" : "export.summary.other",
+            { files: currentPreview.files, size: bytes(currentPreview.total_bytes) })}</p>
+          {currentPreview.disclosure !== null && (
             <section className="restore__step">
-              <p className="notice notice--problem">{preview.disclosure.message}</p>
+              <p className="notice notice--problem">{currentPreview.disclosure.message}</p>
               <fieldset className="panel__group" role="radiogroup" aria-label={t("export.missing")}>
                 <legend>{t("export.missing")}</legend>
                 {(["export_downloaded_only", "download_missing_then_export"] as MissingPolicy[]).map((candidate) => (
@@ -180,7 +207,8 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
 
       {report !== null && (
         <p role="status">
-          {t("export.done", { copied: report.copied, skipped: report.skipped, failed: report.failed })}
+          {t(report.copied === 1 ? "export.done.one" : "export.done.other",
+            { copied: report.copied, skipped: report.skipped, failed: report.failed })}
         </p>
       )}
 
@@ -200,12 +228,13 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
           </button>
         )}
         {step === "destination" && (
-          <button type="button" className="button button--primary" onClick={() => void check()}>
+          <button type="button" className="button button--primary" disabled={checking} onClick={() => void check()}>
             {t("export.next")}
           </button>
         )}
         {step === "review" && report === null && (
-          <button type="button" className="button button--primary" onClick={() => void run()}>
+          <button type="button" className="button button--primary" disabled={currentPreview === null}
+                  onClick={() => void run()}>
             {t("export.run")}
           </button>
         )}

@@ -6,6 +6,7 @@ import { useResource } from "@/api/useApi";
 import type { Track, Unit, WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
+import { handleTabKeys } from "@/components/tabKeyboard";
 import { languageName } from "@/i18n/language";
 import { ExportWizard } from "@/features/export/ExportWizard";
 import { ModalSurface } from "@/components/ModalSurface";
@@ -228,9 +229,10 @@ export function WorkScreen({ workId }: { workId?: string }) {
         </div>
       </header>
 
-      <div className="toolbar__tabs" role="tablist" aria-label={t("work.tab.details")}>
+      <div className="toolbar__tabs" role="tablist" aria-label={t("work.tab.details")} onKeyDown={handleTabKeys}>
         {(["read", "details", "sources"] as Tab[]).map((candidate) => (
           <button key={candidate} type="button" role="tab" className="chip" aria-selected={tab === candidate}
+                  tabIndex={tab === candidate ? 0 : -1}
                   id={`work-tab-${candidate}`} aria-controls="work-tabpanel"
                   onClick={() => setTab(candidate)}>
             {t(`work.tab.${candidate}` as const)}

@@ -1,0 +1,506 @@
+[
+  {
+    "language": "en",
+    "width": 390,
+    "path": "/works/w0",
+    "key": "ArrowRight",
+    "selected": "work-tab-details"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "path": "/works/w0",
+    "key": "ArrowLeft",
+    "selected": "work-tab-sources"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "path": "/works/w0",
+    "key": "End",
+    "selected": "work-tab-sources"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "path": "/works/w0",
+    "key": "Home",
+    "selected": "work-tab-read"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "path": "/shelf",
+    "key": "ArrowRight",
+    "selected": "shelf-tab-saved"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "path": "/shelf",
+    "key": "ArrowLeft",
+    "selected": "shelf-tab-pinned"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "path": "/shelf",
+    "key": "End",
+    "selected": "shelf-tab-pinned"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "path": "/shelf",
+    "key": "Home",
+    "selected": "shelf-tab-all"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "path": "/settings",
+    "key": "ArrowDown",
+    "selected": "settings-tab-reader"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "path": "/settings",
+    "key": "ArrowUp",
+    "selected": "settings-tab-developer"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "path": "/settings",
+    "key": "End",
+    "selected": "settings-tab-developer"
+  },
+  {
+    "language": "en",
+    "width": 390,
+    "path": "/settings",
+    "key": "Home",
+    "selected": "settings-tab-general"
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "path": "/works/w0",
+    "key": "ArrowRight",
+    "selected": "work-tab-details"
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "path": "/works/w0",
+    "key": "ArrowLeft",
+    "selected": "work-tab-sources"
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "path": "/works/w0",
+    "key": "End",
+    "selected": "work-tab-sources"
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "path": "/works/w0",
+    "key": "Home",
+    "selected": "work-tab-read"
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "path": "/shelf",
+    "key": "ArrowRight",
+    "selected": "shelf-tab-saved"
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "path": "/shelf",
+    "key": "ArrowLeft",
+    "selected": "shelf-tab-pinned"
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "path": "/shelf",
+    "key": "End",
+    "selected": "shelf-tab-pinned"
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "path": "/shelf",
+    "key": "Home",
+    "selected": "shelf-tab-all"
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "path": "/settings",
+    "key": "ArrowDown",
+    "selected": "settings-tab-reader"
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "path": "/settings",
+    "key": "ArrowUp",
+    "selected": "settings-tab-developer"
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "path": "/settings",
+    "key": "End",
+    "selected": "settings-tab-developer"
+  },
+  {
+    "language": "en",
+    "width": 768,
+    "path": "/settings",
+    "key": "Home",
+    "selected": "settings-tab-general"
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "path": "/works/w0",
+    "key": "ArrowRight",
+    "selected": "work-tab-details"
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "path": "/works/w0",
+    "key": "ArrowLeft",
+    "selected": "work-tab-sources"
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "path": "/works/w0",
+    "key": "End",
+    "selected": "work-tab-sources"
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "path": "/works/w0",
+    "key": "Home",
+    "selected": "work-tab-read"
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "path": "/shelf",
+    "key": "ArrowRight",
+    "selected": "shelf-tab-saved"
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "path": "/shelf",
+    "key": "ArrowLeft",
+    "selected": "shelf-tab-pinned"
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "path": "/shelf",
+    "key": "End",
+    "selected": "shelf-tab-pinned"
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "path": "/shelf",
+    "key": "Home",
+    "selected": "shelf-tab-all"
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "path": "/settings",
+    "key": "ArrowDown",
+    "selected": "settings-tab-reader"
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "path": "/settings",
+    "key": "ArrowUp",
+    "selected": "settings-tab-developer"
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "path": "/settings",
+    "key": "End",
+    "selected": "settings-tab-developer"
+  },
+  {
+    "language": "en",
+    "width": 1440,
+    "path": "/settings",
+    "key": "Home",
+    "selected": "settings-tab-general"
+  },
+  {
+    "language": "ar",
+    "width": 390,
+    "path": "/works/w0",
+    "key": "ArrowRight",
+    "selected": "work-tab-details"
+  },
+  {
+    "language": "ar",
+    "width": 390,
+    "path": "/works/w0",
+    "key": "ArrowLeft",
+    "selected": "work-tab-sources"
+  },
+  {
+    "language": "ar",
+    "width": 390,
+    "path": "/works/w0",
+    "key": "End",
+    "selected": "work-tab-sources"
+  },
+  {
+    "language": "ar",
+    "width": 390,
+    "path": "/works/w0",
+    "key": "Home",
+    "selected": "work-tab-read"
+  },
+  {
+    "language": "ar",
+    "width": 390,
+    "path": "/shelf",
+    "key": "ArrowRight",
+    "selected": "shelf-tab-saved"
+  },
+  {
+    "language": "ar",
+    "width": 390,
+    "path": "/shelf",
+    "key": "ArrowLeft",
+    "selected": "shelf-tab-pinned"
+  },
+  {
+    "language": "ar",
+    "width": 390,
+    "path": "/shelf",
+    "key": "End",
+    "selected": "shelf-tab-pinned"
+  },
+  {
+    "language": "ar",
+    "width": 390,
+    "path": "/shelf",
+    "key": "Home",
+    "selected": "shelf-tab-all"
+  },
+  {
+    "language": "ar",
+    "width": 390,
+    "path": "/settings",
+    "key": "ArrowDown",
+    "selected": "settings-tab-reader"
+  },
+  {
+    "language": "ar",
+    "width": 390,
+    "path": "/settings",
+    "key": "ArrowUp",
+    "selected": "settings-tab-developer"
+  },
+  {
+    "language": "ar",
+    "width": 390,
+    "path": "/settings",
+    "key": "End",
+    "selected": "settings-tab-developer"
+  },
+  {
+    "language": "ar",
+    "width": 390,
+    "path": "/settings",
+    "key": "Home",
+    "selected": "settings-tab-general"
+  },
+  {
+    "language": "ar",
+    "width": 768,
+    "path": "/works/w0",
+    "key": "ArrowRight",
+    "selected": "work-tab-details"
+  },
+  {
+    "language": "ar",
+    "width": 768,
+    "path": "/works/w0",
+    "key": "ArrowLeft",
+    "selected": "work-tab-sources"
+  },
+  {
+    "language": "ar",
+    "width": 768,
+    "path": "/works/w0",
+    "key": "End",
+    "selected": "work-tab-sources"
+  },
+  {
+    "language": "ar",
+    "width": 768,
+    "path": "/works/w0",
+    "key": "Home",
+    "selected": "work-tab-read"
+  },
+  {
+    "language": "ar",
+    "width": 768,
+    "path": "/shelf",
+    "key": "ArrowRight",
+    "selected": "shelf-tab-saved"
+  },
+  {
+    "language": "ar",
+    "width": 768,
+    "path": "/shelf",
+    "key": "ArrowLeft",
+    "selected": "shelf-tab-pinned"
+  },
+  {
+    "language": "ar",
+    "width": 768,
+    "path": "/shelf",
+    "key": "End",
+    "selected": "shelf-tab-pinned"
+  },
+  {
+    "language": "ar",
+    "width": 768,
+    "path": "/shelf",
+    "key": "Home",
+    "selected": "shelf-tab-all"
+  },
+  {
+    "language": "ar",
+    "width": 768,
+    "path": "/settings",
+    "key": "ArrowDown",
+    "selected": "settings-tab-reader"
+  },
+  {
+    "language": "ar",
+    "width": 768,
+    "path": "/settings",
+    "key": "ArrowUp",
+    "selected": "settings-tab-developer"
+  },
+  {
+    "language": "ar",
+    "width": 768,
+    "path": "/settings",
+    "key": "End",
+    "selected": "settings-tab-developer"
+  },
+  {
+    "language": "ar",
+    "width": 768,
+    "path": "/settings",
+    "key": "Home",
+    "selected": "settings-tab-general"
+  },
+  {
+    "language": "ar",
+    "width": 1440,
+    "path": "/works/w0",
+    "key": "ArrowRight",
+    "selected": "work-tab-details"
+  },
+  {
+    "language": "ar",
+    "width": 1440,
+    "path": "/works/w0",
+    "key": "ArrowLeft",
+    "selected": "work-tab-sources"
+  },
+  {
+    "language": "ar",
+    "width": 1440,
+    "path": "/works/w0",
+    "key": "End",
+    "selected": "work-tab-sources"
+  },
+  {
+    "language": "ar",
+    "width": 1440,
+    "path": "/works/w0",
+    "key": "Home",
+    "selected": "work-tab-read"
+  },
+  {
+    "language": "ar",
+    "width": 1440,
+    "path": "/shelf",
+    "key": "ArrowRight",
+    "selected": "shelf-tab-saved"
+  },
+  {
+    "language": "ar",
+    "width": 1440,
+    "path": "/shelf",
+    "key": "ArrowLeft",
+    "selected": "shelf-tab-pinned"
+  },
+  {
+    "language": "ar",
+    "width": 1440,
+    "path": "/shelf",
+    "key": "End",
+    "selected": "shelf-tab-pinned"
+  },
+  {
+    "language": "ar",
+    "width": 1440,
+    "path": "/shelf",
+    "key": "Home",
+    "selected": "shelf-tab-all"
+  },
+  {
+    "language": "ar",
+    "width": 1440,
+    "path": "/settings",
+    "key": "ArrowDown",
+    "selected": "settings-tab-reader"
+  },
+  {
+    "language": "ar",
+    "width": 1440,
+    "path": "/settings",
+    "key": "ArrowUp",
+    "selected": "settings-tab-developer"
+  },
+  {
+    "language": "ar",
+    "width": 1440,
+    "path": "/settings",
+    "key": "End",
+    "selected": "settings-tab-developer"
+  },
+  {
+    "language": "ar",
+    "width": 1440,
+    "path": "/settings",
+    "key": "Home",
+    "selected": "settings-tab-general"
+  }
+]

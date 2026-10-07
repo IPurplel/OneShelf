@@ -1,0 +1,374 @@
+{
+  "en-390-track": [
+    {
+      "method": "POST",
+      "path": "/api/follows/w0",
+      "body": {
+        "language": "ar",
+        "source_id": "alpha",
+        "track_id": "t-ar"
+      }
+    }
+  ],
+  "en-390-login": [
+    {
+      "method": "DELETE",
+      "path": "/api/logins/late-en-390"
+    }
+  ],
+  "en-390-completion": [
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "body": {
+        "completed": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "status": 503
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "status": 200
+    }
+  ],
+  "en-390-bookmark": [
+    {
+      "method": "POST",
+      "path": "/api/reader/units/u0/bookmarks",
+      "body": {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "72e1515c-17dd-4cf4-84d5-8189b821346e"
+      },
+      "attempt": 1
+    },
+    {
+      "method": "POST",
+      "path": "/api/reader/units/u0/bookmarks",
+      "body": {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "72e1515c-17dd-4cf4-84d5-8189b821346e"
+      },
+      "attempt": 2
+    }
+  ],
+  "en-768-track": [
+    {
+      "method": "POST",
+      "path": "/api/follows/w0",
+      "body": {
+        "language": "ar",
+        "source_id": "alpha",
+        "track_id": "t-ar"
+      }
+    }
+  ],
+  "en-768-login": [
+    {
+      "method": "DELETE",
+      "path": "/api/logins/late-en-768"
+    }
+  ],
+  "en-768-completion": [
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "body": {
+        "completed": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "status": 503
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "status": 200
+    }
+  ],
+  "en-768-bookmark": [
+    {
+      "method": "POST",
+      "path": "/api/reader/units/u0/bookmarks",
+      "body": {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "d140e856-7afd-49ec-b772-675d200374f7"
+      },
+      "attempt": 1
+    },
+    {
+      "method": "POST",
+      "path": "/api/reader/units/u0/bookmarks",
+      "body": {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "d140e856-7afd-49ec-b772-675d200374f7"
+      },
+      "attempt": 2
+    }
+  ],
+  "en-1440-track": [
+    {
+      "method": "POST",
+      "path": "/api/follows/w0",
+      "body": {
+        "language": "ar",
+        "source_id": "alpha",
+        "track_id": "t-ar"
+      }
+    }
+  ],
+  "en-1440-login": [
+    {
+      "method": "DELETE",
+      "path": "/api/logins/late-en-1440"
+    }
+  ],
+  "en-1440-completion": [
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "body": {
+        "completed": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "status": 503
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "status": 200
+    }
+  ],
+  "en-1440-bookmark": [
+    {
+      "method": "POST",
+      "path": "/api/reader/units/u0/bookmarks",
+      "body": {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "e5991330-574b-49d4-8b5c-438f88b5a73d"
+      },
+      "attempt": 1
+    },
+    {
+      "method": "POST",
+      "path": "/api/reader/units/u0/bookmarks",
+      "body": {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "e5991330-574b-49d4-8b5c-438f88b5a73d"
+      },
+      "attempt": 2
+    }
+  ],
+  "ar-390-track": [
+    {
+      "method": "POST",
+      "path": "/api/follows/w0",
+      "body": {
+        "language": "ar",
+        "source_id": "alpha",
+        "track_id": "t-ar"
+      }
+    }
+  ],
+  "ar-390-login": [
+    {
+      "method": "DELETE",
+      "path": "/api/logins/late-ar-390"
+    }
+  ],
+  "ar-390-completion": [
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "body": {
+        "completed": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "status": 503
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "status": 200
+    }
+  ],
+  "ar-390-bookmark": [
+    {
+      "method": "POST",
+      "path": "/api/reader/units/u0/bookmarks",
+      "body": {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "d8168d8c-be69-49f0-b792-10a977ff75a1"
+      },
+      "attempt": 1
+    },
+    {
+      "method": "POST",
+      "path": "/api/reader/units/u0/bookmarks",
+      "body": {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "d8168d8c-be69-49f0-b792-10a977ff75a1"
+      },
+      "attempt": 2
+    }
+  ],
+  "ar-768-track": [
+    {
+      "method": "POST",
+      "path": "/api/follows/w0",
+      "body": {
+        "language": "ar",
+        "source_id": "alpha",
+        "track_id": "t-ar"
+      }
+    }
+  ],
+  "ar-768-login": [
+    {
+      "method": "DELETE",
+      "path": "/api/logins/late-ar-768"
+    }
+  ],
+  "ar-768-completion": [
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "body": {
+        "completed": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "status": 503
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "status": 200
+    }
+  ],
+  "ar-768-bookmark": [
+    {
+      "method": "POST",
+      "path": "/api/reader/units/u0/bookmarks",
+      "body": {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "31c50c98-f50e-4267-9ce2-a9ed225f692b"
+      },
+      "attempt": 1
+    },
+    {
+      "method": "POST",
+      "path": "/api/reader/units/u0/bookmarks",
+      "body": {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "31c50c98-f50e-4267-9ce2-a9ed225f692b"
+      },
+      "attempt": 2
+    }
+  ],
+  "ar-1440-track": [
+    {
+      "method": "POST",
+      "path": "/api/follows/w0",
+      "body": {
+        "language": "ar",
+        "source_id": "alpha",
+        "track_id": "t-ar"
+      }
+    }
+  ],
+  "ar-1440-login": [
+    {
+      "method": "DELETE",
+      "path": "/api/logins/late-ar-1440"
+    }
+  ],
+  "ar-1440-completion": [
+    {
+      "method": "POST",
+      "path": "/api/shelf/w0",
+      "body": {
+        "completed": true
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "status": 503
+    },
+    {
+      "method": "GET",
+      "path": "/api/shelf/w0/removal-summary",
+      "status": 200
+    }
+  ],
+  "ar-1440-bookmark": [
+    {
+      "method": "POST",
+      "path": "/api/reader/units/u0/bookmarks",
+      "body": {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "7fada14d-6d4b-4e25-8b82-a14b2aa6b6e1"
+      },
+      "attempt": 1
+    },
+    {
+      "method": "POST",
+      "path": "/api/reader/units/u0/bookmarks",
+      "body": {
+        "locator": {
+          "chapter": 0
+        },
+        "label": "c1",
+        "operation_id": "7fada14d-6d4b-4e25-8b82-a14b2aa6b6e1"
+      },
+      "attempt": 2
+    }
+  ]
+}

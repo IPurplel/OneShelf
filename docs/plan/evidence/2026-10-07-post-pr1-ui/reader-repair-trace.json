@@ -1,0 +1,52 @@
+[
+  {
+    "language": "en",
+    "repair_posts": [
+      {
+        "body": {
+          "unit_ids": [
+            "u0"
+          ],
+          "repair": true
+        },
+        "status": 503
+      },
+      {
+        "body": {
+          "unit_ids": [
+            "u0"
+          ],
+          "repair": true
+        },
+        "status": 200
+      }
+    ],
+    "pageerrors": [],
+    "page_retry_recovered": true
+  },
+  {
+    "language": "ar",
+    "repair_posts": [
+      {
+        "body": {
+          "unit_ids": [
+            "u0"
+          ],
+          "repair": true
+        },
+        "status": 503
+      },
+      {
+        "body": {
+          "unit_ids": [
+            "u0"
+          ],
+          "repair": true
+        },
+        "status": 200
+      }
+    ],
+    "pageerrors": [],
+    "page_retry_recovered": true
+  }
+]

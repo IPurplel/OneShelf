@@ -1,5 +1,5 @@
 /** Master §24, §37, §32.14: storage locations and the import flow, on operational paper. */
-import { act, screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -20,6 +20,39 @@ const ROOTS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Storage", () => {
+  it("allows one pending Add and permits an intentional retry after failure", async () => {
+    let finish!: (response: Response) => void;
+    let attempts = 0;
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      if (url === "/api/storage") return Promise.resolve(Response.json(ROOTS));
+      if (url === "/api/storage/roots") {
+        attempts += 1;
+        return attempts === 1 ? new Promise<Response>((resolve) => { finish = resolve; })
+          : Promise.resolve(Response.json({ id: "r3" }));
+      }
+      return Promise.resolve(Response.json({}));
+    }));
+    const user = userEvent.setup();
+    renderWithProviders(<StoragePanel />);
+    await user.click(await screen.findByRole("button", { name: /add a location/i }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByRole("textbox", { name: /folder/i }), "/books");
+    await user.type(within(dialog).getByRole("textbox", { name: /name/i }), "Books");
+    const add = within(dialog).getByRole("button", { name: "Add" });
+    await user.dblClick(add);
+    expect(attempts).toBe(1);
+    expect(add).toBeDisabled();
+    add.focus();
+    await user.keyboard("{Enter}{Enter}");
+    expect(attempts).toBe(1);
+    await act(async () => finish(Response.json({ error: { message: "Try Add again" } }, { status: 503 })));
+    await waitFor(() => expect(add).toBeEnabled());
+    expect(within(dialog).getByRole("alert")).toHaveTextContent("Try Add again");
+    await user.click(add);
+    expect(attempts).toBe(2);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.queryByText("Try Add again")).toBeNull();
+  });
   it("keeps a failed Add dialog open with its entered values", async () => {
     mockApi([get("/api/storage", ROOTS),
       post("/api/storage/roots", { error: { message: "Location unavailable" } }, 503)]);

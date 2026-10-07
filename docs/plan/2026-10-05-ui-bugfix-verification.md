@@ -99,3 +99,30 @@ Unit tests explicitly provide `randomUUID()` and then remove it while retaining 
 | `git diff --check` | Passed |
 
 **I-51 MangaDex remains open**; the adapter is untouched.
+
+## 2026-10-07 post-PR1 UI audit fixes
+
+The nine findings from the fresh `origin/main` audit were reproduced with controlled Chromium responses and fixed on the isolated `fix/ui-post-pr1-audit` branch. The shared checkout was not used for edits. Evidence from this pass is in [2026-10-07 post-PR1 UI](evidence/2026-10-07-post-pr1-ui/); `frontend/tests/post_pr1_ui_browser.py` regenerates the targeted captures against the app under test.
+
+| Finding | Root cause and fix | Verification |
+| --- | --- | --- |
+| Sequential Reader controls clipped at 390px | Only the Book Reader toolbar wrapped. The sequential toolbar now wraps its full set of controls, permits long labels to break, and keeps its stage and bottom bar within the mobile safe area. | [Geometry and hit-test matrix](evidence/2026-10-07-post-pr1-ui/reader-toolbar-geometry.json) and [EN](evidence/2026-10-07-post-pr1-ui/sequential-toolbar-en-390.png)/[AR](evidence/2026-10-07-post-pr1-ui/sequential-toolbar-ar-390.png) mobile screenshots. All controls were inside the viewport and hit-testable at 390, 768, and 1440px in both locales, with no document overflow or app-navigation overlap. |
+| Backup preflight from an old dialog overwrote the open archive | Preflight had no archive/request identity. Opening and closing now advance a generation; only a response for the current generation and archive may enable Restore. Late success and late failure are ignored. | Unit tests cover A→B, late A error, and reopening A. [Browser trace](evidence/2026-10-07-post-pr1-ui/backup-preflight-trace.json) retains B's 222 works after A's 111 works arrives and records a Restore request for B. |
+| Replace Restore submitted twice | The button had no pending lock. A synchronous ref lock prevents repeat pointer or keyboard activation before React renders the disabled busy button; failure unlocks an intentional retry. | Unit tests cover double-click, Enter while pending, failure and retry. [Browser trace](evidence/2026-10-07-post-pr1-ui/restore-submit-trace.json) records one POST while pending and a second only after the first fails and the user retries. |
+| Export preview showed an old destination | Preview state was an unlabelled response. It now carries the exact request-body key and generation; changing content, format or destination invalidates it. Late success/failure is ignored, and Export requires a current matching preview. | Unit tests cover A→B, A→B→A, late failure, and export body. [Browser trace](evidence/2026-10-07-post-pr1-ui/export-preview-trace.json) retains B's visible review and exports to B after A arrives late. |
+| Storage Add submitted twice | Add remained active until the POST completed. A synchronous lock and disabled busy state allow one request, then release on failure for deliberate retry. | Unit tests cover double-click, Enter and retry. [Browser trace](evidence/2026-10-07-post-pr1-ui/storage-add-trace.json) records one POST, a visible new root, and no stale error. |
+| Sequential Repair failure was silent | The Repair POST's rejected promise was left uncaught by `.finally()`. A catch now shows a localized `role=alert` error; another Repair clears it on success, while page Retry remains independent. | Unit and [EN/AR Chromium trace](evidence/2026-10-07-post-pr1-ui/reader-repair-trace.json) cover 503, visible feedback, successful Repair retry, page Retry, and zero page errors. |
+| Zero-page sequential unit was blank | A successful empty page array flowed into normal rendering without an empty branch. The Reader now shows a localized accessible explanation and a track-preserving Back to Work link without fetching page images. | EN/AR unit tests and [browser trace](evidence/2026-10-07-post-pr1-ui/reader-empty-trace.json), with [EN](evidence/2026-10-07-post-pr1-ui/empty-pages-en-390.png)/[AR](evidence/2026-10-07-post-pr1-ui/empty-pages-ar-390.png) screenshots. |
+| ARIA tabs ignored arrow keys | Work, Shelf and Settings had click-only tab buttons. A shared tablist handler implements arrow/Home/End navigation and roving `tabIndex`, activating the focused tab and panel in DOM order in both locales. | Focused EN/AR tests plus [72-case Chromium keyboard matrix](evidence/2026-10-07-post-pr1-ui/tabs-keyboard-matrix.json) across 390, 768 and 1440px. |
+| Export said `file(s)` | English summary and completion strings used literal pseudo-plurals. Separate singular/plural string keys, following the existing shelf pattern, now render 0/1/2 correctly; Arabic wording remains unchanged. | Count-specific unit tests and [browser trace](evidence/2026-10-07-post-pr1-ui/export-plural-trace.json), with a [one-file screenshot](evidence/2026-10-07-post-pr1-ui/export-one-file-en-390.png). |
+
+| Check | Result |
+| --- | --- |
+| `npm test --prefix frontend` | 355 passed across 35 files; existing jsdom canvas and React `act()` warnings remained non-failures |
+| `npm run build --prefix frontend` | TypeScript and Vite production build passed |
+| Targeted post-PR1 Chromium script | 89 checks passed with controlled fixtures |
+| PR1 six-fix and review-race Chromium suites | EN/AR at 390, 768, and 1440px passed |
+| PR1 LAN mark-ID Chromium suite | EN and AR passed |
+| Book Reader control Chromium suite | EN/AR at 390, 768, and 1440px passed; nine controls reachable in each case |
+
+No backend code changed, so backend tests were not required for this pass. The existing PR1 completion, Login Session cleanup, EPUB/PDF, and mark retry regressions remain covered by the passing frontend and Chromium suites. Browser source/API data in this section used controlled fixtures. **I-51 MangaDex remains open** and the adapter was not changed.

@@ -73,6 +73,46 @@ afterEach(() => {
 });
 
 describe("Sequential Reader", () => {
+  it.each(["en", "ar"] as const)("shows an empty-unit recovery state in %s", async (language) => {
+    const calls = mockApi([
+      get("/api/reader/units/u2/pages", { reading_unit_id: "u2", pages: [] }),
+      get("/api/reader/units/u2/progress", PROGRESS),
+      get("/api/works/w1", WORK),
+      get("/api/reader/settings", READER_SETTINGS),
+    ]);
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" trackId="t1" />, { language });
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(language === "en" ? /no pages/i : /صفحات/);
+    expect(screen.getByRole("link", { name: language === "en" ? "Back to the work" : "العودة إلى العمل" }))
+      .toHaveAttribute("href", "/works/w1?track=t1");
+    expect(screen.queryByText(/1\s*\/\s*0/)).toBeNull();
+    expect(calls.some((call) => /\/pages\/\d+/.test(call.url))).toBe(false);
+  });
+
+  it("reports a failed Repair without hiding independent page Retry, then clears the error on success", async () => {
+    stub();
+    const original = globalThis.fetch;
+    let attempts = 0;
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/downloads") {
+        attempts += 1;
+        return Promise.resolve(attempts === 1
+          ? Response.json({ error: { message: "Repair unavailable" } }, { status: 503 })
+          : Response.json({ batch_id: "b2" }));
+      }
+      return original(input, init);
+    }));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    fireEvent.error((await screen.findAllByRole("img", { name: /page \d/i }))[0]!);
+    const failure = screen.getByRole("group", { name: /could not be loaded/i });
+    await user.click(within(failure).getByRole("button", { name: /repair from the source/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/repair/i);
+    expect(within(failure).getByRole("button", { name: /try again/i })).toBeEnabled();
+    await user.click(within(failure).getByRole("button", { name: /repair from the source/i }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(attempts).toBe(2);
+  });
   it("reads local pages without asking any source", async () => {
     const calls = stub();
     renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
