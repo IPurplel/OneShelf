@@ -105,6 +105,27 @@ that nothing is currently blocked that way.
 | I-52 | Unknown language (`und`) is displayed as "root" by the browser's language-name API in search cards | Shared language-name helper displays translated "Unknown language"; English/Arabic regressions pass | Fixed |
 | I-53 | While a search is still streaming, Retry chips appear for sources that have not answered yet | Retry is offered only for failed sources; pending/done/cache states have regression coverage | Fixed |
 
+## Visual and logical UX audit (2026-10-07)
+
+The findings below were reproduced in Chromium with controlled API states. Screenshot evidence is in
+`/tmp/oneshelf-visual-audit-20261007/`. A finding closes only after its regression test fails without
+the fix and the corrected UI is visually and interactively verified. Severity and category are retained
+from the audit.
+
+| ID | Defect | Found by | Regression test | State |
+|---|---|---|---|---|
+| I-54 | **High · VISUAL BUG.** Sequential Reader top controls extend outside the 390 px viewport; More cannot be clicked. | Chromium, EN/LTR and AR/RTL, 390 px; `en-390-reader-sequential.png`, `ar-390-reader-sequential.png` | `frontend/tests/high_visual_regressions_browser.py::test_reader_controls`: failed on original clipped controls and long-title crowding; now checks bounds, pointer reachability, toolbar height, Back, Contents, Settings, More, Full screen and scrubber interaction across six viewport/language combinations. | Fixed; Chromium screenshots in `/tmp/oneshelf-high-ux-production/` |
+| I-55 | **High · VISUAL BUG.** Sequential Reader error text is nearly invisible on its light notice background. | Chromium, EN/LTR and AR/RTL, 390 and 1440 px; `en-390-error-reader-sequential.png`, `ar-390-error-reader-sequential.png` | `frontend/tests/high_visual_regressions_browser.py::test_reader_error`: failed at 1.04:1 before the fix; now checks at least 4.5:1, visible Retry, and successful retry in black, dark and white at six viewport/language combinations. | Fixed; Chromium screenshots in `/tmp/oneshelf-high-ux-production/` |
+| I-56 | **High · LOGICAL UX BUG.** A direct Settings route can display a section while its selected category is offscreen with no overflow cue. | Chromium, EN/LTR and AR/RTL at 390 px; Advanced at 768 px; `en-390-settings-backup.png`, `ar-390-settings-backup.png`, `en-768-settings-advanced.png` | `frontend/tests/high_visual_regressions_browser.py::test_settings`: failed on original offscreen Backup tab; now checks direct Backup/Advanced routes, active-tab visibility, overflow controls and actual scrolling across six viewport/language combinations. | Fixed; Chromium screenshots in `/tmp/oneshelf-high-ux-production/` |
+
+### Reproduction, cause, and expected presentation
+
+| ID | Reproduction and scope | Cause / code location | Expected presentation or behavior |
+|---|---|---|---|
+| I-54 | Open `/read/u0?work=w0&track=t0`, reveal controls at 390 px in either language. EN toolbar is 712 px wide; AR toolbar is 604 px wide and spills left. At 768 and 1440 px it fits. | `frontend/src/features/reader/ReaderScreen.tsx` top toolbar; `frontend/src/styles/reader.css` wraps `.book` toolbars but not the sequential toolbar. | All controls visible or intentionally reachable through a visible overflow control; no clipped or unclickable actions. |
+| I-55 | Fail `/api/reader/units/u0/pages`, then view the error and Retry in either language across 390, 768, and 1440 px. | `frontend/src/features/reader/ReaderScreen.tsx` puts `.notice--problem` inside `.reader`; `frontend/src/styles/reader.css` sets near-white inherited text and `frontend/src/styles/library.css` gives `.notice` a light background without its own text color. | Error reason and Retry both visibly readable in all reader backgrounds. |
+| I-56 | Open `/settings/backup` directly at 390 px in either language; open `/settings/advanced` at 768 px. | `frontend/src/features/settings/SettingsScreen.tsx` renders the active tab inside a horizontally scrollable row; `frontend/src/styles/library.css` gives it overflow but no active-tab reveal or overflow cue. | Current category automatically visible; users can recognize that more categories can be scrolled into view. |
+
 No verified application UI, source recipe, database migration or core behavior was rewritten.
 
 ## Post-PR1 UI/UX audit (2026-10-07)

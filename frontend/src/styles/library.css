@@ -400,7 +400,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 /* Settings: a readable document, categories beside the panel (§32.14). */
 .settings__layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-6); align-items: start; }
 .settings__panel { min-inline-size: 0; max-inline-size: 80ch; }
+.settings__navRail { min-inline-size: 0; }
 .settings__nav { min-inline-size: 0; display: grid; gap: 2px; }
+.settings__navStep { display: none; }
 .settings__tab {
   text-align: start;
   min-height: 40px;
@@ -420,7 +422,25 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 
 @media (max-width: 899px) {
   .settings__layout { grid-template-columns: 1fr; }
-  .settings__nav { grid-auto-flow: column; overflow-x: auto; }
+  .settings__navRail { display: flex; align-items: center; gap: var(--space-1); }
+  .settings__nav { flex: 1; grid-auto-flow: column; overflow-x: auto; scrollbar-width: thin; }
+  .settings__nav--overflow {
+    mask-image: linear-gradient(to right, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+  }
+  .settings__navStep {
+    display: grid;
+    place-items: center;
+    flex: none;
+    inline-size: 44px;
+    min-block-size: 44px;
+    border: 1px solid var(--ivory-200);
+    border-radius: var(--radius-md);
+    background: var(--paper);
+    color: var(--ink-900);
+    font: 24px/1 var(--font-ui);
+    cursor: pointer;
+  }
+  .settings__navStep:hover { background: var(--ivory-100); }
 }
 
 @media (max-width: 899px) {

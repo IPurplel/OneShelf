@@ -384,8 +384,8 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
         <Link className="reader__button" to={workLink(work, track)} onClick={leave}>
           {t("reader.back")}
         </Link>
-        <span className="reader__title">{details?.work.title ?? ""}</span>
-        <span className="reader__unit">{unit?.title ?? ""}</span>
+        <span className="reader__title" dir="auto" title={details?.work.title ?? ""}>{details?.work.title ?? ""}</span>
+        <span className="reader__unit" dir="auto" title={unit?.title ?? ""}>{unit?.title ?? ""}</span>
         {/* §26.16: subtle, and about this unit's own track — "English · source-a". */}
         {offer !== null && (
           <span className="reader__source" data-testid="reader-source" title={t("reader.source")}>

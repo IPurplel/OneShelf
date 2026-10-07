@@ -56,6 +56,7 @@
   padding: 56px 0;
   scroll-behavior: smooth;
 }
+.reader__stage .notice { color: var(--ink-900); }
 .reader__stage[data-mode="single"], .reader__stage[data-mode="double"] {
   flex-direction: row;
   justify-content: center;
@@ -254,6 +255,17 @@ body:has(.reader) .bottomnav { display: none; }
   .reader:not(.book) .reader__stage { min-block-size: 0; }
 }
 
+.reader:not(.book) .reader__bar--top { flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
+.reader:not(.book) .reader__bar--top > :is(.reader__button, .reader__title, .reader__unit, .reader__source, .reader__state) {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.reader:not(.book) .reader__bar--top > :is(.reader__title, .reader__unit, .reader__source) {
+  max-inline-size: min(32vw, 24rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* The preload band and the spacers are structure, not content: no space, no sound, no interaction. */
 .reader__preload { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
 .reader__spacer { inline-size: 100%; flex: none; pointer-events: none; }
