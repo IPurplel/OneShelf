@@ -51,9 +51,12 @@ class UnitDescriptor:
 
 @dataclass(frozen=True)
 class ResourceDescriptor:
-    url: str
+    """One reader item: an image page (url) or, from API 1.2, a sanitised text unit (html)."""
+    url: str | None
     index: int
     page_label: str | None = None
+    html: str | None = None
+    title: str | None = None
 
 
 @dataclass(frozen=True)

@@ -28,6 +28,7 @@ from oneshelf.net.governor import Priority, TrafficGovernor
 from oneshelf.net.http import FetchFailed
 from oneshelf.net.policy import BlockedDestination, DisallowedTarget
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
+from oneshelf.plugins.schema import is_text_reader
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.storage.commit import CommitEngine, CommitError, CommitRequest
 from oneshelf.storage.hashing import sha256_file
@@ -35,12 +36,18 @@ from oneshelf.storage.layout import asset_relative_path, family_for
 from oneshelf.storage.paths import PathSafetyError, delete_managed_file
 from oneshelf.storage.roots import StorageRoot, check_availability, get_root, list_roots, preflight
 from oneshelf.storage.staging import new_staging_area
+from oneshelf.text.container import TEXT_EXTENSION, TextUnit, write_text_container
+from oneshelf.text.direction import content_direction
+from oneshelf.text.sanitise import TextUnitTooLarge, unit_sections
 
 REGISTRAR_KIND = "download"
 ACTIVE_STATES = ("PREPARING", "DOWNLOADING", "VERIFYING", "PACKAGING", "COMMITTING")
 WAITING_STATES = ("RETRY_WAIT", "WAITING_FOR_RATE_LIMIT", "WAITING_FOR_SESSION")
 RUNNABLE_STATES = ("QUEUED", "RECOVERING", *WAITING_STATES)
 SEQUENTIAL_FORMAT = "cbz"
+# A text source's reader output is stored as the text container, never converted to EPUB (§34.4).
+TEXT_FORMAT = "text"
+EXTENSIONS = {TEXT_FORMAT: TEXT_EXTENSION}
 MAX_RESOURCE_BYTES = 256 * 1024 * 1024
 BACKOFF_BASE_SECONDS = 2
 
@@ -176,7 +183,10 @@ class DownloadEngine:
                 recommendation = "direct" if "downloads" in package.recipes and "reader" not in package.recipes else "html_api"
                 resolved = resolve_method(self.settings, context["source_id"], plugin_recommendation=recommendation,
                                           one_time=one_time_method)
-                output = SEQUENTIAL_FORMAT if family_for(context["content_type"]) == "Sequential Art" else "file"
+                if is_text_reader(package.recipes.get("reader")):
+                    output = TEXT_FORMAT
+                else:
+                    output = SEQUENTIAL_FORMAT if family_for(context["content_type"]) == "Sequential Art" else "file"
                 contract = ExtractionContract(source_id=context["source_id"], language=context["language"],
                                               reading_unit_id=unit_id, output_format=output, method=resolved.method,
                                               mode=resolved.mode, fallback_order=resolved.fallback_order)
@@ -458,6 +468,9 @@ class DownloadEngine:
             if contract.output_format == SEQUENTIAL_FORMAT:
                 artifact, page_count = await self._download_pages(job_id, contract, resources, area, manifest, context)
                 asset_format = SEQUENTIAL_FORMAT
+            elif contract.output_format == TEXT_FORMAT and contract.method != "direct":
+                artifact, page_count = self._download_text(job_id, contract, resources, area, manifest, context)
+                asset_format = TEXT_FORMAT
             else:
                 artifact, asset_format = await self._download_file(job_id, contract, resources[0], area, manifest)
                 page_count = None
@@ -526,6 +539,38 @@ class DownloadEngine:
             raise MediaInvalid(f"packaged archive failed validation: {result.reason}")
         return artifact, result.page_count or len(resources)
 
+    def _download_text(self, job_id: str, contract: ExtractionContract, resources: list, area: Path,
+                       manifest: dict, context: sqlite3.Row) -> tuple[Path, int]:
+        """Package a text unit from the reader's own output: the runtime already fetched and sanitised it.
+
+        Every unit is sanitised again before it is written, and the container is validated before it is
+        committed, so only allowlisted markup is ever stored (§27, INV-16).
+        """
+        self._ensure_not_canceled(job_id)
+        for index, resource in enumerate(resources, start=1):
+            if not resource.html:
+                raise MediaInvalid(f"text item {index} has no text")
+        try:
+            sections = unit_sections([(r.html, r.title) for r in resources])
+        except TextUnitTooLarge as exc:
+            raise MediaInvalid(f"text unit: {exc}") from exc
+        if not sections:
+            raise MediaInvalid("text unit has no text once sanitised")
+        self._set_state(job_id, "VERIFYING")
+        manifest["text"] = {"units": len(resources), "sections": len(sections)}
+        self._save_manifest(job_id, manifest)
+        self.fault("after_text_sections")
+        self._set_state(job_id, "PACKAGING")
+        language = contract.language if contract.language != "und" else None
+        title = next((r.title for r in resources if r.title), None) or context["display_title"] or context["raw_title"]
+        artifact = write_text_container(area / f"artifact.{TEXT_EXTENSION}", TextUnit(
+            title=title, language=language, direction=content_direction(language),
+            source_url=context["url_hint"], sections=sections))
+        result = validate(artifact)
+        if not result.ok:
+            raise MediaInvalid(f"packaged text unit failed validation: {result.reason}")
+        return artifact, result.page_count or len(sections)
+
     async def _download_file(self, job_id: str, contract: ExtractionContract, resource, area: Path,
                              manifest: dict) -> tuple[Path, str]:
         target = area / "artifact.bin"
@@ -564,7 +609,7 @@ class DownloadEngine:
         label = context["display_title"] or context["raw_title"] or context["source_unit_key"]
         relative_path = asset_relative_path(context["content_type"], context["work_title"], context["work_id"],
                                             contract.language, contract.source_id, label, context["unit_id"],
-                                            asset_format)
+                                            EXTENSIONS.get(asset_format, asset_format))
         payload = {
             "job_id": job_id, "now": utcnow_iso(),
             "asset": {"id": new_id(), "reading_unit_id": context["unit_id"], "format": asset_format, "variant": "",

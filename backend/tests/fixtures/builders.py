@@ -66,3 +66,13 @@ def make_epub(path: Path, *, title="Test Book", language="en", files=None, conta
         for name, data in files.items():
             z.writestr(name, data)
     return path
+
+
+def make_text_unit(path: Path, *, sections=("<h2>One</h2><p>It was a dark night.</p>",), title="Chapter 1",
+                   language="en", direction="ltr", source_url="https://books.example/chapter/1") -> Path:
+    from oneshelf.text.container import TextUnit, write_text_container
+    from oneshelf.text.sanitise import Section, plain_text, sanitise
+
+    built = [Section(html=sanitise(html), title=None, characters=len(plain_text(sanitise(html)))) for html in sections]
+    return write_text_container(path, TextUnit(title=title, language=language, direction=direction,
+                                               source_url=source_url, sections=built))

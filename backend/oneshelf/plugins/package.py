@@ -18,8 +18,10 @@ from pydantic import ValidationError
 
 from oneshelf.integrity.validators import _unsafe_entry_name
 from oneshelf.net.domains import host_allowed
-from oneshelf.plugins.schema import FIELDS, LIST_CAPABILITIES, Manifest, Recipe, SourceConfig, TestSuite
-from oneshelf.plugins.templates import TemplateError, validate_url_template
+from oneshelf.plugins.schema import (
+    FIELDS, LIST_CAPABILITIES, TEXT_UNITS_API, Manifest, Recipe, SourceConfig, TestSuite, is_text_reader,
+)
+from oneshelf.plugins.templates import TemplateError, placeholders, validate_url_template
 from oneshelf.plugins.yamlsafe import YamlError, load_yaml
 
 MAX_ENTRIES = 300
@@ -130,7 +132,7 @@ def validate_templates(extract, *, capability: str, inputs: list[str]) -> None:
     """A template may only use document values, the current item and the recipe's own inputs."""
     from oneshelf.plugins.runtime import template_names
 
-    known = set(extract.values) | {"item"} | set(inputs)
+    known = set(extract.values) | {"item"} | set(inputs) | ({"position"} if capability in LIST_CAPABILITIES else set())
     for name, spec in extract.fields.items():
         if spec.template is None:
             continue
@@ -140,6 +142,29 @@ def validate_templates(extract, *, capability: str, inputs: list[str]) -> None:
     for value_name, spec in extract.values.items():
         if spec.template is not None:
             raise PackageError(f"recipes/{capability}: value {value_name!r} must read the document, not a template")
+
+
+def _api_at_least(declared: str, needed: tuple[int, int]) -> bool:
+    major, minor = (int(p) for p in declared.split("."))
+    return (major, minor) >= needed
+
+
+def _api_12_features(recipe: Recipe) -> list[str]:
+    """Plugin API 1.2 features a recipe uses: text units (html, markup), an item's {position}, and the
+    segments encoder for keys that are short paths."""
+    from oneshelf.plugins.runtime import template_names
+
+    extract, pagination = recipe.extract, recipe.pagination
+    specs = [*extract.fields.values(), *extract.values.values(), extract.items, pagination.total, pagination.next]
+    used = []
+    if "html" in extract.fields or any(spec is not None and spec.markup is not None for spec in specs):
+        used.append("text units (html, markup)")
+    if any(spec.template is not None and "position" in template_names(spec.template)
+           for spec in extract.fields.values()):
+        used.append("{position}")
+    if any(encoder == "segments" for _name, encoder in placeholders(recipe.request.url)):
+        used.append("the segments encoder")
+    return used
 
 
 def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str, Recipe], tests: TestSuite,
@@ -199,13 +224,24 @@ def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str,
         for field, required in allowed_fields.items():
             if required and field not in recipe.extract.fields:
                 raise PackageError(f"recipes/{capability}: required field {field!r} is not extracted")
+        validate_templates(recipe.extract, capability=capability, inputs=recipe.inputs)
         is_list = capability in LIST_CAPABILITIES
         if is_list != (recipe.extract.items is not None):
             raise PackageError(f"recipes/{capability}: items selector {'required' if is_list else 'not allowed'}")
         if not is_list and recipe.pagination.mode != "none":
             raise PackageError(f"recipes/{capability}: pagination only applies to list capabilities")
+        if capability == "reader" and ("url" in recipe.extract.fields) == ("html" in recipe.extract.fields):
+            raise PackageError("recipes/reader: extract exactly one of url (image pages) or html (text units)")
+        features = _api_12_features(recipe)
+        if features and not _api_at_least(manifest.api, TEXT_UNITS_API):
+            raise PackageError(f"recipes/{capability}: {' and '.join(features)} need api "
+                               f"'{TEXT_UNITS_API[0]}.{TEXT_UNITS_API[1]}' or newer in manifest.yaml")
 
     for index, case in enumerate(tests.cases):
+        expect = case.expect
+        if (expect.text_contains is not None or expect.min_text_chars is not None) and not (
+                case.capability == "reader" and "reader" in recipes and is_text_reader(recipes["reader"])):
+            raise PackageError(f"tests: case {index} checks text, which only a text reader recipe yields")
         if case.capability not in declared:
             raise PackageError(f"tests: case {index} uses undeclared capability {case.capability!r}")
         for fixture in case.fixtures:

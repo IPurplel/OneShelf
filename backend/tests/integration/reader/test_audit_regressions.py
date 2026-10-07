@@ -91,7 +91,7 @@ def test_explicit_reader_format_and_context(library, tmp_path):
     reader = ReaderService(library.conn, None, None)
     request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(services=SimpleNamespace(reader=reader))))
     context = asyncio.run(reader_context(request, work['unit_id']))
-    assert context == {'work_id': work['work_id'], 'track_id': work['track_id'], 'formats': ['epub', 'pdf']}
+    assert context == {'work_id': work['work_id'], 'track_id': work['track_id'], 'formats': ['epub', 'pdf'], 'kind': 'images'}
     assert asyncio.run(reader_context(request, 'missing')).status_code == 404
     assert asyncio.run(reader_file(request, work['unit_id'], format='epub')).body == epub
     assert asyncio.run(reader_file(request, work['unit_id'], format='pdf')).body == pdf

@@ -15,6 +15,8 @@ from email.utils import parsedate_to_datetime
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
+from lxml import etree
+from lxml import html as lxml_html
 from scrapling.parser import Selector
 
 from oneshelf.net.http import FetchFailed, ResponseTooLarge, TooManyRedirects
@@ -25,9 +27,10 @@ from oneshelf.plugins.results import (
     Evidence, FileDescriptor, HealthCheck, Issue, ListResult, Listing, ResourceDescriptor, SessionCheck,
     UnitDescriptor, WorkDetails,
 )
-from oneshelf.plugins.schema import FIELDS, LIST_CAPABILITIES, FieldSpec, Recipe
+from oneshelf.plugins.schema import FIELDS, LIST_CAPABILITIES, FieldSpec, Recipe, is_text_reader
 from oneshelf.plugins.templates import TemplateError, placeholders, render
 from oneshelf.plugins.transforms import TransformError, _normalize_url, apply_pipeline
+from oneshelf.text.sanitise import TextUnitTooLarge, plain_text, sanitise
 
 MAX_ITEMS_PER_PAGE = 5000
 MAX_TOTAL_ITEMS = 100_000
@@ -122,11 +125,17 @@ def template_names(template: str) -> set[str]:
 
 
 def render_template(template: str, values: dict[str, Any], *, item: Any = None,
-                    inputs: dict[str, Any] | None = None) -> str | None:
-    """Substitutes known names; a missing value yields nothing rather than a half-built URL."""
+                    inputs: dict[str, Any] | None = None, position: int | None = None) -> str | None:
+    """Substitutes known names; a missing value yields nothing rather than a half-built URL.
+
+    `position` is the item's 1-based place in the whole list (across pages), for sources whose only
+    identity for an entry is where it stands — a chapter in a list of chapter lengths (API 1.2).
+    """
     available: dict[str, Any] = {**(inputs or {}), **values}
     if item is not None:
         available["item"] = item
+    if position is not None:
+        available["position"] = position
     rendered = template
     for name in template_names(template):
         value = available.get(name)
@@ -152,11 +161,42 @@ def _raw_for(node: Any, spec) -> list[Any]:
         return [bool(results)]
     values = []
     for result in results:
-        if textual or not hasattr(result, "get_all_text"):
+        if spec.markup is not None and hasattr(result, "html_content"):
+            outer = result.html_content
+            values.append(outer if spec.markup == "outer" else _inner_markup(outer))
+        elif textual or not hasattr(result, "get_all_text"):
             values.append(str(result.get()) if hasattr(result, "get") else str(result))
         else:
             values.append(result.get_all_text(separator=" ", strip=True))
     return values
+
+
+def _inner_markup(outer: str) -> str:
+    """The markup inside a matched element: what a text unit's content is, without its container."""
+    element = lxml_html.fragment_fromstring(outer)
+    return (element.text or "") + "".join(etree.tostring(child, encoding="unicode", method="html")
+                                          for child in element)
+
+
+def document_base(document: Any, url: str) -> str:
+    """Where a document's relative links point: its own <base href> when it declares one (as MediaWiki's
+    Parsoid HTML does), else the address it came from. Used only to resolve links in text units — never
+    to decide what is fetched."""
+    if isinstance(document, Selector):
+        declared = document.css("head base::attr(href)")
+        if declared:
+            base = _normalize_url(str(declared[0]), url)
+            if base and urlsplit(base).scheme in ("http", "https"):
+                return base
+    return url
+
+
+def required_fields(recipe: Recipe) -> list[str]:
+    """Fields an item must carry. A reader item is an image page (url) or a text unit (html)."""
+    required = [name for name, needed in FIELDS[recipe.capability].items() if needed]
+    if recipe.capability == "reader":
+        required.append("html" if is_text_reader(recipe) else "url")
+    return required
 
 
 def resolve_values(document: Any, extract) -> dict[str, Any]:
@@ -198,7 +238,7 @@ class RecipeRuntime:
             raise CapabilityError(failure.category, str(failure)) from failure
         fields = self._extract_fields(recipe, document, response.url, recipe.extract.fields,
                                       values=resolve_values(document, recipe.extract), inputs=values)
-        missing = [name for name, required in FIELDS[capability].items() if required and fields.get(name) in (None, "")]
+        missing = [name for name in required_fields(recipe) if fields.get(name) in (None, "")]
         if missing:
             raise CapabilityError("selector_missing", f"required fields missing: {missing}")
         return self._build_single(capability, fields)
@@ -219,7 +259,8 @@ class RecipeRuntime:
         base = self.package.source.base_url
         try:
             url = render(recipe.request.url, values, base_url=base)
-            form = {k: render(v, values, base_url=base) for k, v in recipe.request.form.items()} if recipe.request.form else None
+            form = ({k: render(v, values, base_url=base, form_value=True) for k, v in recipe.request.form.items()}
+                    if recipe.request.form else None)
         except TemplateError as exc:
             raise CapabilityError("invalid_input", str(exc)) from exc
         return RecipeRequest(recipe.capability, recipe.request.method, url, dict(recipe.request.headers), form,
@@ -281,10 +322,11 @@ class RecipeRuntime:
 
     def _field(self, node: Any, spec: FieldSpec, base_url: str, issues: list[Issue],
                values: dict[str, Any] | None = None, item: Any = None,
-               inputs: dict[str, Any] | None = None) -> Any:
+               inputs: dict[str, Any] | None = None, position: int | None = None) -> Any:
         if spec.template is not None:
             rendered = render_template(spec.template, values or {},
-                                       item=self._scalar(item) if item is not None else None, inputs=inputs)
+                                       item=self._scalar(item) if item is not None else None, inputs=inputs,
+                                       position=position)
             return apply_pipeline(rendered, spec.transforms, base_url=base_url) if rendered else None
         raw = self._raw_values(node, spec)
         if spec.exists:
@@ -304,9 +346,9 @@ class RecipeRuntime:
 
     def _extract_fields(self, recipe: Recipe, node: Any, base_url: str, specs: dict[str, FieldSpec],
                         issues: list[Issue] | None = None, values: dict[str, Any] | None = None,
-                        inputs: dict[str, Any] | None = None) -> dict[str, Any]:
+                        inputs: dict[str, Any] | None = None, position: int | None = None) -> dict[str, Any]:
         issues = issues if issues is not None else []
-        out = {name: self._field(node, spec, base_url, issues, values, item=node, inputs=inputs)
+        out = {name: self._field(node, spec, base_url, issues, values, item=node, inputs=inputs, position=position)
                for name, spec in specs.items()}
         for name in _URL_FIELDS & out.keys():
             if isinstance(out[name], str):
@@ -341,7 +383,8 @@ class RecipeRuntime:
                                   volume=f.get("volume"), unit_type=unit_type if unit_type in UNIT_TYPES else "unknown",
                                   url=f.get("url"), release_date=f.get("release_date"))
         if capability == "reader":
-            return ResourceDescriptor(url=f["url"], index=index, page_label=f.get("page_label"))
+            return ResourceDescriptor(url=f.get("url"), index=index, page_label=f.get("page_label"),
+                                      html=f.get("html"), title=f.get("title"))
         size = f.get("size_bytes")
         return FileDescriptor(url=f["url"], format=str(f["format"]).lower(), variant=f.get("variant"),
                               size_bytes=int(size) if isinstance(size, str) and size.isdigit() else None,
@@ -364,7 +407,9 @@ class RecipeRuntime:
 
     async def _run_list(self, recipe: Recipe, values: dict[str, Any]) -> ListResult:
         capability, pagination = recipe.capability, recipe.pagination
-        key_field = KEY_FIELD[capability]
+        text_units = is_text_reader(recipe)
+        key_field = "html" if text_units else KEY_FIELD[capability]
+        required = required_fields(recipe)
         evidence = Evidence()
         entries_fields: list[dict[str, Any]] = []
         seen_keys: set[str] = set()
@@ -373,6 +418,8 @@ class RecipeRuntime:
         complete = False
         next_request: RecipeRequest | None = None
         max_pages = 1 if pagination.mode == "none" else pagination.max_pages
+        truncated = False
+        position = 0  # 1-based place of an item in the whole list, across pages
 
         for page_index in range(max_pages):
             page_values = dict(values)
@@ -402,13 +449,30 @@ class RecipeRuntime:
                 break
             evidence.pages += 1
 
-            item_nodes = self._raw_items(recipe, document)[:MAX_ITEMS_PER_PAGE]
+            item_nodes = self._raw_items(recipe, document)
+            if len(item_nodes) > MAX_ITEMS_PER_PAGE:
+                # The rest of the page is never read, so the list cannot be known to be complete; a cut
+                # list reported complete would replace a trusted catalog with a shorter one (§5.1, G3).
+                evidence.issues.append(Issue("catalog_validation_failure",
+                                             f"page lists {len(item_nodes)} items; only the first "
+                                             f"{MAX_ITEMS_PER_PAGE} were read", page_index + 1))
+                truncated = True
+                item_nodes = item_nodes[:MAX_ITEMS_PER_PAGE]
+            link_base = document_base(document, response.url) if text_units else response.url
             page_values = resolve_values(document, recipe.extract)
             page_fields = []
             for node in item_nodes:
+                position += 1
                 fields = self._extract_fields(recipe, node, response.url, recipe.extract.fields, evidence.issues,
-                                              page_values, inputs=values)
-                missing = [n for n, req in FIELDS[capability].items() if req and fields.get(n) in (None, "")]
+                                              page_values, inputs=values, position=position)
+                if text_units and isinstance(fields.get("html"), str):
+                    # Sanitised here, so no caller ever holds unsanitised source markup (Master §27).
+                    try:
+                        fields["html"] = sanitise(fields["html"], base_url=link_base) or None
+                    except TextUnitTooLarge as exc:
+                        fields["html"] = None
+                        evidence.issues.append(Issue("catalog_validation_failure", str(exc), page_index + 1))
+                missing = [n for n in required if fields.get(n) in (None, "")]
                 if missing:
                     evidence.skipped += 1
                     if capability in STRICT_LISTS:
@@ -466,6 +530,8 @@ class RecipeRuntime:
 
         if complete and capability in STRICT_LISTS and any(i.category == "catalog_validation_failure" for i in evidence.issues):
             complete = False
+        if truncated:
+            complete = False
         if recipe.extract.order == "reverse":
             entries_fields.reverse()
         entries = [self._build_entry(capability, f, i) for i, f in enumerate(entries_fields)]
@@ -506,6 +572,21 @@ def _expected_attr(entry: Any, name: str) -> Any:
     return getattr(entry, name, None)
 
 
+def _text_failures(label: str, first: Any, expect) -> list[str]:
+    markup = getattr(first, "html", None)
+    if not isinstance(markup, str):
+        return [f"{label}: first entry has no text unit"]
+    failures = []
+    if sanitise(markup) != markup:
+        failures.append(f"{label}: text unit is not stable under sanitising")
+    text = plain_text(markup)
+    if expect.text_contains is not None and expect.text_contains not in text:
+        failures.append(f"{label}: text does not contain {expect.text_contains!r}")
+    if expect.min_text_chars is not None and len(text) < expect.min_text_chars:
+        failures.append(f"{label}: expected at least {expect.min_text_chars} characters of text, got {len(text)}")
+    return failures
+
+
 async def run_packaged_tests(package: PluginPackage) -> TestReport:
     report = TestReport(passed=True, cases=len(package.tests.cases))
     for index, case in enumerate(package.tests.cases):
@@ -530,6 +611,8 @@ async def run_packaged_tests(package: PluginPackage) -> TestReport:
             actual = _expected_attr(first, name) if first is not None else None
             if (None if actual is None else str(actual)) != value:
                 report.failures.append(f"{label}: first.{name} expected {value!r}, got {actual!r}")
+        if expect.text_contains is not None or expect.min_text_chars is not None:
+            report.failures.extend(_text_failures(label, first, expect))
     report.passed = not report.failures
     return report
 

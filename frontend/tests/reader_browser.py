@@ -20,7 +20,7 @@ from oneshelf.db.connection import open_database
 from oneshelf.db.migrate import migrate
 from oneshelf.db.schema import MIGRATIONS
 from oneshelf.storage.roots import register_root
-from tests.fixtures.builders import make_cbz, make_epub, make_pdf, png_bytes
+from tests.fixtures.builders import make_cbz, make_epub, make_pdf, make_text_unit, png_bytes
 from tests.fixtures.library import Library
 
 
@@ -38,6 +38,13 @@ def seed(base):
         'epub': lib.add_work('EPUB book', source='local', content_type='book', fmt='epub', content=epub),
         'pdf': lib.add_work('PDF paper', source='local', content_type='paper', fmt='pdf', content=pdf),
         'mixed': lib.add_work('Both formats', source='local', content_type='book', fmt='pdf', content=pdf),
+        # A downloaded Arabic text unit (plugin API 1.2): it must run right to left in an English interface.
+        'text': lib.add_work('Arabic novel', source='local', content_type='novel', language='ar', fmt='text',
+                             relative='Books/Arabic novel/ar/local/one.ostext',
+                             content=make_text_unit(base / 'novel.ostext', title='الفصل الأول', language='ar',
+                                                    direction='rtl', sections=[
+                                                        '<h2>الفصل الأول</h2><p>كان المصباح ما يزال مضاءً.</p>',
+                                                        '<h2>الفصل الثاني</h2><p>عادت إلى الغرفة.</p>']).read_bytes()),
         'comic': lib.add_work('Comic', source='local', content=make_cbz(base / 'comic.cbz',
             pages=[(f'{i:03}.png', png_bytes(600, 900)) for i in range(12)]).read_bytes()),
     }
@@ -82,6 +89,26 @@ def verify(base, url, records):
         expect(page.get_by_role('alert')).to_be_visible()
         expect(page.get_by_role('button', name='Try again')).to_be_visible()
         print('PASS missing work shows recoverable error', flush=True)
+        text = records['text']
+        page.goto(url + '/works/' + text['work_id'])
+        page.locator('.work__actions a[href^="/read/"]').click()
+        page.wait_for_function("document.querySelector('iframe')?.srcdoc.includes('كان المصباح')")
+        frame = page.locator('iframe.book__frame')
+        assert frame.get_attribute('sandbox') == ''
+        srcdoc = frame.get_attribute('srcdoc')
+        assert 'dir="rtl"' in srcdoc and "default-src 'none'" in srcdoc and '<script' not in srcdoc
+        assert page.evaluate('document.documentElement.dir') != 'rtl'      # the interface stays English
+        expect(page.get_by_role('status')).to_have_text('1 of 2')
+        page.get_by_role('button', name='Next').click()
+        page.wait_for_function("document.querySelector('iframe')?.srcdoc.includes('عادت إلى الغرفة')")
+        page.get_by_role('button', name='Bookmark this place').click()
+        page.wait_for_timeout(1600)                                         # progress writes are debounced
+        marks = api('/api/reader/units/' + text['unit_id'] + '/marks')
+        assert [b['locator'] for b in marks['bookmarks']] == [{'chapter': 1}], marks
+        assert api('/api/reader/units/' + text['unit_id'] + '/progress')['locator'] == {'chapter': 1}
+        page.reload()
+        expect(page.get_by_role('status')).to_have_text('2 of 2')
+        print('PASS downloaded Arabic text unit reads RTL in the sandbox, bookmarks and resumes', flush=True)
         comic = records['comic']
         assert api('/api/downloads/settings')['auto_download']['enabled'] is False
         api('/api/downloads/settings', {'auto_download': {'enabled': True, 'mode': 'read_ahead', 'read_ahead': 3}})

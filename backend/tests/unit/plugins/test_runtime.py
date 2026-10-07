@@ -412,3 +412,130 @@ def test_api_11_extracts_available_reading_languages_without_original_language(t
     result = run(runtime, 'search', query='book')
     assert result.entries[0].language is None
     assert result.entries[0].available_languages == ['en', 'ar']
+
+
+def test_a_page_with_more_items_than_the_cap_is_never_complete(tmp_path, monkeypatch):
+    """Found 2026-10-07: a 12,786-link index was cut at the cap and still reported complete."""
+    from oneshelf.plugins import runtime as runtime_module
+    monkeypatch.setattr(runtime_module, "MAX_ITEMS_PER_PAGE", 3)
+    units = {"units": [{"id": f"u{i}", "title": f"Unit {i}"} for i in range(5)]}
+    rt = RecipeRuntime(package(tmp_path), MemoryFetcher({
+        "https://books.example/api/work/42/units": (200, json.dumps(units))}))
+    result = run(rt, "catalog", listing_key="42")
+    assert [u.unit_key for u in result.units] == ["u0", "u1", "u2"]
+    assert not result.complete
+    assert any("only the first 3" in i.detail for i in result.evidence.issues)
+
+
+def test_a_page_at_the_cap_is_still_complete(tmp_path, monkeypatch):
+    from oneshelf.plugins import runtime as runtime_module
+    monkeypatch.setattr(runtime_module, "MAX_ITEMS_PER_PAGE", 5)
+    units = {"units": [{"id": f"u{i}", "title": f"Unit {i}"} for i in range(5)]}
+    rt = RecipeRuntime(package(tmp_path), MemoryFetcher({
+        "https://books.example/api/work/42/units": (200, json.dumps(units))}))
+    assert run(rt, "catalog", listing_key="42").complete
+
+
+def _position_catalog(api="1.2", template="{listing_key}.{position}|{item}"):
+    manifest = copy.deepcopy(MANIFEST)
+    manifest["api"] = api
+    catalog = copy.deepcopy(RECIPES["catalog"])
+    catalog["extract"] = {
+        "items": {"json": "$.lengths[*]"},
+        "fields": {"unit_key": {"template": template, "required": True,
+                                "transforms": [{"regex_extract": {"pattern": r"^(.+\.[0-9]+)\|[1-9][0-9]*$", "group": 1}}]},
+                   "title": {"template": "{position}"}},
+    }
+    return manifest, {**copy.deepcopy(RECIPES), "catalog": catalog}
+
+
+def test_an_item_s_position_identifies_it_when_the_source_gives_nothing_else(tmp_path):
+    """A list of chapter lengths: the chapter is where it stands (Sefaria's content counts)."""
+    manifest, recipes = _position_catalog()
+    rt = RecipeRuntime(package(tmp_path, manifest=manifest, recipes=recipes), MemoryFetcher({
+        "https://books.example/api/work/Genesis/units": (200, json.dumps({"lengths": [31, 25, 0, 26]}))}))
+    result = run(rt, "catalog", listing_key="Genesis")
+    # Position counts every item the source lists, so an empty chapter keeps the numbering of the rest.
+    assert [(u.unit_key, u.raw_title) for u in result.units] == [("Genesis.1", "1"), ("Genesis.2", "2"),
+                                                                  ("Genesis.4", "4")]
+
+
+def test_position_continues_across_pages(tmp_path):
+    manifest, recipes = _position_catalog()
+    recipes["catalog"]["inputs"] = ["listing_key", "page"]
+    recipes["catalog"]["request"]["url"] = "{base_url}/api/work/{listing_key:path}/units?page={page}"
+    recipes["catalog"]["pagination"] = {"mode": "page_number", "start": 1, "max_pages": 5, "stop_when": "empty_items"}
+    base = "https://books.example/api/work/Genesis/units?page="
+    rt = RecipeRuntime(package(tmp_path, manifest=manifest, recipes=recipes), MemoryFetcher({
+        base + "1": (200, json.dumps({"lengths": [3, 4]})), base + "2": (200, json.dumps({"lengths": [5]})),
+        base + "3": (200, json.dumps({"lengths": []}))}))
+    assert [u.unit_key for u in run(rt, "catalog", listing_key="Genesis").units] == [
+        "Genesis.1", "Genesis.2", "Genesis.3"]
+
+
+def test_position_needs_api_12(tmp_path):
+    from oneshelf.plugins.package import PackageError
+    manifest, recipes = _position_catalog(api="1.1")
+    with pytest.raises(PackageError, match=r"\{position\} need api '1.2'"):
+        package(tmp_path, manifest=manifest, recipes=recipes)
+
+
+def test_position_is_only_known_in_a_list(tmp_path):
+    from oneshelf.plugins.package import PackageError
+    manifest = copy.deepcopy(MANIFEST)
+    manifest["api"] = "1.2"
+    manifest["capabilities"] = ["search", "catalog", "work"]
+    work = {"capability": "work", "inputs": ["listing_key"],
+            "request": {"url": "{base_url}/work/{listing_key:path}"}, "response": {"format": "html"},
+            "extract": {"fields": {"title": {"template": "Book {position}", "required": True}}}}
+    with pytest.raises(PackageError, match=r"unknown names \['position'\]"):
+        package(tmp_path, manifest=manifest, recipes={**copy.deepcopy(RECIPES), "work": work})
+
+
+def test_a_template_may_not_use_a_name_it_does_not_have(tmp_path):
+    """Found 2026-10-07: template names were never checked, and an unknown one rendered nothing at run time."""
+    from oneshelf.plugins.package import PackageError
+    recipes = copy.deepcopy(RECIPES)
+    recipes["search"]["extract"]["fields"]["cover_url"] = {"template": "https://books.example/{cover_id}.jpg"}
+    with pytest.raises(PackageError, match=r"unknown names \['cover_id'\]"):
+        package(tmp_path, recipes=recipes)
+
+
+def test_a_key_that_is_a_short_path_keeps_its_slashes_with_the_segments_encoder(tmp_path):
+    """MEK's items live at /00500/00597/: the key is a path, and its "/" must reach the URL as "/"."""
+    manifest = copy.deepcopy(MANIFEST)
+    manifest["api"] = "1.2"
+    recipes = copy.deepcopy(RECIPES)
+    recipes["catalog"]["request"]["url"] = "{base_url}/items/{listing_key:segments}/units"
+    rt = RecipeRuntime(package(tmp_path, manifest=manifest, recipes=recipes), MemoryFetcher({
+        "https://books.example/items/00500/00597%20b/units": (200, json.dumps({"units": [{"id": "u1"}]}))}))
+    assert [u.unit_key for u in run(rt, "catalog", listing_key="00500/00597 b").units] == ["u1"]
+
+
+@pytest.mark.parametrize("key", ["../etc", "a/../b", "/root", "trailing/", "a//b", ".", "a/./b"])
+def test_the_segments_encoder_refuses_anything_but_plain_segments(key):
+    from oneshelf.plugins.templates import TemplateError, render
+    with pytest.raises(TemplateError):
+        render("{base_url}/items/{listing_key:segments}", {"listing_key": key}, base_url="https://books.example")
+
+
+def test_the_segments_encoder_needs_api_12(tmp_path):
+    from oneshelf.plugins.package import PackageError
+    recipes = copy.deepcopy(RECIPES)
+    recipes["catalog"]["request"]["url"] = "{base_url}/items/{listing_key:segments}/units"
+    with pytest.raises(PackageError, match="segments encoder need api '1.2'"):
+        package(tmp_path, recipes=recipes)
+
+
+def test_a_form_value_is_sent_as_it_is_and_encoded_once_by_the_client(tmp_path):
+    """Found 2026-10-07 on MEK: "{query}" in a form was percent-encoded before the client form-encoded the
+    body, so "Egri csillagok" arrived as "Egri%20csillagok" and found nothing."""
+    recipes = copy.deepcopy(RECIPES)
+    recipes["search"]["request"] = {"method": "POST", "url": "{base_url}/search",
+                                    "form": {"q": "{query}", "exact": "{query:url}", "size": "50"}}
+    recipes["search"]["inputs"] = ["query"]
+    recipes["search"]["pagination"] = {"mode": "none"}
+    fetcher = MemoryFetcher({"https://books.example/search": (200, search_page(("Egri csillagok", 7)))})
+    rt = RecipeRuntime(package(tmp_path, recipes=recipes), fetcher)
+    assert [i.title for i in run(rt, "search", query="Egri csillagok").items] == ["Egri csillagok"]
+    assert fetcher.requests[0].form == {"q": "Egri csillagok", "exact": "Egri%20csillagok", "size": "50"}
