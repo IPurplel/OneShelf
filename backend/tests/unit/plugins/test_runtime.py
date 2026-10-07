@@ -412,3 +412,25 @@ def test_api_11_extracts_available_reading_languages_without_original_language(t
     result = run(runtime, 'search', query='book')
     assert result.entries[0].language is None
     assert result.entries[0].available_languages == ['en', 'ar']
+
+
+def test_a_page_with_more_items_than_the_cap_is_never_complete(tmp_path, monkeypatch):
+    """Found 2026-10-07: a 12,786-link index was cut at the cap and still reported complete."""
+    from oneshelf.plugins import runtime as runtime_module
+    monkeypatch.setattr(runtime_module, "MAX_ITEMS_PER_PAGE", 3)
+    units = {"units": [{"id": f"u{i}", "title": f"Unit {i}"} for i in range(5)]}
+    rt = RecipeRuntime(package(tmp_path), MemoryFetcher({
+        "https://books.example/api/work/42/units": (200, json.dumps(units))}))
+    result = run(rt, "catalog", listing_key="42")
+    assert [u.unit_key for u in result.units] == ["u0", "u1", "u2"]
+    assert not result.complete
+    assert any("only the first 3" in i.detail for i in result.evidence.issues)
+
+
+def test_a_page_at_the_cap_is_still_complete(tmp_path, monkeypatch):
+    from oneshelf.plugins import runtime as runtime_module
+    monkeypatch.setattr(runtime_module, "MAX_ITEMS_PER_PAGE", 5)
+    units = {"units": [{"id": f"u{i}", "title": f"Unit {i}"} for i in range(5)]}
+    rt = RecipeRuntime(package(tmp_path), MemoryFetcher({
+        "https://books.example/api/work/42/units": (200, json.dumps(units))}))
+    assert run(rt, "catalog", listing_key="42").complete

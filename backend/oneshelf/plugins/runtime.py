@@ -410,6 +410,7 @@ class RecipeRuntime:
         complete = False
         next_request: RecipeRequest | None = None
         max_pages = 1 if pagination.mode == "none" else pagination.max_pages
+        truncated = False
 
         for page_index in range(max_pages):
             page_values = dict(values)
@@ -439,7 +440,15 @@ class RecipeRuntime:
                 break
             evidence.pages += 1
 
-            item_nodes = self._raw_items(recipe, document)[:MAX_ITEMS_PER_PAGE]
+            item_nodes = self._raw_items(recipe, document)
+            if len(item_nodes) > MAX_ITEMS_PER_PAGE:
+                # The rest of the page is never read, so the list cannot be known to be complete; a cut
+                # list reported complete would replace a trusted catalog with a shorter one (§5.1, G3).
+                evidence.issues.append(Issue("catalog_validation_failure",
+                                             f"page lists {len(item_nodes)} items; only the first "
+                                             f"{MAX_ITEMS_PER_PAGE} were read", page_index + 1))
+                truncated = True
+                item_nodes = item_nodes[:MAX_ITEMS_PER_PAGE]
             link_base = document_base(document, response.url) if text_units else response.url
             page_values = resolve_values(document, recipe.extract)
             page_fields = []
@@ -510,6 +519,8 @@ class RecipeRuntime:
             evidence.stop_reason = "page_cap_reached"
 
         if complete and capability in STRICT_LISTS and any(i.category == "catalog_validation_failure" for i in evidence.issues):
+            complete = False
+        if truncated:
             complete = False
         if recipe.extract.order == "reverse":
             entries_fields.reverse()
