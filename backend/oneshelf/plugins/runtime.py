@@ -259,7 +259,8 @@ class RecipeRuntime:
         base = self.package.source.base_url
         try:
             url = render(recipe.request.url, values, base_url=base)
-            form = {k: render(v, values, base_url=base) for k, v in recipe.request.form.items()} if recipe.request.form else None
+            form = ({k: render(v, values, base_url=base, form_value=True) for k, v in recipe.request.form.items()}
+                    if recipe.request.form else None)
         except TemplateError as exc:
             raise CapabilityError("invalid_input", str(exc)) from exc
         return RecipeRequest(recipe.capability, recipe.request.method, url, dict(recipe.request.headers), form,

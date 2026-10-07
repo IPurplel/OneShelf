@@ -92,13 +92,18 @@ def validate_url_template(template: str, declared_inputs: set[str]) -> None:
         raise TemplateError("template must start with {base_url} or a literal http(s) origin")
 
 
-def render(template: str, values: dict[str, object], *, base_url: str) -> str:
+def render(template: str, values: dict[str, object], *, base_url: str, form_value: bool = False) -> str:
+    """Fill a template. In a URL a bare {name} is percent-encoded (the url encoder). In a form value it is
+    inserted as it is, because the HTTP client form-encodes the whole body — encoding it here as well sent
+    "Egri%2520csillagok" for "Egri csillagok". An explicit encoder ({name:url}) is honoured in both."""
     def replace(match: re.Match) -> str:
         name, _, encoder = match.group(1).partition(":")
         if name == "base_url":
             return base_url.rstrip("/")
         if name not in values or values[name] is None:
             raise TemplateError(f"missing template input: {name!r}")
+        if form_value and not encoder:
+            return str(values[name])
         return ENCODERS[encoder or "url"](values[name])
 
     sentinel_open, sentinel_close = "\x00OPEN\x00", "\x00CLOSE\x00"
