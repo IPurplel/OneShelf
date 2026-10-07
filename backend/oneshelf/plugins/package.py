@@ -21,7 +21,7 @@ from oneshelf.net.domains import host_allowed
 from oneshelf.plugins.schema import (
     FIELDS, LIST_CAPABILITIES, TEXT_UNITS_API, Manifest, Recipe, SourceConfig, TestSuite, is_text_reader,
 )
-from oneshelf.plugins.templates import TemplateError, validate_url_template
+from oneshelf.plugins.templates import TemplateError, placeholders, validate_url_template
 from oneshelf.plugins.yamlsafe import YamlError, load_yaml
 
 MAX_ENTRIES = 300
@@ -150,7 +150,8 @@ def _api_at_least(declared: str, needed: tuple[int, int]) -> bool:
 
 
 def _api_12_features(recipe: Recipe) -> list[str]:
-    """Plugin API 1.2 features a recipe uses: text units (html, markup) and an item's {position}."""
+    """Plugin API 1.2 features a recipe uses: text units (html, markup), an item's {position}, and the
+    segments encoder for keys that are short paths."""
     from oneshelf.plugins.runtime import template_names
 
     extract, pagination = recipe.extract, recipe.pagination
@@ -161,6 +162,8 @@ def _api_12_features(recipe: Recipe) -> list[str]:
     if any(spec.template is not None and "position" in template_names(spec.template)
            for spec in extract.fields.values()):
         used.append("{position}")
+    if any(encoder == "segments" for _name, encoder in placeholders(recipe.request.url)):
+        used.append("the segments encoder")
     return used
 
 

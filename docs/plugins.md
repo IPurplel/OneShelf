@@ -101,6 +101,10 @@ Two rules exist because real sources need them, and neither widens the security 
   such as Sefaria's list of chapter lengths (`{listing_key}.{position}` is chapter *n*).
 - **`{url}` as the whole request** lets a recipe follow a URL the source's own catalogue produced (§8). The
   egress policy still decides whether that URL may be fetched, so an adapter cannot be steered elsewhere.
+- **`{key:segments}`** (API 1.2) puts a key that is itself a short path (`00500/00597`, `work/chapter`) into
+  the URL with its `/` kept and each segment percent-encoded. An empty, `.` or `..` segment is refused, so a
+  key cannot leave the path the recipe gives it. `{key}` and `{key:path}` encode the whole value as one
+  component, `/` included.
 
 Field names are fixed per capability (for example `catalog` accepts `unit_key`, `title`, `number`, `volume`,
 `unit_type`, `url`, `release_date`), so a recipe cannot invent library concepts.
