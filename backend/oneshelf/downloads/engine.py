@@ -15,7 +15,7 @@ import shutil
 import sqlite3
 import time
 import zipfile
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -38,7 +38,7 @@ from oneshelf.storage.roots import StorageRoot, check_availability, get_root, li
 from oneshelf.storage.staging import new_staging_area
 from oneshelf.text.container import TEXT_EXTENSION, TextUnit, write_text_container
 from oneshelf.text.direction import content_direction
-from oneshelf.text.sanitise import TextUnitTooLarge, sanitise, split_sections
+from oneshelf.text.sanitise import TextUnitTooLarge, unit_sections
 
 REGISTRAR_KIND = "download"
 ACTIVE_STATES = ("PREPARING", "DOWNLOADING", "VERIFYING", "PACKAGING", "COMMITTING")
@@ -547,19 +547,15 @@ class DownloadEngine:
         committed, so only allowlisted markup is ever stored (§27, INV-16).
         """
         self._ensure_not_canceled(job_id)
-        sections = []
         for index, resource in enumerate(resources, start=1):
             if not resource.html:
-                raise MediaInvalid(f"text unit {index} has no text")
-            try:
-                pieces = split_sections(sanitise(resource.html))
-            except TextUnitTooLarge as exc:
-                raise MediaInvalid(f"text unit {index}: {exc}") from exc
-            if not pieces:
-                raise MediaInvalid(f"text unit {index} has no text once sanitised")
-            if resource.title and pieces[0].title is None:
-                pieces[0] = replace(pieces[0], title=resource.title)
-            sections.extend(pieces)
+                raise MediaInvalid(f"text item {index} has no text")
+        try:
+            sections = unit_sections([(r.html, r.title) for r in resources])
+        except TextUnitTooLarge as exc:
+            raise MediaInvalid(f"text unit: {exc}") from exc
+        if not sections:
+            raise MediaInvalid("text unit has no text once sanitised")
         self._set_state(job_id, "VERIFYING")
         manifest["text"] = {"units": len(resources), "sections": len(sections)}
         self._save_manifest(job_id, manifest)

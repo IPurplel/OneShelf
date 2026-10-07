@@ -161,3 +161,24 @@ def _section(buffer: list[tuple[str, str | None, int, bool]]) -> Section:
     html = sanitise("".join(piece[0] for piece in buffer))
     title = next((piece[1] for piece in buffer if piece[1]), None)
     return Section(html=html, title=title, characters=len(plain_text(html)))
+
+
+MAX_UNIT_BYTES = 8 * MAX_TEXT_UNIT_BYTES
+
+
+def unit_sections(items: list[tuple[str | None, str | None]]) -> list[Section]:
+    """The sections of one text reading unit from its reader items, as (html, title) pairs.
+
+    A reader result is one unit however many items it has (a chapter that arrives verse by verse is
+    still one chapter): every item is sanitised under the per-item cap, the parts are joined in order,
+    and the whole is split into sections once. The first title names the first section when it has
+    no heading of its own.
+    """
+    joined = "".join(sanitise(html) for html, _ in items if html)
+    if len(joined.encode("utf-8")) > MAX_UNIT_BYTES:
+        raise TextUnitTooLarge(f"text unit is larger than {MAX_UNIT_BYTES} bytes")
+    sections = split_sections(joined)
+    title = next((t for _, t in items if t), None)
+    if sections and title and sections[0].title is None:
+        sections[0] = Section(sections[0].html, title, sections[0].characters)
+    return sections
