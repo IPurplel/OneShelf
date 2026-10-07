@@ -177,7 +177,12 @@ class FieldSpec(Strict):
             if self.css is not None:
                 _TRANSLATOR.css_to_xpath(self.css)
             if self.xpath is not None:
-                etree.XPath(self.xpath)
+                # A field reads nodes, attributes or text nodes. An expression that yields a string, number
+                # or boolean (string(), normalize-space(), count()…) cannot be read by the parser, which
+                # splits such a result into characters — refused here rather than failing at run time.
+                if not isinstance(etree.XPath(self.xpath)(etree.Element("probe")), list):
+                    raise ValueError("xpath must select nodes, attributes or text(); "
+                                     "use text() with the trim transform instead of a string function")
             if self.json_ is not None:
                 jsonpath.parse(self.json_)
             validate_pipeline(self.transforms)
