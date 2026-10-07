@@ -1,4 +1,4 @@
-"""Migration 0016: an asset may be format 'text' (text reading units, architecture review C).
+"""Migration 0017: an asset may be format 'text' after main's mark-operation migration.
 
 Widening the format constraint rebuilds assets and the two tables that reference it, imports and
 download_jobs. This checks that every row survives with its relationships, against a database that
@@ -9,7 +9,7 @@ from contextlib import closing
 
 import pytest
 
-from oneshelf.db.migrate import migrate
+from oneshelf.db.migrate import Migration, MigrationError, current_version, migrate
 from oneshelf.db.schema import MIGRATIONS
 
 NOW = "2026-01-01T00:00:00+00:00"
@@ -48,6 +48,12 @@ def before(tmp_path):
                      " updated_at, method, asset_id, storage_root_id, bytes_done, manifest_json) VALUES"
                      " ('j1', 'b1', 'u1', 'COMPLETED', 2, ?, ?, 'html_api', 'a1', 'r1', 99, '{\"pages\": 3}')",
                      (NOW, NOW))
+        conn.execute("INSERT INTO reading_bookmarks (id, reading_unit_id, locator_json, locator_key, label,"
+                     " created_at, operation_id) VALUES ('bm1', 'u1', '{\"chapter\": 1}', 'chapter:1',"
+                     " 'Chapter 1', ?, '00000000-0000-4000-8000-000000000001')", (NOW,))
+        conn.execute("INSERT INTO reading_highlights (id, reading_unit_id, locator_json, text, colour,"
+                     " created_at, operation_id) VALUES ('hl1', 'u1', '{\"chapter\": 1}', 'A passage',"
+                     " 'yellow', ?, '00000000-0000-4000-8000-000000000002')", (NOW,))
         conn.commit()
     migrate(path, MIGRATIONS, snapshot_dir=tmp_path / "snap")
     return path
@@ -86,3 +92,53 @@ def test_text_is_now_a_format_and_nothing_else_is(before):
         with pytest.raises(sqlite3.IntegrityError):                       # imports keep their own list
             conn.execute("INSERT INTO imports (id, original_filename, mode, format, state, created_at, updated_at)"
                          " VALUES ('i2', 'x.ostext', 'copy', 'text', 'completed', ?, ?)", (NOW, NOW))
+
+
+def test_fresh_database_has_contiguous_migrations_and_both_schema_changes(tmp_path):
+    assert [(m.version, m.name) for m in MIGRATIONS[-2:]] == [
+        (16, "mark_operation_ids"), (17, "text_format")]
+    assert [m.version for m in MIGRATIONS] == list(range(1, VERSION + 1))
+    path = tmp_path / "fresh.db"
+    assert migrate(path, MIGRATIONS, snapshot_dir=tmp_path / "snap") == list(range(1, VERSION + 1))
+    with closing(sqlite3.connect(path)) as conn:
+        assert conn.execute("SELECT version, name FROM schema_migrations ORDER BY version DESC LIMIT 2").fetchall() == [
+            (17, "text_format"), (16, "mark_operation_ids")]
+        assets_sql = conn.execute("SELECT sql FROM sqlite_master WHERE name = 'assets'").fetchone()[0]
+        assert "'text'" in assets_sql
+        for table in ("reading_bookmarks", "reading_highlights"):
+            assert "operation_id" in {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        indexes = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'index'")}
+        assert {"idx_reading_bookmarks_operation", "idx_reading_highlights_operation"} <= indexes
+
+
+def test_main_mark_operations_and_snapshot_survive_upgrade(before):
+    assert current_version(before) == 17
+    with closing(sqlite3.connect(before)) as conn:
+        assert conn.execute("SELECT operation_id FROM reading_bookmarks WHERE id = 'bm1'").fetchone() == (
+            "00000000-0000-4000-8000-000000000001",)
+        assert conn.execute("SELECT operation_id FROM reading_highlights WHERE id = 'hl1'").fetchone() == (
+            "00000000-0000-4000-8000-000000000002",)
+        indexes = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'index'")}
+        assert {"idx_reading_bookmarks_operation", "idx_reading_highlights_operation"} <= indexes
+    snapshots = list((before.parent / "snap").glob("pre-migration-v16-*.db"))
+    assert len(snapshots) == 1
+    with closing(sqlite3.connect(snapshots[0])) as conn:
+        assert conn.execute("SELECT max(version) FROM schema_migrations").fetchone() == (16,)
+        assert conn.execute("SELECT operation_id FROM reading_bookmarks WHERE id = 'bm1'").fetchone() == (
+            "00000000-0000-4000-8000-000000000001",)
+        assets_sql = conn.execute("SELECT sql FROM sqlite_master WHERE name = 'assets'").fetchone()[0]
+        assert "'text'" not in assets_sql
+
+
+def test_failed_text_migration_rolls_back_to_main_schema_and_can_retry(tmp_path):
+    path = tmp_path / "retry.db"
+    at_version(path, VERSION - 1)
+    broken = Migration(VERSION, "text_format", "CREATE TABLE should_rollback (id INTEGER);"
+                       " INSERT INTO missing_table VALUES (1);")
+    with pytest.raises(MigrationError, match="migration v17"):
+        migrate(path, (*MIGRATIONS[:-1], broken), snapshot_dir=tmp_path / "snap")
+    assert current_version(path) == 16
+    with closing(sqlite3.connect(path)) as conn:
+        assert conn.execute("SELECT name FROM sqlite_master WHERE name = 'should_rollback'").fetchone() is None
+        assert "operation_id" in {row[1] for row in conn.execute("PRAGMA table_info(reading_bookmarks)")}
+    assert migrate(path, MIGRATIONS, snapshot_dir=tmp_path / "snap") == [17]
