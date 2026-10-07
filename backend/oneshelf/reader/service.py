@@ -10,7 +10,7 @@ import asyncio
 import json
 import sqlite3
 import zipfile
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 
 from oneshelf.db.connection import transaction
@@ -25,7 +25,7 @@ from oneshelf.storage.paths import resolve_within
 from oneshelf.storage.roots import get_root
 from oneshelf.text.container import TextUnit, open_text_container
 from oneshelf.text.direction import content_direction
-from oneshelf.text.sanitise import sanitise, split_sections
+from oneshelf.text.sanitise import unit_sections
 
 READ_AHEAD_STATES = ("QUEUED",)
 
@@ -161,12 +161,7 @@ class ReaderService:
         if not self._reads_text(unit["source_id"]):
             raise FileNotFoundError("this reading unit has no text")
         descriptors = await self._online_descriptors(unit_id)
-        sections = []
-        for descriptor in descriptors:
-            pieces = split_sections(sanitise(descriptor.html or ""))
-            if pieces and descriptor.title and pieces[0].title is None:
-                pieces[0] = replace(pieces[0], title=descriptor.title)
-            sections.extend(pieces)
+        sections = unit_sections([(d.html, d.title) for d in descriptors])
         if not sections:
             raise FileNotFoundError("the source returned no text for this reading unit")
         title = next((d.title for d in descriptors if d.title), None)

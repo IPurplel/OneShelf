@@ -70,3 +70,33 @@ def test_sections_split_at_block_boundaries_and_carry_headings():
 def test_a_short_unit_is_one_section_and_empty_is_none():
     assert len(split_sections("<p>short</p>")) == 1
     assert split_sections("") == []
+
+
+def test_the_items_of_one_reader_result_are_one_unit():
+    """A chapter that arrives verse by verse (Sefaria) is one chapter, not a section per verse."""
+    from oneshelf.text.sanitise import unit_sections
+    verses = [(f"<p><sup>{n}</sup> Verse {n} <script>x()</script>of the chapter.</p>", "Genesis 1" if n == 1 else None)
+              for n in range(1, 32)]
+    sections = unit_sections(verses)
+    assert len(sections) == 1 and sections[0].title == "Genesis 1"
+    assert sections[0].html.count("<p>") == 31 and "<script" not in sections[0].html
+    assert plain_text(sections[0].html).startswith("1 Verse 1 of the chapter.")
+
+
+def test_a_long_unit_of_many_items_is_still_sectioned():
+    from oneshelf.text.sanitise import unit_sections
+    items = [(f"<p>{'word ' * 400}</p>", None) for _ in range(20)]
+    assert len(unit_sections(items)) > 1
+
+
+def test_items_without_text_are_skipped_and_nothing_is_no_unit():
+    from oneshelf.text.sanitise import unit_sections
+    assert unit_sections([(None, "t"), ("<script>x</script>", None)]) == []
+    assert len(unit_sections([(None, None), ("<p>only</p>", None)])) == 1
+
+
+def test_a_unit_has_a_size_cap_of_its_own():
+    from oneshelf.text.sanitise import MAX_UNIT_BYTES, unit_sections
+    item = "<p>" + "x" * (MAX_TEXT_UNIT_BYTES - 100) + "</p>"
+    with pytest.raises(TextUnitTooLarge):
+        unit_sections([(item, None)] * (MAX_UNIT_BYTES // MAX_TEXT_UNIT_BYTES + 1))

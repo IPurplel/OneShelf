@@ -51,7 +51,7 @@ source/language choices; `language` remains the single-language fallback for old
 list means no available translations, and the work's original language must not stand in for one.
 Adapters using this field must declare `api: '1.1'` so older Core versions reject them cleanly.
 
-API 1.2 adds **text reading units** (section 3a). Unlike 1.1, this one is enforced per feature: a package
+API 1.2 adds **text reading units** (section 3a) and the `{position}` template name (section 3). Unlike 1.1, this one is enforced per feature: a package
 that extracts a reader `html` field, sets `markup` on any field, or uses the `text_contains` /
 `min_text_chars` test checks is refused unless it declares `api: '1.2'` or newer.
 
@@ -95,7 +95,10 @@ Two rules exist because real sources need them, and neither widens the security 
 
 - **Templates** compose a value from document-level `values`, the current `item` and the recipe's inputs.
   MangaDex returns a base URL, a hash and bare filenames; the page URLs are built from those three.
-  A template whose parts are missing yields nothing rather than half a URL.
+  A template whose parts are missing yields nothing rather than half a URL, and a name a template cannot
+  have is refused when the package is validated. In a list, `{position}` (API 1.2) is the item's 1-based
+  place in the whole list, across pages — for a source whose only identity for an entry is where it stands,
+  such as Sefaria's list of chapter lengths (`{listing_key}.{position}` is chapter *n*).
 - **`{url}` as the whole request** lets a recipe follow a URL the source's own catalogue produced (§8). The
   egress policy still decides whether that URL may be fetched, so an adapter cannot be steered elsewhere.
 
@@ -144,8 +147,10 @@ nh3 with the allowlist of the Book Reader's EPUB sanitiser (`backend/oneshelf/te
   it came from.
 - **Images:** version 1 stores none. Each `<img>` is replaced by its alt text.
 
-A unit larger than 1 MiB, or one with no text left after sanitising, counts as a missing item and makes
-the result incomplete. Long units are split into sections of about 16,000 characters at block boundaries.
+A reader result is one unit, however many items it has: a chapter that arrives verse by verse is read and
+stored as one chapter, its items joined in order before it is split into sections. An item larger than
+1 MiB, or one with no text left after sanitising, counts as a missing item and makes the result
+incomplete; a whole unit is capped at 8 MiB. Long units are split into sections of about 16,000 characters at block boundaries.
 Sections are what give the reader its progress, bookmarks and search, because the sandboxed frame cannot
 report a scroll position. A unit's direction comes from its track's language (Arabic, Hebrew, Persian,
 Urdu… run right to left), never from the interface language.
