@@ -12,6 +12,7 @@ import shutil
 import sqlite3
 import tempfile
 import zipfile
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
@@ -156,6 +157,23 @@ class ExportService:
                          if f.reading_unit_id in contract.unit_ids else f for f in files]
             else:
                 owners[folder] = contract.work_id
+        # Distinct units may share a title, or sanitize to the same filename.
+        counts = Counter(file.target_path for file in files)
+        used = {file.target_path for file in files}
+        for index in sorted(range(len(files)), key=lambda i: (files[i].target_path, files[i].reading_unit_id,
+                                                               files[i].asset_id)):
+            file = files[index]
+            if counts[file.target_path] == 1:
+                continue
+            original = Path(file.target_path)
+            suffix = f" (unit {file.reading_unit_id})"
+            candidate = original.with_name(f"{original.stem}{suffix}{original.suffix}")
+            if str(candidate) in used:
+                candidate = original.with_name(f"{original.stem}{suffix} ({file.asset_id}){original.suffix}")
+            if str(candidate) in used:
+                raise ExportError("selected files cannot be given distinct names")
+            used.add(str(candidate))
+            files[index] = replace(file, target_path=str(candidate))
         total = sum(f.size for f in files)
         usage = shutil.disk_usage(destination)
         if not preflight(total=usage.total, free=usage.free, expected_bytes=total).allowed:

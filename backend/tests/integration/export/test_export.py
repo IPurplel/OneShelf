@@ -1,5 +1,6 @@
 """Master §34; INV-20, INV-21: export is a resumable copy that never modifies the library."""
 import asyncio
+import hashlib
 import json
 import zipfile
 from pathlib import Path
@@ -7,6 +8,8 @@ from pathlib import Path
 import pytest
 
 from oneshelf.export.service import ExportBlocked, ExportContract, ExportError, ExportService
+from oneshelf.domain.clock import utcnow_iso
+from oneshelf.domain.ids import new_id
 
 
 def run(coro):
@@ -29,6 +32,51 @@ def contract(library, title, destination, **kwargs):
 def library_state(conn):
     return {table: conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
             for table in ("works", "source_tracks", "reading_units", "assets", "shelf_entries", "reading_state")}
+
+
+@pytest.mark.parametrize("output", ["folder", "zip"])
+def test_i69_colliding_unit_titles_keep_every_exported_file(library, exports, output):
+    service, destination = exports
+    work = library.add_work("Collisions", content=b"first")
+    unit_ids = [work["unit_id"]]
+    library.conn.execute("UPDATE reading_units SET display_title = 'Same' WHERE id = ?", (unit_ids[0],))
+    for order, (title, payload) in enumerate((("Same", b"second"), ("A/B", b"third"),
+                                               ("A:B", b"fourth")), start=2):
+        unit_id, asset_id = new_id(), new_id()
+        relative = f"collisions/{order}.cbz"
+        path = library.root_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(payload)
+        library.conn.execute(
+            "INSERT INTO reading_units (id, track_id, source_unit_key, display_title, unit_type, source_order,"
+            " first_seen_at) VALUES (?,?,?,?, 'chapter', ?, ?)",
+            (unit_id, work["track_id"], f"unit-{order}", title, order, utcnow_iso()))
+        library.conn.execute(
+            "INSERT INTO assets (id, reading_unit_id, format, storage_root_id, relative_path, size_bytes, sha256,"
+            " integrity, created_at, updated_at) VALUES (?,?,?,?,?,?,?, 'ok', ?, ?)",
+            (asset_id, unit_id, "cbz", library.root.id, relative, len(payload), hashlib.sha256(payload).hexdigest(),
+             utcnow_iso(), utcnow_iso()))
+        unit_ids.append(unit_id)
+    selected = ExportContract(work["work_id"], "en", "mangadex", unit_ids, str(destination),
+                              output=output, conflict="replace")
+    plan = service.plan(selected)
+    names = [Path(file.target_path).name for file in plan.files]
+    assert len(names) == len(set(names)) == 4
+    assert [file.target_path for file in service.plan(selected).files] == [file.target_path for file in plan.files]
+    report = run(service.run(service.start(plan)))
+    assert (report.state, report.copied, report.failed) == ("completed", 4, 0)
+    if output == "folder":
+        actual = {path.read_bytes() for path in destination.rglob("*.cbz")}
+    else:
+        with zipfile.ZipFile(next(destination.glob("*.zip"))) as archive:
+            members = [name for name in archive.namelist() if name.endswith(".cbz")]
+            assert len(members) == len(set(members)) == 4
+            actual = {archive.read(name) for name in members}
+    assert actual == {b"first", b"second", b"third", b"fourth"}
+    skip = ExportContract(work["work_id"], "en", "mangadex", unit_ids, str(destination),
+                          output=output, conflict="skip_identical")
+    skipped = run(service.run(service.start(service.plan(skip))))
+    assert (skipped.state, skipped.skipped, skipped.failed) == ("completed", 4, 0)
 
 
 def test_export_copies_originals_without_touching_the_library(library, exports):
