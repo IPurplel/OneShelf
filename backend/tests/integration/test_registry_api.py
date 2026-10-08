@@ -117,6 +117,8 @@ def test_a_newer_version_reads_as_an_update_and_installs_with_rollback(tmp_path)
             "plugin_id": "oneshelf.arxiv", "approved_permissions": [], "sha256": review["sha256"]}).json()
         assert outcome["state"] == "active"
         assert listing(client)["oneshelf.arxiv"]["state"] == "installed"
+        installed = next(s for s in client.get("/api/sources").json()["sources"] if s["id"] == "oneshelf.arxiv")
+        assert installed["can_rollback"] is True
         assert client.post("/api/sources/oneshelf.arxiv/rollback").status_code == 200
 
 

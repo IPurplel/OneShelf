@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
+import { apiErrorText } from "@/i18n/apiErrors";
 import { useResource } from "@/api/useApi";
 import { ModalSurface } from "@/components/ModalSurface";
 import type { WorkDetails } from "@/api/types";
@@ -30,7 +31,7 @@ type Report = { job_id: string; state: string; copied: number; skipped: number; 
  * is converted.
  */
 export function ExportWizard({ workId, trackId, onClose }: { workId: string; trackId?: string | null; onClose: () => void }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${workId}`,
     trackId ? { track_id: trackId } : undefined);
   const [step, setStep] = useState<Step>("content");
@@ -94,7 +95,7 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
       }
     } catch (error) {
       if (previewGeneration.current === generation && latestSelection.current === key)
-        setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+        setProblem(apiErrorText(error, language, t));
     } finally {
       if (previewGeneration.current === generation) setChecking(false);
     }
@@ -110,7 +111,7 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
         acknowledge_permanent_download: policy === "download_missing_then_export",
       }));
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(apiErrorText(error, language, t));
     }
   };
 
@@ -167,7 +168,7 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
         <>
           <label className="field__label">
             {t("export.destination")}
-            <input type="text" className="field" value={destination}
+            <input type="text" className="field" dir="ltr" value={destination}
                    onChange={(event) => { invalidatePreview(); setDestination(event.target.value); }} />
           </label>
           <fieldset className="panel__group" role="radiogroup" aria-label={t("export.conflict")}>
@@ -185,6 +186,11 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
 
       {step === "review" && currentPreview !== null && report === null && (
         <>
+          <dl className="details export__review">
+            <dt>{t("export.format")}</dt><dd>{t(`export.output.${output}`)}</dd>
+            <dt>{t("export.destination")}</dt><dd><bdi className="literal-path" dir="ltr">{destination}</bdi></dd>
+            <dt>{t("export.conflict")}</dt><dd>{t(`export.conflict.${conflict}`)}</dd>
+          </dl>
           <p>{t(currentPreview.files === 1 ? "export.summary.one" : "export.summary.other",
             { files: currentPreview.files, size: bytes(currentPreview.total_bytes) })}</p>
           {currentPreview.disclosure !== null && (
@@ -216,6 +222,15 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
         <button type="button" className="button" onClick={onClose}>
           {report === null ? t("common.cancel") : t("export.close")}
         </button>
+        {step !== "content" && report === null && (
+          <button type="button" className="button" onClick={() => {
+            setProblem(null);
+            if (step === "review") setPreview(null);
+            setStep(step === "review" ? "destination" : step === "destination" ? "format" : "content");
+          }}>
+            {t("export.back")}
+          </button>
+        )}
         {step === "content" && (
           <button type="button" className="button button--primary" disabled={data === null}
                   onClick={() => setStep("format")}>

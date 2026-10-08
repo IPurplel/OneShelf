@@ -42,6 +42,14 @@ describe("My Shelf", () => {
     expect(tabs.at(-1)).toHaveAttribute("tabindex", "0");
     expect(tabs[0]).toHaveAttribute("tabindex", "-1");
   });
+
+  it("shows a localized Arabic service failure through the shared resource path", async () => {
+    mockApi([get("/api/shelf", { error: { code: "SERVICE_UNAVAILABLE", message: "Service temporarily unavailable" } }, 503)]);
+    renderWithProviders(<ShelfScreen />, { language: "ar" });
+    expect(await screen.findByRole("alert")).toHaveTextContent(/تعذّر إكمال الطلب/);
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Service temporarily unavailable");
+  });
+
   it("shows the saved works on shelves", async () => {
     mockApi([get("/api/shelf", { view: "all", entries: [ENTRY] })]);
     renderWithProviders(<ShelfScreen />);

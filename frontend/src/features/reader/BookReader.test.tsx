@@ -36,6 +36,15 @@ function epubWithSpine(spine: string): Uint8Array {
   });
 }
 
+function epubWithDirection(language: string | null, chapter: string): Uint8Array {
+  return zipSync({
+    "META-INF/container.xml": strToU8('<container><rootfiles><rootfile full-path="OEBPS/content.opf"/></rootfiles></container>'),
+    "OEBPS/content.opf": strToU8(`<package><metadata><title>Direction test</title>${language ? `<language>${language}</language>` : ""}</metadata>
+      <manifest><item id="c0" href="one.xhtml"/></manifest><spine><itemref idref="c0"/></spine></package>`),
+    "OEBPS/one.xhtml": strToU8(chapter),
+  });
+}
+
 type Call = { url: string; method: string; body: unknown };
 
 /** The file, the marks the library holds, and progress — the three things the Book Reader talks to. */
@@ -120,6 +129,19 @@ describe("Book Reader (EPUB)", () => {
     await waitFor(() => expect(screen.getByTitle(/book content/i).getAttribute("srcdoc"))
       .toContain("One readable chapter."));
   });
+
+  it.each([
+    ["en", "en", "<html><body><p>An English paragraph.</p></body></html>", "ltr"],
+    ["ar", null, "<html><body><p>An English paragraph.</p></body></html>", "ltr"],
+    ["en", "ar", "<html><body><p>فقرة عربية للقراءة.</p></body></html>", "rtl"],
+    ["ar", "en", "<html dir=\"rtl\"><body><p>فقرة عربية للقراءة.</p></body></html>", "rtl"],
+  ] as const)("uses content direction for %s UI and %s metadata", async (ui, metadata, chapter, expected) => {
+    stubFile(epubWithDirection(metadata, chapter), "application/epub+zip");
+    renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />, { language: ui });
+    await waitFor(() => expect(document.querySelector("iframe.book__frame")?.getAttribute("srcdoc"))
+      .toContain(`<html dir="${expected}">`));
+  });
+
   it("renders the chapter inside a sandboxed frame that cannot run scripts or reach the app", async () => {
     stubFile(epubBytes(), "application/epub+zip");
     renderWithProviders(<BookReader unitId="u9" format="epub" workId="w1" />);

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { ApiError, api } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
+import { FilePicker } from "@/components/FilePicker";
+import { apiErrorText } from "@/i18n/apiErrors";
 
 type Suggestion = { work_id: string; title: string; tier: string; content_type: string | null; confident: boolean };
 
@@ -23,7 +25,7 @@ type Review = {
  * file you picked stays where it is.
  */
 export function ImportPanel() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [review, setReview] = useState<Review | null>(null);
   const [title, setTitle] = useState("");
   const [target, setTarget] = useState<string>("new");
@@ -60,7 +62,7 @@ export function ImportPanel() {
       const confident = reviewed.suggestions.find((candidate) => candidate.confident);
       setTarget(confident ? confident.work_id : "new");
     } catch (error) {
-      if (current === generation.current) setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      if (current === generation.current) setProblem(apiErrorText(error, language, t));
     } finally {
       if (current === generation.current) setReviewing(false);
     }
@@ -82,7 +84,7 @@ export function ImportPanel() {
       setReview(null);
       setDone(true);
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(apiErrorText(error, language, t));
     } finally {
       submitting.current = false;
       setImporting(false);
@@ -98,14 +100,8 @@ export function ImportPanel() {
       {reviewing && <p role="status">{t("state.loading")}</p>}
       {done && <p className="notice" role="status">{t("import.done")}</p>}
 
-      <label className="field__label">
-        {t("import.choose")}
-        <input type="file" accept=".cbz,.pdf,.epub" className="field" disabled={importing}
-               onChange={(event) => {
-                 const file = event.target.files?.[0];
-                 if (file) void choose(file);
-               }} />
-      </label>
+      <FilePicker label={t("import.choose")} accept=".cbz,.pdf,.epub" disabled={importing}
+                  onChoose={(file) => void choose(file)} />
 
       {review !== null && (
         <div className="import__review">

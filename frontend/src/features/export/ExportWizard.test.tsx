@@ -118,6 +118,42 @@ describe("Export", () => {
     expect(await within(dialog).findByText(new RegExp(`^${expected},`))).toBeInTheDocument();
     expect(dialog).not.toHaveTextContent("file(s)");
   });
+
+  it.each(["en", "ar"] as const)("reviews the actual payload and preserves choices when editing in %s", async (language) => {
+    const calls = mockApi([get("/api/works/w1", WORK),
+      post("/api/export/preview", { ...PREVIEW, missing_units: [], disclosure: null }),
+      post("/api/export", { job_id: "j1", state: "completed", copied: 1, skipped: 0, failed: 0, errors: [] })]);
+    const user = userEvent.setup();
+    renderWithProviders(<ExportWizard workId="w1" onClose={() => {}} />, { language });
+    const dialog = await screen.findByRole("dialog");
+    const next = language === "en" ? "Next" : "التالي";
+    const back = language === "en" ? "Back" : "السابق";
+    await user.click(within(dialog).getByRole("button", { name: next }));
+    await user.click(within(dialog).getByRole("radio", { name: /ZIP/i }));
+    await user.click(within(dialog).getByRole("button", { name: next }));
+    const destination = within(dialog).getByRole("textbox");
+    await user.type(destination, "/mnt/archive/my-export");
+    await user.click(within(dialog).getByRole("radio", { name: language === "en" ? "Keep both" : "احتفظ بالاثنين" }));
+    await user.click(within(dialog).getByRole("button", { name: next }));
+    expect(await within(dialog).findByText("/mnt/archive/my-export")).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(language === "en" ? "Keep both" : "احتفظ بالاثنين");
+    expect(dialog).toHaveTextContent("ZIP");
+    expect(dialog).toHaveTextContent(language === "en" ? "1 file" : "1 ملف");
+    await user.click(within(dialog).getByRole("button", { name: back }));
+    expect(within(dialog).getByRole("textbox")).toHaveValue("/mnt/archive/my-export");
+    await user.click(within(dialog).getByRole("button", { name: back }));
+    expect(within(dialog).getByRole("radio", { name: /ZIP/i })).toBeChecked();
+    await user.click(within(dialog).getByRole("button", { name: next }));
+    await user.click(within(dialog).getByRole("button", { name: next }));
+    await user.click(within(dialog).getByRole("button", { name: language === "en" ? "Export" : "صدّر" }));
+    const preview = calls.filter(call => call.url === "/api/export/preview").at(-1)?.body as Record<string, unknown>;
+    const executed = calls.find(call => call.url === "/api/export")?.body as Record<string, unknown>;
+    for (const key of ["work_id", "language", "source_id", "unit_ids", "destination", "output", "conflict"])
+      expect(executed[key]).toEqual(preview[key]);
+    expect(executed.output).toBe("zip");
+    expect(executed.conflict).toBe("keep_both");
+  });
+
   it("loads the Work track selected on the Details page", async () => {
     const arabic = { ...WORK, tracks: [...WORK.tracks, { ...WORK.tracks[0], id: "t-ar", source_id: "alpha", language: "ar" }],
       selected_track_id: "t-ar", units: [{ ...WORK.units[0], id: "u-ar", title: "الفصل ١" }] };

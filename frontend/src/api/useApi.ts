@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { ApiError, api } from "./client";
+import { api } from "./client";
+import { useI18n } from "@/i18n/i18n";
+import { apiErrorText } from "@/i18n/apiErrors";
 
 export type Resource<T> = { data: T | null; error: string | null; loading: boolean; reload: () => void };
 
 /** One small hook for read-only screens: data, a plain error message, and a way to try again. */
 export function useResource<T>(path: string, query?: Record<string, string | number | boolean | undefined>): Resource<T> {
+  const { language, t } = useI18n();
   const key = JSON.stringify(query ?? {});
   const [attempt, setAttempt] = useState(0);
   const identity = `${path}\u0000${key}`;
@@ -33,11 +36,11 @@ export function useResource<T>(path: string, query?: Record<string, string | num
       })
       .catch((error: unknown) => {
         if (!live || current.current.generation !== generation) return;
-        const message = error instanceof ApiError ? error.message : "offline";
+        const message = apiErrorText(error, language, t);
         setState({ identity, generation, data: null, error: message, loading: false });
       });
     return () => { live = false; };
-  }, [path, key, attempt]);
+  }, [path, key, attempt, language]);
 
   const reload = useCallback(() => setAttempt((n) => n + 1), []);
   const visible = state.generation === generation ? state

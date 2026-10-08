@@ -46,6 +46,8 @@ def _exists(s, plugin_id: str) -> bool:
 
 def _source_view(s, record) -> dict:
     capabilities, auth_available = [], False
+    can_rollback = record.active_version is not None and any(
+        version.status == "previous" for version in s.plugins.versions(record.id))
     if record.active_version is not None:
         try:
             package = s.plugins.load_active(record.id) if record.state == "active" else None
@@ -55,7 +57,8 @@ def _source_view(s, record) -> dict:
             capabilities, auth_available = list(package.manifest.capabilities), package.manifest.auth is not None
     return {"id": record.id, "name": record.name, "state": record.state, "version": record.active_version,
             "trust_label": record.trust_label, "channel": record.channel, "capabilities": capabilities,
-            "auth_available": auth_available, "session_state": s.sessions.state(record.id)}
+            "auth_available": auth_available, "session_state": s.sessions.state(record.id),
+            "can_rollback": can_rollback}
 
 
 @router.get("/sources")

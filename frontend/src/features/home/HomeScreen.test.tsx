@@ -1,5 +1,5 @@
 /** Master §31, §32.3–32.5: Home is adaptive, library-first, and never invents content. */
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HomeScreen } from "./HomeScreen";
@@ -18,6 +18,16 @@ beforeEach(() => respondWith(EMPTY));
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Home", () => {
+  it.each(["en", "ar"] as const)("replaces a failed hero cover with the designed placeholder in %s", async (language) => {
+    respondWith({ ...EMPTY, hero: { reason: "pinned", title: "حكاية القمر", work_id: "w1",
+      cover_url: "/api/covers/missing" } });
+    renderWithProviders(<HomeScreen />, { language });
+    const hero = await screen.findByRole("region", { name: "حكاية القمر" });
+    fireEvent.error(hero.querySelector(".hero__cover img")!);
+    expect(hero.querySelector(".hero__cover img, .hero__art")).toBeNull();
+    expect(hero.querySelector(".workcard__blank")).toHaveTextContent("ح");
+  });
+
   it("welcomes a new library without inventing books or statistics", async () => {
     renderWithProviders(<HomeScreen />);
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(/welcome/i);

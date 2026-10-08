@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { useResource } from "@/api/useApi";
@@ -84,16 +85,19 @@ export function HomeScreen() {
 
 function Hero({ hero, fraction }: { hero: NonNullable<HomeResponse["hero"]>; fraction: number | null }) {
   const { t } = useI18n();
+  const [failedCover, setFailedCover] = useState<string | null>(null);
+  const cover = hero.cover_url && hero.cover_url !== failedCover ? hero.cover_url : null;
   const label = hero.reason === "continue_reading" ? t("home.continue")
     : hero.reason === "pinned" ? t("home.pinned") : t("home.discovery");
   const percent = fraction === null ? null : Math.round(fraction * 100);
 
   return (
     <section className="hero" role="region" aria-label={hero.title}>
-      {hero.cover_url && <img className="hero__art" src={hero.cover_url} alt="" />}
+      {cover && <img className="hero__art" src={cover} alt="" onError={() => setFailedCover(cover)} />}
       <div className="hero__inner">
         <span className="hero__cover" aria-hidden="true">
-          {hero.cover_url ? <img src={hero.cover_url} alt="" /> : <span className="hero__blank" />}
+          {cover ? <img src={cover} alt="" onError={() => setFailedCover(cover)} />
+            : <span className="hero__blank workcard__blank">{hero.title.slice(0, 1)}</span>}
         </span>
         <div className="hero__body">
           <p className="hero__reason">{label}</p>

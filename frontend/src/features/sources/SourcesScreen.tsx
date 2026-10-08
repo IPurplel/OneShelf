@@ -1,9 +1,11 @@
 import { useState } from "react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
+import { apiErrorText } from "@/i18n/apiErrors";
 import { useResource } from "@/api/useApi";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
+import { LoadingState } from "@/components/LoadingState";
 import { InstallPanel } from "./InstallPanel";
 import { LoginSession } from "./LoginSession";
 import { RegistryPanel } from "./RegistryPanel";
@@ -22,6 +24,7 @@ type Source = {
   capabilities: string[];
   auth_available: boolean;
   session_state: string;
+  can_rollback: boolean;
 };
 
 /** Where an installed source came from, and whether a trusted signature stands behind it. */
@@ -42,8 +45,8 @@ function originKey(source: Source): StringKey | null {
  * belong behind More.
  */
 export function SourcesScreen() {
-  const { t } = useI18n();
-  const { data, error, reload } = useResource<{ sources: Source[] }>("/api/sources");
+  const { t, language } = useI18n();
+  const { data, error, loading, reload } = useResource<{ sources: Source[] }>("/api/sources");
 
   // §21, §36: a session that connects or expires elsewhere shows here without a refresh.
   useLive(["source.session"], reload);
@@ -64,7 +67,7 @@ export function SourcesScreen() {
       await call;
       setOpen(null);
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(apiErrorText(error, language, t));
       setOpen(null);
     } finally {
       changed();
@@ -79,8 +82,9 @@ export function SourcesScreen() {
       {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
         <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+      {loading && <LoadingState />}
 
-      {data !== null && sources.length === 0 && <p className="shelf__empty">{t("sources.empty")}</p>}
+      {data !== null && !loading && sources.length === 0 && <p className="shelf__empty">{t("sources.empty")}</p>}
 
       <ul className="cards">
         {sources.map((source) => (
@@ -94,7 +98,7 @@ export function SourcesScreen() {
             </span>
             {source.session_state === "expired" && <span className="cards__warn">{t("sources.reconnect")}</span>}
             {source.session_state === "connected" && <span className="cards__ok">{t("sources.connected")}</span>}
-            <button type="button" className="chip" onClick={() => setOpen(source)}>{t("sources.more")}</button>
+            <button type="button" className="chip" disabled={loading} onClick={() => setOpen(source)}>{t("sources.more")}</button>
           </li>
         ))}
       </ul>
@@ -119,10 +123,12 @@ export function SourcesScreen() {
                 {t("sources.enable")}
               </button>
             )}
-            <button type="button" className="button"
-                    onClick={() => void act(api.post(`/api/sources/${open.id}/rollback`))}>
-              {t("sources.rollback")}
-            </button>
+            {open.can_rollback && (
+              <button type="button" className="button"
+                      onClick={() => void act(api.post(`/api/sources/${open.id}/rollback`))}>
+                {t("sources.rollback")}
+              </button>
+            )}
             {open.auth_available && (
               <button type="button" className="button"
                       onClick={() => { setSigningIn(open); setOpen(null); }}>

@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
+import { apiErrorText } from "@/i18n/apiErrors";
 import { useResource } from "@/api/useApi";
 import { ModalSurface } from "@/components/ModalSurface";
+import { LoadingState } from "@/components/LoadingState";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
 import { bytes } from "@/lib/format";
@@ -38,7 +40,7 @@ const COUNT_KEYS = new Set(["works", "source_tracks", "reading_units", "assets",
  */
 export function BackupPanel() {
   const { t, language } = useI18n();
-  const { data, error, reload } = useResource<BackupsResponse>("/api/backups");
+  const { data, error, loading, reload } = useResource<BackupsResponse>("/api/backups");
   const [restoring, setRestoring] = useState<Backup | null>(null);
   const [preflight, setPreflight] = useState<{ generation: number; path: string; result: Preflight } | null>(null);
   const preflightGeneration = useRef(0);
@@ -66,7 +68,7 @@ export function BackupPanel() {
       await api.post("/api/backups", { kind });
       setMessage(t("backup.made"));
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(apiErrorText(error, language, t));
     } finally {
       reload();
     }
@@ -83,7 +85,7 @@ export function BackupPanel() {
       if (preflightGeneration.current === generation) setPreflight({ generation, path: backup.path, result });
     } catch (error) {
       if (preflightGeneration.current === generation)
-        setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+        setProblem(apiErrorText(error, language, t));
     }
   };
 
@@ -98,7 +100,7 @@ export function BackupPanel() {
       setRestoring(null);
       setPreflight(null);
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(apiErrorText(error, language, t));
     } finally {
       restoreLocked.current = false;
       setRestoreBusy(false);
@@ -115,8 +117,10 @@ export function BackupPanel() {
 
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
       {message !== null && <p className="notice" role="status">{message}</p>}
+      {loading && <LoadingState />}
       {data?.location_warning?.same_device_as_library && (
-        <p className="notice notice--problem">{data.location_warning.message}</p>
+        <p className="notice notice--problem">{language === "en"
+          ? data.location_warning.message : t("backup.sameDeviceWarning")}</p>
       )}
       {data?.due && <p className="notice">{t("backup.due")}</p>}
 
@@ -129,7 +133,7 @@ export function BackupPanel() {
               <>
                 <span className="cards__meta">{bytes(backup.size_bytes)}</span>
                 {backup.verified_at !== null && <span className="cards__ok">{t("backup.verified")}</span>}
-                <button type="button" className="chip" onClick={() => void openRestore(backup)}>
+                <button type="button" className="chip" disabled={loading} onClick={() => void openRestore(backup)}>
                   {t("backup.restore")}
                 </button>
               </>
@@ -140,13 +144,13 @@ export function BackupPanel() {
         ))}
       </ul>
 
-      {data !== null && backups.length === 0 && <p className="shelf__empty">{t("backup.none")}</p>}
+      {data !== null && !loading && backups.length === 0 && <p className="shelf__empty">{t("backup.none")}</p>}
 
       <div className="firstrun__actions">
-        <button type="button" className="button button--primary" onClick={() => void makeBackup("library")}>
+        <button type="button" className="button button--primary" disabled={loading || error !== null} onClick={() => void makeBackup("library")}>
           {t("backup.makeLibrary")}
         </button>
-        <button type="button" className="button" onClick={() => void makeBackup("full")}>
+        <button type="button" className="button" disabled={loading || error !== null} onClick={() => void makeBackup("full")}>
           {t("backup.makeFull")}
         </button>
       </div>

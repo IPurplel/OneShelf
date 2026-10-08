@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
 import { Drawer } from "@/components/Drawer";
-import { openEpub } from "./epub";
+import { directionFromText, openEpub } from "./epub";
 import type { Epub } from "./epub";
 import { BookSettings } from "./BookSettings";
 import { HighlightPane } from "./HighlightPane";
@@ -32,10 +32,9 @@ export function BookReader(props: { unitId: string; format: BookFormat; workId: 
 }
 
 function BookDocument({ unitId, format, workId, trackId }: { unitId: string; format: BookFormat; workId: string; trackId?: string }) {
-  const { t, direction: interfaceDirection } = useI18n();
-  // A text unit runs in its own language's direction (§26.22); an EPUB keeps the frame as it was.
+  const { t } = useI18n();
+  // The content owns the frame direction; the interface language only controls the surrounding UI.
   const [contentDirection, setContentDirection] = useState<"ltr" | "rtl" | null>(null);
-  const direction = contentDirection ?? interfaceDirection;
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -124,6 +123,8 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
       try {
         const chapter = await book.chapter(chapterIndex);
         if (!live) return;
+        const direction = chapter.direction ?? book.direction ?? contentDirection
+          ?? directionFromText(chapter.text) ?? "ltr";
         setHtml(frameDocument(chapter.html, direction, settings));
         setChapterText(chapter.text);
         const read = book.spine.slice(0, chapterIndex + 1).reduce((total, item) => total + item.characters, 0);
@@ -133,7 +134,7 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
       }
     })();
     return () => { live = false; };
-  }, [book, chapterIndex, direction, record, settings, t]);
+  }, [book, chapterIndex, contentDirection, record, settings, t]);
 
   /** Resume the chapter this book was left on (§26.15); reading the position writes nothing. */
   useEffect(() => {

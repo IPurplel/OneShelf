@@ -11,12 +11,13 @@ import { unzipSync } from "fflate";
 
 export type SpineItem = { id: string; href: string; title: string; characters: number };
 
-export type Chapter = { href: string; html: string; text: string };
+export type Chapter = { href: string; html: string; text: string; direction?: "ltr" | "rtl" };
 
 export type Epub = {
   title: string;
   language: string | null;
   creator: string | null;
+  direction?: "ltr" | "rtl";
   spine: SpineItem[];
   chapter: (index: number) => Promise<Chapter>;
   characters: number;
@@ -27,6 +28,16 @@ const TEXT = new TextDecoder("utf-8");
 
 const REMOVED_TAGS = ["script", "iframe", "frame", "object", "embed", "link", "meta", "base", "form"];
 const ALLOWED_LINK_SCHEMES = ["http:", "https:", "mailto:"];
+
+export function directionFromLanguage(language: string | null): "ltr" | "rtl" | null {
+  if (!language || /^(und|mul|zxx)(-|$)/i.test(language)) return null;
+  return /^(ar|fa|he|ur|ps|sd|yi)(-|$)/i.test(language) ? "rtl" : "ltr";
+}
+
+export function directionFromText(text: string): "ltr" | "rtl" | null {
+  const strong = text.match(/[A-Za-z\u0590-\u08ff]/)?.[0];
+  return strong ? /[\u0590-\u08ff]/.test(strong) ? "rtl" : "ltr" : null;
+}
 
 function parse(xml: string): Document {
   return new DOMParser().parseFromString(xml, "application/xml");
@@ -141,17 +152,22 @@ export async function openEpub(data: ArrayBuffer): Promise<Epub> {
     return element?.textContent?.trim() ?? null;
   };
 
+  const language = meta("language");
   return {
     title: meta("title") ?? "Untitled",
-    language: meta("language"),
+    language,
     creator: meta("creator"),
+    direction: directionFromLanguage(language) ?? undefined,
     spine,
     characters: spine.reduce((total, item) => total + item.characters, 0),
     chapter: async (index: number): Promise<Chapter> => {
       const item = spine[index];
       if (item === undefined) throw new Error("There is no such chapter in this book.");
       const raw = TEXT.decode(files[item.href]!);
-      return { href: item.href, html: sanitiseDocument(raw, resourceUrl(item.href)), text: stripTags(raw) };
+      const document_ = new DOMParser().parseFromString(raw, "text/html");
+      const declared = document_.documentElement.getAttribute("dir") ?? document_.body?.getAttribute("dir");
+      const direction = declared === "ltr" || declared === "rtl" ? declared : undefined;
+      return { href: item.href, html: sanitiseDocument(raw, resourceUrl(item.href)), text: stripTags(raw), direction };
     },
     close: () => {
       for (const url of urls) URL.revokeObjectURL(url);

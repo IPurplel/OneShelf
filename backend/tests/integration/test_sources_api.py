@@ -37,6 +37,7 @@ def test_upload_review_then_install(api):
 
     sources = client.get("/api/sources").json()["sources"]
     assert sources[0]["id"] == TS and sources[0]["trust_label"] == "local" and sources[0]["session_state"] == "not_connected"
+    assert sources[0]["can_rollback"] is False
     assert set(sources[0]["capabilities"]) >= {"search", "catalog", "check_session"}
 
 

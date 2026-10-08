@@ -1,9 +1,11 @@
 import { useRef, useState } from "react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
+import { apiErrorText } from "@/i18n/apiErrors";
 import { useResource } from "@/api/useApi";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ModalSurface } from "@/components/ModalSurface";
+import { LoadingState } from "@/components/LoadingState";
 import { useI18n } from "@/i18n/i18n";
 import { bytes } from "@/lib/format";
 
@@ -19,8 +21,8 @@ type Root = {
  * lost. Moving a location explains that the old copy is kept and that an interrupted move resumes.
  */
 export function StoragePanel() {
-  const { t } = useI18n();
-  const { data, error, reload } = useResource<{ roots: Root[] }>("/api/storage");
+  const { t, language } = useI18n();
+  const { data, error, loading, reload } = useResource<{ roots: Root[] }>("/api/storage");
   const [adding, setAdding] = useState(false);
   const [moving, setMoving] = useState<Root | null>(null);
   const [path, setPath] = useState("");
@@ -40,7 +42,7 @@ export function StoragePanel() {
       await api.post("/api/storage/roots", { name, path });
       setAdding(false);
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(apiErrorText(error, language, t));
     } finally {
       addLocked.current = false;
       setAddBusy(false);
@@ -54,7 +56,7 @@ export function StoragePanel() {
       await call;
       after?.();
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(apiErrorText(error, language, t));
     } finally {
       reload();
     }
@@ -67,7 +69,7 @@ export function StoragePanel() {
         "/api/storage/scan");
       setMessage(t("storage.scanned", report));
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(apiErrorText(error, language, t));
     }
   };
 
@@ -77,12 +79,14 @@ export function StoragePanel() {
         <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
       {message !== null && <p className="notice" role="status">{message}</p>}
+      {loading && <LoadingState />}
+      {data !== null && !loading && data.roots.length === 0 && <p className="shelf__empty">{t("storage.empty")}</p>}
 
       <ul className="cards">
         {(data?.roots ?? []).map((root) => (
           <li key={root.id} className="cards__row">
             <span className="cards__name display">{root.name}</span>
-            <span className="cards__meta">{root.path}</span>
+            <bdi className="cards__meta literal-path" dir="ltr">{root.path}</bdi>
             {root.available ? (
               <>
                 <span className="cards__meta">
@@ -98,19 +102,19 @@ export function StoragePanel() {
             )}
             {root.is_default && <span className="cards__ok">{t("storage.default")}</span>}
             {!root.is_default && root.available && (
-              <button type="button" className="chip"
+              <button type="button" className="chip" disabled={loading}
                       onClick={() => void run(api.post(`/api/storage/roots/${root.id}/default`))}>
                 {t("storage.makeDefault")}
               </button>
             )}
-            <button type="button" className="chip" onClick={() => setMoving(root)}>{t("storage.move")}</button>
+            <button type="button" className="chip" disabled={loading} onClick={() => setMoving(root)}>{t("storage.move")}</button>
           </li>
         ))}
       </ul>
 
       <div className="firstrun__actions">
-        <button type="button" className="button" onClick={() => setAdding(true)}>{t("storage.add")}</button>
-        <button type="button" className="button" onClick={() => void scan()}>{t("storage.scan")}</button>
+        <button type="button" className="button" disabled={loading || error !== null} onClick={() => setAdding(true)}>{t("storage.add")}</button>
+        <button type="button" className="button" disabled={loading || error !== null} onClick={() => void scan()}>{t("storage.scan")}</button>
       </div>
 
       {adding && (
@@ -120,7 +124,7 @@ export function StoragePanel() {
           <h2 className="display">{t("storage.addTitle")}</h2>
           <label className="field__label">
             {t("storage.folder")}
-            <input type="text" className="field" value={path} onChange={(event) => setPath(event.target.value)} />
+            <input type="text" className="field" dir="ltr" value={path} onChange={(event) => setPath(event.target.value)} />
           </label>
           <label className="field__label">
             {t("storage.name")}
@@ -149,7 +153,7 @@ export function StoragePanel() {
         >
           <label className="field__label">
             {t("storage.moveField")}
-            <input type="text" className="field" value={destination}
+            <input type="text" className="field" dir="ltr" value={destination}
                    onChange={(event) => setDestination(event.target.value)} />
           </label>
         </ConfirmDialog>

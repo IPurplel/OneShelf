@@ -31,6 +31,18 @@ const PREFLIGHT = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Backup", () => {
+  it("uses Arabic for the same-disk warning and a coded backup failure", async () => {
+    mockApi([get("/api/backups", BACKUPS),
+      post("/api/backups", { error: { code: "BACKUP_FAILED", message: "Disk service failed" } }, 422)]);
+    const user = userEvent.setup();
+    renderWithProviders(<BackupPanel />, { language: "ar" });
+    expect(await screen.findByText(/القرص نفسه/)).toBeInTheDocument();
+    expect(screen.queryByText(/Backups sit on the same disk/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: /انسخ مكتبتي/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/تعذّر إنشاء النسخة الاحتياطية/);
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Disk service failed");
+  });
+
   it("names archive contents in Arabic instead of exposing database table names", async () => {
     mockApi([get("/api/backups", BACKUPS), post("/api/restore/preflight", PREFLIGHT)]);
     const user = userEvent.setup();

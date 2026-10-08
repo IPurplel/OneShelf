@@ -53,6 +53,17 @@ describe("Storage", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.queryByText("Try Add again")).toBeNull();
   });
+
+  it("isolates a long Linux path inside the Arabic storage panel", async () => {
+    const longPath = "/media/archive/very-long-folder-name/another-folder-name/books/series/volume-one";
+    mockApi([get("/api/storage", { roots: [{ ...ROOTS.roots[0], path: longPath }] })]);
+    renderWithProviders(<StoragePanel />, { language: "ar" });
+    const path = await screen.findByText(longPath);
+    expect(path.tagName.toLowerCase()).toBe("bdi");
+    expect(path).toHaveAttribute("dir", "ltr");
+    expect(document.documentElement.dir).toBe("rtl");
+  });
+
   it("keeps a failed Add dialog open with its entered values", async () => {
     mockApi([get("/api/storage", ROOTS),
       post("/api/storage/roots", { error: { message: "Location unavailable" } }, 503)]);

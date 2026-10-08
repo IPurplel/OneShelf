@@ -5,6 +5,7 @@ import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 import { useLive } from "@/app/live";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { LoadingState } from "@/components/LoadingState";
 
 type Batch = {
   batch_id: string;
@@ -20,7 +21,7 @@ type Batch = {
 /** Downloads (Master §16, §32.11): warm paper panels, real states, no shelves and no analytics. */
 export function DownloadsScreen() {
   const { t } = useI18n();
-  const { data, error, reload } = useResource<{ batches: Batch[] }>("/api/downloads");
+  const { data, error, loading, reload } = useResource<{ batches: Batch[] }>("/api/downloads");
 
   // §36: the queue moves on its own, so the screen follows the library rather than a guess or a refresh.
   useLive(["download.batch", "download.job"], reload);
@@ -45,15 +46,16 @@ export function DownloadsScreen() {
       <div className="screen__head">
         <h1 className="screen__title">{t("downloads.title")}</h1>
         {batches.length > 0 && (
-          <button type="button" className="button" onClick={() => setConfirming(true)}>{t("downloads.clear")}</button>
+          <button type="button" className="button" disabled={loading} onClick={() => setConfirming(true)}>{t("downloads.clear")}</button>
         )}
       </div>
 
       {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
         <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+      {loading && <LoadingState />}
 
-      {data !== null && batches.length === 0 && <p className="shelf__empty">{t("downloads.empty")}</p>}
+      {data !== null && !loading && batches.length === 0 && <p className="shelf__empty">{t("downloads.empty")}</p>}
 
       <ul className="batches">
         {batches.map((batch) => (
@@ -67,25 +69,25 @@ export function DownloadsScreen() {
             </span>
             <span className="batches__actions">
               {batch.state === "active" && (
-                <button type="button" className="chip"
+                <button type="button" className="chip" disabled={loading}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/pause`))}>
                   {t("downloads.pause")}
                 </button>
               )}
               {batch.state === "paused" && (
-                <button type="button" className="chip"
+                <button type="button" className="chip" disabled={loading}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/resume`))}>
                   {t("downloads.resume")}
                 </button>
               )}
               {batch.failed > 0 && (
-                <button type="button" className="chip"
+                <button type="button" className="chip" disabled={loading}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/retry-failed`))}>
                   {t("downloads.retry")}
                 </button>
               )}
               {(batch.state === "active" || batch.state === "paused") && (
-                <button type="button" className="chip"
+                <button type="button" className="chip" disabled={loading}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/cancel`))}>
                   {t("downloads.cancel")}
                 </button>

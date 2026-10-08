@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useResource } from "@/api/useApi";
 import { Icon } from "@/components/Icon";
 import { ModalSurface } from "@/components/ModalSurface";
+import { LoadingState } from "@/components/LoadingState";
 import type { ShelfResponse } from "@/api/types";
 import { WorkCard } from "@/components/WorkCard";
 import { useShelfColumns } from "./useShelfColumns";
@@ -36,7 +37,7 @@ export function ShelfScreen() {
   const [managing, setManaging] = useState<{ work_id: string; title: string } | null>(null);
   const [removing, setRemoving] = useState<{ summary: RemovalSummary; title: string } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const { data, error, reload } = useResource<ShelfResponse>("/api/shelf",
+  const { data, error, loading, reload } = useResource<ShelfResponse>("/api/shelf",
     query.trim() ? { q: query.trim() } : { view });
 
   /**
@@ -86,6 +87,7 @@ export function ShelfScreen() {
         <div className="toolbar__tabs" role="tablist" aria-label={t("shelf.views")} onKeyDown={handleTabKeys}>
           {VIEWS.map((candidate) => (
             <button key={candidate.id} type="button" role="tab" className="chip"
+                    disabled={loading}
                     id={`shelf-tab-${candidate.id}`} aria-controls="shelf-tabpanel"
                     aria-selected={view === candidate.id && query.trim() === ""}
                     tabIndex={view === candidate.id ? 0 : -1}
@@ -95,18 +97,18 @@ export function ShelfScreen() {
           ))}
         </div>
         <div className="toolbar__end">
-          <input type="search" className="field" aria-label={t("shelf.search")} placeholder={t("shelf.search")}
+          <input type="search" className="field" disabled={loading} aria-label={t("shelf.search")} placeholder={t("shelf.search")}
                  value={query} onChange={(event) => setQuery(event.target.value)} />
-          <select className="field" aria-label={t("shelf.sort")} value={sort}
+          <select className="field" disabled={loading} aria-label={t("shelf.sort")} value={sort}
                   onChange={(event) => setSort(event.target.value as "added" | "title")}>
             <option value="added">{t("shelf.sort.added")}</option>
             <option value="title">{t("shelf.sort.title")}</option>
           </select>
-          <button type="button" className="iconbutton" aria-pressed={layout === "grid"}
+          <button type="button" className="iconbutton" disabled={loading} aria-pressed={layout === "grid"}
                   onClick={() => setLayout("grid")} aria-label={t("shelf.layout.grid")}>
             <Icon name="grid" size={18} />
           </button>
-          <button type="button" className="iconbutton" aria-pressed={layout === "list"}
+          <button type="button" className="iconbutton" disabled={loading} aria-pressed={layout === "list"}
                   onClick={() => setLayout("list")} aria-label={t("shelf.layout.list")}>
             <Icon name="list" size={18} />
           </button>
@@ -116,10 +118,11 @@ export function ShelfScreen() {
       {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
         <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+      {loading && <LoadingState />}
 
       <div role="tabpanel" id="shelf-tabpanel" aria-labelledby={`shelf-tab-${view}`} tabIndex={0}>
       <section ref={shelfRef} className="shelfview" role="region" aria-label={t("shelf.title")} data-layout={layout}>
-        {entries.length === 0 && data !== null && <p className="shelf__empty">{t("shelf.empty")}</p>}
+        {entries.length === 0 && data !== null && !loading && <p className="shelf__empty">{t("shelf.empty")}</p>}
         {layout === "list" ? (
           <div className="shelfview__list">
             {entries.map((entry) => (

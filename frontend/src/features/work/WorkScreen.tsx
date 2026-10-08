@@ -182,7 +182,6 @@ export function WorkScreen({ workId }: { workId?: string }) {
             {work.creator && <span>{work.creator}</span>}
             {current && <span>{languageName(current.language, language)}</span>}
           </p>
-          {work.description && <p className="work__description">{work.description}</p>}
           <div className="work__actions">
             {continueUnit && (
               <Link className="button button--primary" to={readerLink(continueUnit, id, data.selected_track_id)}>{t("work.continue")}</Link>
@@ -216,16 +215,23 @@ export function WorkScreen({ workId }: { workId?: string }) {
                     }}>
               {selectedFollowing ? t("work.unfollow") : t("work.follow")}
             </button>
-            <button type="button" className="button" aria-pressed={shelf.favorite}
+            <button type="button" className="button work__toggle" aria-pressed={shelf.favorite}
                     onClick={() => toggle(api.post(`/api/shelf/${id}`, { favorite: !shelf.favorite }))}>
+              <span className="work__toggleMark" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none">
+                <path d="m3 8 3.2 3.2L13 4.5" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg></span>
               {t("work.favorite")}
             </button>
-            <button type="button" className="button" aria-pressed={shelf.pinned}
+            <button type="button" className="button work__toggle" aria-pressed={shelf.pinned}
                     onClick={() => toggle(api.post(`/api/shelf/${id}`, { pinned: !shelf.pinned }))}>
+              <span className="work__toggleMark" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none">
+                <path d="m3 8 3.2 3.2L13 4.5" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg></span>
               {t("work.pin")}
             </button>
             <button type="button" className="button" onClick={() => setExporting(true)}>{t("export.open")}</button>
           </div>
+          {work.description && <p className="work__description">{work.description}</p>}
         </div>
       </header>
 

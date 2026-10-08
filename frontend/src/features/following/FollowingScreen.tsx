@@ -7,6 +7,7 @@ import { useI18n } from "@/i18n/i18n";
 import { languageName } from "@/i18n/language";
 import { useLive } from "@/app/live";
 import { workLink } from "@/features/reader/links";
+import { LoadingState } from "@/components/LoadingState";
 
 type Follow = {
   work_id: string;
@@ -23,7 +24,7 @@ type Follow = {
 /** Following (Master §20, §32.10): a reading journal on warm paper rows. No charts, ever. */
 export function FollowingScreen() {
   const { t, language } = useI18n();
-  const { data, error, reload } = useResource<{ follows: Follow[] }>("/api/follows");
+  const { data, error, loading, reload } = useResource<{ follows: Follow[] }>("/api/follows");
 
   // §20, §36: a check that finishes elsewhere lands here without waiting for a refresh.
   useLive(["follow.changed", "follow.releases"], reload);
@@ -53,31 +54,38 @@ export function FollowingScreen() {
     <section className="screen">
       <div className="screen__head">
         <h1 className="screen__title">{t("follow.title")}</h1>
-        <button type="button" className="button" disabled={busy}
-                onClick={() => void check(api.post("/api/follows/check-all"))}>
-          {t("follow.checkAll")}
-        </button>
+        {data !== null && follows.length > 0 && (
+          <button type="button" className="button" disabled={busy || loading}
+                  onClick={() => void check(api.post("/api/follows/check-all"))}>
+            {t("follow.checkAll")}
+          </button>
+        )}
       </div>
 
       {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
         <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+      {loading && <LoadingState />}
 
-      {data !== null && follows.length === 0 && <p className="shelf__empty">{t("follow.empty")}</p>}
+      {data !== null && !loading && follows.length === 0 && <div className="empty">
+        <p className="empty__body">{t("follow.empty")}</p>
+        <Link className="button button--primary" to="/search">{t("follow.findWorks")}</Link>
+      </div>}
 
-      <Section id="new" title={t("follow.new")} follows={fresh} onCheck={check} language={language} />
-      <Section id="attention" title={t("follow.attention")} follows={attention} onCheck={check} language={language} />
-      <Section id="current" title={t("follow.current")} follows={current} onCheck={check} language={language} />
+      <Section id="new" title={t("follow.new")} follows={fresh} onCheck={check} language={language} disabled={busy || loading} />
+      <Section id="attention" title={t("follow.attention")} follows={attention} onCheck={check} language={language} disabled={busy || loading} />
+      <Section id="current" title={t("follow.current")} follows={current} onCheck={check} language={language} disabled={busy || loading} />
     </section>
   );
 }
 
-function Section({ id, title, follows, onCheck, language }: {
+function Section({ id, title, follows, onCheck, language, disabled }: {
   id: string;
   title: string;
   follows: Follow[];
   onCheck: (call: Promise<unknown>) => void;
   language: "en" | "ar";
+  disabled: boolean;
 }) {
   const { t } = useI18n();
   if (follows.length === 0) return null;
@@ -99,7 +107,7 @@ function Section({ id, title, follows, onCheck, language }: {
             <span className="journal__when">
               {t("follow.lastAnswered", { when: relative(follow.last_successful_at, language) })}
             </span>
-            <button type="button" className="chip"
+            <button type="button" className="chip" disabled={disabled}
                     onClick={() => onCheck(api.post(`/api/follows/${follow.work_id}/check?${new URLSearchParams({ language: follow.language })}`))}>
               {t("follow.check")}
             </button>

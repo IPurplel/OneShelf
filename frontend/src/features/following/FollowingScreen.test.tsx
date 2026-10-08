@@ -24,6 +24,14 @@ const FOLLOWS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Following", () => {
+  it.each(["en", "ar"] as const)("offers Search instead of Check all when empty in %s", async (language) => {
+    mockApi([get("/api/follows", { follows: [] })]);
+    renderWithProviders(<FollowingScreen />, { language });
+    expect(await screen.findByRole("link", { name: language === "en" ? "Find works to follow" : "ابحث عن أعمال لمتابعتها" }))
+      .toHaveAttribute("href", "/search");
+    expect(screen.queryByRole("button", { name: /check all|تحقّق من الكل/i })).toBeNull();
+  });
+
   it("reports a failed check without removing the followed rows", async () => {
     mockApi([get("/api/follows", FOLLOWS),
       post("/api/follows/check-all", { error: { message: "Check unavailable" } }, 503)]);

@@ -114,6 +114,50 @@ describe("Work Details", () => {
     expect(screen.queryByRole("button", { name: /^follow$/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /^continue$/i })).toBeNull();
   });
+
+  it.each(["en", "ar"] as const)("shows a stable selected marker while Favorite and Pin toggle in %s", async (language) => {
+    const shelf = { ...DETAILS.shelf };
+    const calls: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/works/w1") return Promise.resolve(Response.json({ ...DETAILS, shelf }));
+      if (String(input) === "/api/shelf/w1" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body));
+        calls.push(body);
+        Object.assign(shelf, body);
+        return Promise.resolve(Response.json({ work_id: "w1" }));
+      }
+      return Promise.resolve(Response.json({}));
+    }));
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />, { language });
+    const labels = language === "en" ? ["Favorite", "Pin"] : ["مفضّلة", "تثبيت"];
+    for (const label of labels) {
+      const button = await screen.findByRole("button", { name: label });
+      const mark = button.querySelector(".work__toggleMark");
+      expect(mark).toHaveAttribute("aria-hidden", "true");
+      expect(button).toHaveAttribute("aria-pressed", "false");
+      await user.click(button);
+      await waitFor(() => expect(button).toHaveAttribute("aria-pressed", "true"));
+      expect(button.querySelector(".work__toggleMark")).toBe(mark);
+      await user.click(button);
+      await waitFor(() => expect(button).toHaveAttribute("aria-pressed", "false"));
+      expect(button.querySelector(".work__toggleMark")).toBe(mark);
+    }
+    expect(calls).toEqual([{ favorite: true }, { favorite: false }, { pinned: true }, { pinned: false }]);
+  });
+
+  it.each(["en", "ar"] as const)("keeps Continue before the complete long description in %s", async (language) => {
+    const description = "A long story description. ".repeat(100);
+    mockApi([get("/api/works/w1", { ...DETAILS, work: { ...DETAILS.work,
+      title: "A very long title that can wrap several times on a narrow screen",
+      creator: "A very long creator name across several editions", description } })]);
+    renderWithProviders(<WorkScreen workId="w1" />, { language });
+    const link = await screen.findByRole("link", { name: language === "en" ? "Continue" : "متابعة" });
+    const paragraph = screen.getByText(description.trim());
+    expect(link.compareDocumentPosition(paragraph) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(paragraph).toHaveTextContent(description.trim());
+  });
+
   it("localizes its metadata labels in Arabic", async () => {
     mockApi([get("/api/works/w1", DETAILS)]);
     const user = userEvent.setup();

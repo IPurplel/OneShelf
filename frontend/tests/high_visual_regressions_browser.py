@@ -136,7 +136,11 @@ def test_reader_error(browser, url, out):
                     page.goto(url + "/read/u0?work=w0&track=t0")
                     alert = page.locator(".reader__stage .notice[role=alert]")
                     alert.wait_for()
-                    assert ERROR in alert.inner_text()
+                    if language == "en":
+                        assert ERROR in alert.inner_text()
+                    else:
+                        assert "تعذّر إكمال الطلب" in alert.inner_text()
+                        assert ERROR not in alert.inner_text()
                     if theme != "black":
                         page.locator(".reader__bar--top").get_by_role(
                             "button", name="Reader settings" if language == "en" else "إعدادات القارئ").click()

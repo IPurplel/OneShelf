@@ -23,6 +23,24 @@ const HEALTH = { source_id: "oneshelf.mangadex", state: "healthy", last_successf
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Sources", () => {
+  it.each(["en", "ar"] as const)("offers rollback only for a source with a previous version in %s", async (language) => {
+    const calls = mockApi([get("/api/sources", { sources: [
+      { ...SOURCES.sources[0], can_rollback: false },
+      { ...SOURCES.sources[1], can_rollback: true },
+    ] }), post("/api/sources/oneshelf.webtoon/rollback", { id: "oneshelf.webtoon", state: "active" })]);
+    const user = userEvent.setup();
+    renderWithProviders(<SourcesScreen />, { language });
+    const rows = await screen.findAllByRole("listitem");
+    await user.click(within(rows[0]!).getByRole("button"));
+    let drawer = await screen.findByRole("dialog");
+    expect(within(drawer).queryByRole("button", { name: /roll back|العودة إلى الإصدار السابق/i })).toBeNull();
+    await user.click(within(drawer).getByRole("button", { name: /close|إغلاق/i }));
+    await user.click(within(rows[1]!).getByRole("button"));
+    drawer = await screen.findByRole("dialog");
+    await user.click(within(drawer).getByRole("button", { name: /roll back|العودة إلى الإصدار السابق/i }));
+    expect(calls.some(call => call.url === "/api/sources/oneshelf.webtoon/rollback" && call.method === "POST")).toBe(true);
+  });
+
   it("uses Arabic labels for capabilities and technical source details", async () => {
     mockApi([get("/api/sources", SOURCES)]);
     const user = userEvent.setup();

@@ -2,6 +2,8 @@ import { useState } from "react";
 
 import { ApiError, api } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
+import { FilePicker } from "@/components/FilePicker";
+import { apiErrorText } from "@/i18n/apiErrors";
 import { explain } from "./permissions";
 
 type Review = {
@@ -30,7 +32,7 @@ type Outcome = { plugin_id: string; version: string; state: string; added_permis
  * request carries exactly the list on screen.
  */
 export function InstallPanel({ onInstalled }: { onInstalled: () => void }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [review, setReview] = useState<Review | null>(null);
   const [installed, setInstalled] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export function InstallPanel({ onInstalled }: { onInstalled: () => void }) {
       }
       setReview(payload as Review);
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(apiErrorText(error, language, t));
     } finally {
       setBusy(false);
     }
@@ -71,7 +73,7 @@ export function InstallPanel({ onInstalled }: { onInstalled: () => void }) {
       setReview(null);
       onInstalled();
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(apiErrorText(error, language, t));
     } finally {
       setBusy(false);
     }
@@ -87,14 +89,7 @@ export function InstallPanel({ onInstalled }: { onInstalled: () => void }) {
         <p className="notice" role="status">{t("install.done", { name: installed })}</p>
       )}
 
-      <label className="field__label">
-        {t("install.choose")}
-        <input type="file" accept=".osp" className="field" disabled={busy}
-               onChange={(event) => {
-                 const file = event.target.files?.[0];
-                 if (file) void choose(file);
-               }} />
-      </label>
+      <FilePicker label={t("install.choose")} accept=".osp" disabled={busy} onChoose={(file) => void choose(file)} />
 
       {review !== null && (
         <div className="install__review">
