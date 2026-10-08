@@ -64,6 +64,31 @@ def test_remote_access_is_refused_until_a_passkey_session_exists(remote):
     assert remote.get("/api/auth/state").status_code == 401
 
 
+def test_i70_network_update_is_atomic_when_one_field_is_invalid(lan, app):
+    policy = app.state.services.access_policy
+    before = policy.describe()
+    rejected = lan.post("/api/auth/networks", json={
+        "trusted_networks": ["10.44.0.0/16"], "trusted_proxies": ["invalid-cidr"]})
+    assert rejected.status_code == 422
+    assert rejected.json()["error"]["code"] == "INVALID_NETWORK"
+    assert policy.describe() == before
+    assert policy._get("access.trusted_networks") == []
+    assert policy._get("access.trusted_proxies") == []
+
+    accepted = lan.post("/api/auth/networks", json={
+        "trusted_networks": ["10.44.0.0/16"], "trusted_proxies": ["10.55.0.1/32"]})
+    assert accepted.status_code == 200
+    assert accepted.json()["trusted_networks"] == ["192.168.1.0/24", "10.44.0.0/16"]
+    assert accepted.json()["trusted_proxies"] == ["10.55.0.1/32"]
+    rejected_partial = lan.post("/api/auth/networks", json={"trusted_proxies": ["invalid-cidr"]})
+    assert rejected_partial.status_code == 422
+    assert policy.describe()["trusted_proxies"] == ["10.55.0.1/32"]
+    partial = lan.post("/api/auth/networks", json={"trusted_networks": ["10.66.0.0/16"]})
+    assert partial.status_code == 200
+    assert partial.json()["trusted_networks"] == ["192.168.1.0/24", "10.66.0.0/16"]
+    assert partial.json()["trusted_proxies"] == ["10.55.0.1/32"]
+
+
 def test_lan_is_trusted_and_can_enrol_a_passkey_that_remote_then_uses(lan, remote, authenticator):
     assert lan.get("/api/health").json()["access"] == "lan"
     enrolment = enrol(lan, authenticator)

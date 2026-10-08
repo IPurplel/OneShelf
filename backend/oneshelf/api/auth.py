@@ -101,10 +101,7 @@ async def set_hostname(request: Request, body: HostnameBody):
 async def set_networks(request: Request, body: NetworksBody):
     policy = services(request).access_policy
     try:
-        if body.trusted_networks is not None:
-            policy.set_trusted_networks(body.trusted_networks)
-        if body.trusted_proxies is not None:
-            policy.set_trusted_proxies(body.trusted_proxies)
+        policy.update(trusted_networks=body.trusted_networks, trusted_proxies=body.trusted_proxies)
     except PolicyError as exc:
         return error(422, "INVALID_NETWORK", str(exc))
     return policy.describe()

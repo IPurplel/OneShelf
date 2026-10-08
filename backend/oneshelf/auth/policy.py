@@ -65,10 +65,25 @@ class AccessPolicy:
 
     def _set(self, key: str, values: list[str]) -> None:
         with transaction(self.conn):
-            self.conn.execute(
-                "INSERT INTO settings (scope, scope_id, key, value_json, updated_at) VALUES ('global','',?,?,?)"
-                " ON CONFLICT(scope, scope_id, key) DO UPDATE SET value_json = excluded.value_json,"
-                " updated_at = excluded.updated_at", (key, json.dumps(values), utcnow_iso()))
+            self._write(key, values)
+
+    def _write(self, key: str, values: list[str]) -> None:
+        self.conn.execute(
+            "INSERT INTO settings (scope, scope_id, key, value_json, updated_at) VALUES ('global','',?,?,?)"
+            " ON CONFLICT(scope, scope_id, key) DO UPDATE SET value_json = excluded.value_json,"
+            " updated_at = excluded.updated_at", (key, json.dumps(values), utcnow_iso()))
+
+    def update(self, *, trusted_networks: list[str] | None = None,
+               trusted_proxies: list[str] | None = None) -> None:
+        networks = _parse(trusted_networks) if trusted_networks is not None else None
+        if networks is not None:
+            _require_private(networks)
+        proxies = _parse(trusted_proxies) if trusted_proxies is not None else None
+        with transaction(self.conn):
+            if networks is not None:
+                self._write(NETWORKS_SETTING, [str(network) for network in networks])
+            if proxies is not None:
+                self._write(PROXIES_SETTING, [str(proxy) for proxy in proxies])
 
     def set_trusted_networks(self, values: list[str]) -> tuple[IPNetwork, ...]:
         networks = _parse(values)
