@@ -25,6 +25,7 @@ from oneshelf.db.migrate import current_version
 from oneshelf.db.schema import MIGRATIONS
 from oneshelf.domain.ids import new_id
 from oneshelf.settings.defaults import DEFAULTS
+from oneshelf.storage.hashing import sha256_file
 from oneshelf.storage.paths import resolve_within
 from oneshelf.storage.roots import get_root
 
@@ -130,25 +131,24 @@ class BackupService:
             expected_content = [{"asset_id": asset["id"], "path": f"content/{asset['id']}.{asset['format']}",
                                  "sha256": asset["sha256"], "size": asset["size_bytes"]} for asset in selected]
             with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-                data = snapshot_path.read_bytes()
-                archive.writestr("library.db", data)
-                inventory.append({"path": "library.db", "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)})
+                snapshot_sha, snapshot_size = sha256_file(snapshot_path)
+                archive.write(snapshot_path, "library.db")
+                inventory.append({"path": "library.db", "sha256": snapshot_sha, "size": snapshot_size})
                 for asset in selected:
                     root = get_root(self.conn, asset["storage_root_id"])
                     try:
                         source = resolve_within(root.path, asset["relative_path"])
-                        payload = source.read_bytes()
+                        digest, size = sha256_file(source)
                     except (OSError, ValueError) as exc:
                         raise BackupError(f"selected asset {asset['id']} is unavailable") from exc
                     name = f"content/{asset['id']}.{asset['format']}"
-                    digest = hashlib.sha256(payload).hexdigest()
-                    if digest != asset["sha256"] or len(payload) != asset["size_bytes"]:
+                    if digest != asset["sha256"] or size != asset["size_bytes"]:
                         raise BackupError(f"selected asset {asset['id']} does not match its recorded checksum")
-                    archive.writestr(name, payload)
-                    inventory.append({"path": name, "sha256": digest, "size": len(payload)})
+                    archive.write(source, name)
+                    inventory.append({"path": name, "sha256": digest, "size": size})
                     content.append({"asset_id": asset["id"], "reading_unit_id": asset["reading_unit_id"],
                                     "work_id": asset["work_id"], "relative_path": asset["relative_path"],
-                                    "format": asset["format"], "sha256": digest, "size": len(payload), "path": name})
+                                    "format": asset["format"], "sha256": digest, "size": size, "path": name})
                 manifest = {
                     "schema": BACKUP_SCHEMA, "kind": kind, "created_at": self.clock().isoformat(),
                     "schema_version": current_version(self.db_path), "app_schema_version": len(MIGRATIONS),
@@ -161,7 +161,7 @@ class BackupService:
             if not result.ok:
                 path.unlink(missing_ok=True)
                 raise BackupError(f"backup verification failed: {result.reason}")
-            checksum = hashlib.sha256(path.read_bytes()).hexdigest()
+            checksum = sha256_file(path)[0]
             # The record is stamped from the same clock `due()` reads, so the schedule cannot drift
             # away from the archives it is scheduling.
             record_id, now = new_id(), self.clock().isoformat()
@@ -188,11 +188,17 @@ class BackupService:
         try:
             with zipfile.ZipFile(path) as archive:
                 manifest = json.loads(archive.read("manifest.json"))
+                if not isinstance(manifest, dict):
+                    return VerifyResult(False, "backup manifest is malformed")
                 if manifest.get("schema") != BACKUP_SCHEMA:
                     return VerifyResult(False, "unsupported backup format")
+                database_entries = [entry for entry in manifest["inventory"] if entry["path"] == "library.db"]
+                if len(database_entries) != 1:
+                    return VerifyResult(False, "database checksum is missing from backup inventory")
                 with tempfile.TemporaryDirectory() as workspace:
                     snapshot_path = Path(workspace) / "library.db"
-                    snapshot_path.write_bytes(archive.read("library.db"))
+                    with archive.open("library.db") as source, snapshot_path.open("wb") as target:
+                        shutil.copyfileobj(source, target, length=1024 * 1024)
                     with closing(sqlite3.connect(snapshot_path)) as snapshot:
                         snapshot.row_factory = sqlite3.Row
                         selected = self._content(snapshot, manifest["works"]) if manifest["kind"] == "full" else []
@@ -210,10 +216,15 @@ class BackupService:
                             for entry in manifest["expected_content"]})):
                     return VerifyResult(False, "selected content is incomplete")
                 for entry in manifest["inventory"]:
-                    data = archive.read(entry["path"])
-                    if len(data) != entry["size"] or hashlib.sha256(data).hexdigest() != entry["sha256"]:
+                    digest, size = hashlib.sha256(), 0
+                    with archive.open(entry["path"]) as source:
+                        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                            size += len(chunk)
+                            digest.update(chunk)
+                    if size != entry["size"] or digest.hexdigest() != entry["sha256"]:
                         return VerifyResult(False, f"checksum mismatch for {entry['path']}")
-        except (zipfile.BadZipFile, KeyError, ValueError, sqlite3.DatabaseError) as exc:
+        except (zipfile.BadZipFile, KeyError, ValueError, TypeError, AttributeError, UnicodeError,
+                OSError, RuntimeError, sqlite3.DatabaseError) as exc:
             return VerifyResult(False, f"unreadable backup ({type(exc).__name__})")
         return VerifyResult(True, None, manifest)
 

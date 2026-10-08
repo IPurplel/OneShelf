@@ -8,7 +8,6 @@ may repair missing or corrupt local files.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import shutil
 import sqlite3
@@ -139,7 +138,8 @@ class RestoreService:
         with tempfile.TemporaryDirectory() as workspace:
             staged = Path(workspace) / "library.db"
             with zipfile.ZipFile(path) as archive:
-                staged.write_bytes(archive.read("library.db"))
+                with archive.open("library.db") as source, staged.open("wb") as target:
+                    shutil.copyfileobj(source, target, length=1024 * 1024)
                 migrate(staged, MIGRATIONS, snapshot_dir=Path(workspace) / "snapshots")  # forward migration in staging
                 if mode == "replace":
                     record = self.backups.create("library")
@@ -252,13 +252,11 @@ class RestoreService:
                 if not storage_preflight(total=usage.total, free=usage.free, expected_bytes=entry["size"],
                                          override=root.reserve_override_bytes).allowed:
                     raise RestoreError("not enough free space in storage location")
-                payload = archive.read(entry["path"])
-                if len(payload) != entry["size"] or hashlib.sha256(payload).hexdigest() != entry["sha256"]:
-                    raise RestoreError("backup content failed verification")
                 staging = resolve_within(root.path, ".oneshelf/staging")
                 with tempfile.TemporaryDirectory(prefix="restore-", dir=staging) as workspace:
                     staged = Path(workspace) / "content"
-                    staged.write_bytes(payload)
+                    with archive.open(entry["path"]) as source, staged.open("wb") as target_file:
+                        shutil.copyfileobj(source, target_file, length=1024 * 1024)
                     if sha256_file(staged) != (entry["sha256"], entry["size"]):
                         raise RestoreError("staged content failed verification")
                     resolve_within(root.path, ".oneshelf/root.json")

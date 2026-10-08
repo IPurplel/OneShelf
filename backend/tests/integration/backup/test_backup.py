@@ -1,6 +1,7 @@
 """Master §33.1–33.5, §33.8–33.9, §18; INV-19: backup contents, exclusions, verification, rotation."""
 import sqlite3
 import zipfile
+import json
 from contextlib import closing
 from datetime import timedelta
 from pathlib import Path
@@ -98,16 +99,18 @@ def test_i68_verify_detects_selected_content_removed_from_archive_and_manifest(l
 
 
 def test_i68_full_backup_refuses_unreadable_selected_content(library, clock, monkeypatch):
+    import builtins
+
     work = library.add_work("Unreadable", content=b"original")
     source = library.root_path / work["relative"]
-    original_read = Path.read_bytes
+    original_open = builtins.open
 
-    def unreadable(path):
-        if path == source:
+    def unreadable(path, *args, **kwargs):
+        if isinstance(path, (str, Path)) and Path(path) == source:
             raise PermissionError("inaccessible")
-        return original_read(path)
+        return original_open(path, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "read_bytes", unreadable)
+    monkeypatch.setattr(builtins, "open", unreadable)
     with pytest.raises(BackupError, match="unavailable"):
         service(library, clock).create("full", works=[work["work_id"]])
 
@@ -136,6 +139,58 @@ def test_verification_detects_a_tampered_archive(library, clock, tmp_path):
             target.writestr(item, b"corrupted" if item == "library.db" else data)
     result = backup.verify(tampered)
     assert not result.ok and "checksum" in result.reason
+
+
+@pytest.mark.parametrize("manifest", [[], {"content": None}, b"\xff\xfe"])
+def test_i87_malformed_backup_manifest_is_reported_as_unreadable(library, clock, tmp_path, manifest):
+    library.add_work("Selected")
+    backup = service(library, clock)
+    original = backup.create("library")
+    malformed = tmp_path / "malformed.osbackup"
+    with zipfile.ZipFile(original.path) as source, zipfile.ZipFile(malformed, "w") as target:
+        target.writestr("library.db", source.read("library.db"))
+        if isinstance(manifest, dict):
+            original_manifest = json.loads(source.read("manifest.json"))
+            original_manifest.update(manifest)
+            manifest = original_manifest
+        target.writestr("manifest.json", manifest if isinstance(manifest, bytes) else json.dumps(manifest))
+
+    result = backup.verify(malformed)
+    assert not result.ok and result.reason
+
+
+def test_i88_backup_verification_requires_a_database_inventory_checksum(library, clock, tmp_path):
+    library.add_work("Selected")
+    backup = service(library, clock)
+    original = backup.create("library")
+    missing_inventory = tmp_path / "no-database-checksum.osbackup"
+    with zipfile.ZipFile(original.path) as source, zipfile.ZipFile(missing_inventory, "w") as target:
+        manifest = json.loads(source.read("manifest.json"))
+        manifest["inventory"] = []
+        target.writestr("library.db", source.read("library.db"))
+        target.writestr("manifest.json", json.dumps(manifest))
+
+    assert not backup.verify(missing_inventory).ok
+
+
+def test_i89_full_backup_streams_large_selected_content_without_loading_it_all_into_memory(library, clock):
+    import gc
+    import tracemalloc
+
+    content = b"large selected content" * (1024 * 1024)
+    work = library.add_work("Large selected", content=content)
+    backup = service(library, clock)
+
+    gc.collect()
+    tracemalloc.start()
+    try:
+        record = backup.create("full", works=[work["work_id"]])
+        assert backup.verify(record.path).ok
+        _current, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    assert peak < 8 * 1024 * 1024, f"full backup retained {peak} bytes of working memory"
 
 
 def test_retention_keeps_four_verified_backups_and_never_rotates_before_verifying(library, clock):

@@ -153,6 +153,29 @@ def test_merge_repairs_missing_or_corrupt_files_but_leaves_healthy_ones(library,
     assert integrity == {"ok"}
 
 
+def test_i89_full_restore_streams_large_content_repair_without_loading_it_into_memory(library, clock):
+    import gc
+    import tracemalloc
+
+    content = b"large selected content" * (1024 * 1024)
+    work = library.add_work("Large repair", content=content)
+    backup = make_backup(library, clock, "full", works=[work["work_id"]])
+    (library.root_path / work["relative"]).unlink()
+
+    gc.collect()
+    tracemalloc.start()
+    try:
+        report = restore_service(library, clock).restore(backup.path, mode="merge")
+        _current, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    assert report.repaired_files == 1 and not report.issues
+    assert peak < 8 * 1024 * 1024, f"full restore retained {peak} bytes of working memory"
+    assert hashlib.sha256((library.root_path / work["relative"]).read_bytes()).hexdigest() == \
+        hashlib.sha256(content).hexdigest()
+
+
 def test_missing_plugins_do_not_block_restore_and_are_reported(library, clock):
     library.add_work("Solo Leveling")
     library.add_plugin("mangadex", "1.2.0")
@@ -215,12 +238,12 @@ def test_restore_failed_write_keeps_missing_asset_unhealthy(library, clock, monk
     backup = make_backup(library, clock, 'full', works=[library.works['Book']['work_id']])
     library.conn.execute('DELETE FROM assets')
     (library.root_path / work['relative']).unlink()
-    original = Path.write_bytes
-    def fail_content(path, data):
-        if path.is_relative_to(library.root_path):
+    original = Path.open
+    def fail_content(path, *args, **kwargs):
+        if path.name == "content" and path.is_relative_to(library.root_path):
             raise OSError('simulated write failure')
-        return original(path, data)
-    monkeypatch.setattr(Path, 'write_bytes', fail_content)
+        return original(path, *args, **kwargs)
+    monkeypatch.setattr(Path, 'open', fail_content)
     report = restore_service(library, clock).restore(backup.path)
     assert library.conn.execute('SELECT integrity FROM assets').fetchone()[0] != 'ok'
     assert report.repaired_files == 0 and report.issues
