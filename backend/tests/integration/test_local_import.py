@@ -72,6 +72,25 @@ def test_move_import_removes_original_only_after_commit(db, root, inbox):
     assert (Path(root.path) / out.relative_path).read_bytes() == data
 
 
+def test_i84_move_import_reports_success_if_original_cannot_be_removed_after_commit(db, root, inbox, monkeypatch):
+    src = make_pdf(inbox / "protected.pdf")
+    content = src.read_bytes()
+    original_unlink = Path.unlink
+
+    def deny_source_unlink(path, *args, **kwargs):
+        if path == src:
+            raise PermissionError("source directory became read-only")
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", deny_source_unlink)
+    outcome = import_file(db, src, decision=CreateLocalWork(title="Protected"), mode="move")
+
+    assert (Path(root.path) / outcome.relative_path).read_bytes() == content
+    assert db.execute("SELECT state FROM imports WHERE id = ?", (outcome.import_id,)).fetchone()[0] == "completed"
+    assert src.exists()
+    assert any("original could not be removed" in warning for warning in outcome.warnings)
+
+
 def test_invalid_file_is_rejected_without_side_effects(db, root, inbox):
     src = inbox / "chapter.cbz"
     src.write_bytes(b"<!DOCTYPE html><html>Cloudflare</html>")

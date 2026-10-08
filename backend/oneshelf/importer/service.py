@@ -278,10 +278,13 @@ def import_file(
 
     warnings = list(result.warnings)
     if mode == "move":
-        if sha256_file(source) == (sha, staged_size):
-            source.unlink()
-        else:
-            warnings.append("the original changed during import and was kept")
+        try:
+            if sha256_file(source) == (sha, staged_size):
+                source.unlink()
+            else:
+                warnings.append("the original changed during import and was kept")
+        except OSError:
+            warnings.append("the original could not be removed after import; check the source file")
 
     track_id = conn.execute(
         "SELECT track_id FROM reading_units WHERE id = ?", (unit["id"],)
