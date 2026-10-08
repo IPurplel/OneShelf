@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { ApiError, api } from "@/api/client";
 import type { SearchUpdate } from "@/api/types";
@@ -111,12 +111,15 @@ export function SearchScreen() {
         </div>
       )}
 
-      {update !== null && !streamFailed && (
+      {update !== null && !streamFailed && update.sources_total > 0 && (
         <p className="search__status" role="status">
           {update.stage === "complete" && update.sources_failed > 0
             ? t(update.sources_failed === 1 ? "search.failed" : "search.failedMany", { count: update.sources_failed })
             : t("search.progress", { done: update.sources_done, total: update.sources_total })}
         </p>
+      )}
+      {update !== null && !streamFailed && update.sources_total === 0 && (
+        <p className="search__status" role="status">{t("search.noSources")} <Link to="/sources">{t("search.addSource")}</Link></p>
       )}
 
       {failedSources.length > 0 && (
@@ -138,7 +141,7 @@ export function SearchScreen() {
         ))}
       </div>
 
-      {update !== null && update.results.length === 0 && update.stage === "complete" && (
+      {update !== null && update.results.length === 0 && update.stage === "complete" && update.sources_total > 0 && (
         <p className="shelf__empty">{t("search.none")}</p>
       )}
     </section>

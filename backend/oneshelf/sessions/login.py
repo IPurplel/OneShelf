@@ -26,6 +26,8 @@ if TYPE_CHECKING:
 MAX_ACTIVE = 2
 LOGIN_TTL_SECONDS = 600
 MAX_TYPED_CHARS = 512
+MIN_LOGIN_WIDTH, MAX_LOGIN_WIDTH = 280, 1280
+MIN_LOGIN_HEIGHT, MAX_LOGIN_HEIGHT = 400, 900
 _KEY = re.compile(r"^[A-Za-z0-9+]{1,32}$")
 
 
@@ -34,12 +36,13 @@ class LoginError(RuntimeError):
 
 
 class LoginSession:
-    def __init__(self, controller: LoginController, plugin_id: str) -> None:
+    def __init__(self, controller: LoginController, plugin_id: str, viewport: tuple[int, int]) -> None:
         self.id = new_id()
         self.plugin_id = plugin_id
         self.status = "starting"
         self.expires_at = time.monotonic() + LOGIN_TTL_SECONDS
         self.controller = controller
+        self.viewport = viewport
         self.page = None
         self._stack = AsyncExitStack()
         self._frame: bytes | None = None
@@ -59,6 +62,7 @@ class LoginSession:
             policy, resolver_backend=service.resolver_for(package, policy),
             storage_state=reuse.storage_state if reuse else None,
             session_storage=reuse.session_storage if reuse else None,
+            viewport={"width": self.viewport[0], "height": self.viewport[1]},
         ))
         self._context = handle.context
         self._auth = auth
@@ -74,7 +78,8 @@ class LoginSession:
                 pass
 
         cdp.on("Page.screencastFrame", lambda params: asyncio.ensure_future(on_frame(params)))
-        await cdp.send("Page.startScreencast", {"format": "jpeg", "quality": 60, "maxWidth": 1280, "maxHeight": 800})
+        await cdp.send("Page.startScreencast", {"format": "jpeg", "quality": 60,
+                                                 "maxWidth": self.viewport[0], "maxHeight": self.viewport[1]})
         await self.page.goto(auth.login_url, wait_until="load")
         self.status = "open"
 
@@ -92,7 +97,7 @@ class LoginSession:
 
     async def click(self, x: float, y: float) -> None:
         self._require_open()
-        if not (0 <= x <= 1280 and 0 <= y <= 800):
+        if not (0 <= x <= self.viewport[0] and 0 <= y <= self.viewport[1]):
             raise LoginError("click outside the login view")
         await self.page.mouse.click(x, y)
 
@@ -157,13 +162,16 @@ class LoginController:
         self.governor = governor
         self._active: dict[str, LoginSession] = {}
 
-    async def start(self, plugin_id: str) -> LoginSession:
+    async def start(self, plugin_id: str, viewport: tuple[int, int] = (1280, 800)) -> LoginSession:
+        if not (MIN_LOGIN_WIDTH <= viewport[0] <= MAX_LOGIN_WIDTH
+                and MIN_LOGIN_HEIGHT <= viewport[1] <= MAX_LOGIN_HEIGHT):
+            raise LoginError("unsupported login viewport")
         for login in list(self._active.values()):
             if time.monotonic() > login.expires_at:
                 await login.cancel()
         if len(self._active) >= MAX_ACTIVE:
             raise LoginError("too many login sessions are open")
-        login = LoginSession(self, plugin_id)
+        login = LoginSession(self, plugin_id, viewport)
         self._active[login.id] = login
         try:
             await login._open()

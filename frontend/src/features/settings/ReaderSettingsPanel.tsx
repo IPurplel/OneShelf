@@ -92,7 +92,7 @@ export function ReaderSettingsPanel() {
         <span>{t("reader.coverAlone")}</span>
       </label>
 
-      <Advanced label={t("settings.advanced")}>
+      <Advanced label={t("settings.reader")}>
         {problem && <p className="notice notice--problem" role="alert">{problem}</p>}
         {library === null ? error ? <div>
           <p role="alert">{error === "offline" ? t("state.offline") : error}</p>

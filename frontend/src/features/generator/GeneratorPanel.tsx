@@ -254,7 +254,7 @@ export function GeneratorPanel() {
       <ul className="cards">
         {(sources?.sources ?? []).map((source) => (
           <li key={source.id} className="cards__row">
-            <span className="cards__name display">{source.name}</span>
+            <span className="cards__name display" dir="auto">{source.name}</span>
             <button type="button" className="chip" disabled={busy}
                     onClick={() => void attempt(
                       api.post<Diagnosis>(`/api/generator/repair/${source.id}/diagnose`),

@@ -183,7 +183,7 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
         <Link className="reader__button" to={workLink(workId, trackId)} onClick={flush}>
           {t("reader.back")}
         </Link>
-        <span className="reader__title">{book?.title ?? ""}</span>
+        <span className="reader__title" dir="auto">{book?.title ?? ""}</span>
         <button type="button" className="reader__button" onClick={() => setPanel("contents")}>
           {t("reader.contents")}
         </button>
@@ -297,7 +297,7 @@ function BookContents({ book, current, marks, onGo, onClose }: {
             <li key={item.href}>
               <button type="button" className={index === current ? "drawer__unit is-current" : "drawer__unit"}
                       onClick={() => onGo(index)}>
-                <span className="drawer__unitTitle">{item.title}</span>
+                <span className="drawer__unitTitle" dir="auto">{item.title}</span>
               </button>
             </li>
           ))}

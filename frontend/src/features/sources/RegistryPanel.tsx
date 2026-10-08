@@ -187,7 +187,7 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
             const action = ACTION[card.state];
             return (
               <li key={card.id} className="cards__row">
-                <span className="cards__name display">{card.name}</span>
+                <span className="cards__name display" dir="auto">{card.name}</span>
                 <span className="cards__meta">{card.version}</span>
                 <span className="chip chip--static">{t(trustKey(card.effective_trust, card.trust_label, card.trust_basis))}</span>
                 <span className={`cards__state cards__state--${card.state}`}>{status(card)}</span>

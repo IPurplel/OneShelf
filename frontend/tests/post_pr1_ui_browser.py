@@ -120,11 +120,16 @@ def reader_checks(browser, base, output):
                 page.goto(base + path)
                 page.wait_for_load_state("networkidle")
                 tabs = page.get_by_role("tablist").get_by_role("tab")
+                expect(tabs.first).to_be_enabled()
+                if path == "/settings" and width < 900:
+                    keys = ("ArrowRight", "ArrowLeft")  # responsive category strip is horizontal
                 for key, expected_index in ((keys[0], 1), (keys[1], tabs.count() - 1),
                                             ("End", tabs.count() - 1), ("Home", 0)):
                     tabs.first.focus()
                     page.keyboard.press(key)
-                    assert tabs.nth(expected_index).evaluate("el => document.activeElement === el")
+                    assert tabs.nth(expected_index).evaluate("el => document.activeElement === el"), (
+                        language, width, path, key, expected_index,
+                        page.evaluate("document.activeElement?.tagName"))
                     expect(tabs.nth(expected_index)).to_have_attribute("aria-selected", "true")
                     expect(tabs.nth(expected_index)).to_have_attribute("tabindex", "0")
                     tabs_trace.append({"language": language, "width": width, "path": path,

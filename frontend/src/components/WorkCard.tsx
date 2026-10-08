@@ -47,7 +47,7 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
 
   const caption = (
     <span className="workcard__caption">
-      <span className="workcard__title">{work.title}</span>
+      <span className="workcard__title" dir="auto">{work.title}</span>
       {size !== "compact" && (
         <span className="workcard__meta">
           {work.content_type && <span className="workcard__kind">{work.content_type}</span>}

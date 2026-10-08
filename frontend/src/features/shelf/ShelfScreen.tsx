@@ -87,7 +87,6 @@ export function ShelfScreen() {
         <div className="toolbar__tabs" role="tablist" aria-label={t("shelf.views")} onKeyDown={handleTabKeys}>
           {VIEWS.map((candidate) => (
             <button key={candidate.id} type="button" role="tab" className="chip"
-                    disabled={loading}
                     id={`shelf-tab-${candidate.id}`} aria-controls="shelf-tabpanel"
                     aria-selected={view === candidate.id && query.trim() === ""}
                     tabIndex={view === candidate.id ? 0 : -1}

@@ -85,7 +85,7 @@ export function StoragePanel() {
       <ul className="cards">
         {(data?.roots ?? []).map((root) => (
           <li key={root.id} className="cards__row">
-            <span className="cards__name display">{root.name}</span>
+            <span className="cards__name display" dir="auto">{root.name}</span>
             <bdi className="cards__meta literal-path" dir="ltr">{root.path}</bdi>
             {root.available ? (
               <>

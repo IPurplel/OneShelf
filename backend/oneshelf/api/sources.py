@@ -14,7 +14,8 @@ from oneshelf.plugins.manager import InstallRejected, PluginUnavailable
 from oneshelf.plugins.package import PackageError, load_package
 from oneshelf.plugins.registry import RegistryError, api_supported
 from oneshelf.plugins.runtime import run_packaged_tests
-from oneshelf.sessions.login import LoginError
+from oneshelf.sessions.login import (LoginError, MAX_LOGIN_HEIGHT, MAX_LOGIN_WIDTH,
+                                     MIN_LOGIN_HEIGHT, MIN_LOGIN_WIDTH)
 from oneshelf.sources.health import recent_signals
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -203,16 +204,27 @@ async def health_signals(request: Request, plugin_id: str):
          "at": x.created_at} for x in signals]}
 
 
+class LoginViewport(BaseModel):
+    width: int = Field(ge=MIN_LOGIN_WIDTH, le=MAX_LOGIN_WIDTH)
+    height: int = Field(ge=MIN_LOGIN_HEIGHT, le=MAX_LOGIN_HEIGHT)
+
+
+class LoginStart(BaseModel):
+    viewport: LoginViewport
+
+
 @router.post("/sources/{plugin_id}/login")
-async def start_login(request: Request, plugin_id: str):
+async def start_login(request: Request, plugin_id: str, body: LoginStart | None = None):
     s = services(request)
     try:
-        login = await s.logins.start(plugin_id)
+        viewport = (body.viewport.width, body.viewport.height) if body else (1280, 800)
+        login = await s.logins.start(plugin_id, viewport=viewport)
     except PluginUnavailable as exc:
         return error(404, "SOURCE_NOT_FOUND", str(exc))
     except LoginError as exc:
         return error(409, "LOGIN_UNAVAILABLE", str(exc))
-    return {"login_id": login.id, "status": login.status}
+    return {"login_id": login.id, "status": login.status,
+            "viewport": {"width": login.viewport[0], "height": login.viewport[1]}}
 
 
 @router.get("/logins/{login_id}/frame")

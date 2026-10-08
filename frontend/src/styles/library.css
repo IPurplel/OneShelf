@@ -88,7 +88,11 @@
 }
 .shelf--compactRow { --shelf-card-width: 118px; --shelf-cover-height: 168px; }
 /* On My Shelf the rows do not scroll: they fill the width and wrap into further shelves. */
+.shelfview { --shelf-card-width: 190px; --shelf-cover-height: 270px; }
 .shelf__row--wrap { grid-auto-flow: column; overflow: visible; }
+.shelfview .shelf__case { inline-size: fit-content; max-inline-size: 100%; }
+.shelfview .workcard__title { display: -webkit-box; -webkit-box-orient: vertical;
+                               -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .shelfview .shelf__case { margin-bottom: var(--space-6); }
 .shelf__row > * { scroll-snap-align: start; }
 /* The plank: warm wood under the covers, a soft shadow, never cartoon skeuomorphism. */
@@ -241,6 +245,10 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   cursor: pointer;
 }
 .chip[aria-selected="true"] { background: var(--forest-600); border-color: var(--forest-600); color: var(--ivory-50); }
+.button[aria-pressed="true"], .chip[aria-pressed="true"], .iconbutton[aria-pressed="true"] {
+  background: var(--ivory-200);
+  box-shadow: inset 0 -3px var(--forest-600);
+}
 .chip--static { cursor: default; color: var(--ink-500); }
 
 .field {
@@ -262,7 +270,6 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   background: var(--paper);
   cursor: pointer;
 }
-.iconbutton[aria-pressed="true"] { background: var(--ivory-200); }
 
 .shelfview__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-6) var(--space-5); }
 .shelfview__list { display: grid; gap: var(--space-3); }
@@ -466,6 +473,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   .hero__cover { inline-size: 104px; }
   .hero__title { font-size: 24px; }
   .shelf, .shelfview { --shelf-card-width: 124px; --shelf-cover-height: 178px; }
+  .shelfview { --shelf-card-width: 170px; --shelf-cover-height: 240px; }
   .shelf--compactRow { --shelf-card-width: 104px; --shelf-cover-height: 150px; }
   .shelf__title { font-size: 22px; }
 }
@@ -535,9 +543,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .install__added { border-inline-start: 3px solid var(--warning-600); padding-inline-start: var(--space-2); }
 
 /* The relayed sign-in window: a plain picture of a real browser, focusable so keys reach it. */
-.login__frame { inline-size: 100%; block-size: auto; aspect-ratio: 16 / 10; display: block;
+.login__frame { inline-size: 100%; block-size: auto; max-inline-size: 100%; display: block;
                 background: var(--ink-900, #1b1b1b); border-radius: var(--radius-2);
-                border: 1px solid var(--wood-500); cursor: crosshair; }
+                border: 1px solid var(--wood-500); cursor: crosshair; touch-action: none; }
 .login__frame:focus-visible { outline: 3px solid var(--olive-600); outline-offset: 2px; }
 
 /* A Recovery Code is shown once, so it is given room and set in a face that cannot confuse 0 and O. */

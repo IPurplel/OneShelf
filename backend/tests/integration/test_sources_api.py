@@ -108,8 +108,11 @@ def test_login_api_flow_with_test_source(tmp_path):
             review = upload(client, tmp_path)
             client.post("/api/sources/install", json={"upload_id": review["upload_id"],
                                                       "approved_permissions": review["permissions"]})
-            started = client.post(f"/api/sources/{TS}/login").json()
+            invalid = client.post(f"/api/sources/{TS}/login", json={"viewport": {"width": 100, "height": 480}})
+            assert invalid.status_code == 422
+            started = client.post(f"/api/sources/{TS}/login", json={"viewport": {"width": 360, "height": 480}}).json()
             assert started["status"] == "open"
+            assert started["viewport"] == {"width": 360, "height": 480}
             login_id = started["login_id"]
             frame = client.get(f"/api/logins/{login_id}/frame")
             assert frame.status_code == 200 and frame.headers["content-type"] == "image/jpeg" and frame.content[:2] == b"\xff\xd8"

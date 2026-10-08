@@ -41,7 +41,7 @@ export function ContentsDrawer({ units, currentId, workId, trackId, onClose }: {
             <Link to={readerLink(unit.id, workId, trackId)}
                   aria-current={unit.id === currentId ? "true" : undefined}
                   className={unit.id === currentId ? "drawer__unit is-current" : "drawer__unit"}>
-              <span className="drawer__unitTitle">{unit.title ?? unit.id}</span>
+              <span className="drawer__unitTitle" dir="auto">{unit.title ?? unit.id}</span>
               <span className="drawer__unitState">
                 {unit.read_state === "read" ? t("work.finished")
                   : unit.read_state === "partial" ? `${Math.round(unit.fraction * 100)}%` : t("work.unread")}

@@ -1,5 +1,5 @@
 /** Master §13, §32.12: Use My Session — you sign in yourself, in a window OneShelf only relays. */
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
@@ -8,7 +8,7 @@ import { LoginSession } from "./LoginSession";
 import { renderWithProviders } from "@/test/render";
 import { del, mockApi, post } from "@/test/http";
 
-const OPEN = { login_id: "l1", status: "open" };
+const OPEN = { login_id: "l1", status: "open", viewport: { width: 302, height: 480 } };
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -18,6 +18,23 @@ const start = async (user: ReturnType<typeof userEvent.setup>) => {
 };
 
 describe("Use My Session", () => {
+  it("requests a phone-sized browser and relays touch scrolling in session coordinates", async () => {
+    vi.stubGlobal("innerWidth", 390);
+    const calls = mockApi([post("/api/sources/oneshelf.example/login", OPEN),
+                           post("/api/logins/l1/input", { login_id: "l1", status: "open" })]);
+    const user = userEvent.setup();
+    renderWithProviders(<LoginSession sourceId="oneshelf.example" sourceName="Example" onClose={() => {}} />);
+    const frame = await start(user);
+    const opened = calls.find(call => call.url === "/api/sources/oneshelf.example/login" && call.method === "POST");
+    expect(opened?.body).toMatchObject({ viewport: { width: expect.any(Number), height: expect.any(Number) } });
+    expect((opened?.body as { viewport: { width: number } }).viewport.width).toBeLessThanOrEqual(390);
+    expect(frame).toHaveAttribute("width", "302");
+    fireEvent.touchStart(frame, { touches: [{ clientY: 300 }] });
+    fireEvent.touchEnd(frame, { changedTouches: [{ clientY: 180 }] });
+    await waitFor(() => expect(calls).toContainEqual(expect.objectContaining({
+      url: "/api/logins/l1/input", body: { type: "scroll", dy: 120 },
+    })));
+  });
   function pendingLogin() {
     let resolve!: (value: Response) => void;
     let reject!: (error: Error) => void;
@@ -39,7 +56,7 @@ describe("Use My Session", () => {
     await user.click(screen.getByRole("button", { name: /open the sign-in window/i }));
     await user.click(screen.getByRole("button", { name: /cancel/i }));
     expect(onClose).toHaveBeenCalledOnce();
-    pending.resolve(Response.json({ login_id: "late-1", status: "open" }));
+    pending.resolve(Response.json({ login_id: "late-1", status: "open", viewport: OPEN.viewport }));
     await waitFor(() => expect(pending.calls).toContain("DELETE /api/logins/late-1"));
     expect(pending.calls.filter(call => call === "DELETE /api/logins/late-1")).toHaveLength(1);
   });
@@ -55,7 +72,7 @@ describe("Use My Session", () => {
       const method = init?.method ?? "GET";
       calls.push(`${method} ${path}`);
       if (path.endsWith("/login")) return ++opens === 1 ? first
-        : Promise.resolve(Response.json({ login_id: "new-2", status: "open" }));
+        : Promise.resolve(Response.json({ login_id: "new-2", status: "open", viewport: OPEN.viewport }));
       if (path === "/api/logins/old-1" && method === "DELETE") return Promise.resolve(++oldDeletes === 1
         ? Response.json({ error: { message: "Temporary failure" } }, { status: 503 })
         : Response.json({ login_id: "old-1", status: "cancelled" }));
@@ -73,7 +90,7 @@ describe("Use My Session", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await user.click(screen.getByRole("button", { name: "Reopen" }));
     await start(user);
-    answerFirst(Response.json({ login_id: "old-1", status: "open" }));
+    answerFirst(Response.json({ login_id: "old-1", status: "open", viewport: OPEN.viewport }));
     await waitFor(() => expect(calls.filter(call => call === "DELETE /api/logins/old-1")).toHaveLength(2));
     expect(calls).not.toContain("DELETE /api/logins/new-2");
     expect(screen.getByRole("img", { name: /sign-in window/i })).toHaveAttribute("src", "/api/logins/new-2/frame?f=0");
@@ -101,7 +118,7 @@ describe("Use My Session", () => {
       const path = String(input);
       calls.push(`${init?.method ?? "GET"} ${path}`);
       if (path.endsWith("/login")) return ++opens === 1 ? first
-        : Promise.resolve(Response.json({ login_id: "new-2", status: "open" }));
+        : Promise.resolve(Response.json({ login_id: "new-2", status: "open", viewport: OPEN.viewport }));
       return Promise.resolve(Response.json({}));
     }));
     function Host() {
@@ -116,7 +133,7 @@ describe("Use My Session", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     await user.click(screen.getByRole("button", { name: "Reopen" }));
     await start(user);
-    answerFirst(Response.json({ login_id: "old-1", status: "open" }));
+    answerFirst(Response.json({ login_id: "old-1", status: "open", viewport: OPEN.viewport }));
     await waitFor(() => expect(calls).toContain("DELETE /api/logins/old-1"));
     expect(calls).not.toContain("DELETE /api/logins/new-2");
     expect(screen.getByRole("img", { name: /sign-in window/i })).toHaveAttribute("src", "/api/logins/new-2/frame?f=0");

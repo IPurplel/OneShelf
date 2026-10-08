@@ -47,6 +47,29 @@ beforeEach(() => vi.stubGlobal("EventSource", FakeEventSource));
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("Search", () => {
+  it("distinguishes zero usable sources from no matching results", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SearchScreen />);
+    await user.type(screen.getByRole("searchbox", { name: /search/i }), "missing{Enter}");
+    act(() => FakeEventSource.last!.emit("complete", {
+      stage: "complete", results: [], source_status: {}, sources_total: 0, sources_done: 0, sources_failed: 0,
+    }));
+    expect(screen.getByText(/no sources are available/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /add a source/i })).toHaveAttribute("href", "/sources");
+    expect(screen.queryByText(/nothing matched/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/0 of 0/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps local matches while explaining that no external sources were searched", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SearchScreen />);
+    await user.type(screen.getByRole("searchbox", { name: /search/i }), "irregular{Enter}");
+    act(() => FakeEventSource.last!.emit("complete", {
+      ...LOCAL, stage: "complete", sources_total: 0, sources_done: 0,
+    }));
+    expect(screen.getByText("The Irregular Chronicle")).toBeInTheDocument();
+    expect(screen.getByText(/no sources are available/i)).toBeInTheDocument();
+  });
   it("shows what the library already knows before any source answers", async () => {
     const user = userEvent.setup();
     renderWithProviders(<SearchScreen />);

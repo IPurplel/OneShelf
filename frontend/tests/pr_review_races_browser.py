@@ -86,7 +86,9 @@ def run(base: str, output: Path) -> None:
                         if login["opens"] == 1:
                             login["old_pending"].append(route)
                             return
-                        return route.fulfill(json={"login_id": new_id, "status": "open"})
+                        login["viewport"] = route.request.post_data_json["viewport"]
+                        return route.fulfill(json={"login_id": new_id, "status": "open",
+                                                   "viewport": login["viewport"]})
                     if path == f"/api/logins/{old_id}" and method == "DELETE":
                         login["old_deletes"] += 1
                         status = 503 if login["old_deletes"] == 1 else 200
@@ -122,7 +124,8 @@ def run(base: str, output: Path) -> None:
                 assert len(login["old_pending"]) == 1
                 with page.expect_response(lambda response: urlparse(response.url).path == f"/api/logins/{old_id}"
                         and response.request.method == "DELETE" and response.status == 200):
-                    login["old_pending"].pop().fulfill(json={"login_id": old_id, "status": "open"})
+                    login["old_pending"].pop().fulfill(json={"login_id": old_id, "status": "open",
+                                                         "viewport": login["viewport"]})
                 assert login["old_deletes"] == 2, login
                 assert not any(call["path"] == f"/api/logins/{new_id}" for call in login["calls"])
                 expect(page.get_by_role("dialog")).to_be_visible()

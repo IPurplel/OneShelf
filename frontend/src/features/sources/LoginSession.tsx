@@ -4,13 +4,10 @@ import { ApiError, api } from "@/api/client";
 import { ModalSurface } from "@/components/ModalSurface";
 import { useI18n } from "@/i18n/i18n";
 
-/** The window OneShelf opens is a real browser at this size; clicks are relayed in its own pixels. */
-const VIEW = { width: 1280, height: 800 };
-
 const KEYS = new Set(["Enter", "Tab", "Backspace", "Delete", "Escape",
                       "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"]);
 
-type Login = { login_id: string; status: string };
+type Login = { login_id: string; status: string; viewport: { width: number; height: number } };
 type Completion = { outcome: "connected" | "not_logged_in"; status: string };
 
 /**
@@ -31,6 +28,9 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const frame = useRef<HTMLImageElement | null>(null);
+  const viewportHost = useRef<HTMLDivElement | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const suppressClickUntil = useRef(0);
   const timer = useRef<number | null>(null);
   const closed = useRef(false);
   const activeLogin = useRef<string | null>(null);
@@ -78,7 +78,10 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
     setProblem(null);
     setBusy(true);
     try {
-      const created = await api.post<Login>(`/api/sources/${sourceId}/login`);
+      const width = Math.max(280, Math.min(1280,
+        Math.floor(viewportHost.current?.clientWidth || window.innerWidth - 88)));
+      const height = Math.max(400, Math.min(720, Math.floor(window.innerHeight * 0.53)));
+      const created = await api.post<Login>(`/api/sources/${sourceId}/login`, { viewport: { width, height } });
       if (closed.current) {
         await discard(created.login_id);
         return;
@@ -101,10 +104,12 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
   };
 
   const onClick = (event: React.MouseEvent<HTMLImageElement>) => {
+    if (performance.now() < suppressClickUntil.current) return;
     const box = frame.current?.getBoundingClientRect();
     const across = box && box.width > 0 ? (event.clientX - box.left) / box.width : 0;
     const down = box && box.height > 0 ? (event.clientY - box.top) / box.height : 0;
-    send({ type: "click", x: Math.round(across * VIEW.width), y: Math.round(down * VIEW.height) });
+    send({ type: "click", x: Math.round(across * login!.viewport.width),
+      y: Math.round(down * login!.viewport.height) });
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLImageElement>) => {
@@ -150,7 +155,7 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
 
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
 
-      {login === null ? (
+      <div ref={viewportHost} className="login__viewport">{login === null ? (
         <>
           <p>{t("login.youSignIn")}</p>
           <p>{t("login.neverStored")}</p>
@@ -166,8 +171,21 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
                 <p className="notice notice--problem" role="status">{t("login.notSignedIn")}</p>
               )}
               <img ref={frame} className="login__frame" tabIndex={0} alt={t("login.frameAlt")}
+                   width={login.viewport.width} height={login.viewport.height}
                    src={`/api/logins/${login.login_id}/frame?f=${tick}`}
                    onClick={onClick} onKeyDown={onKeyDown}
+                   onWheel={event => { event.preventDefault(); send({ type: "scroll", dy: Math.round(event.deltaY) }); }}
+                   onTouchStart={event => { touchStartY.current = event.touches[0]?.clientY ?? null; }}
+                   onTouchCancel={() => { touchStartY.current = null; }}
+                   onTouchEnd={event => {
+                     const start = touchStartY.current;
+                     touchStartY.current = null;
+                     const end = event.changedTouches[0]?.clientY;
+                     if (start !== null && end !== undefined && Math.abs(start - end) >= 12) {
+                       suppressClickUntil.current = performance.now() + 350;
+                       send({ type: "scroll", dy: Math.round(start - end) });
+                     }
+                   }}
                    onLoad={() => {
                      if (closed.current) return;
                      if (timer.current !== null) window.clearTimeout(timer.current);
@@ -179,7 +197,7 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
             </>
           )}
         </>
-      )}
+      )}</div>
 
       <div className="confirm__actions">
         <button type="button" className="button" onClick={() => void cancel()}>

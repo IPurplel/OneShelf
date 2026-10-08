@@ -1,11 +1,13 @@
 """Browser retrieval through the Core egress proxy (K2), isolation, and Use My Session login (Master §11, §13)."""
 import asyncio
+import io
 import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
 import yaml
+from PIL import Image
 from aiohttp import web
 from playwright.async_api import async_playwright
 
@@ -14,7 +16,7 @@ from oneshelf.net.governor import TrafficGovernor
 from oneshelf.net.policy import EgressPolicy
 from oneshelf.plugins.manager import PluginManager
 from oneshelf.plugins.package import load_package
-from oneshelf.sessions.login import LoginController
+from oneshelf.sessions.login import LoginController, LoginError
 from oneshelf.sessions.manager import SessionManager
 from oneshelf.sessions.store import SecretsStore, load_or_create_key
 from oneshelf.sources.fetcher import DevHostsResolver
@@ -169,6 +171,24 @@ async def fill_login(login, username, password):
         await page.wait_for_url(lambda url: not url.endswith("/login"), timeout=5000)
     except Exception:
         pass  # failed logins stay on the form
+
+
+def test_mobile_login_uses_requested_viewport_and_bounded_clicks(db, tmp_path):
+    async def scenario():
+        async with TestSourceServer() as server:
+            async with login_env(db, tmp_path, server) as (controller, *_):
+                login = await controller.start(TS, viewport=(360, 480))
+                try:
+                    assert login.page.viewport_size == {"width": 360, "height": 480}
+                    assert Image.open(io.BytesIO(await login.frame(timeout=10))).size == (360, 480)
+                    await login.click(359, 479)
+                    with pytest.raises(LoginError, match="outside"):
+                        await login.click(361, 20)
+                    await fill_login(login, "reader", "correct horse")
+                    assert await login.complete() == "connected"
+                finally:
+                    await login.cancel()
+    run(scenario())
 
 
 def test_use_my_session_login_flow_captures_encrypted_scoped_state(db, tmp_path):

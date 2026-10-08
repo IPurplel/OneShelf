@@ -175,11 +175,11 @@ export function WorkScreen({ workId }: { workId?: string }) {
       <header className="work__header">
         <WorkCover url={data.cover_url ?? null} />
         <div className="work__intro">
-          <h1 className="work__title display">{work.title}</h1>
-          {work.original_title && <p className="work__original">{work.original_title}</p>}
+          <h1 className="work__title display" dir="auto">{work.title}</h1>
+          {work.original_title && <p className="work__original" dir="auto">{work.original_title}</p>}
           <p className="work__meta">
             {work.content_type && <span>{typeLabel(work.content_type, t)}</span>}
-            {work.creator && <span>{work.creator}</span>}
+            {work.creator && <span dir="auto">{work.creator}</span>}
             {current && <span>{languageName(current.language, language)}</span>}
           </p>
           <div className="work__actions">
@@ -231,7 +231,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
             </button>
             <button type="button" className="button" onClick={() => setExporting(true)}>{t("export.open")}</button>
           </div>
-          {work.description && <p className="work__description">{work.description}</p>}
+          {work.description && <p className="work__description" dir="auto">{work.description}</p>}
         </div>
       </header>
 
@@ -321,7 +321,7 @@ function UnitIndex({ units, workId, trackId }: { units: Unit[]; workId: string; 
         <li key={unit.id} className="units__row">
           <Link className="units__link" to={readerLink(unit.id, workId, trackId)}>
             <span className="units__number">{unit.number ?? ""}</span>
-            <span className="units__title">{unit.title ?? unit.id}</span>
+            <span className="units__title" dir="auto">{unit.title ?? unit.id}</span>
           </Link>
           <span className="units__state">
             {unit.read_state === "read" ? t("work.finished")
@@ -349,10 +349,14 @@ function Details({ data }: { data: WorkDetails }) {
   const { work } = data;
   return (
     <dl className="details">
-      {work.creator && <><dt>{t("work.detail.creator")}</dt><dd>{work.creator}</dd></>}
+      {work.creator && <><dt>{t("work.detail.creator")}</dt><dd dir="auto">{work.creator}</dd></>}
       {work.content_type && <><dt>{t("work.detail.type")}</dt><dd>{typeLabel(work.content_type, t)}</dd></>}
-      {work.aliases.length > 0 && <><dt>{t("work.detail.aliases")}</dt><dd>{work.aliases.join(" · ")}</dd></>}
-      {work.description && <><dt>{t("work.detail.description")}</dt><dd>{work.description}</dd></>}
+      {work.aliases.length > 0 && <><dt>{t("work.detail.aliases")}</dt><dd>
+        {work.aliases.map((alias, index) => <span key={`${alias}-${index}`}>
+          {index > 0 && " · "}<bdi>{alias}</bdi>
+        </span>)}
+      </dd></>}
+      {work.description && <><dt>{t("work.detail.description")}</dt><dd dir="auto">{work.description}</dd></>}
     </dl>
   );
 }
@@ -388,7 +392,7 @@ function Sources({ tracks, selected, onChoose, onRefreshed }: {
     <ul className="tracks">
       {tracks.map((track) => (
         <li key={track.id} className="tracks__row">
-          <span className="tracks__name">{track.source_id} · {languageName(track.language, language)}</span>
+          <span className="tracks__name"><bdi>{track.source_id}</bdi> · {languageName(track.language, language)}</span>
           <span className="tracks__count">{track.unit_count}</span>
           {track.id === selected ? (
             <>

@@ -137,7 +137,7 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
             <label key={unit.id} className="panel__choice">
               <input type="checkbox" checked={chosen.has(unit.id)} onChange={() => toggle(unit.id)} />
               <span>
-                <span className="panel__choiceTitle">{unit.title ?? unit.id}</span>
+                <span className="panel__choiceTitle" dir="auto">{unit.title ?? unit.id}</span>
                 {!unit.downloaded && <span className="panel__choiceHelp">{t("export.notDownloaded")}</span>}
               </span>
             </label>

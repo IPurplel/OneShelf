@@ -89,7 +89,7 @@ export function SourcesScreen() {
       <ul className="cards">
         {sources.map((source) => (
           <li key={source.id} className="cards__row">
-            <span className="cards__name display">{source.name}</span>
+            <span className="cards__name display" dir="auto">{source.name}</span>
             <span className="cards__meta">{source.capabilities.map(value => capabilityLabel(value, t)).join(" · ")}</span>
             {/* Where it came from: bundled with OneShelf, the Registry, or a file the person chose. */}
             {originKey(source) !== null && <span className="chip chip--static">{t(originKey(source)!)}</span>}

@@ -101,8 +101,8 @@ function Hero({ hero, fraction }: { hero: NonNullable<HomeResponse["hero"]>; fra
         </span>
         <div className="hero__body">
           <p className="hero__reason">{label}</p>
-          <h2 className="hero__title display">{hero.title}</h2>
-          {hero.description && <p className="hero__description">{hero.description}</p>}
+          <h2 className="hero__title display" dir="auto">{hero.title}</h2>
+          {hero.description && <p className="hero__description" dir="auto">{hero.description}</p>}
           {percent !== null && <p className="hero__progress">{`${percent}%`}</p>}
           {hero.work_id && (
             <Link className="button button--primary hero__action" to={`/works/${hero.work_id}`}>

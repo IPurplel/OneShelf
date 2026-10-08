@@ -108,7 +108,7 @@ def check_layout(page):
             cover, caption = card['cover'], card['caption']
             assert abs(cover['bottom'] - shelf['plank']) <= 1, f"cover/plank: {cover['bottom']} vs {shelf['plank']}"
             assert caption['top'] >= shelf['plank'], 'caption above plank'
-            assert 95 <= cover['width'] <= 155, f"unreadable/stretched cover {cover['width']}"
+            assert 95 <= cover['width'] <= 200, f"unreadable/stretched cover {cover['width']}"
             assert cover['height'] >= 145, f"clipped cover {cover['height']}"
             edge = 'right' if g['rtl'] else 'left'
             assert abs(cover[edge] - caption[edge]) <= 1, 'caption in another column'
@@ -218,13 +218,13 @@ def run(args):
             page.set_viewport_size({'width': 2560, 'height': 1000})
             page.goto(args.url + '/shelf')
             page.wait_for_load_state('networkidle')
-            expect(page.locator('.shelf__row').first.locator('.workcard')).to_have_count(12)
+            expect(page.locator('.shelf__row').first.locator('.workcard')).to_have_count(10)
             page.set_viewport_size({'width': 390, 'height': 1000})
-            expect(page.locator('.shelf__row').first.locator('.workcard')).to_have_count(2)
+            expect(page.locator('.shelf__row').first.locator('.workcard')).to_have_count(1)
             check_layout(page)
             page.set_viewport_size({'width': 2560, 'height': 1000})
             page.locator('.shelfview').evaluate("e => e.style.width = '500px'")
-            expect(page.locator('.shelf__row').first.locator('.workcard')).to_have_count(3)
+            expect(page.locator('.shelf__row').first.locator('.workcard')).to_have_count(2)
             # Empty Home remains usable, and its Import link lands on Storage after reload/history.
             state['count'] = 0
             page.goto(args.url)

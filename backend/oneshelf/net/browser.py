@@ -73,7 +73,8 @@ class BrowserManager:
 
     @asynccontextmanager
     async def context(self, policy: EgressPolicy, *, resolver_backend=None, storage_state: dict | None = None,
-                      session_storage: dict[str, dict[str, str]] | None = None) -> AsyncIterator[BrowserContextHandle]:
+                      session_storage: dict[str, dict[str, str]] | None = None,
+                      viewport: dict[str, int] | None = None) -> AsyncIterator[BrowserContextHandle]:
         if self._browser is None:
             raise RuntimeError("BrowserManager is not started")
         proxy = await EgressProxy(policy, resolver_backend=resolver_backend).start()
@@ -85,7 +86,7 @@ class BrowserManager:
                 accept_downloads=False,
                 service_workers="block",
                 storage_state=storage_state,
-                viewport={"width": 1280, "height": 800},
+                viewport=viewport or {"width": 1280, "height": 800},
             )
             await context.route("**/*", _scheme_guard)
             if session_storage:

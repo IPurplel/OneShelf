@@ -36,7 +36,7 @@ export function SourceSettingsPanel() {
       <ul className="cards">
         {sources.map((source) => (
           <li key={source.id} className="cards__row">
-            <span className="cards__name display">{source.name}</span>
+            <span className="cards__name display" dir="auto">{source.name}</span>
             <span className="cards__meta">{source.capabilities.map(value => capabilityLabel(value, t)).join(" · ")}</span>
             <span className={`cards__state cards__state--${source.state}`}>
               {t(`sources.state.${source.state}` as StringKey)}
@@ -49,12 +49,12 @@ export function SourceSettingsPanel() {
         <Link className="button" to="/sources">{t("settings.sources.manage")}</Link>
       </div>
 
-      <Advanced label={t("settings.advanced")}>
+      <Advanced label={t("settings.sources")}>
         <p className="cards__meta">{t("settings.sources.advancedHelp")}</p>
         <ul className="cards">
           {sources.map((source) => (
             <li key={source.id} className="cards__row">
-              <span className="cards__name">{source.id}</span>
+              <span className="cards__name" dir="ltr">{source.id}</span>
               <span className="cards__meta">{source.version ?? "—"}</span>
               <span className="cards__meta">{trustLabel(source.trust_label, t)}</span>
               <span className="cards__meta">{channelLabel(source.channel, t)}</span>

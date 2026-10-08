@@ -82,7 +82,7 @@ export function DownloadSettingsPanel() {
         </>
       )}
 
-      <Advanced label={t("settings.advanced")}>
+      <Advanced label={t("settings.downloads")}>
         <label className="panel__choice">
           <input type="checkbox" checked={data.keep_partial_on_cancel}
                  onChange={() => void write({ keep_partial_on_cancel: !data.keep_partial_on_cancel })} />
