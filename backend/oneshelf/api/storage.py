@@ -17,7 +17,7 @@ from oneshelf.importer.service import ChooseWork, CreateLocalWork, ImportRejecte
 from oneshelf.importer.suggest import suggest_targets
 from oneshelf.restore.service import RestoreBlocked, RestoreError
 from oneshelf.storage.migration import MigrationError
-from oneshelf.storage.roots import RootError, check_availability, list_roots, register_root, root_space, set_default_root
+from oneshelf.storage.roots import RootError, check_availability, get_root, list_roots, register_root, root_space, set_default_root
 from oneshelf.storage.scanner import reconcile
 
 router = APIRouter(prefix="/api")
@@ -87,6 +87,39 @@ async def migrate_root(request: Request, root_id: str, body: PathBody):
         return error(422, "MIGRATION_REFUSED", str(exc))
     return {"migration_id": plan.id, "state": report.state, "files": plan.files, "bytes": plan.bytes,
             "copied": report.copied, "verified": report.verified}
+
+
+@router.get("/storage/migrations")
+async def migration_history(request: Request, root_id: str):
+    s = services(request)
+    try:
+        get_root(s.conn, root_id)
+    except RootError as exc:
+        return error(404, "ROOT_NOT_FOUND", str(exc))
+    return {"migrations": [asdict(report) for report in s.migrations.history(root_id)]}
+
+
+@router.get("/storage/migrations/{migration_id}")
+async def migration_status(request: Request, migration_id: str):
+    try:
+        return asdict(services(request).migrations.state(migration_id))
+    except MigrationError as exc:
+        return error(404, "MIGRATION_NOT_FOUND", str(exc))
+
+
+@router.post("/storage/migrations/{migration_id}/resume")
+async def resume_migration(request: Request, migration_id: str):
+    migration = services(request).migrations
+    try:
+        state = migration.state(migration_id)
+    except MigrationError as exc:
+        return error(404, "MIGRATION_NOT_FOUND", str(exc))
+    if state.state in ("completed", "old_copy_removed"):
+        return error(409, "MIGRATION_ALREADY_COMPLETE", "This migration is already complete.")
+    try:
+        return asdict(migration.resume(migration_id))
+    except MigrationError as exc:
+        return error(409, "MIGRATION_RESUME_FAILED", str(exc))
 
 
 @router.post("/storage/migrations/{migration_id}/discard-old-copy")

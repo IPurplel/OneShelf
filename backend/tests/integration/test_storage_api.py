@@ -36,6 +36,42 @@ def test_storage_overview_and_scan(api):
     assert client.post("/api/storage/scan").json()["missing"] == 0
 
 
+def test_i71_interrupted_migration_resumes_through_api(api):
+    client, tmp_path, root = api
+    import_cbz(client, tmp_path, title="First", name="first.cbz")
+    import_cbz(client, tmp_path, title="Second", name="second.cbz")
+    destination = tmp_path / "new-root"
+    destination.mkdir()
+    migration = client.app.state.services.migrations
+    attempts = {"copied": 0}
+
+    def interrupt(point):
+        if point == "file_copied":
+            attempts["copied"] += 1
+            if attempts["copied"] == 1:
+                raise OSError("interrupted after one file")
+
+    migration.fault = interrupt
+    failed = client.post(f"/api/storage/roots/{root['id']}/migrate", json={"path": str(destination)})
+    assert failed.status_code == 422
+    migration.fault = lambda _point: None
+    history = client.get("/api/storage/migrations", params={"root_id": root["id"]})
+    assert history.status_code == 200
+    record = history.json()["migrations"][0]
+    assert record["state"] == "failed"
+    migration_id = record["id"]
+    resumed = client.post(f"/api/storage/migrations/{migration_id}/resume")
+    assert resumed.status_code == 200
+    assert resumed.json()["state"] == "completed"
+    assert resumed.json()["copied"] == 1
+    assert resumed.json()["verified"] == 2
+    assert len(list(destination.rglob("*.cbz"))) == 2
+    assert client.get(f"/api/storage/migrations/{migration_id}").json()["state"] == "completed"
+    assert client.post(f"/api/storage/migrations/{migration_id}/resume").status_code == 409
+    unknown = client.post("/api/storage/migrations/does-not-exist/resume")
+    assert unknown.status_code == 404 and unknown.json()["error"]["code"] == "MIGRATION_NOT_FOUND"
+
+
 def test_import_upload_review_and_commit(api):
     client, tmp_path, _ = api
     review, outcome = import_cbz(client, tmp_path)
