@@ -247,6 +247,10 @@ class FollowService:
             "SELECT work_id, language FROM follows WHERE next_check_at IS NULL OR next_check_at <= ?"
             " ORDER BY next_check_at, created_at, language, id", (now or utcnow_iso(),))]
 
+    def all_follow_keys(self) -> list[tuple[str, str]]:
+        return [(r[0], r[1]) for r in self.conn.execute(
+            "SELECT work_id, language FROM follows ORDER BY created_at, language, id")]
+
     def due_follows(self, *, now: str | None = None) -> list[str]:
         return [work_id for work_id, _ in self.due_follow_keys(now=now)]
 

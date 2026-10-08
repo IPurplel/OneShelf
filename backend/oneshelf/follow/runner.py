@@ -70,9 +70,10 @@ class FollowRunner:
         self.follows.record_attempt(work_id, language=language, successful=False, category=category)
         logger.warning("follow check for %s via %s failed: %s", work_id, source_id, category)
 
-    async def check_all(self) -> list[dict]:
+    async def check_all(self, *, manual: bool = False) -> list[dict]:
         return [await self.check_work(work_id, language=language)
-                for work_id, language in self.follows.due_follow_keys()]
+                for work_id, language in (self.follows.all_follow_keys() if manual
+                                          else self.follows.due_follow_keys())]
 
     async def start(self) -> None:
         self._task = asyncio.create_task(self._loop())

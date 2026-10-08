@@ -96,7 +96,7 @@ async def undo_unfollow(request: Request, body: UndoBody):
 
 @router.post("/follows/check-all")
 async def check_all_follows(request: Request):
-    return {"checked": await services(request).follow_runner.check_all()}
+    return {"checked": await services(request).follow_runner.check_all(manual=True)}
 
 
 @router.post("/follows/{work_id}")

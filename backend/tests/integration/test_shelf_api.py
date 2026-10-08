@@ -60,6 +60,29 @@ def bind(client, listing_key, title, content_type="manhwa"):
                                                    "language": "en", "content_type": content_type}).json()
 
 
+def test_i72_manual_check_all_ignores_due_time_without_changing_scheduler(api):
+    client, _, _ = api
+    assert client.post("/api/follows/check-all").json() == {"checked": []}
+    works = [bind(client, key, title) for key, title in (("irregular", "First"), ("paged", "Second"))]
+    for work in works:
+        client.post(f"/api/tracks/{work['track_id']}/catalog/refresh")
+        client.post(f"/api/follows/{work['work_id']}", json={
+            "language": "en", "source_id": TS, "track_id": work["track_id"]})
+    runner = client.app.state.services.follow_runner
+    assert runner.follows.due_follow_keys() == []
+    assert asyncio.run(runner.check_all()) == []
+    manual = client.post("/api/follows/check-all")
+    assert manual.status_code == 200
+    assert {row["work_id"] for row in manual.json()["checked"]} == {work["work_id"] for work in works}
+    assert all(row["state"] == "up_to_date" for row in manual.json()["checked"])
+    assert runner.follows.due_follow_keys() == []
+    client.app.state.services.conn.execute("UPDATE source_tracks SET listing_id = NULL WHERE id = ?",
+                                           (works[0]["track_id"],))
+    partial = client.post("/api/follows/check-all").json()["checked"]
+    assert {row["work_id"]: row["state"] for row in partial} == {
+        works[0]["work_id"]: "degraded", works[1]["work_id"]: "up_to_date"}
+
+
 def test_shelf_actions_and_views(api):
     client, _, _ = api
     bound = bind(client, "irregular", "The Irregular Chronicle", content_type="manga")
