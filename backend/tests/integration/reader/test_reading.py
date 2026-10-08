@@ -1,5 +1,7 @@
 """Master §19, §26.11–26.23, §42; INV-07, INV-08, INV-16: online reading, cache, progress, auto-download."""
 import asyncio
+import io
+import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -19,6 +21,7 @@ from oneshelf.storage.roots import register_root
 from testsource.build import build_package
 from testsource.server import TestSourceServer
 from tests.integration.downloads.conftest import Environment, TS, run
+from tests.fixtures.library import library  # noqa: F401
 
 
 @pytest.fixture
@@ -64,6 +67,22 @@ def test_reading_online_never_downloads_permanently(reading):
     assert len(pages) == 3 and first.origin == "online" and first.data[:8] == b"\x89PNG\r\n\x1a\n"
     assert env.assets() == [] and env.files() == []   # INV-07: reading is not downloading
     assert cached == 1
+
+
+@pytest.mark.parametrize("count", [1, 2])
+def test_i73_local_cbz_rejects_indices_outside_one_based_pages(library, count):
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w") as archive:
+        for index in range(1, count + 1):
+            archive.writestr(f"{index}.png", f"page-{index}".encode())
+    work = library.add_work(f"Local {count}", source="local", content=stream.getvalue())
+    reader = ReaderService(library.conn, None, None)
+    unit = work["unit_id"]
+    for index in range(1, count + 1):
+        assert run(reader.page(unit, index)).data == f"page-{index}".encode()
+    for index in (0, -1, -8, count + 1):
+        with pytest.raises(IndexError):
+            run(reader.page(unit, index))
 
 
 def test_cached_pages_are_not_refetched_and_are_keyed_by_resource_identity(reading):

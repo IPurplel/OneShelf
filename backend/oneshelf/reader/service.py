@@ -190,14 +190,20 @@ class ReaderService:
         return self._descriptors[unit_id]
 
     async def page(self, unit_id: str, index: int, *, timeout: float | None = None) -> PageData:
+        if index < 1:
+            raise IndexError("page index must be at least 1")
         asset = self._local_asset(unit_id)
         if asset is not None and asset["format"] == "cbz":
             path = self._local_path(asset)
             names = self._archive_pages(path)
+            if index > len(names):
+                raise IndexError("page index exceeds page count")
             with zipfile.ZipFile(path) as archive:
                 return PageData(index, archive.read(names[index - 1]), "local")
         unit = self._unit(unit_id)
         descriptors = await self._online_descriptors(unit_id)
+        if index > len(descriptors):
+            raise IndexError("page index exceeds page count")
         descriptor = descriptors[index - 1]
         if descriptor.url is None:
             raise ValueError("this reading unit is text, not pages; open it in the Book Reader")

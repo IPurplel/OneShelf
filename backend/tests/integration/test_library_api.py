@@ -108,6 +108,18 @@ def test_reading_online_is_not_a_download(api):
     assert client.get("/api/downloads").json()["batches"] == []   # INV-07
 
 
+def test_i73_reader_page_indices_are_one_based_over_http(api):
+    client, tmp_path = api
+    prepare(client, tmp_path)
+    unit = unit_ids(client, tmp_path, ["irr-1"])[0]
+    for index in (1, 2):
+        assert client.get(f"/api/reader/units/{unit}/pages/{index}").status_code == 200
+    for index in (0, -1, -8, 4):
+        response = client.get(f"/api/reader/units/{unit}/pages/{index}")
+        assert response.status_code == 404
+        assert response.json()["error"]["code"] == "PAGE_NOT_FOUND"
+
+
 def test_progress_endpoints_and_stale_writes(api):
     client, tmp_path = api
     prepare(client, tmp_path)
