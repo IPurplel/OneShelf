@@ -12,6 +12,7 @@ import json
 import os
 import shutil
 import sqlite3
+import tempfile
 import zipfile
 from collections.abc import Callable
 from contextlib import closing
@@ -97,11 +98,11 @@ class BackupService:
         return [{"id": r["id"], "version": r["active_version"],
                  "permissions": json.loads(r["permissions_json"] or "[]")} for r in rows]
 
-    def _content(self, works: list[str] | None) -> list[sqlite3.Row]:
+    def _content(self, snapshot: sqlite3.Connection, works: list[str] | None) -> list[sqlite3.Row]:
         if works is None:
             return []
         placeholders = ",".join("?" * len(works))
-        return self.conn.execute(
+        return snapshot.execute(
             f"SELECT a.*, t.work_id FROM assets a JOIN reading_units u ON u.id = a.reading_unit_id"
             f" JOIN source_tracks t ON t.id = u.track_id WHERE t.work_id IN ({placeholders}) AND a.integrity = 'ok'",
             works).fetchall()
@@ -117,25 +118,33 @@ class BackupService:
         path = directory / f"oneshelf-{kind}-{stamp}-{new_id()[:6]}{SUFFIX}"
         staging = directory / f".{path.stem}.tmp"
         staging.mkdir(parents=True, exist_ok=True)
+        recorded = False
         try:
             snapshot_path = staging / "library.db"
             counts = self._snapshot(snapshot_path)
             self.fault("after_snapshot")
             inventory, content = [], []
+            with closing(sqlite3.connect(snapshot_path)) as snapshot:
+                snapshot.row_factory = sqlite3.Row
+                selected = self._content(snapshot, works if kind == "full" else None)
+            expected_content = [{"asset_id": asset["id"], "path": f"content/{asset['id']}.{asset['format']}",
+                                 "sha256": asset["sha256"], "size": asset["size_bytes"]} for asset in selected]
             with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
                 data = snapshot_path.read_bytes()
                 archive.writestr("library.db", data)
                 inventory.append({"path": "library.db", "sha256": hashlib.sha256(data).hexdigest(), "size": len(data)})
-                for asset in self._content(works if kind == "full" else None):
+                for asset in selected:
                     root = get_root(self.conn, asset["storage_root_id"])
                     try:
                         source = resolve_within(root.path, asset["relative_path"])
                         payload = source.read_bytes()
-                    except (OSError, ValueError):
-                        continue
+                    except (OSError, ValueError) as exc:
+                        raise BackupError(f"selected asset {asset['id']} is unavailable") from exc
                     name = f"content/{asset['id']}.{asset['format']}"
-                    archive.writestr(name, payload)
                     digest = hashlib.sha256(payload).hexdigest()
+                    if digest != asset["sha256"] or len(payload) != asset["size_bytes"]:
+                        raise BackupError(f"selected asset {asset['id']} does not match its recorded checksum")
+                    archive.writestr(name, payload)
                     inventory.append({"path": name, "sha256": digest, "size": len(payload)})
                     content.append({"asset_id": asset["id"], "reading_unit_id": asset["reading_unit_id"],
                                     "work_id": asset["work_id"], "relative_path": asset["relative_path"],
@@ -144,6 +153,7 @@ class BackupService:
                     "schema": BACKUP_SCHEMA, "kind": kind, "created_at": self.clock().isoformat(),
                     "schema_version": current_version(self.db_path), "app_schema_version": len(MIGRATIONS),
                     "counts": counts, "plugins": self._plugins(), "inventory": inventory, "content": content,
+                    "expected_content": expected_content,
                     "works": works or [],
                 }
                 archive.writestr("manifest.json", json.dumps(manifest, indent=1))
@@ -159,8 +169,13 @@ class BackupService:
                 self.conn.execute(
                     "INSERT INTO backup_records (id, kind, state, location, checksum, created_at, verified_at)"
                     " VALUES (?,?, 'verified', ?, ?, ?, ?)", (record_id, kind, str(path), checksum, now, now))
+            recorded = True
             self.rotate()
             return BackupRecord(record_id, kind, str(path), checksum, now, now, counts)
+        except BaseException:
+            if not recorded:
+                path.unlink(missing_ok=True)
+            raise
         finally:
             shutil.rmtree(staging, ignore_errors=True)
 
@@ -175,11 +190,30 @@ class BackupService:
                 manifest = json.loads(archive.read("manifest.json"))
                 if manifest.get("schema") != BACKUP_SCHEMA:
                     return VerifyResult(False, "unsupported backup format")
+                with tempfile.TemporaryDirectory() as workspace:
+                    snapshot_path = Path(workspace) / "library.db"
+                    snapshot_path.write_bytes(archive.read("library.db"))
+                    with closing(sqlite3.connect(snapshot_path)) as snapshot:
+                        snapshot.row_factory = sqlite3.Row
+                        selected = self._content(snapshot, manifest["works"]) if manifest["kind"] == "full" else []
+                expected = {(asset["id"], f"content/{asset['id']}.{asset['format']}", asset["sha256"],
+                             asset["size_bytes"]) for asset in selected}
+                actual = {tuple(entry[key] for key in ("asset_id", "path", "sha256", "size"))
+                          for entry in manifest["content"]}
+                inventory = {entry["path"] for entry in manifest["inventory"]}
+                names = set(archive.namelist())
+                paths = {entry[1] for entry in expected}
+                if (expected != actual or len(actual) != len(manifest["content"])
+                        or not paths.issubset(inventory) or not paths.issubset(names)
+                        or ("expected_content" in manifest and expected != {
+                            tuple(entry[key] for key in ("asset_id", "path", "sha256", "size"))
+                            for entry in manifest["expected_content"]})):
+                    return VerifyResult(False, "selected content is incomplete")
                 for entry in manifest["inventory"]:
                     data = archive.read(entry["path"])
-                    if hashlib.sha256(data).hexdigest() != entry["sha256"]:
+                    if len(data) != entry["size"] or hashlib.sha256(data).hexdigest() != entry["sha256"]:
                         return VerifyResult(False, f"checksum mismatch for {entry['path']}")
-        except (zipfile.BadZipFile, KeyError, ValueError) as exc:
+        except (zipfile.BadZipFile, KeyError, ValueError, sqlite3.DatabaseError) as exc:
             return VerifyResult(False, f"unreadable backup ({type(exc).__name__})")
         return VerifyResult(True, None, manifest)
 

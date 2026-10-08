@@ -65,6 +65,53 @@ def test_full_backup_includes_only_the_selected_works(library, clock):
         assert len(stored) == 1 and z.read(stored[0]) == b"kept chapter"
 
 
+@pytest.mark.parametrize("change", ["missing", "changed"])
+def test_i68_full_backup_refuses_selected_content_that_does_not_match_asset(library, clock, change):
+    work = library.add_work("Selected", content=b"original")
+    source = library.root_path / work["relative"]
+    if change == "missing":
+        source.unlink()
+    else:
+        source.write_bytes(b"different")
+
+    with pytest.raises(BackupError):
+        service(library, clock).create("full", works=[work["work_id"]])
+    assert library.conn.execute("SELECT count(*) FROM backup_records WHERE state = 'verified'").fetchone()[0] == 0
+
+
+def test_i68_verify_detects_selected_content_removed_from_archive_and_manifest(library, clock, tmp_path):
+    import json
+
+    work = library.add_work("Selected", content=b"original")
+    backup = service(library, clock)
+    record = backup.create("full", works=[work["work_id"]])
+    assert backup.verify(record.path).ok
+    omitted = tmp_path / "omitted.osbackup"
+    with zipfile.ZipFile(record.path) as source, zipfile.ZipFile(omitted, "w") as target:
+        manifest = json.loads(source.read("manifest.json"))
+        manifest["content"] = []
+        manifest.pop("expected_content", None)
+        manifest["inventory"] = [entry for entry in manifest["inventory"] if entry["path"] == "library.db"]
+        target.writestr("library.db", source.read("library.db"))
+        target.writestr("manifest.json", json.dumps(manifest))
+    assert not backup.verify(omitted).ok
+
+
+def test_i68_full_backup_refuses_unreadable_selected_content(library, clock, monkeypatch):
+    work = library.add_work("Unreadable", content=b"original")
+    source = library.root_path / work["relative"]
+    original_read = Path.read_bytes
+
+    def unreadable(path):
+        if path == source:
+            raise PermissionError("inaccessible")
+        return original_read(path)
+
+    monkeypatch.setattr(Path, "read_bytes", unreadable)
+    with pytest.raises(BackupError, match="unavailable"):
+        service(library, clock).create("full", works=[work["work_id"]])
+
+
 def test_snapshot_is_consistent_even_if_the_library_changes_during_the_backup(library, clock):
     library.add_work("Solo Leveling")
 
