@@ -18,9 +18,11 @@ from oneshelf.sessions.manager import SessionManager
 from oneshelf.sessions.store import SecretsStore, load_or_create_key
 from oneshelf.sources.service import SourceService
 from oneshelf.storage.roots import register_root
+from oneshelf.integrity.validators import validate
 from testsource.build import build_package
 from testsource.server import TestSourceServer
 from tests.integration.downloads.conftest import Environment, TS, run
+from tests.fixtures.builders import png_bytes
 from tests.fixtures.library import library  # noqa: F401
 
 
@@ -83,6 +85,43 @@ def test_i73_local_cbz_rejects_indices_outside_one_based_pages(library, count):
     for index in (0, -1, -8, count + 1):
         with pytest.raises(IndexError):
             run(reader.page(unit, index))
+
+
+def test_i83_local_cbz_duplicate_member_names_keep_distinct_page_content(library):
+    import warnings
+
+    first_page = png_bytes(color=(255, 0, 0))
+    second_page = png_bytes(color=(0, 0, 255))
+    stream = io.BytesIO()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        with zipfile.ZipFile(stream, "w") as archive:
+            archive.writestr("same.png", first_page)
+            archive.writestr("same.png", second_page)
+    work = library.add_work("Duplicate member pages", source="local", content=stream.getvalue())
+    reader = ReaderService(library.conn, None, None)
+
+    assert validate(library.root_path / work["relative"]).ok
+    assert len(run(reader.pages(work["unit_id"]))) == 2
+    assert run(reader.page(work["unit_id"], 1)).data == first_page
+    assert run(reader.page(work["unit_id"], 2)).data == second_page
+
+
+def test_i90_reader_ignores_archive_entries_excluded_by_cbz_validation(library):
+    stream = io.BytesIO()
+    first_page = png_bytes()
+    with zipfile.ZipFile(stream, "w") as archive:
+        archive.writestr("001.png", first_page)
+        archive.writestr(".hidden.png", b"invalid hidden image")
+        archive.writestr("__MACOSX/ghost.png", b"invalid metadata image")
+    work = library.add_work("Archive metadata", source="local", content=stream.getvalue())
+    reader = ReaderService(library.conn, None, None)
+
+    assert validate(library.root_path / work["relative"]).page_count == 1
+    assert len(run(reader.pages(work["unit_id"]))) == 1
+    assert run(reader.page(work["unit_id"], 1)).data == first_page
+    with pytest.raises(IndexError):
+        run(reader.page(work["unit_id"], 2))
 
 
 def test_cached_pages_are_not_refetched_and_are_keyed_by_resource_identity(reading):

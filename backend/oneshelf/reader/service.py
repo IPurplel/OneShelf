@@ -17,7 +17,7 @@ from oneshelf.db.connection import transaction
 from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.downloads.contract import Settings
-from oneshelf.integrity.validators import IMAGE_EXTENSIONS, _natural_key, _validate_image
+from oneshelf.integrity.validators import _is_image_entry, _natural_key, _validate_image
 from oneshelf.net.governor import Priority
 from oneshelf.reader.cache import ReaderCache
 from oneshelf.settings.defaults import DEFAULTS
@@ -136,11 +136,10 @@ class ReaderService:
         return resolve_within(root.path, asset["relative_path"])
 
     @staticmethod
-    def _archive_pages(path: Path) -> list[str]:
+    def _archive_pages(path: Path) -> list[zipfile.ZipInfo]:
         with zipfile.ZipFile(path) as archive:
-            names = [i.filename for i in archive.infolist()
-                     if not i.is_dir() and Path(i.filename).suffix.lower() in IMAGE_EXTENSIONS]
-        return sorted(names, key=_natural_key)
+            entries = [info for info in archive.infolist() if _is_image_entry(info)]
+        return sorted(entries, key=lambda info: _natural_key(info.filename))
 
     # -- pages -------------------------------------------------------------------------------------
 

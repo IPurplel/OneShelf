@@ -104,3 +104,21 @@ def test_detect_format_ignores_extension(tmp_path):
     random = tmp_path / "r.epub"
     random.write_bytes(b"not a document")
     assert detect_format(random) is None
+
+
+def test_i85_format_detection_does_not_decompress_an_oversized_mimetype(tmp_path, monkeypatch):
+    path = tmp_path / "mimetype-bomb.cbz"
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("mimetype", b"x" * (12 * 1024 * 1024))
+        archive.writestr("001.png", png_bytes())
+
+    original_read = zipfile.ZipFile.read
+
+    def guard_read(archive, name, *args, **kwargs):
+        entry = name if isinstance(name, zipfile.ZipInfo) else archive.getinfo(name)
+        if entry.filename == "mimetype" and entry.file_size > 1024:
+            raise AssertionError("format sniffing decompressed an unbounded mimetype")
+        return original_read(archive, name, *args, **kwargs)
+
+    monkeypatch.setattr(zipfile.ZipFile, "read", guard_read)
+    assert detect_format(path) == "cbz"

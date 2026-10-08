@@ -106,10 +106,14 @@ def detect_format(path: str | Path) -> str | None:
     try:
         with zipfile.ZipFile(path) as z:
             names = set(z.namelist())
-            if "mimetype" in names and z.read("mimetype").strip() == EPUB_MIMETYPE:
+            mimetype = None
+            if "mimetype" in names and z.getinfo("mimetype").file_size <= 64:
+                with z.open("mimetype") as entry:
+                    mimetype = entry.read(65).strip()
+            if mimetype == EPUB_MIMETYPE:
                 return "epub"
             # Before the image check: a text unit is a zip too, and must never be taken for a CBZ.
-            if "mimetype" in names and z.read("mimetype").strip() == TEXT_MIMETYPE:
+            if mimetype == TEXT_MIMETYPE:
                 return "text"
             if any(_is_image_entry(info) for info in z.infolist()):
                 return "cbz"
