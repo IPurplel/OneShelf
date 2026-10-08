@@ -1,10 +1,13 @@
 """Master §16–§17, §14, §39; INV-16, INV-17, INV-23: durable downloads, recovery, contracts."""
 import zipfile
+from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from tests.integration.downloads.conftest import TS, cbz_pages, run
+from testsource.server import png
 
 
 def test_sequential_download_produces_verified_cbz_assets(environment):
@@ -164,6 +167,87 @@ def test_resume_skips_pages_that_are_already_valid(environment):
     first_pass, after_resume, files = run(scenario())
     assert first_pass == 1 and after_resume == 1  # page 1 was not fetched again
     assert len(files) == 1 and len(cbz_pages(files[0])) == 3
+
+
+def test_i81_resume_refetches_a_page_whose_source_url_changed(environment):
+    class Crash(BaseException):
+        pass
+
+    def fault(point):
+        if point == "page_downloaded":
+            raise Crash(point)
+
+    changed_page = png(shade=180)
+
+    async def scenario():
+        async with environment(fault=fault) as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            env.engine.enqueue([env.unit_id("irr-1")])
+            with pytest.raises(Crash):
+                await env.engine.run_until_idle()
+
+            original_resources = env.engine._resources
+            original_fetch = env.service.fetch_resource
+            changed_url = "http://cdn.testsource.example/img/irr-1/1.png?revision=2"
+            fetched = []
+
+            async def changed_resources(contract, context):
+                resources = await original_resources(contract, context)
+                resources[0] = replace(resources[0], url=changed_url)
+                return resources
+
+            async def changed_fetch(source_id, url, **kwargs):
+                if url == changed_url:
+                    fetched.append(url)
+                    return SimpleNamespace(status=200, body=changed_page)
+                return await original_fetch(source_id, url, **kwargs)
+
+            env.engine._resources = changed_resources
+            env.service.fetch_resource = changed_fetch
+            env.engine.fault = lambda _point: None
+            await env.engine.recover()
+            report = await env.engine.run_until_idle()
+            with zipfile.ZipFile(env.files()[0]) as archive:
+                saved_page = archive.read("0001.png")
+            return report, fetched, saved_page
+
+    report, fetched, saved_page = run(scenario())
+    assert report.completed == 1
+    assert fetched == ["http://cdn.testsource.example/img/irr-1/1.png?revision=2"]
+    assert saved_page == changed_page
+
+
+def test_i81_resume_discards_stale_manifest_pages_when_source_page_count_shrinks(environment):
+    class Crash(BaseException):
+        pass
+
+    def fault(point):
+        if point == "after_pages_downloaded":
+            raise Crash(point)
+
+    async def scenario():
+        async with environment(fault=fault) as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            batch = env.engine.enqueue([env.unit_id("irr-1")])
+            with pytest.raises(Crash):
+                await env.engine.run_until_idle()
+            assert len(env.engine._manifest(env.job_rows(batch)[0])["pages"]) == 3
+
+            original_resources = env.engine._resources
+
+            async def shorter_resources(contract, context):
+                return (await original_resources(contract, context))[:2]
+
+            env.engine._resources = shorter_resources
+            env.engine.fault = lambda _point: None
+            await env.engine.recover()
+            report = await env.engine.run_until_idle()
+            return report, env.job_rows(batch)[0], env.assets(), env.files()
+
+    report, job, assets, files = run(scenario())
+    assert report.completed == 1 and job["state"] == "COMPLETED"
+    assert assets[0]["page_count"] == 2
+    assert len(cbz_pages(files[0])) == 2
 
 
 def test_changed_validator_restarts_the_file_instead_of_splicing(environment):

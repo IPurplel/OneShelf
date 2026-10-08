@@ -502,12 +502,19 @@ class DownloadEngine:
     async def _download_pages(self, job_id: str, contract: ExtractionContract, resources: list, area: Path,
                               manifest: dict, context: sqlite3.Row) -> tuple[Path, int]:
         pages = manifest.setdefault("pages", {})
+        current_indices = {str(index) for index in range(1, len(resources) + 1)}
+        stale_indices = set(pages) - current_indices
+        if stale_indices:
+            for index in stale_indices:
+                del pages[index]
+            self._save_manifest(job_id, manifest)
         for index, resource in enumerate(resources, start=1):
             self._ensure_not_canceled(job_id)
             name = f"{index:04d}.img"
             target = area / name
             entry = pages.get(str(index))
-            if entry and target.is_file() and sha256_file(target)[0] == entry["sha256"]:
+            if (entry and entry.get("url") == resource.url and target.is_file()
+                    and sha256_file(target)[0] == entry["sha256"]):
                 self.fault("page_skipped")
                 continue
             response = await self.sources.fetch_resource(contract.source_id, resource.url, capability="reader",

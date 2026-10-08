@@ -186,6 +186,12 @@ def test_download_settings_are_the_ones_the_engine_actually_reads(api):
                        json={"auto_download": {"read_ahead": 99}}).status_code == 422
 
 
+@pytest.mark.parametrize("limit", [-1, 0, 1000000])
+def test_i86_download_batch_listing_rejects_unbounded_or_invalid_limits(api, limit):
+    client, _ = api
+    assert client.get(f"/api/downloads?limit={limit}").status_code == 422
+
+
 def test_reordering_a_queue_reaches_the_engine(api):
     """§16.1: a reader can reorder a queue. The endpoint was unreachable behind `{action}` (I-15)."""
     client, tmp_path = api

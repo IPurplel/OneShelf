@@ -5,7 +5,7 @@ from dataclasses import asdict
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
@@ -113,7 +113,7 @@ async def set_download_settings(request: Request, body: DownloadSettingsBody):
 
 
 @router.get("/downloads")
-async def list_batches(request: Request, limit: int = 20):
+async def list_batches(request: Request, limit: int = Query(default=20, ge=1, le=200)):
     s = services(request)
     rows = s.conn.execute("SELECT id FROM download_batches ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
     return {"batches": [s.downloads.batch(r[0]) for r in rows]}
