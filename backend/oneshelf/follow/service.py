@@ -111,6 +111,10 @@ class FollowService:
         self._validate_track(work_id, language, source_id, track_id)
         follow_id, now = new_id(), utcnow_iso()
         with transaction(self.conn):
+            existing = self._row(work_id, language)
+            if existing and existing["preferred_source_id"] == source_id and existing["track_id"] == track_id:
+                return FollowRecord(existing["id"], work_id, language, source_id, track_id,
+                                    len(self._baseline_keys(existing["id"])), self._baseline_kind(existing["id"]))
             self.conn.execute(
                 "INSERT INTO follows (id, work_id, language, preferred_source_id, track_id, created_at)"
                 " VALUES (?,?,?,?,?,?) ON CONFLICT(work_id, language) DO UPDATE SET preferred_source_id=excluded.preferred_source_id,"

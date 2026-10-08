@@ -261,6 +261,20 @@ def test_only_genuinely_added_units_are_new(library, follow, db):
     assert follow.check(work_id).new_units == []   # already reported
 
 
+def test_i82_repeating_the_same_follow_does_not_hide_a_new_release(library, follow, db):
+    work_id, track_id = library()
+    trust = CatalogTrust(db)
+    trust.refresh(track_id, units("u1"), plugin_version="1.0.0")
+    first = follow.follow(work_id, language="en", source_id="mangadex", track_id=track_id)
+    trust.refresh(track_id, units("u1", "u2"), plugin_version="1.0.0")
+
+    repeated = follow.follow(work_id, language="en", source_id="mangadex", track_id=track_id)
+
+    assert repeated.id == first.id
+    assert repeated.baseline_units == 1
+    assert [unit["unit_key"] for unit in follow.check(work_id).new_units] == ["u2"]
+
+
 def test_metadata_changes_reordering_and_reappearance_are_not_new(library, follow, db):
     work_id, track_id = library()
     trust = CatalogTrust(db)
