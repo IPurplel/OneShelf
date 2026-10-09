@@ -87,6 +87,8 @@ def geometry(page):
         available: main.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight),
         width: rect(screen).width, rtl: document.dir === 'rtl',
         shelves: [...document.querySelectorAll('.shelf__case')].map(s => ({
+          stacked: s.closest('.shelf')?.classList.contains('shelf--stacked') ?? false,
+          rowOverflow: s.querySelector('.shelf__row').scrollWidth - s.querySelector('.shelf__row').clientWidth,
           plank: rect(s.querySelector('.shelf__plank')).top,
           cards: [...s.querySelectorAll('.workcard')].map(c => ({
             cover: rect(c.querySelector('.workcard__cover')).toJSON(),
@@ -104,11 +106,17 @@ def check_layout(page):
     assert g['overflow'] <= 1, f"document overflow {g['overflow']}px"
     assert abs(g['width'] - g['available']) <= 1, f"screen {g['width']} vs available {g['available']}"
     for shelf in g['shelves']:
+        if shelf['stacked']:
+            assert shelf['rowOverflow'] <= 1, f"stacked shelf overflow {shelf['rowOverflow']}px"
         for card in shelf['cards']:
             cover, caption = card['cover'], card['caption']
-            assert abs(cover['bottom'] - shelf['plank']) <= 1, f"cover/plank: {cover['bottom']} vs {shelf['plank']}"
-            assert caption['top'] >= shelf['plank'], 'caption above plank'
-            assert 95 <= cover['width'] <= 200, f"unreadable/stretched cover {cover['width']}"
+            if shelf['stacked']:
+                assert caption['top'] >= cover['bottom'] - 1, 'stacked caption overlaps cover'
+                assert 130 <= cover['width'] <= 240, f"unreadable/stretched stacked cover {cover['width']}"
+            else:
+                assert abs(cover['bottom'] - shelf['plank']) <= 1, f"cover/plank: {cover['bottom']} vs {shelf['plank']}"
+                assert caption['top'] >= shelf['plank'], 'caption above plank'
+                assert 95 <= cover['width'] <= 200, f"unreadable/stretched cover {cover['width']}"
             assert cover['height'] >= 145, f"clipped cover {cover['height']}"
             edge = 'right' if g['rtl'] else 'left'
             assert abs(cover[edge] - caption[edge]) <= 1, 'caption in another column'

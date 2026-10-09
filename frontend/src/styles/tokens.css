@@ -1,6 +1,7 @@
 /* OneShelf visual identity (Master §32): personal library + classic reading room + modern web app.
    Deep forest green, warm ivory canvas, muted olive accents, natural wood, restrained shadows. */
 :root {
+  color-scheme: light;
   /* Sampled from the approved reference. */
   --forest-900: #14231a;
   --forest-800: #1b2c20;
@@ -25,6 +26,18 @@
   --ink-300: #9c968a;
   --danger-600: #8c3b2e;
   --warning-600: #856219;     /* amber, dark enough to read as small text on ivory as well as paper */
+  --link-text: var(--forest-600);
+  --positive-text: var(--olive-700);
+  --warning-text: var(--warning-600);
+  --danger-text: var(--danger-600);
+  --neutral-chip: var(--ink-500);
+  --recessed-surface: linear-gradient(180deg, rgba(250, 246, 236, 0.72), rgba(250, 246, 236, 0.35));
+  --cover-blank-text: rgba(31, 29, 26, 0.18);
+  --progress-track: rgba(31, 29, 26, 0.12);
+  --control-color-scheme: light;
+  --press-accent: var(--forest-600);
+  --primary-bg: var(--forest-600);
+  --primary-hover-bg: var(--forest-500);
 
   --font-display: "Noto Serif", "Noto Naskh Arabic", "Iowan Old Style", Palatino, Georgia, ui-serif, serif;
   --font-ui: system-ui, -apple-system, "Segoe UI", "Noto Sans", "Noto Naskh Arabic", sans-serif;
@@ -49,6 +62,31 @@
   --motion-fast: 120ms;
   --motion-slow: 260ms;
   --ease: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+:root[data-resolved-theme="dark"] {
+  color-scheme: dark;
+  --ivory-100: #111b15;
+  --ivory-200: #34483b;
+  --paper: #1c2a21;
+  --ink-900: #f5f3e9;
+  --ink-700: #e1e9dc;
+  --ink-500: #bbcaba;
+  --ink-300: #a8bba6;
+  --link-text: #c9e6a7;
+  --positive-text: #c4dfa7;
+  --warning-text: #f3d18b;
+  --danger-text: #ffb7a5;
+  --neutral-chip: #415547;
+  --recessed-surface: linear-gradient(180deg, #24372b, #1b2a21);
+  --cover-blank-text: #abc39d;
+  --progress-track: #46574a;
+  --control-color-scheme: dark;
+  --press-accent: #c9e6a7;
+  --primary-bg: #557952;
+  --primary-hover-bg: #4c6f4b;
+  --shadow-card: 0 1px 3px rgb(0 0 0 / 28%), 0 6px 18px rgb(0 0 0 / 20%);
+  --shadow-raised: 0 2px 4px rgb(0 0 0 / 28%), 0 12px 28px rgb(0 0 0 / 30%);
 }
 
 @media (prefers-reduced-motion: reduce) {

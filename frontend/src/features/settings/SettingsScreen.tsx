@@ -12,6 +12,7 @@ import { NotificationSettingsPanel } from "./NotificationSettingsPanel";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { SourceSettingsPanel } from "./SourceSettingsPanel";
 import { useI18n } from "@/i18n/i18n";
+import { useTheme } from "@/app/theme";
 import type { StringKey } from "@/i18n/strings";
 import { handleTabKeys } from "@/components/tabKeyboard";
 
@@ -24,6 +25,7 @@ const CATEGORIES: Category[] = ["general", "reader", "downloads", "storage", "so
 /** Settings (Master §32.14): a readable document — categories beside the panel, nothing shouted. */
 export function SettingsScreen() {
   const { t, language, direction, setLanguage } = useI18n();
+  const { theme, setTheme } = useTheme();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const section = pathname.split("/")[2];
@@ -88,17 +90,30 @@ export function SettingsScreen() {
         <div className="settings__panel" role="tabpanel" id="settings-tabpanel"
              aria-labelledby={`settings-tab-${category}`} tabIndex={0}>
           {category === "general" && (
-            <section className="paper">
-              <h2 className="display">{t("settings.language")}</h2>
-              <div className="toolbar__tabs">
-                {(["en", "ar"] as const).map((code) => (
-                  <button key={code} type="button" className="chip" aria-pressed={language === code}
-                          onClick={() => setLanguage(code)}>
-                    {code === "en" ? "English" : "العربية"}
-                  </button>
-                ))}
-              </div>
-            </section>
+            <div className="settings__general">
+              <section className="paper">
+                <h2 className="display">{t("settings.language")}</h2>
+                <div className="toolbar__tabs">
+                  {(["en", "ar"] as const).map((code) => (
+                    <button key={code} type="button" className="chip" aria-pressed={language === code}
+                            onClick={() => setLanguage(code)}>
+                      {code === "en" ? "English" : "العربية"}
+                    </button>
+                  ))}
+                </div>
+              </section>
+              <section className="paper">
+                <h2 className="display" id="settings-appearance">{t("settings.appearance")}</h2>
+                <div className="toolbar__tabs" role="group" aria-labelledby="settings-appearance">
+                  {(["system", "light", "dark"] as const).map((choice) => (
+                    <button key={choice} type="button" className="chip" aria-pressed={theme === choice}
+                            onClick={() => setTheme(choice)}>
+                      {t(`settings.appearance.${choice}`)}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </div>
           )}
 
           {category === "storage" && (

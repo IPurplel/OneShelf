@@ -26,7 +26,7 @@
   gap: var(--space-6);
   padding: var(--space-6) var(--space-4) var(--space-5);
   background: linear-gradient(180deg, var(--forest-800), var(--forest-900));
-  color: var(--ivory-100);
+  color: var(--ivory-50);
 }
 
 .sidebar__brand { display: flex; align-items: center; gap: var(--space-3); padding-inline: var(--space-3); }
@@ -103,7 +103,7 @@
   transition: background var(--motion-fast) var(--ease);
 }
 .header__button:hover { background: var(--ivory-200); }
-.header__button--attention { color: var(--warning-600); border-color: rgba(151, 112, 31, 0.35); }
+.header__button--attention { color: var(--warning-text); border-color: rgba(151, 112, 31, 0.35); }
 .header__count { font-variant-numeric: tabular-nums; font-weight: 600; }
 .header__dot {
   position: absolute;

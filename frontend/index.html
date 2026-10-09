@@ -4,6 +4,19 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        const saved = localStorage.getItem("oneshelf.theme");
+        const choice = saved === "light" || saved === "dark" ? saved : "system";
+        document.documentElement.dataset.theme = choice;
+        document.documentElement.dataset.resolvedTheme = choice === "system"
+          ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : choice;
+      } catch {
+        document.documentElement.dataset.theme = "system";
+        document.documentElement.dataset.resolvedTheme = matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark" : "light";
+      }
+    </script>
     <title>OneShelf</title>
   </head>
   <body>
