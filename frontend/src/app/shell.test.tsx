@@ -71,6 +71,14 @@ describe("mobile shell", () => {
     await screen.findByRole("navigation", { name: /primary/i });
     expect(screen.getAllByRole("navigation")).toHaveLength(1);
   });
+
+  it.each(["/downloads", "/sources", "/settings/storage"])("marks More active on %s", async (route) => {
+    setViewport("mobile");
+    renderApp({ route });
+    const more = await screen.findByRole("button", { name: "More" });
+    expect(more).toHaveClass("is-active");
+    expect(more).toHaveAttribute("aria-expanded", "false");
+  });
 });
 
 describe("mobile More drawer", () => {
@@ -94,6 +102,7 @@ describe("mobile More drawer", () => {
     renderApp();
     const more = screen.getByRole("button", { name: "More" });
     await user.click(more);
+    expect(more).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("dialog", { name: "More" })).toHaveFocus();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

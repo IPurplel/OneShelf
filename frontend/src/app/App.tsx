@@ -34,7 +34,7 @@ function Layout() {
           <Outlet />
         </main>
       </div>
-      {mobile && <BottomNav onOpenMore={() => setPanel("more")} />}
+      {mobile && <BottomNav moreOpen={panel === "more"} onOpenMore={() => setPanel("more")} />}
       {panel === "more" && (
         <Drawer title={t("nav.more")} onClose={closePanel}>
           <nav className="more__nav" aria-label={t("nav.more")}>
