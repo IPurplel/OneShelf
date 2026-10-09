@@ -10,16 +10,18 @@ import { useI18n } from "@/i18n/i18n";
  * shelf looks like a shelf rather than a grid with decoration. Library content gets this treatment;
  * system screens never do.
  */
-export function Shelf({ title, children, id, viewAllHref, recessed = false, compactRow = false }: {
+export function Shelf({ title, children, id, viewAllHref, recessed = false, compactRow = false, stacked = false }: {
   title: string;
   children: ReactNode;
   id: string;
   viewAllHref?: string;
   recessed?: boolean;
   compactRow?: boolean;
+  stacked?: boolean;
 }) {
   const { t } = useI18n();
-  const classes = ["shelf", recessed ? "shelf--recessed" : "", compactRow ? "shelf--compactRow" : ""]
+  const classes = ["shelf", recessed ? "shelf--recessed" : "", compactRow ? "shelf--compactRow" : "",
+    stacked ? "shelf--stacked" : ""]
     .filter(Boolean).join(" ");
   return (
     <section className={classes} aria-labelledby={`${id}-title`} role="region">

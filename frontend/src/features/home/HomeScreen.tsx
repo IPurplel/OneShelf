@@ -49,30 +49,30 @@ export function HomeScreen() {
       {data.hero && <Hero hero={data.hero} fraction={data.continue_reading[0]?.fraction ?? null} />}
 
       {data.continue_reading.length > 0 && (
-        <Shelf id="continue" title={t("home.continue")} viewAllHref="/shelf">
+        <Shelf id="continue" title={t("home.continue")} viewAllHref="/shelf" stacked>
           {data.continue_reading.map((item) => <WorkCard key={item.work_id} work={item} />)}
         </Shelf>
       )}
 
       {data.trending.length > 0 && (
-        <Shelf id="trending" title={t("home.trending")} viewAllHref="/search" recessed>
+        <Shelf id="trending" title={t("home.trending")} viewAllHref="/search" recessed stacked>
           {data.trending.map((result) => <ResultCard key={result.work_id ?? result.title} result={result} />)}
         </Shelf>
       )}
 
       {(data.latest.length > 0 || data.recently_added.length > 0) && (
-        <div className="home__pair">
+        <div className="home__sections">
           {data.latest.length > 0 && (
-            <Shelf id="latest" title={t("home.latest")} viewAllHref="/search" compactRow>
+            <Shelf id="latest" title={t("home.latest")} viewAllHref="/search" stacked>
               {data.latest.map((result) => (
-                <ResultCard key={result.work_id ?? result.title} result={result} size="compact" />
+                <ResultCard key={result.work_id ?? result.title} result={result} />
               ))}
             </Shelf>
           )}
 
           {data.recently_added.length > 0 && (
-            <Shelf id="recent" title={t("home.recent")} viewAllHref="/shelf" compactRow>
-              {data.recently_added.map((item) => <WorkCard key={item.work_id} work={item} size="compact" />)}
+            <Shelf id="recent" title={t("home.recent")} viewAllHref="/shelf" stacked>
+              {data.recently_added.map((item) => <WorkCard key={item.work_id} work={item} />)}
             </Shelf>
           )}
         </div>
@@ -121,7 +121,7 @@ function Hero({ hero, fraction }: { hero: NonNullable<HomeResponse["hero"]>; fra
 function EmptyLibrary() {
   const { t } = useI18n();
   return (
-    <section className="empty">
+    <section className="empty home__empty">
       <h2 className="empty__title display">{t("home.empty.title")}</h2>
       <p className="empty__body">{t("home.empty.body")}</p>
       <div className="empty__actions">
