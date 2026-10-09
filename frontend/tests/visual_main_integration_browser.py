@@ -131,8 +131,9 @@ def style(button):
 
 def check_pressed(page, base, language, width):
     page.goto(base + "/settings/general")
-    pressed = page.locator('.toolbar__tabs .chip[aria-pressed="true"]')
-    unpressed = page.locator('.toolbar__tabs .chip[aria-pressed="false"]')
+    language_choices = page.locator(".settings__general .paper").first
+    pressed = language_choices.locator('.toolbar__tabs .chip[aria-pressed="true"]')
+    unpressed = language_choices.locator('.toolbar__tabs .chip[aria-pressed="false"]')
     assert style(pressed) != style(unpressed), (language, width, "language selection")
     page.goto(base + "/works/w0")
     favorite = page.locator('.work__actions button[aria-pressed="true"]').filter(has_text="Favorite" if language == "en" else "مفضّلة")

@@ -7,7 +7,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 sys.path.insert(0, str(Path(__file__).parent))
-from layout_browser import fixture
+from layout_browser import fixture, items, results
 
 WIDTHS = (390, 768, 1440)
 LANGUAGES = ("en", "ar")
@@ -29,9 +29,11 @@ def contrast(first, second):
     return (lighter + 0.05) / (darker + 0.05)
 
 
-def open_page(browser, width, language, system_theme="dark", count=12):
+def open_page(browser, width, language, system_theme="dark", count=12, theme_choice=None):
     context = browser.new_context(viewport={"width": width, "height": 844}, color_scheme=system_theme)
     context.add_init_script(f"localStorage.setItem('oneshelf.language', '{language}')")
+    if theme_choice is not None:
+        context.add_init_script(f"localStorage.setItem('oneshelf.theme', '{theme_choice}')")
     page = context.new_page()
     page.route("**/api/**", lambda route: fixture(route, count))
     return context, page
@@ -40,10 +42,17 @@ def open_page(browser, width, language, system_theme="dark", count=12):
 def check_search(browser, base, screenshots):
     for language in LANGUAGES:
         for width in WIDTHS:
-            for system_theme in ("light", "dark"):
-                context, page = open_page(browser, width, language, system_theme=system_theme)
+            for mode, system_theme, choice, resolved in (
+                ("system-light", "light", None, "light"),
+                ("system-dark", "dark", None, "dark"),
+                ("light-override", "dark", "light", "light"),
+                ("dark-override", "light", "dark", "dark"),
+            ):
+                context, page = open_page(browser, width, language, system_theme=system_theme,
+                                          theme_choice=choice)
                 page.goto(base + "/search")
                 field = page.get_by_role("searchbox")
+                assert page.evaluate("document.documentElement.dataset.resolvedTheme") == resolved
                 field.fill("OneShelf search")
                 colors = field.evaluate("""field => {
                   const style = getComputedStyle(field);
@@ -54,7 +63,17 @@ def check_search(browser, base, screenshots):
                 assert contrast(colors["placeholder"], colors["background"]) >= 4.5, (language, width, colors)
                 assert contrast(colors["caret"], colors["background"]) >= 3, (language, width, colors)
                 assert field.input_value() == "OneShelf search"
-                page.screenshot(path=str(screenshots / f"search-{language}-{width}-{system_theme}.png"))
+                field.focus()
+                focus = field.evaluate("""e => ({style:getComputedStyle(e).outlineStyle,
+                    width:parseFloat(getComputedStyle(e).outlineWidth)})""")
+                assert focus["style"] != "none" and focus["width"] >= 2, (language, width, mode, focus)
+                page.screenshot(path=str(screenshots / f"search-{language}-{width}-{mode}.png"))
+                page.emulate_media(color_scheme="dark" if system_theme == "light" else "light")
+                expected = ("dark" if system_theme == "light" else "light") if choice is None else choice
+                page.wait_for_function("expected => document.documentElement.dataset.resolvedTheme === expected",
+                                       arg=expected)
+                page.reload()
+                assert page.evaluate("document.documentElement.dataset.resolvedTheme") == expected
                 context.close()
 
 
@@ -89,6 +108,29 @@ def check_home(browser, base, screenshots):
             assert "/works/w0" in one_page.url
             one_context.close()
 
+            stress_context, stress_page = open_page(browser, width, language, count=1)
+            long_title = ("An unusually long Work title with English and العربية words, " * 5).strip()
+            work = {**items(1)[0], "title": long_title, "cover_url": None}
+            result = {**results(1)[0], "title": long_title, "cover_url": None}
+            home = {"hero": {**work, "reason": "continue_reading", "description": "A story to continue."},
+                    "continue_reading": [work], "trending": [result], "latest": [result],
+                    "recently_added": [work]}
+            stress_page.route("**/api/home", lambda route: route.fulfill(json=home))
+            stress_page.goto(base + "/")
+            stress_page.locator(".hero__title").wait_for()
+            assert stress_page.evaluate("document.documentElement.scrollWidth <= innerWidth + 1")
+            if width == 390:
+                assert stress_page.locator(".hero__action").bounding_box()["y"] < 700
+            for title in stress_page.locator(".shelf .workcard__title").all():
+                assert title.bounding_box()["width"] <= width
+                size = title.evaluate("""e => ({height:e.getBoundingClientRect().height,
+                    line:parseFloat(getComputedStyle(e).lineHeight)})""")
+                assert size["height"] <= size["line"] * 3 + 1, (language, width, size)
+            stress_page.screenshot(path=str(screenshots / f"home-long-{language}-{width}.png"), full_page=True)
+            stress_page.locator(".shelf .workcard").first.click()
+            assert "/works/w0" in stress_page.url
+            stress_context.close()
+
             empty_context, empty_page = open_page(browser, width, language, count=0)
             empty_page.goto(base + "/")
             empty = empty_page.locator(".home__empty")
@@ -104,6 +146,7 @@ def check_home(browser, base, screenshots):
             }""")
             assert contrast(action_colors["button"], action_colors["surface"]) >= 3, action_colors
             assert contrast(action_colors["text"], action_colors["button"]) >= 4.5, action_colors
+            empty_page.screenshot(path=str(screenshots / f"home-empty-{language}-{width}.png"))
             empty_context.close()
 
 
