@@ -37,8 +37,10 @@ export function ShelfScreen() {
   const [managing, setManaging] = useState<{ work_id: string; title: string } | null>(null);
   const [removing, setRemoving] = useState<{ summary: RemovalSummary; title: string } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const searchTerm = query.trim();
+  const activeView = searchTerm ? "all" : view;
   const { data, error, loading, reload } = useResource<ShelfResponse>("/api/shelf",
-    query.trim() ? { q: query.trim() } : { view });
+    searchTerm ? { q: searchTerm } : { view });
 
   /**
    * §32.9: sorting is the screen's own work. The shelf arrives whole and local, so reordering it needs
@@ -88,26 +90,26 @@ export function ShelfScreen() {
           {VIEWS.map((candidate) => (
             <button key={candidate.id} type="button" role="tab" className="chip"
                     id={`shelf-tab-${candidate.id}`} aria-controls="shelf-tabpanel"
-                    aria-selected={view === candidate.id && query.trim() === ""}
-                    tabIndex={view === candidate.id ? 0 : -1}
+                    aria-selected={activeView === candidate.id}
+                    tabIndex={activeView === candidate.id ? 0 : -1}
                     onClick={() => { setView(candidate.id); setQuery(""); }}>
               {t(candidate.labelKey)}
             </button>
           ))}
         </div>
         <div className="toolbar__end">
-          <input type="search" className="field" disabled={loading} aria-label={t("shelf.search")} placeholder={t("shelf.search")}
+          <input type="search" className="field" aria-label={t("shelf.search")} placeholder={t("shelf.search")}
                  value={query} onChange={(event) => setQuery(event.target.value)} />
-          <select className="field" disabled={loading} aria-label={t("shelf.sort")} value={sort}
+          <select className="field" aria-label={t("shelf.sort")} value={sort}
                   onChange={(event) => setSort(event.target.value as "added" | "title")}>
             <option value="added">{t("shelf.sort.added")}</option>
             <option value="title">{t("shelf.sort.title")}</option>
           </select>
-          <button type="button" className="iconbutton" disabled={loading} aria-pressed={layout === "grid"}
+          <button type="button" className="iconbutton" aria-pressed={layout === "grid"}
                   onClick={() => setLayout("grid")} aria-label={t("shelf.layout.grid")}>
             <Icon name="grid" size={18} />
           </button>
-          <button type="button" className="iconbutton" disabled={loading} aria-pressed={layout === "list"}
+          <button type="button" className="iconbutton" aria-pressed={layout === "list"}
                   onClick={() => setLayout("list")} aria-label={t("shelf.layout.list")}>
             <Icon name="list" size={18} />
           </button>
@@ -119,9 +121,9 @@ export function ShelfScreen() {
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
       {loading && <LoadingState />}
 
-      <div role="tabpanel" id="shelf-tabpanel" aria-labelledby={`shelf-tab-${view}`} tabIndex={0}>
+      <div role="tabpanel" id="shelf-tabpanel" aria-labelledby={`shelf-tab-${activeView}`} tabIndex={0}>
       <section ref={shelfRef} className="shelfview" role="region" aria-label={t("shelf.title")} data-layout={layout}>
-        {entries.length === 0 && data !== null && !loading && <p className="shelf__empty">{t("shelf.empty")}</p>}
+        {entries.length === 0 && data !== null && !loading && <p className="shelf__empty">{t(searchTerm ? "shelf.searchEmpty" : "shelf.empty")}</p>}
         {layout === "list" ? (
           <div className="shelfview__list">
             {entries.map((entry) => (

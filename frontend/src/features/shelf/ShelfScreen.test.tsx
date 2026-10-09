@@ -1,5 +1,5 @@
 /** Master §22, §32.9: My Shelf is library-first, searched locally, and honest when empty. */
-import { screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -101,6 +101,72 @@ describe("My Shelf", () => {
     await user.type(screen.getByRole("searchbox", { name: /search your shelf/i }), "irregular");
     expect(calls.some((call) => call.url.includes("q=irregular"))).toBe(true);
     expect(calls.every((call) => call.url.startsWith("/api/shelf"))).toBe(true);
+  });
+
+  it("keeps search focused and editable while slower shelf responses arrive out of order", async () => {
+    const requests: { url: string; respond: (entries: typeof ENTRY[]) => void }[] = [];
+    vi.stubGlobal("fetch", vi.fn((input: string) => new Promise<Response>((resolve) => {
+      requests.push({
+        url: input,
+        respond: (entries) => resolve(new Response(JSON.stringify({ view: "search", entries }), {
+          headers: { "Content-Type": "application/json" },
+        })),
+      });
+    })));
+    const user = userEvent.setup();
+    renderWithProviders(<ShelfScreen />);
+    await waitFor(() => expect(requests).toHaveLength(1));
+    await act(async () => requests[0]!.respond([]));
+
+    const search = screen.getByRole("searchbox", { name: /search your shelf/i });
+    await user.click(search);
+    await user.type(search, "abc");
+    expect(search).toHaveValue("abc");
+    expect(search).toHaveFocus();
+    expect(search).toBeEnabled();
+    expect(screen.getByRole("combobox", { name: /sort/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /list view/i })).toBeEnabled();
+
+    await waitFor(() => expect(requests.some((request) => request.url.includes("q=abc"))).toBe(true));
+    const newest = requests.find((request) => request.url.includes("q=abc"))!;
+    const older = requests.find((request) => request.url.includes("q=a"))!;
+    await act(async () => newest.respond([{ ...ENTRY, title: "Newest result" }]));
+    await act(async () => older.respond([{ ...ENTRY, title: "Stale result" }]));
+    expect(await screen.findByRole("link", { name: /newest result/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /stale result/i })).not.toBeInTheDocument();
+  });
+
+  it.each(["en", "ar"] as const)("labels whole-shelf search as All and restores the prior view in %s", async (language) => {
+    mockApi([get("/api/shelf", { view: "search", entries: [ENTRY] })]);
+    const user = userEvent.setup();
+    renderWithProviders(<ShelfScreen />, { language });
+    const all = await screen.findByRole("tab", { name: language === "en" ? "All" : "الكل" });
+    const saved = document.getElementById("shelf-tab-saved")!;
+    const panel = screen.getByRole("tabpanel");
+    await user.click(saved);
+
+    const search = screen.getByRole("searchbox");
+    await user.type(search, "a");
+    expect(all).toHaveAttribute("aria-selected", "true");
+    expect(all).toHaveAttribute("tabindex", "0");
+    expect(saved).toHaveAttribute("aria-selected", "false");
+    expect(panel).toHaveAttribute("aria-labelledby", "shelf-tab-all");
+
+    await user.clear(search);
+    expect(saved).toHaveAttribute("aria-selected", "true");
+    expect(saved).toHaveAttribute("tabindex", "0");
+    expect(panel).toHaveAttribute("aria-labelledby", "shelf-tab-saved");
+  });
+
+  it.each(["en", "ar"] as const)("distinguishes no search matches from an empty shelf in %s", async (language) => {
+    mockApi([get("/api/shelf", { view: "search", entries: [] })]);
+    const user = userEvent.setup();
+    renderWithProviders(<ShelfScreen />, { language });
+    await screen.findByText(language === "en" ? "Nothing on this shelf yet." : "لا شيء على هذا الرفّ بعد.");
+
+    await user.type(screen.getByRole("searchbox"), "missing");
+    expect(await screen.findByText(language === "en" ? "No works match your search." : "لا توجد أعمال تطابق بحثك.")).toBeInTheDocument();
+    expect(screen.queryByText(language === "en" ? "Nothing on this shelf yet." : "لا شيء على هذا الرفّ بعد.")).not.toBeInTheDocument();
   });
 
   it("says the shelf is empty without inventing anything", async () => {
