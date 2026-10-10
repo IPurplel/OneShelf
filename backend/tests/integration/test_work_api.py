@@ -3,6 +3,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from oneshelf.api.app import AppConfig, create_app
+from oneshelf.plugins.runtime import CapabilityError, RateLimited
 from tests.fixtures.builders import make_cbz, make_pdf
 
 
@@ -267,6 +268,48 @@ def test_asking_about_a_unit_that_is_not_here_is_a_plain_404(api):
     client, _ = api
     response = client.get("/api/reader/units/nope/alternatives")
     assert response.status_code == 404 and response.json()["error"]["code"] == "UNIT_NOT_FOUND"
+
+
+@pytest.mark.parametrize("path,body", [
+    ("/api/reader/units/missing/progress", {"fraction": 0.5}),
+    ("/api/reader/units/missing/engagement", {"fraction": 0.5, "interacted": True}),
+    ("/api/reader/units/missing/mark-read", None),
+    ("/api/reader/units/missing/mark-unread", None),
+])
+def test_reader_writes_for_missing_units_return_404(api, path, body):
+    client, _ = api
+    response = client.post(path, json=body)
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "UNIT_NOT_FOUND"
+
+
+@pytest.mark.parametrize("failure,status,code", [
+    (RateLimited(12), 429, "RATE_LIMITED"),
+    (CapabilityError("transport", "source failed"), 502, "SOURCE_FAILED"),
+])
+def test_reader_page_reports_source_failures(api, monkeypatch, failure, status, code):
+    client, _ = api
+
+    async def failing_page(_unit_id, _index):
+        raise failure
+
+    monkeypatch.setattr(client.app.state.services.reader, "page", failing_page)
+    response = client.get("/api/reader/units/any/pages/1")
+    assert response.status_code == status
+    assert response.json()["error"]["code"] == code
+
+
+def test_local_pdf_pages_report_unavailable_instead_of_server_error(api):
+    client, tmp_path = api
+    pdf = make_pdf(tmp_path / "book.pdf")
+    upload = client.post("/api/import/uploads?filename=book.pdf", content=pdf.read_bytes()).json()
+    imported = client.post("/api/import", json={"upload_id": upload["upload_id"], "title": "Book",
+                                                    "content_type": "book"}).json()
+    unit_id = imported["reading_unit_id"]
+    for path in (f"/api/reader/units/{unit_id}/pages", f"/api/reader/units/{unit_id}/pages/1"):
+        response = client.get(path)
+        assert response.status_code == 404
+        assert response.json()["error"]["code"] == "PAGES_NOT_AVAILABLE"
 
 
 def test_the_same_file_imported_twice_is_stored_twice(api):

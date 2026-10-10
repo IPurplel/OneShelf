@@ -146,23 +146,26 @@ async def upload_import(request: Request, filename: str | None = Query(default=N
     upload_id = new_id()
     path = directory / upload_id
     size = 0
-    with open(path, "wb") as handle:
-        async for chunk in request.stream():
-            size += len(chunk)
-            if size > MAX_IMPORT_BYTES:
-                handle.close()
-                path.unlink(missing_ok=True)
-                return error(413, "FILE_TOO_LARGE", "Imported files are limited to 2 GB.")
-            handle.write(chunk)
-    # the client's filename is a label only: the stored path is always the opaque upload id
-    info = inspect_import(path, display_name=PurePosixPath(filename).name if filename else None)
-    if not info.valid:
-        path.unlink(missing_ok=True)
-        return error(422, "UNSUPPORTED_FILE", info.reason or "unsupported file")
-    suggestions = suggest_targets(s.conn, info.suggested_title)
-    return {"upload_id": upload_id, "format": info.format, "suggested_title": info.suggested_title,
-            "language": info.language, "page_count": info.page_count, "warnings": info.warnings,
-            "suggestions": [asdict(x) for x in suggestions]}
+    keep_upload = False
+    try:
+        with open(path, "wb") as handle:
+            async for chunk in request.stream():
+                size += len(chunk)
+                if size > MAX_IMPORT_BYTES:
+                    return error(413, "FILE_TOO_LARGE", "Imported files are limited to 2 GB.")
+                handle.write(chunk)
+        # the client's filename is a label only: the stored path is always the opaque upload id
+        info = inspect_import(path, display_name=PurePosixPath(filename).name if filename else None)
+        if not info.valid:
+            return error(422, "UNSUPPORTED_FILE", info.reason or "unsupported file")
+        suggestions = suggest_targets(s.conn, info.suggested_title)
+        keep_upload = True
+        return {"upload_id": upload_id, "format": info.format, "suggested_title": info.suggested_title,
+                "language": info.language, "page_count": info.page_count, "warnings": info.warnings,
+                "suggestions": [asdict(x) for x in suggestions]}
+    finally:
+        if not keep_upload:
+            path.unlink(missing_ok=True)
 
 
 class ImportBody(BaseModel):
@@ -170,7 +173,7 @@ class ImportBody(BaseModel):
     mode: Literal["copy", "move"] = "copy"
     work_id: str | None = None
     title: str | None = Field(default=None, max_length=500)
-    content_type: str = "unknown"
+    content_type: Literal["manga", "manhwa", "manhua", "comic", "book", "novel", "paper", "other", "unknown"] = "unknown"
     language: str | None = None
     unit_label: str | None = Field(default=None, max_length=300)
     unit_id: str | None = None

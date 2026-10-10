@@ -1,6 +1,7 @@
 """Regression coverage for cancellation, read-ahead, and bilingual follows."""
 import asyncio
 import pytest
+from tests.fixtures.builders import make_cbz, png_bytes
 from tests.fixtures.library import library
 from tests.integration.reader.test_reading import reading
 
@@ -97,6 +98,32 @@ def test_explicit_reader_format_and_context(library, tmp_path):
     assert asyncio.run(reader_file(request, work['unit_id'], format='pdf')).body == pdf
     assert asyncio.run(reader_file(request, work['unit_id'], format='cbz')).status_code == 404
     assert asyncio.run(reader_file(request, work['unit_id'])).body == pdf
+
+
+def test_page_reader_selects_cbz_when_an_older_pdf_exists(library, tmp_path):
+    from oneshelf.reader.service import ReaderService
+
+    work = library.add_work('Mixed formats', source='local', fmt='pdf', content=b'pdf file')
+    cbz = make_cbz(tmp_path / 'pages.cbz').read_bytes()
+    library.add_asset(work['unit_id'], fmt='cbz', content=cbz)
+    library.conn.execute("UPDATE assets SET created_at='2000-01-01' WHERE id=?", (work['asset_id'],))
+    reader = ReaderService(library.conn, None, None)
+
+    pages = asyncio.run(reader.pages(work['unit_id']))
+    first = asyncio.run(reader.page(work['unit_id'], 1))
+    assert len(pages) == 3
+    assert first.origin == 'local' and first.data == png_bytes()
+
+
+def test_local_pdf_has_no_image_pages(library):
+    from oneshelf.reader.service import ReaderService
+
+    work = library.add_work('PDF only', source='local', fmt='pdf', content=b'pdf file')
+    reader = ReaderService(library.conn, None, None)
+    with pytest.raises(FileNotFoundError, match='page'):
+        asyncio.run(reader.pages(work['unit_id']))
+    with pytest.raises(FileNotFoundError, match='page'):
+        asyncio.run(reader.page(work['unit_id'], 1))
 
 
 def test_follow_language_operations_and_scheduling_are_independent(library):

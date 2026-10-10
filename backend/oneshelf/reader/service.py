@@ -169,10 +169,12 @@ class ReaderService:
                         source_url=unit["url_hint"], sections=sections), "online"
 
     async def pages(self, unit_id: str) -> list[PageInfo]:
-        asset = self._local_asset(unit_id)
-        if asset is not None and asset["format"] == "cbz":
+        asset = self._local_asset(unit_id, "cbz")
+        if asset is not None:
             names = self._archive_pages(self._local_path(asset))
             return [PageInfo(index=i, label=str(i)) for i, _ in enumerate(names, start=1)]
+        if self._unit(unit_id)["source_id"] == "local":
+            raise FileNotFoundError("this local reading unit has no image pages; open its file instead")
         descriptors = await self._online_descriptors(unit_id)
         if any(d.url is None for d in descriptors):
             raise ValueError("this reading unit is text, not pages; open it in the Book Reader")
@@ -191,8 +193,8 @@ class ReaderService:
     async def page(self, unit_id: str, index: int, *, timeout: float | None = None) -> PageData:
         if index < 1:
             raise IndexError("page index must be at least 1")
-        asset = self._local_asset(unit_id)
-        if asset is not None and asset["format"] == "cbz":
+        asset = self._local_asset(unit_id, "cbz")
+        if asset is not None:
             path = self._local_path(asset)
             names = self._archive_pages(path)
             if index > len(names):
@@ -200,6 +202,8 @@ class ReaderService:
             with zipfile.ZipFile(path) as archive:
                 return PageData(index, archive.read(names[index - 1]), "local")
         unit = self._unit(unit_id)
+        if unit["source_id"] == "local":
+            raise FileNotFoundError("this local reading unit has no image pages; open its file instead")
         descriptors = await self._online_descriptors(unit_id)
         if index > len(descriptors):
             raise IndexError("page index exceeds page count")

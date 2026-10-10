@@ -188,6 +188,8 @@ async def reader_pages(request: Request, unit_id: str):
     s = services(request)
     try:
         pages = await s.reader.pages(unit_id)
+    except FileNotFoundError as exc:
+        return error(404, "PAGES_NOT_AVAILABLE", str(exc))
     except ValueError as exc:
         return error(404, "UNIT_NOT_FOUND", str(exc))
     except AuthRequired:
@@ -204,10 +206,16 @@ async def reader_page(request: Request, unit_id: str, index: int):
     s = services(request)
     try:
         page = await s.reader.page(unit_id, index)
+    except FileNotFoundError as exc:
+        return error(404, "PAGES_NOT_AVAILABLE", str(exc))
     except (ValueError, IndexError) as exc:
         return error(404, "PAGE_NOT_FOUND", str(exc))
     except AuthRequired:
         return error(409, "SESSION_REQUIRED", "This source needs a connected account.")
+    except RateLimited as exc:
+        return error(429, "RATE_LIMITED", f"The source is rate limited (retry after {exc.retry_after}s).")
+    except CapabilityError as exc:
+        return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
     return Response(page.data, media_type="application/octet-stream",
                     headers={**CONTENT_HEADERS, "X-OneShelf-Origin": page.origin})
 
@@ -348,6 +356,8 @@ async def set_progress(request: Request, unit_id: str, body: ProgressBody):
                                                       revision=body.revision)
     except StaleProgress as exc:
         return error(409, "STALE_PROGRESS", str(exc))
+    except ValueError as exc:
+        return error(404, "UNIT_NOT_FOUND", str(exc))
     return asdict(state)
 
 
@@ -358,8 +368,11 @@ class EngagementBody(BaseModel):
 
 @router.post("/reader/units/{unit_id}/engagement")
 async def engagement(request: Request, unit_id: str, body: EngagementBody):
-    queued = await services(request).reader.record_engagement(unit_id, fraction=body.fraction,
-                                                              interacted=body.interacted)
+    try:
+        queued = await services(request).reader.record_engagement(unit_id, fraction=body.fraction,
+                                                                  interacted=body.interacted)
+    except ValueError as exc:
+        return error(404, "UNIT_NOT_FOUND", str(exc))
     return {"reading_unit_id": unit_id, "queued": queued}
 
 
@@ -427,8 +440,11 @@ async def remove_highlight(request: Request, mark_id: str):
 @router.post("/reader/units/{unit_id}/{action}")
 async def reading_state_action(request: Request, unit_id: str, action: str):
     reader = services(request).reader
-    if action == "mark-read":
-        return asdict(reader.mark_read(unit_id))
-    if action == "mark-unread":
-        return asdict(reader.mark_unread(unit_id))
+    try:
+        if action == "mark-read":
+            return asdict(reader.mark_read(unit_id))
+        if action == "mark-unread":
+            return asdict(reader.mark_unread(unit_id))
+    except ValueError as exc:
+        return error(404, "UNIT_NOT_FOUND", str(exc))
     return error(404, "UNKNOWN_ACTION", f"unknown reader action {action!r}")

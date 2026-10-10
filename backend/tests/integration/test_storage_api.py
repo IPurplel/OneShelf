@@ -1,9 +1,12 @@
 """C7 gate through the API: storage, import, backup, restore and export."""
+import asyncio
 import json
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from starlette.requests import ClientDisconnect, Request
 from starlette.testclient import TestClient
 
 from oneshelf.api.app import AppConfig, create_app
@@ -91,6 +94,33 @@ def test_unsupported_import_is_rejected(api):
     response = client.post("/api/import/uploads", content=b"<html>not a book</html>",
                            headers={"Content-Type": "application/octet-stream"})
     assert response.status_code == 422 and response.json()["error"]["code"] == "UNSUPPORTED_FILE"
+
+
+def test_invalid_import_content_type_is_validation_error(api):
+    client, tmp_path, _ = api
+    upload = client.post("/api/import/uploads?filename=chapter.cbz",
+                         content=make_cbz(tmp_path / "chapter.cbz").read_bytes()).json()
+    response = client.post("/api/import", json={"upload_id": upload["upload_id"],
+                                                "title": "A work", "content_type": "invalid"})
+    assert response.status_code == 422
+    assert not list((tmp_path / "library").rglob("*.cbz"))
+
+
+def test_interrupted_import_upload_removes_partial_file(tmp_path):
+    from oneshelf.api.storage import upload_import
+
+    data_dir = tmp_path / "data"
+    app = SimpleNamespace(state=SimpleNamespace(config=SimpleNamespace(data_dir=data_dir), services=SimpleNamespace()))
+    events = iter(({"type": "http.request", "body": b"partial", "more_body": True},
+                   {"type": "http.disconnect"}))
+
+    async def receive():
+        return next(events)
+
+    request = Request({"type": "http", "method": "POST", "headers": [], "app": app}, receive)
+    with pytest.raises(ClientDisconnect):
+        asyncio.run(upload_import(request))
+    assert list((data_dir / "uploads" / "import").iterdir()) == []
 
 
 def test_backup_restore_round_trip(api):
