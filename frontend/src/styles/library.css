@@ -69,7 +69,18 @@
 .shelf__viewall { margin-inline-start: auto; color: var(--link-text); text-decoration: none; font-size: 14px; font-weight: 600; }
 .shelf__viewall:hover { color: var(--link-text); }
 
-.shelf__case { position: relative; }
+.shelf__case { position: relative; isolation: isolate; }
+.shelf__case::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  block-size: var(--shelf-cover-height);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: linear-gradient(180deg, rgba(111, 83, 53, 0.045), rgba(111, 83, 53, 0.01) 55%, rgba(111, 83, 53, 0.075));
+  box-shadow: inset 0 -10px 16px rgba(65, 44, 25, 0.045);
+  pointer-events: none;
+}
 .shelf__case > .shelf__plank { position: absolute; }
 .shelf--recessed .shelf__case {
   background: var(--recessed-surface);
@@ -77,7 +88,10 @@
   border-radius: var(--radius-lg);
   padding: var(--space-4) var(--space-4) 0;
 }
+.shelf--recessed .shelf__case::before { top: var(--space-4); inset-inline: var(--space-4); }
 .shelf__row {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: var(--shelf-card-width);
@@ -99,43 +113,39 @@
                                -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .shelfview .shelf__case { margin-bottom: var(--space-6); }
 .shelf__row > * { scroll-snap-align: start; }
-.shelf--stacked .shelf__row {
-  grid-auto-flow: row;
-  grid-template-columns: repeat(auto-fill, minmax(min(145px, 100%), 1fr));
-  grid-template-rows: none;
-  gap: var(--space-5) var(--space-4);
-  overflow: visible;
-  scroll-snap-type: none;
-  align-items: start;
-}
-.shelf--stacked .shelf__row .workcard { grid-row: auto; grid-template-rows: auto auto; }
-.shelf--stacked .shelf__row .workcard__cover { max-block-size: none; }
-.shelf--stacked .workcard__title { display: -webkit-box; -webkit-box-orient: vertical;
-                                    -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
-.shelf--stacked .shelf__plank { display: none; }
-.shelf--stacked .workcard__caption { position: relative; }
-.shelf--stacked .workcard__caption::before {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  top: 0;
-  block-size: 6px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, var(--wood-300), var(--wood-500) 50%, var(--wood-700));
-  box-shadow: 0 5px 10px rgba(111, 83, 53, 0.17);
-}
-/* The plank: warm wood under the covers, a soft shadow, never cartoon skeuomorphism. */
+/* A slim top plane and front edge make the covers visibly rest on one shared shelf. */
 .shelf__plank {
   position: absolute;
   inset-inline: 0;
-  top: var(--shelf-cover-height);                       /* the line the covers stand on */
-  height: 9px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, var(--wood-300), var(--wood-500) 45%, var(--wood-700));
-  box-shadow: 0 8px 16px rgba(111, 83, 53, 0.22);
+  z-index: 1;
+  top: calc(var(--shelf-cover-height) - 2px);
+  block-size: 16px;
+  border: 1px solid rgba(66, 45, 27, 0.2);
+  border-radius: 2px 2px 5px 5px;
+  background:
+    repeating-linear-gradient(96deg, transparent 0 32px, rgba(255, 240, 208, 0.07) 33px 34px,
+                              transparent 35px 79px),
+    linear-gradient(180deg, #aa8357 0%, var(--wood-500) 28%, var(--wood-700) 85%, #58402e 100%);
+  box-shadow: inset 0 1px rgba(255, 246, 224, 0.55), inset 0 -2px rgba(49, 32, 20, 0.25),
+              0 6px 10px rgba(58, 40, 24, 0.2), 0 13px 22px rgba(58, 40, 24, 0.08);
   pointer-events: none;
 }
-.shelf--recessed .shelf__plank { inset-inline: var(--space-4); top: calc(var(--shelf-cover-height) + var(--space-4)); }
+.shelf__plank::before {
+  content: "";
+  position: absolute;
+  inset-inline: -1px;
+  bottom: calc(100% - 2px);
+  block-size: 9px;
+  transform: perspective(100px) rotateX(44deg);
+  transform-origin: bottom;
+  border-radius: 3px 3px 0 0;
+  background:
+    repeating-linear-gradient(92deg, transparent 0 27px, rgba(255, 246, 220, 0.11) 28px 29px,
+                              transparent 30px 66px),
+    linear-gradient(180deg, #d0ab78, #ad8455 68%, #906940);
+  box-shadow: inset 0 1px rgba(255, 246, 224, 0.45);
+}
+.shelf--recessed .shelf__plank { inset-inline: var(--space-4); top: calc(var(--shelf-cover-height) + var(--space-4) - 2px); }
 
 .workcard { min-inline-size: 0; overflow-wrap: anywhere; display: grid; gap: 0; color: inherit; text-decoration: none; align-content: start; }
 /* Each linked or live card occupies one column and shares the cover/caption rows. */
@@ -146,6 +156,14 @@
 }
 .shelf__row .workcard__caption { align-self: start; }
 .shelf__row .workcard__cover { max-block-size: var(--shelf-cover-height); }
+.shelf__row .workcard__cover {
+  box-shadow: 1px 0 0 #e8dfcf, 3px 1px 0 #bcb09c, 5px 3px 0 #78614b,
+              0 9px 15px rgba(39, 29, 20, 0.2);
+}
+[dir="rtl"] .shelf__row .workcard__cover {
+  box-shadow: -1px 0 0 #e8dfcf, -3px 1px 0 #bcb09c, -5px 3px 0 #78614b,
+              0 9px 15px rgba(39, 29, 20, 0.2);
+}
 .shelf__row .workcard:focus-visible { outline-offset: -2px; }
 .workcard__cover { transition: transform var(--motion-fast) var(--ease); }
 a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4px lift, nothing more (§32.20) */
@@ -160,6 +178,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .choice__title { font-size: 13px; color: var(--ink-500); }
 .work__cover img { inline-size: 100%; block-size: 100%; object-fit: cover; display: block; border-radius: inherit; }
 .workcard__caption { display: grid; gap: 4px; padding-top: var(--space-4); align-content: start; }
+.shelf__row .workcard__caption { padding-top: var(--space-5); }
 
 .workcard__cover {
   position: relative;
@@ -578,7 +597,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   .hero__cover { inline-size: 104px; }
   .hero__title { font-size: 24px; }
   .shelf, .shelfview { --shelf-card-width: 124px; --shelf-cover-height: 178px; }
-  .shelfview { --shelf-card-width: 170px; --shelf-cover-height: 240px; }
+  .shelfview { --shelf-card-width: 150px; --shelf-card-gap: 16px; --shelf-cover-height: 214px; }
   .shelf--compactRow { --shelf-card-width: 104px; --shelf-cover-height: 150px; }
   .shelf__title { font-size: 22px; }
 }

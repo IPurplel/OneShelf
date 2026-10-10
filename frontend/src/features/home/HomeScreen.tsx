@@ -50,13 +50,13 @@ export function HomeScreen() {
       {data.hero && <Hero hero={data.hero} fraction={data.continue_reading[0]?.fraction ?? null} />}
 
       {data.continue_reading.length > 0 && (
-        <Shelf id="continue" title={t("home.continue")} viewAllHref="/shelf" stacked>
+        <Shelf id="continue" title={t("home.continue")} viewAllHref="/shelf">
           {data.continue_reading.map((item) => <WorkCard key={item.work_id} work={item} />)}
         </Shelf>
       )}
 
       {data.trending.length > 0 && (
-        <Shelf id="trending" title={t("home.trending")} viewAllHref="/search" recessed stacked>
+        <Shelf id="trending" title={t("home.trending")} viewAllHref="/search" recessed>
           {data.trending.map((result) => <ResultCard key={result.work_id ?? result.title} result={result} />)}
         </Shelf>
       )}
@@ -64,7 +64,7 @@ export function HomeScreen() {
       {(data.latest.length > 0 || data.recently_added.length > 0) && (
         <div className="home__sections">
           {data.latest.length > 0 && (
-            <Shelf id="latest" title={t("home.latest")} viewAllHref="/search" stacked>
+            <Shelf id="latest" title={t("home.latest")} viewAllHref="/search">
               {data.latest.map((result) => (
                 <ResultCard key={result.work_id ?? result.title} result={result} />
               ))}
@@ -72,7 +72,7 @@ export function HomeScreen() {
           )}
 
           {data.recently_added.length > 0 && (
-            <Shelf id="recent" title={t("home.recent")} viewAllHref="/shelf" stacked>
+            <Shelf id="recent" title={t("home.recent")} viewAllHref="/shelf">
               {data.recently_added.map((item) => <WorkCard key={item.work_id} work={item} />)}
             </Shelf>
           )}
