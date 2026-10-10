@@ -4,7 +4,8 @@ from __future__ import annotations
 import json
 from contextlib import aclosing
 from dataclasses import asdict
-from typing import Literal
+from functools import lru_cache
+from typing import Callable, Literal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
@@ -16,7 +17,7 @@ from oneshelf.plugins.manager import PluginUnavailable
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
 from oneshelf.net.governor import Priority
 from oneshelf.search.grouping import LiveListing, persist_listing
-from oneshelf.search.presentation import cover_path, raw_cover_url
+from oneshelf.search.presentation import cover_lookup_path, cover_path, raw_cover_url
 from oneshelf.search.mapping import MappingError, MappingService
 from oneshelf.search.url_resolve import UnsupportedUrl
 
@@ -27,14 +28,33 @@ def _provenance(p) -> dict:
     return {**asdict(p), "cover_url": cover_path(p.source_id, p.cover_url)}
 
 
-def _result(result) -> dict:
+def _cover_previewer(plugins) -> Callable[[str], bool]:
+    @lru_cache(maxsize=None)
+    def can_preview(source_id: str) -> bool:
+        try:
+            recipe = plugins.load_active(source_id).recipes.get("work")
+        except PluginUnavailable:
+            return False
+        return recipe is not None and "listing_key" in recipe.inputs and "cover_url" in recipe.extract.fields
+
+    return can_preview
+
+
+def _result(result, can_preview: Callable[[str], bool]) -> dict:
+    cover = result.cover_url
+    if cover is None:
+        candidates = [p for p in result.provenance if p.listing_key and can_preview(p.source_id)][:5]
+        if candidates:
+            first = candidates[0]
+            alternates = [(p.source_id, p.listing_key, p.language) for p in candidates[1:]]
+            cover = cover_lookup_path(first.source_id, first.listing_key, first.language, alternates)
     return {"work_id": result.work_id, "title": result.title, "content_type": result.content_type,
-            "soft": result.soft, "availability": result.availability, "cover_url": result.cover_url,
+            "soft": result.soft, "availability": result.availability, "cover_url": cover,
             "provenance": [_provenance(p) for p in result.provenance]}
 
 
-def _update(update) -> dict:
-    return {"stage": update.stage, "results": [_result(r) for r in update.results],
+def _update(update, can_preview: Callable[[str], bool]) -> dict:
+    return {"stage": update.stage, "results": [_result(r, can_preview) for r in update.results],
             "source_status": update.source_status, "sources_total": update.sources_total,
             "sources_done": update.sources_done, "sources_failed": update.sources_failed}
 
@@ -46,12 +66,14 @@ def _sse(payload: dict) -> str:
 @router.get("/search")
 async def search(request: Request, q: str, refresh: bool = False):
     """Local-first results stream in immediately; live sources enrich them progressively (§6.1)."""
-    service = services(request).search
+    s = services(request)
+    service = s.search
+    can_preview = _cover_previewer(s.plugins)
 
     async def stream():
         async with aclosing(service.search(q, refresh=refresh)) as updates:
             async for update in updates:
-                yield _sse(_update(update))
+                yield _sse(_update(update, can_preview))
 
     return StreamingResponse(stream(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
@@ -64,11 +86,12 @@ class RetryBody(BaseModel):
 
 @router.post("/search/retry")
 async def retry_source(request: Request, body: RetryBody):
-    service = services(request).search
+    s = services(request)
+    service = s.search
     last = None
     async for update in service.retry_source(body.query, body.source_id):
         last = update
-    return _update(last)
+    return _update(last, _cover_previewer(s.plugins))
 
 
 class UrlBody(BaseModel):
@@ -89,7 +112,7 @@ async def resolve_url(request: Request, body: UrlBody):
     except CapabilityError as exc:
         return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
     return {"source_id": preview.resolved.plugin_id, "capability": preview.resolved.capability,
-            "identifier": preview.resolved.identifier, "result": _result(preview.result),
+            "identifier": preview.resolved.identifier, "result": _result(preview.result, _cover_previewer(s.plugins)),
             "details": asdict(preview.details) if preview.details else None}
 
 
@@ -98,10 +121,11 @@ async def home(request: Request):
     s = services(request)
     sections = await s.home.sections()
     hero = await s.home.hero()
+    can_preview = _cover_previewer(s.plugins)
     return {"hero": asdict(hero) if hero else None,
             "continue_reading": [asdict(i) for i in sections.continue_reading],
-            "trending": [_result(r) for r in sections.trending],
-            "latest": [_result(r) for r in sections.latest],
+            "trending": [_result(r, can_preview) for r in sections.trending],
+            "latest": [_result(r, can_preview) for r in sections.latest],
             "recently_added": [asdict(i) for i in sections.recently_added]}
 
 

@@ -67,6 +67,121 @@ def test_a_result_carries_its_source_cover_as_a_same_origin_path(api):
     assert result["provenance"][0]["cover_url"] == cover
 
 
+def test_a_result_without_a_search_cover_previews_it_without_opening(api):
+    client, tmp_path = api
+    before = durable(tmp_path)
+    result = result_for(search(client, "coverless"), "The Irregular Chronicle")
+    cover = result["cover_url"]
+    assert parse_qs(urlsplit(cover).query) == {"source": [TS], "listing_key": ["irregular"],
+                                                  "language": ["en"]}
+
+    response = client.get(cover)
+    assert response.status_code == 200 and response.content[:4] == b"\x89PNG"
+    assert durable(tmp_path) == before
+
+
+def test_a_coverless_group_uses_a_source_that_can_supply_a_cover(api):
+    from oneshelf.api.discovery import _cover_previewer, _result
+    from oneshelf.search.grouping import Provenance, ResultWork
+
+    client, _ = api
+    first = Provenance("oneshelf.no-cover", "absent", "en", "The Irregular Chronicle", None)
+    second = Provenance(TS, "irregular", "en", "The Irregular Chronicle", None)
+    result = ResultWork(None, first.title, "manga", True, provenance=[first, second])
+    preview = _cover_previewer(client.app.state.services.plugins)
+    assert parse_qs(urlsplit(_result(result, preview)["cover_url"]).query) == {
+        "source": [TS], "listing_key": ["irregular"], "language": ["en"]}
+    assert _result(ResultWork(None, first.title, "manga", True, provenance=[first]), preview)["cover_url"] is None
+
+
+def test_group_preview_tries_next_capable_listing_when_first_has_no_cover(api):
+    from oneshelf.api.discovery import _cover_previewer, _result
+    from oneshelf.search.grouping import Provenance, ResultWork
+
+    client, tmp_path = api
+    first = Provenance(TS, "coverless-detail", "en", "The Irregular Chronicle", None)
+    second = Provenance(TS, "irregular", "en", "The Irregular Chronicle", None)
+    result = ResultWork(None, first.title, "manga", True, provenance=[first, second])
+    cover = _result(result, _cover_previewer(client.app.state.services.plugins))["cover_url"]
+    before = durable(tmp_path)
+    response = client.get(cover)
+    assert response.status_code == 200 and response.content[:4] == b"\x89PNG"
+    assert durable(tmp_path) == before
+
+
+def test_cover_preview_rejects_unbounded_alternatives(api):
+    client, _ = api
+    params = [("source", TS), ("listing_key", "irregular")]
+    for _ in range(5):
+        params.extend((("alt_source", TS), ("alt_listing_key", "irregular"), ("alt_language", "en")))
+    response = client.get("/api/covers", params=params)
+    assert response.status_code == 422
+
+
+def test_a_source_without_work_cover_does_not_offer_preview(api, monkeypatch):
+    from types import SimpleNamespace
+
+    from oneshelf.api.discovery import _cover_previewer
+
+    client, _ = api
+    manager = client.app.state.services.plugins
+    package = manager.load_active(TS)
+    original = manager.load_active
+
+    def load(source):
+        if source == "oneshelf.no-cover":
+            recipe = package.recipes["work"].model_copy(update={"extract": SimpleNamespace(fields={"title": object()})})
+            return SimpleNamespace(recipes={"work": recipe})
+        return original(source)
+
+    monkeypatch.setattr(manager, "load_active", load)
+    assert not _cover_previewer(manager)("oneshelf.no-cover")
+    response = client.get("/api/covers", params={"source": "oneshelf.no-cover", "listing_key": "x"})
+    assert response.status_code == 404 and response.json()["error"]["code"] == "NO_COVER"
+
+
+def test_a_language_dependent_work_recipe_receives_the_listing_language(api, monkeypatch):
+    from dataclasses import replace
+    from types import SimpleNamespace
+
+    client, _ = api
+    s = client.app.state.services
+    package = s.plugins.load_active(TS)
+    recipe = package.recipes["work"].model_copy(update={"inputs": ["listing_key", "language"]})
+    modified = replace(package, recipes={**package.recipes, "work": recipe})
+    original_load = s.plugins.load_active
+    original_run = s.source_service.run
+    received = []
+
+    def load(source):
+        return modified if source == TS else original_load(source)
+
+    async def run(source, capability, inputs, *, priority):
+        received.append(inputs)
+        return SimpleNamespace(cover_url=COVER)
+
+    monkeypatch.setattr(s.plugins, "load_active", load)
+    monkeypatch.setattr(s.source_service, "run", run)
+    try:
+        response = client.get("/api/covers", params={"source": TS, "listing_key": "irregular", "language": "ar"})
+    finally:
+        monkeypatch.setattr(s.source_service, "run", original_run)
+    assert response.status_code == 200
+    assert received == [{"listing_key": "irregular", "language": "ar"}]
+
+
+def test_local_search_shows_an_already_known_cover_in_its_first_update(api):
+    client, _ = api
+    result = result_for(search(client, "chronicle"), "The Irregular Chronicle")
+    open_listing(client, result["provenance"][0])
+
+    stream = client.get("/api/search", params={"q": "chronicle"}).text
+    first = json.loads(next(line[6:] for line in stream.splitlines() if line.startswith("data: ")))
+    local = result_for(first, "The Irregular Chronicle")
+    assert first["stage"] == "local"
+    assert local["cover_url"] == result["cover_url"]
+
+
 # -- opening: exactly one listing, and something to read -----------------------------------------------------
 
 def test_opening_an_unbound_result_binds_exactly_it_and_brings_its_units(api):
@@ -75,7 +190,7 @@ def test_opening_an_unbound_result_binds_exactly_it_and_brings_its_units(api):
     opened = open_listing(client, result["provenance"][0])
     assert opened.status_code == 200, opened.text
     body = opened.json()
-    assert body["work_id"] and body["track_id"] and body["catalog"] == "refreshed"
+    assert body["work_id"] and body["track_id"] and body["details"] == "fetched" and body["catalog"] == "refreshed"
     details = client.get(f"/api/works/{body['work_id']}", params={"track_id": body["track_id"]}).json()
     assert details["selected_track_id"] == body["track_id"]
     assert len(details["units"]) == 9

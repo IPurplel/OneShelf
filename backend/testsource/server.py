@@ -139,22 +139,30 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
 
     async def search(request: web.Request) -> web.Response:
         q = request.query.get("q", "").strip().lower()
+        coverless = q == "coverless"
+        if coverless:
+            q = "chronicle"
         page = int(request.query.get("page", "1"))
         hits = [(k, w) for k, w in WORKS.items() if q and (q in w["title"].lower() or q in k)]
         chunk = hits[(page - 1) * 3: page * 3]
-        items = "".join(
-            f"<li class='result'><a class='title' href='/work/{k}'>{w['title']}</a>"
-            f"<span class='type'>{w['type']}</span><span class='lang'>{w['language']}</span>"
-            f"<img class='cover' src='//{CDN_HOST}/covers/{k}.png'></li>" for k, w in chunk)
+        items = ""
+        for k, w in chunk:
+            image = "" if coverless else f"<img class='cover' src='//{CDN_HOST}/covers/{k}.png'>"
+            items += (f"<li class='result'><a class='title' href='/work/{k}'>{w['title']}</a>"
+                      f"<span class='type'>{w['type']}</span><span class='lang'>{w['language']}</span>"
+                      f"{image}</li>")
         return web.Response(text=f"<html><body><ul class='results'>{items}</ul></body></html>", content_type="text/html")
 
     async def work(request: web.Request) -> web.Response:
         key = request.match_info["work"]
-        w = WORKS.get(key)
+        missing_cover = key == "coverless-detail"
+        w = WORKS.get("irregular" if missing_cover else key)
         if w is None:
             raise web.HTTPNotFound()
+        cover_meta = "" if missing_cover else f"<meta property='og:image' content='//{CDN_HOST}/covers/{key}.png'>"
         return web.Response(content_type="text/html", text=(
-            f"<html><body><h1 class='title'>{w['title']}</h1><div class='type'>{w['type']}</div>"
+            f"<html><head>{cover_meta}</head>"
+            f"<body><h1 class='title'>{w['title']}</h1><div class='type'>{w['type']}</div>"
             f"<div class='lang'>{w['language']}</div><ul class='aliases'><li>Alias of {key}</li></ul></body></html>"))
 
     async def catalog(request: web.Request) -> web.Response:

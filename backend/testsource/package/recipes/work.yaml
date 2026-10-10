@@ -7,6 +7,7 @@ response:
 extract:
   fields:
     title: {css: "h1.title::text", transforms: [trim]}
+    cover_url: {css: "meta[property='og:image']::attr(content)", transforms: [normalize_url]}
     aliases: {css: "ul.aliases li", all: true}
     content_type: {css: ".type::text", transforms: [trim]}
     language: {css: ".lang::text", transforms: [trim]}

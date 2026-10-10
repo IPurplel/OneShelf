@@ -20,6 +20,7 @@ from oneshelf.search.cache import DiscoveryCache
 from oneshelf.search.grouping import LiveListing, ResultWork, group_results
 from oneshelf.search.index import search_local
 from oneshelf.search.normalize import search_keys
+from oneshelf.search.presentation import work_cover
 
 SEARCH_KIND = "search"
 
@@ -91,7 +92,8 @@ class SearchService:
     # -- result assembly ---------------------------------------------------------------------------
 
     def _local_results(self, query: str) -> list[ResultWork]:
-        return [ResultWork(work_id=local.work_id, title=local.title, content_type=local.candidate.content_type, soft=False)
+        return [ResultWork(work_id=local.work_id, title=local.title, content_type=local.candidate.content_type,
+                           soft=False, cover_url=work_cover(self.conn, local.work_id))
                 for local in search_local(self.conn, query, limit=self.limit)]
 
     def _combine(self, query: str, state: _QueryState) -> list[ResultWork]:

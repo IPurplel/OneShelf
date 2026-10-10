@@ -6,6 +6,7 @@ it sees is a same-origin `/api/covers` path, which Core serves through that sour
 from __future__ import annotations
 
 import sqlite3
+from typing import Sequence
 from urllib.parse import parse_qs, urlencode, urlsplit
 
 COVER_ROUTE = "/api/covers"
@@ -16,6 +17,20 @@ def cover_path(source_id: str | None, url: str | None) -> str | None:
     if not source_id or not url or urlsplit(url).scheme not in ("http", "https"):
         return None
     return f"{COVER_ROUTE}?{urlencode({'source': source_id, 'url': url})}"
+
+
+def cover_lookup_path(source_id: str | None, listing_key: str | None, language: str | None = None,
+                      alternatives: Sequence[tuple[str, str, str]] = ()) -> str | None:
+    """A read-only cover preview for a listing whose search result has no image URL."""
+    if not source_id or not listing_key:
+        return None
+    query = [("source", source_id), ("listing_key", listing_key)]
+    if language:
+        query.append(("language", language))
+    for alt_source, alt_key, alt_language in alternatives:
+        query.extend((("alt_source", alt_source), ("alt_listing_key", alt_key),
+                      ("alt_language", alt_language)))
+    return f"{COVER_ROUTE}?{urlencode(query)}"
 
 
 def raw_cover_url(path: str | None, source_id: str) -> str | None:
