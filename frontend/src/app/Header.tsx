@@ -15,6 +15,14 @@ export function Header({ onOpenNotifications, onOpenAttention }: {
 
   return (
     <header className="header" role="banner">
+      <div className="header__mobileBrand">
+        <span className="header__mobileLeaf" aria-hidden="true">
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <path d="M20 4c0 8-5 13-12 13 0-8 5-13 12-13zM8 17c0 2-1 3-1 3" strokeLinecap="round" />
+          </svg>
+        </span>
+        <span className="display">{t("app.name")}</span>
+      </div>
       <div className="header__spacer" />
       <p className="header__promise">
         <span className="header__leaf" aria-hidden="true">

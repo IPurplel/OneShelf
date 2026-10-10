@@ -5,6 +5,7 @@ import { useResource } from "@/api/useApi";
 import type { HomeResponse } from "@/api/types";
 import { Shelf } from "@/components/Shelf";
 import { WorkCard } from "@/components/WorkCard";
+import { CoverPlaceholder } from "@/components/CoverPlaceholder";
 import { ResultCard } from "@/features/search/ResultCard";
 import { useI18n } from "@/i18n/i18n";
 
@@ -97,7 +98,7 @@ function Hero({ hero, fraction }: { hero: NonNullable<HomeResponse["hero"]>; fra
       <div className="hero__inner">
         <span className="hero__cover" aria-hidden="true">
           {cover ? <img src={cover} alt="" onError={() => setFailedCover(cover)} />
-            : <span className="hero__blank workcard__blank">{hero.title.slice(0, 1)}</span>}
+            : <CoverPlaceholder title={hero.title} className="hero__blank workcard__blank" />}
         </span>
         <div className="hero__body">
           <p className="hero__reason">{label}</p>

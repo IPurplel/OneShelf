@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { languageName } from "@/i18n/language";
 import { useI18n } from "@/i18n/i18n";
+import { CoverPlaceholder } from "@/components/CoverPlaceholder";
 
 export type CardWork = {
   work_id: string | null;
@@ -41,7 +42,7 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
     <span className="workcard__cover">
       {showCover
         ? <img src={work.cover_url!} alt="" loading="lazy" onError={() => setFailed(work.cover_url ?? null)} />
-        : <span className="workcard__blank" aria-hidden="true">{work.title.slice(0, 1)}</span>}
+        : <CoverPlaceholder title={work.title} className="workcard__blank" />}
     </span>
   );
 

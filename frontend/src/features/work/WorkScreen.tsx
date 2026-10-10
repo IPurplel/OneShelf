@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { ApiError, api } from "@/api/client";
+import { CoverPlaceholder } from "@/components/CoverPlaceholder";
 import { useResource } from "@/api/useApi";
 import type { Track, Unit, WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
@@ -173,7 +174,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
   return (
     <article className="screen work">
       <header className="work__header">
-        <WorkCover url={data.cover_url ?? null} />
+        <WorkCover url={data.cover_url ?? null} title={work.title} />
         <div className="work__intro">
           <h1 className="work__title display" dir="auto">{work.title}</h1>
           {work.original_title && <p className="work__original" dir="auto">{work.original_title}</p>}
@@ -418,12 +419,14 @@ function Sources({ tracks, selected, onChoose, onRefreshed }: {
 }
 
 
-/** The selected track's cover (presentation only, INV-28); the paper placeholder when there is none or it fails. */
-function WorkCover({ url }: { url: string | null }) {
+/** The selected track's cover (presentation only, INV-28); a typographic cover when art is unavailable. */
+function WorkCover({ url, title }: { url: string | null; title: string }) {
   const [failed, setFailed] = useState<string | null>(null);
   return (
     <div className="work__cover" aria-hidden="true">
-      {url && failed !== url && <img src={url} alt="" onError={() => setFailed(url)} />}
+      {url && failed !== url
+        ? <img src={url} alt="" onError={() => setFailed(url)} />
+        : <CoverPlaceholder title={title} className="work__blank" />}
     </div>
   );
 }
