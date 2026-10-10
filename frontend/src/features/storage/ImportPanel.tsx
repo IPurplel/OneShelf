@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ApiError, api } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
@@ -30,12 +31,16 @@ export function ImportPanel() {
   const [title, setTitle] = useState("");
   const [target, setTarget] = useState<string>("new");
   const [problem, setProblem] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
+  const [doneWorkId, setDoneWorkId] = useState<string | null>(null);
+  const [titleTouched, setTitleTouched] = useState(false);
+  const [pickerKey, setPickerKey] = useState(0);
 
   const [reviewing, setReviewing] = useState(false);
   const [importing, setImporting] = useState(false);
   const generation = useRef(0);
   const submitting = useRef(false);
+  const titleInput = useRef<HTMLInputElement>(null);
+  const titleError = target === "new" && titleTouched && title.trim().length === 0;
   useEffect(() => () => { generation.current++; }, []);
 
   const choose = async (file: File) => {
@@ -44,7 +49,8 @@ export function ImportPanel() {
     setReview(null);
     setReviewing(true);
     setProblem(null);
-    setDone(false);
+    setDoneWorkId(null);
+    setTitleTouched(false);
     try {
       const response = await fetch(`/api/import/uploads?filename=${encodeURIComponent(file.name)}`, {
         method: "POST", credentials: "same-origin", body: file,
@@ -69,20 +75,27 @@ export function ImportPanel() {
   };
 
   const importFile = async () => {
-    if (review === null || reviewing || submitting.current) return;
+    if (review === null || submitting.current) return;
+    if (target === "new" && !title.trim()) {
+      setTitleTouched(true);
+      titleInput.current?.focus();
+      requestAnimationFrame(() => titleInput.current?.scrollIntoView?.({ block: "center" }));
+      return;
+    }
     submitting.current = true;
     setImporting(true);
     setProblem(null);
     try {
-      await api.post("/api/import", {
+      const outcome = await api.post<{ work_id: string }>("/api/import", {
         upload_id: review.upload_id,
         mode: "copy",                                   // §37: Copy is the default; Move is explicit
         work_id: target === "new" ? undefined : target,
-        title: target === "new" ? title : undefined,
+        title: target === "new" ? title.trim() : undefined,
         language: review.language ?? undefined,
       });
       setReview(null);
-      setDone(true);
+      setDoneWorkId(outcome.work_id);
+      setPickerKey((current) => current + 1);
     } catch (error) {
       setProblem(apiErrorText(error, language, t));
     } finally {
@@ -98,9 +111,14 @@ export function ImportPanel() {
 
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
       {reviewing && <p role="status">{t("state.loading")}</p>}
-      {done && <p className="notice" role="status">{t("import.done")}</p>}
+      {doneWorkId !== null && (
+        <div className="notice import__success" role="status">
+          <span>{t("import.done")}</span>
+          <Link className="button" to={`/works/${encodeURIComponent(doneWorkId)}`}>{t("import.openWork")}</Link>
+        </div>
+      )}
 
-      <FilePicker label={t("import.choose")} accept=".cbz,.pdf,.epub" disabled={importing}
+      <FilePicker key={pickerKey} label={t("import.choose")} accept=".cbz,.pdf,.epub" disabled={importing}
                   onChoose={(file) => void choose(file)} />
 
       {review !== null && (
@@ -134,10 +152,15 @@ export function ImportPanel() {
           )}
 
           {target === "new" && (
-            <label className="field__label">
-              {t("import.titleField")}
-              <input type="text" className="field" value={title} onChange={(event) => setTitle(event.target.value)} />
-            </label>
+            <div className="field__label">
+              <label htmlFor="import-title">{t("import.titleField")}</label>
+              <input id="import-title" ref={titleInput} type="text" className="field" value={title}
+                     aria-invalid={titleError} aria-describedby={titleError ? "import-title-error" : undefined}
+                     onChange={(event) => setTitle(event.target.value)} />
+              {titleError && <span id="import-title-error" className="field__error" role="alert">
+                {t("import.titleRequired")}
+              </span>}
+            </div>
           )}
 
           <div className="firstrun__actions">

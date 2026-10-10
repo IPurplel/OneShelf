@@ -554,6 +554,10 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .restore__counts, .restore__plugins, .restore__issues { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
 .restore__plugins li { display: flex; gap: var(--space-3); align-items: baseline; }
 .import__review { display: grid; gap: var(--space-4); margin-top: var(--space-4); }
+.import__review .cards__meta { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.import__success { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.import__success > span { flex: 1 1 16ch; }
+.field__error { color: var(--warning-text); font-size: 14px; }
 .install__review { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
 
 /* The generator's draft: states, then the Recipe Inspector, read like a page rather than a console. */
