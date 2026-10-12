@@ -135,6 +135,7 @@ export type SearchUpdate = {
   results: ResultWork[];
   source_status: Record<string, SearchSourceStatus>;
   sources_total: number;
+  sources_available?: number;
   sources_done: number;
   sources_failed: number;
 };

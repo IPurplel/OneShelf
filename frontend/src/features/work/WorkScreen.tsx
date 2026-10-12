@@ -292,7 +292,10 @@ export function WorkScreen({ workId }: { workId?: string }) {
 
       {/* The tabs switch this one panel, and say so — a tab that controls nothing announces nothing. */}
       <div role="tabpanel" id="work-tabpanel" aria-labelledby={`work-tab-${tab}`} tabIndex={-1}>
-        {tab === "read" && <UnitIndex units={units} workId={id} trackId={data.selected_track_id} />}
+        <div hidden={tab !== "read"}>
+          <UnitIndex units={units} workId={id} trackId={data.selected_track_id}
+            downloadable={current !== null && current.kind !== "local"} />
+        </div>
         {tab === "details" && <Details data={data} />}
         {tab === "sources" && (
           <Sources tracks={tracks} selected={data.selected_track_id} onChoose={(track) => {
@@ -309,14 +312,44 @@ export function WorkScreen({ workId }: { workId?: string }) {
   );
 }
 
-function UnitIndex({ units, workId, trackId }: { units: Unit[]; workId: string; trackId: string | null }) {
+function UnitIndex({ units, workId, trackId, downloadable }: {
+  units: Unit[]; workId: string; trackId: string | null; downloadable: boolean;
+}) {
   const { t } = useI18n();
   const [problem, setProblem] = useState<string | null>(null);
+  const [queueing, setQueueing] = useState(false);
+  const [requested, setRequested] = useState<string[]>([]);
+  useEffect(() => { setRequested([]); setProblem(null); }, [workId, trackId]);
+  const eligible = units.filter(unit => unit.availability !== "unavailable" && !unit.downloaded && !requested.includes(unit.id));
+  const queueAll = async () => {
+    const ids = eligible.map(unit => unit.id);
+    if (ids.length === 0) return;
+    setProblem(null);
+    setQueueing(true);
+    try {
+      // A download batch accepts at most 2,000 unit IDs. One click can queue larger catalogues.
+      for (let start = 0; start < ids.length; start += 2000) {
+        const batch = ids.slice(start, start + 2000);
+        await api.post("/api/downloads", { unit_ids: batch });
+        setRequested(current => [...current, ...batch]);
+      }
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+    } finally {
+      setQueueing(false);
+    }
+  };
   if (units.length === 0) return <p className="notice">{t("work.noUnits")}</p>;
 
   return (
     <>
     {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+    <div className="units__bulk">
+      {downloadable && eligible.length > 0 && <button type="button" className="button" disabled={queueing}
+        aria-busy={queueing} onClick={() => void queueAll()}>{t("work.downloadAll")}</button>}
+      {requested.length > 0 && <p role="status" className="cards__meta">{requested.length === 1
+        ? t("work.downloadRequestedOne") : t("work.downloadRequested", { count: requested.length })}</p>}
+    </div>
     <ul className="units" aria-label={t("work.units")}>
       {units.map((unit) => (
         <li key={unit.id} className="units__row">
@@ -330,6 +363,7 @@ function UnitIndex({ units, workId, trackId }: { units: Unit[]; workId: string; 
           </span>
           {unit.downloaded
             ? <span className="units__badge">{t("work.downloaded")}</span>
+            : requested.includes(unit.id) ? <span className="units__badge">{t("work.requested")}</span>
             : <button type="button" className="units__action"
                       onClick={() => {
                         setProblem(null);

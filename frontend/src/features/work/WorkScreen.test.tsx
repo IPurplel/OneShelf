@@ -35,6 +35,41 @@ const DETAILS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Work Details", () => {
+  it("queues all available chapters that are not already downloaded in one action", async () => {
+    const details = { ...DETAILS, selected_track_id: "t-ar", units: [...DETAILS.units,
+      { ...DETAILS.units[1], id: "u3", title: "Chapter 4", availability: "unknown" },
+      { ...DETAILS.units[1], id: "u4", title: "Unavailable", availability: "unavailable" },
+    ] };
+    const calls = mockApi([get("/api/works/w1", details), post("/api/downloads", { batch_id: "b1", pending: 1, skipped: 1 })]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await user.click(await screen.findByRole("button", { name: /download all chapters/i }));
+    expect(calls.find(call => call.url === "/api/downloads" && call.method === "POST")?.body)
+      .toEqual({ unit_ids: ["u2", "u3"] });
+    expect(await screen.findByRole("status")).toHaveTextContent(/2 chapters requested/i);
+  });
+
+  it("keeps the bulk request state when switching tabs", async () => {
+    const details = { ...DETAILS, selected_track_id: "t-ar" };
+    const calls = mockApi([get("/api/works/w1", details), post("/api/downloads", { batch_id: "b1", pending: 1 })]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await user.click(await screen.findByRole("button", { name: /download all chapters/i }));
+    expect(await screen.findByText(/1 chapter requested/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: /details/i }));
+    await user.click(screen.getByRole("tab", { name: /read/i }));
+    expect(screen.getByText(/1 chapter requested/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /download all chapters/i })).toBeNull();
+    expect(calls.filter(call => call.url === "/api/downloads" && call.method === "POST")).toHaveLength(1);
+  });
+
+  it("does not offer a bulk download for a local track", async () => {
+    mockApi([get("/api/works/w1", DETAILS)]);
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("list", { name: /reading units/i });
+    expect(screen.queryByRole("button", { name: /download all chapters/i })).not.toBeInTheDocument();
+  });
+
   it.each(["en", "ar"] as const)("moves horizontal tab focus and selection by keyboard in %s", async (language) => {
     mockApi([get("/api/works/w1", DETAILS)]);
     const user = userEvent.setup();

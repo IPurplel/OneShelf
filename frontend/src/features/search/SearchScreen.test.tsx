@@ -47,6 +47,75 @@ beforeEach(() => vi.stubGlobal("EventSource", FakeEventSource));
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("Search", () => {
+  it("applies a quick scope without losing text being typed", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SearchScreen />);
+    const box = screen.getByRole("searchbox", { name: /search/i });
+    await user.type(box, "moon");
+    await user.click(screen.getByRole("button", { name: /^Manga$/i }));
+    expect(box).toHaveValue("moon");
+    expect(screen.getByRole("button", { name: /^Manga$/i })).toHaveAttribute("aria-pressed", "true");
+    await user.type(box, "{Enter}");
+    expect(FakeEventSource.last!.url).toContain("q=moon");
+    expect(FakeEventSource.last!.url).toContain("category=Manga");
+  });
+
+  it("shows scoped and available source counts supplied by the search stream", async () => {
+    renderWithProviders(<SearchScreen />, { route: "/search?q=moon&language=AR" });
+    act(() => FakeEventSource.last!.emit("local", { ...LOCAL, sources_total: 3, sources_available: 41 }));
+    expect(screen.getByRole("status")).toHaveTextContent(/searching 3 of 41 sources/i);
+  });
+
+  it("explains when filters exclude every source without suggesting installation", async () => {
+    renderWithProviders(<SearchScreen />, { route: "/search?q=moon&language=AR" });
+    act(() => FakeEventSource.last!.emit("complete", {
+      ...LOCAL, stage: "complete", results: [], sources_total: 0, sources_available: 41,
+    }));
+    expect(screen.getByText(/no sources match these filters/i)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /add a source/i })).not.toBeInTheDocument();
+  });
+
+  it("turns typed category and language scopes into URL parameters and removable chips", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SearchScreen />);
+    await user.type(screen.getByRole("searchbox"), "category:manga lang:ar moon{Enter}");
+    expect(FakeEventSource.last!.url).toContain("q=moon");
+    expect(FakeEventSource.last!.url).toContain("category=Manga");
+    expect(FakeEventSource.last!.url).toContain("language=AR");
+    expect(screen.getByRole("button", { name: /manga.*remove/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /manga.*remove/i }));
+    expect(FakeEventSource.last!.url).not.toContain("category=");
+    expect(FakeEventSource.last!.url).toContain("language=AR");
+  });
+
+  it("retries a failed source inside the active scope", async () => {
+    const user = userEvent.setup();
+    const retry = vi.spyOn(api, "post").mockResolvedValue(COMPLETE);
+    renderWithProviders(<SearchScreen />, { route: "/search?q=moon&category=Manga&language=AR" });
+    act(() => FakeEventSource.last!.emit("complete", COMPLETE));
+    await user.click(screen.getByRole("button", { name: /try tapas again/i }));
+    expect(retry).toHaveBeenCalledWith("/api/search/retry", {
+      query: "moon", source_id: "tapas", categories: ["Manga"], languages: ["AR"],
+    });
+  });
+
+  it("accepts Arabic and academic scope aliases", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SearchScreen />);
+    await user.type(screen.getByRole("searchbox"), "مانجا academic:books كتاب{Enter}");
+    expect(FakeEventSource.last!.url).toContain("category=Manga");
+    expect(FakeEventSource.last!.url).toContain("category=Academic+books");
+    expect(FakeEventSource.last!.url).toContain("q=%D9%83%D8%AA%D8%A7%D8%A8");
+  });
+
+  it("accepts a quoted multiword category", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<SearchScreen />);
+    await user.type(screen.getByRole("searchbox"), 'category:"Academic books" thesis{Enter}');
+    expect(FakeEventSource.last!.url).toContain("category=Academic+books");
+    expect(FakeEventSource.last!.url).toContain("q=thesis");
+  });
+
   it("distinguishes zero usable sources from no matching results", async () => {
     const user = userEvent.setup();
     renderWithProviders(<SearchScreen />);
@@ -141,7 +210,7 @@ describe("Search regressions", () => {
       working: { state: "pending" }, cached: { state: "cached" }, done: { state: "done", complete: true },
       failed: { state: "failed", category: "transport" },
     } }));
-    expect(screen.getAllByRole("button").map(button => button.textContent)).toEqual(["Try failed again"]);
+    expect(document.querySelector(".search__retries")?.textContent).toBe("Try failed again");
   });
 
   it("clears results and status on empty submission, and ignores late stream events", async () => {

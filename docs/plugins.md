@@ -293,6 +293,14 @@ repository-governed first-party trust (REL-26); REL-14 and REL-24 record the cha
 
 ### What Sources → Source Registry does
 
+Core reads optional `Source · Category · LANG` labels from adapter manifest names using the same 15
+categories and language grammar as OneShelf-Adapters' `docs/adapter-labels.md`. The Registry index may
+carry validated `category` and `languages` for each entry; older indexes fall back to parsing the name.
+Installed plugins store this metadata for Source Registry display and scoped search. A legacy adapter
+without a valid label still installs and searches normally when no category filter is active; its
+`defaults.language`, when present, remains available as language metadata. Plugin API 1.0 manifests
+need no new fields. The search bar accepts `category:manga` and `lang:ar`, including both in one query.
+
 Unchanged from before the move: each entry is set against the library (Installed, Install, Update,
 Review update, Disabled · Update available, installed version newer, Requires a newer OneShelf); every
 action opens a review (`POST /api/registry/review-package`) that downloads, hash-checks, validates and

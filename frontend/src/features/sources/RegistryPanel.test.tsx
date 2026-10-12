@@ -42,6 +42,31 @@ const cardFor = async (name: string) => {
 };
 
 describe("Source Registry", () => {
+  it("filters by category and Arabic, shows counts, and finds a source by name", async () => {
+    mockApi([get("/api/registry", listing(
+      card({ id: "journal", name: "Arabic Journal", category: "Journal", languages: ["AR"] }),
+      card({ id: "manga", name: "MangaDex", category: "Manga", languages: ["EN", "JA"] }),
+      card({ id: "books", name: "Arabic Books", category: "Books", languages: ["AR"] }),
+      card({ id: "multi", name: "Multilingual Archive", category: "Books", languages: ["Multi"] }),
+    ))]);
+    const user = userEvent.setup();
+    renderWithProviders(<RegistryPanel revision={0} onChanged={() => {}} />);
+    await cardFor("Arabic Journal");
+    expect(screen.getAllByRole("heading", { level: 3 }).map(heading => heading.textContent))
+      .toEqual(["Manga", "Books", "Journal"]);
+    expect(screen.getByRole("button", { name: /journal.*1/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /arabic.*3/i }));
+    expect(screen.getByText("Arabic Journal")).toBeInTheDocument();
+    expect(screen.getByText("Arabic Books")).toBeInTheDocument();
+    expect(screen.getByText("Multilingual Archive")).toBeInTheDocument();
+    expect(screen.queryByText("MangaDex")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /journal.*1/i }));
+    expect(screen.getByText("Arabic Journal")).toBeInTheDocument();
+    expect(screen.queryByText("Arabic Books")).not.toBeInTheDocument();
+    await user.type(screen.getByRole("searchbox", { name: /source name/i }), "nothing");
+    expect(screen.getByText(/no sources match/i)).toBeInTheDocument();
+  });
+
   it("shows an official source that is already installed as Installed, with nothing to press", async () => {
     mockApi([get("/api/registry", listing(card({})))]);
     renderWithProviders(<RegistryPanel revision={0} onChanged={() => {}} />);

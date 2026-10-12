@@ -41,6 +41,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from oneshelf.plugins.bundled import build_package
+from oneshelf.plugins.labels import metadata_from_manifest
 from oneshelf.plugins.package import ALLOWED_EXTENSIONS, PackageError, _unsafe_entry_name, load_package
 from oneshelf.plugins.registry import (INDEX_SCHEMA, DirectoryRegistry, RegistryError, RegistryEntry,
                                        api_supported, parse_index, parse_trusted_keys)
@@ -92,6 +93,8 @@ class Built:
     version: str
     api: str
     data: bytes
+    category: str | None
+    languages: tuple[str, ...]
 
     @property
     def id(self) -> str:
@@ -208,7 +211,9 @@ def build_adapter(adapter: Adapter, work: Path) -> tuple[Built | None, list[str]
     report = asyncio.run(run_packaged_tests(package))
     if not report.passed:
         return None, [f"{adapter.id}: packaged tests failed: {'; '.join(report.failures)}"]
-    return Built(adapter, package.manifest.name, package.version, package.manifest.api, path.read_bytes()), []
+    category, languages = metadata_from_manifest(package.manifest)
+    return Built(adapter, package.manifest.name, package.version, package.manifest.api, path.read_bytes(),
+                 category, languages), []
 
 
 def _package_files(data: bytes) -> dict[str, bytes] | None:
@@ -303,7 +308,8 @@ def index_bytes(built: list[Built], signer: Ed25519PrivateKey | None, key_id: st
     plugins = []
     for item in sorted(built, key=lambda b: b.id):
         entry = {"id": item.id, "name": item.name, "version": item.version, "api": item.api,
-                 "file": item.file, "sha256": item.sha256, "trust_label": item.adapter.trust_label}
+                 "file": item.file, "sha256": item.sha256, "trust_label": item.adapter.trust_label,
+                 "category": item.category, "languages": list(item.languages)}
         if signer is not None and item.adapter.tier in SIGNED_TIERS:
             # Core verifies exactly this: an Ed25519 signature over the package's sha256 hex digest.
             entry["signature"] = {"key_id": key_id,

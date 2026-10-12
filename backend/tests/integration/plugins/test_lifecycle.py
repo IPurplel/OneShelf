@@ -58,6 +58,39 @@ def test_fresh_install_with_approval_activates(manager, tmp_path, db):
     assert not any((tmp_path / "app" / "plugins" / ".staging").glob("*"))
 
 
+def test_install_persists_label_metadata_and_legacy_default_language(manager, tmp_path):
+    labelled = copy.deepcopy(MANIFEST)
+    labelled["name"] = "Example Books · Books · FA/AR"
+    labelled["defaults"]["language"] = "fa"
+    install(manager, osp(tmp_path, manifest=labelled))
+    record = manager.get("example.books")
+    assert record.category == "Books"
+    assert record.languages == ("FA", "AR")
+
+    legacy = copy.deepcopy(MANIFEST)
+    legacy["id"] = "legacy.books"
+    legacy["name"] = "Legacy Books"
+    legacy["defaults"]["language"] = "en"
+    install(manager, osp(tmp_path, name="legacy.osp", manifest=legacy))
+    record = manager.get("legacy.books")
+    assert record.category is None
+    assert record.languages == ("EN",)
+
+
+def test_rollback_restores_previous_label_metadata(manager, tmp_path):
+    first = copy.deepcopy(MANIFEST)
+    first["name"] = "Example Books · Books · EN"
+    install(manager, osp(tmp_path, manifest=first))
+    updated = copy.deepcopy(MANIFEST)
+    updated["name"] = "Example Books · Academic books · AR"
+    updated["defaults"]["language"] = "ar"
+    install(manager, osp(tmp_path, name="updated.osp", version="1.1.0", manifest=updated))
+    assert manager.get("example.books").category == "Academic books"
+    manager.rollback("example.books")
+    assert manager.get("example.books").category == "Books"
+    assert manager.get("example.books").languages == ("EN",)
+
+
 def test_install_without_permission_approval_waits_for_review(manager, tmp_path):
     path = osp(tmp_path)
     out = install(manager, path, approve=False)

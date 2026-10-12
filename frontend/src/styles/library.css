@@ -456,6 +456,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 
 /* Search: warm canvas, serif title, a large field, cover-focused results (§32.7). */
 .search__form { margin-bottom: var(--space-5); }
+.search__scope-hint { color: var(--ink-500); font-size: 14px; margin: calc(-1 * var(--space-3)) 0 var(--space-4); }
+.search__quick-scopes { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+.search__scopes { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
 .field--large { min-inline-size: min(560px, 100%); min-height: 52px; font-size: 17px; }
 .search__status { color: var(--ink-500); margin: 0 0 var(--space-3); }
 .search__retries { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); }
@@ -540,6 +543,13 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .cards__warn { color: var(--warning-text); font-size: 14px; }
 .cards__ok { color: var(--positive-text); font-size: 14px; }
 .cards__row .chip { margin-inline-start: auto; }
+.registry__filters { display: grid; gap: var(--space-3); margin-bottom: var(--space-5); }
+.registry__filter-group { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.registry__name-search { display: grid; gap: var(--space-2); max-inline-size: 360px; color: var(--ink-700); }
+.registry__group { margin-top: var(--space-5); }
+.registry__group-title { font-size: 18px; margin: 0 0 var(--space-3); }
+.units__bulk { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-4); }
+.units__bulk .cards__meta { margin: 0; }
 .drawer__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
 
 /* Settings: a readable document, categories beside the panel (§32.14). */

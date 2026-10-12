@@ -3,6 +3,7 @@
 Index format (schema "oneshelf.registry/1"):
   {"schema": "oneshelf.registry/1",
    "plugins": [{"id", "name", "version", "file" | "url", "sha256", "trust_label", "api"?,
+                "category"?, "languages"?,
                 "signature": {"key_id", "value": base64(ed25519(sha256-hex))}?}]}
 
 The index is untrusted input. Publisher keys are never taken from it — they are configured locally — and
@@ -22,6 +23,7 @@ from urllib.parse import unquote, urlsplit, urlunsplit
 
 from oneshelf.net.http import HttpClient
 from oneshelf.net.policy import EgressPolicy
+from oneshelf.plugins.labels import parse_adapter_label, validate_metadata
 
 INDEX_SCHEMA = "oneshelf.registry/1"
 MAX_INDEX_BYTES = 5 * 1024**2
@@ -52,6 +54,8 @@ class RegistryEntry:
     # The plugin API the package targets, so an index can say "needs a newer OneShelf" without the
     # package being downloaded. A hint only: the package's own manifest is still what is enforced.
     api: str | None = None
+    category: str | None = None
+    languages: tuple[str, ...] = ()
 
 
 def _version_key(version: str) -> tuple[int, ...]:
@@ -76,11 +80,16 @@ def parse_index(data: bytes) -> list[RegistryEntry]:
             if not isinstance(signature, dict):
                 raise TypeError("signature is not an object")
             location = raw.get("file") or raw["url"]
+            # Prefer a valid name label when the index's separate metadata contradicts it.
+            metadata = (parse_adapter_label(str(raw["name"]))
+                        or validate_metadata(raw.get("category"), raw.get("languages")))
+            category, languages = metadata if metadata is not None else (None, ())
             entry = RegistryEntry(
                 id=str(raw["id"]), name=str(raw["name"]), version=str(raw["version"]), sha256=str(raw["sha256"]).lower(),
                 trust_label=str(raw.get("trust_label", "community")), location=str(location),
                 signature_key_id=signature.get("key_id"), signature=signature.get("value"),
                 api=str(raw["api"]) if raw.get("api") is not None else None,
+                category=category, languages=languages,
             )
             if not _PLUGIN_ID.match(entry.id) or len(entry.id) > 64:
                 raise ValueError(f"invalid plugin id {entry.id!r}")

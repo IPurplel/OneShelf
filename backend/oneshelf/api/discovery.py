@@ -7,13 +7,14 @@ from dataclasses import asdict
 from functools import lru_cache
 from typing import Callable, Literal
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from oneshelf.api.sources import error, services
 from oneshelf.catalog.trust import TrustRejected
 from oneshelf.plugins.manager import PluginUnavailable
+from oneshelf.plugins.labels import CATEGORIES
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
 from oneshelf.net.governor import Priority
 from oneshelf.search.grouping import LiveListing, persist_listing
@@ -56,7 +57,14 @@ def _result(result, can_preview: Callable[[str], bool]) -> dict:
 def _update(update, can_preview: Callable[[str], bool]) -> dict:
     return {"stage": update.stage, "results": [_result(r, can_preview) for r in update.results],
             "source_status": update.source_status, "sources_total": update.sources_total,
+            "sources_available": update.sources_available,
             "sources_done": update.sources_done, "sources_failed": update.sources_failed}
+
+
+def _categories(values: list[str]) -> set[str] | None:
+    by_name = {category.casefold(): category for category in CATEGORIES}
+    resolved = [by_name.get(value.strip().casefold()) for value in values]
+    return None if any(category is None for category in resolved) else set(resolved)
 
 
 def _sse(payload: dict) -> str:
@@ -64,14 +72,20 @@ def _sse(payload: dict) -> str:
 
 
 @router.get("/search")
-async def search(request: Request, q: str, refresh: bool = False):
+async def search(request: Request, q: str, refresh: bool = False,
+                 category: list[str] | None = Query(default=None),
+                 language: list[str] | None = Query(default=None)):
     """Local-first results stream in immediately; live sources enrich them progressively (§6.1)."""
     s = services(request)
     service = s.search
     can_preview = _cover_previewer(s.plugins)
+    categories = _categories(category or [])
+    if categories is None:
+        return error(422, "INVALID_SEARCH_SCOPE", "Unknown search category.")
 
     async def stream():
-        async with aclosing(service.search(q, refresh=refresh)) as updates:
+        async with aclosing(service.search(q, refresh=refresh, categories=categories,
+                                           languages=set(language or ()))) as updates:
             async for update in updates:
                 yield _sse(_update(update, can_preview))
 
@@ -82,14 +96,20 @@ async def search(request: Request, q: str, refresh: bool = False):
 class RetryBody(BaseModel):
     query: str = Field(min_length=1, max_length=500)
     source_id: str = Field(min_length=1, max_length=64)
+    categories: list[str] = Field(default_factory=list)
+    languages: list[str] = Field(default_factory=list)
 
 
 @router.post("/search/retry")
 async def retry_source(request: Request, body: RetryBody):
     s = services(request)
     service = s.search
+    categories = _categories(body.categories)
+    if categories is None:
+        return error(422, "INVALID_SEARCH_SCOPE", "Unknown search category.")
     last = None
-    async for update in service.retry_source(body.query, body.source_id):
+    async for update in service.retry_source(body.query, body.source_id,
+                                             categories=categories, languages=set(body.languages)):
         last = update
     return _update(last, _cover_previewer(s.plugins))
 

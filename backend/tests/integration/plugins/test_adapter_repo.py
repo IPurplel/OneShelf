@@ -82,6 +82,19 @@ def test_a_well_formed_tree_passes(tmp_path):
     assert run("check-all", "--root", root) == 0
 
 
+def test_build_registry_publishes_label_metadata_and_legacy_language(tmp_path):
+    root = make_tree(tmp_path / "repo", official=("oneshelf.gutenberg",), community=["example.books"])
+    manifest = community(root) / "manifest.yaml"
+    manifest.write_text(manifest.read_text(encoding="utf-8").replace(
+        "name: Project Gutenberg", "name: Example Books · Books · EN", 1), encoding="utf-8")
+    out = tmp_path / "published"
+
+    assert run("build-registry", "--root", root, "--out", out) == 0
+    entries = {entry["id"]: entry for entry in json.loads((out / "index.json").read_text())["plugins"]}
+    assert (entries["example.books"]["category"], entries["example.books"]["languages"]) == ("Books", ["EN"])
+    assert (entries["oneshelf.gutenberg"]["category"], entries["oneshelf.gutenberg"]["languages"]) == (None, ["EN"])
+
+
 def test_all_eight_official_adapters_pass_as_they_are(tmp_path):
     root = make_tree(tmp_path / "repo", official=EIGHT)
     assert run("check-all", "--root", root) == 0

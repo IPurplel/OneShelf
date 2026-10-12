@@ -229,6 +229,30 @@ def _entry(location):
         "sha256": "0" * 64}]}).encode())[0]
 
 
+def test_index_metadata_is_validated_and_older_entries_still_parse():
+    def read(**extra):
+        entry = {"id": "oneshelf.x", "name": "Example", "version": "1.0.0",
+                 "file": "example.osp", "sha256": "0" * 64}
+        entry.update(extra)
+        return parse_index(json.dumps({"schema": "oneshelf.registry/1", "plugins": [entry]}).encode())[0]
+
+    valid = read(category="Books", languages=["EN", "AR"])
+    assert (valid.category, valid.languages) == ("Books", ("EN", "AR"))
+    language_only = read(category=None, languages=["EN"])
+    assert (language_only.category, language_only.languages) == (None, ("EN",))
+    labeled = read(name="Example · Books · EN/AR")
+    assert (labeled.category, labeled.languages) == ("Books", ("EN", "AR"))
+    invalid_with_label = read(name="Example · Books · EN", category="<script>", languages=["JA"])
+    assert (invalid_with_label.category, invalid_with_label.languages) == ("Books", ("EN",))
+    contradictory = read(name="Example · Manga · AR", category=None, languages=["EN"])
+    assert (contradictory.category, contradictory.languages) == ("Manga", ("AR",))
+    for extra in ({}, {"category": "<script>", "languages": ["EN"]},
+                  {"category": "Books", "languages": ["ar"]},
+                  {"category": "Books", "languages": "EN"}):
+        entry = read(**extra)
+        assert (entry.category, entry.languages) == (None, ())
+
+
 @pytest.mark.parametrize("location", ["../outside.osp", "/etc/passwd.osp", "packages/../../outside.osp",
                                       "packages/./x.osp", "packages\\x.osp", "packages/x.txt",
                                       "a" * 300 + ".osp", "https://evil.example/x.osp", "packages//x.osp"])

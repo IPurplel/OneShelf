@@ -72,6 +72,34 @@ def listing(client):
     return {p["id"]: p for p in client.get("/api/registry").json()["plugins"]}
 
 
+def test_registry_cards_expose_validated_metadata_and_filter_repeated_values(tmp_path):
+    registry = registry_dir(tmp_path)
+    index_path = registry / "index.json"
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    metadata = {
+        "oneshelf.3asq": ("Manga", ["AR"]),
+        "oneshelf.mangadex": ("Manga", ["Multi"]),
+        "oneshelf.gutenberg": ("Books", ["EN"]),
+        "oneshelf.arxiv": ("Papers", ["EN"]),
+    }
+    for entry in index["plugins"]:
+        entry["category"], entry["languages"] = metadata.get(entry["id"], ("Journal", ["FR"]))
+    index_path.write_text(json.dumps(index), encoding="utf-8")
+
+    with start(tmp_path, registry) as client:
+        cards = listing(client)
+        assert (cards["oneshelf.3asq"]["category"], cards["oneshelf.3asq"]["languages"]) == ("Manga", ["AR"])
+        assert (cards["oneshelf.mangadex"]["category"], cards["oneshelf.mangadex"]["languages"]) == ("Manga", ["Multi"])
+        filtered = client.get("/api/registry?category=Manga&category=Books&language=AR&language=EN")
+        assert {p["id"] for p in filtered.json()["plugins"]} == {
+            "oneshelf.3asq", "oneshelf.mangadex", "oneshelf.gutenberg"
+        }
+        multi = client.get("/api/registry?language=JA")
+        assert [p["id"] for p in multi.json()["plugins"]] == ["oneshelf.mangadex"]
+        lowercase = client.get("/api/registry?category=manga&language=ar")
+        assert {p["id"] for p in lowercase.json()["plugins"]} == {"oneshelf.3asq", "oneshelf.mangadex"}
+
+
 def test_a_fresh_library_reads_all_eight_official_sources_as_installed(tmp_path):
     with start(tmp_path, registry_dir(tmp_path)) as client:
         plugins = listing(client)
@@ -80,6 +108,12 @@ def test_a_fresh_library_reads_all_eight_official_sources_as_installed(tmp_path)
         assert plugin["state"] == "installed", plugin
         assert plugin["installed_version"] == plugin["version"] == "1.0.0"
         assert (plugin["channel"], plugin["installed_trust"]) == ("bundled", "official")
+
+
+def test_sources_listing_exposes_persisted_metadata(tmp_path):
+    with start(tmp_path, registry_dir(tmp_path)) as client:
+        sources = {item["id"]: item for item in client.get("/api/sources").json()["sources"]}
+    assert (sources["oneshelf.3asq"]["category"], sources["oneshelf.3asq"]["languages"]) == (None, ["AR"])
 
 
 def test_an_unsigned_official_claim_reads_as_community_in_the_listing(tmp_path):

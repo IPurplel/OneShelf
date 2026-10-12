@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
@@ -58,6 +58,7 @@ def _source_view(s, record) -> dict:
             capabilities, auth_available = list(package.manifest.capabilities), package.manifest.auth is not None
     return {"id": record.id, "name": record.name, "state": record.state, "version": record.active_version,
             "trust_label": record.trust_label, "channel": record.channel, "capabilities": capabilities,
+            "category": record.category, "languages": list(record.languages),
             "auth_available": auth_available, "session_state": s.sessions.state(record.id),
             "can_rollback": can_rollback}
 
@@ -285,7 +286,8 @@ async def cancel_login(request: Request, login_id: str):
 
 
 @router.get("/registry")
-async def registry_listing(request: Request, refresh: bool = False):
+async def registry_listing(request: Request, refresh: bool = False, category: list[str] | None = Query(None),
+                           language: list[str] | None = Query(None)):
     """One card per plugin: the Registry's newest version this build can run, set against what is installed.
 
     The comparison happens here, with the same version logic the manager uses, so the screen never has to
@@ -303,6 +305,8 @@ async def registry_listing(request: Request, refresh: bool = False):
         return error(502, "REGISTRY_UNAVAILABLE", str(exc))
     except Exception as exc:  # network policy / transport failures
         return error(502, "REGISTRY_UNAVAILABLE", type(exc).__name__)
+    categories = {value.casefold() for value in category or ()}
+    languages = {value.upper() for value in language or ()}
     by_id: dict[str, list] = {}
     for entry in entries:
         by_id.setdefault(entry.id, []).append(entry)
@@ -311,12 +315,17 @@ async def registry_listing(request: Request, refresh: bool = False):
         versions = sorted(by_id[plugin_id], key=lambda e: _registry_vkey(e.version), reverse=True)
         runnable = [e for e in versions if api_supported(e.api)]
         entry = runnable[0] if runnable else versions[0]
+        if categories and (entry.category is None or entry.category.casefold() not in categories):
+            continue
+        if languages and "Multi" not in entry.languages and not languages.intersection(entry.languages):
+            continue
         state, installed = s.plugins.install_state(plugin_id, entry.version)
         if not runnable and state in ("available", "update_available"):
             state = "incompatible"                                      # "Requires newer OneShelf"
         effective, basis = s.plugins.registry_trust(entry, registry.location)
         plugins.append({
             "id": entry.id, "name": entry.name, "version": entry.version,
+            "category": entry.category, "languages": list(entry.languages),
             "trust_label": entry.trust_label, "signed": basis == "signature",
             "effective_trust": effective, "trust_basis": basis, "api": entry.api,
             "state": state, "installed_version": installed["installed_version"],

@@ -55,7 +55,7 @@ def before(tmp_path):
                      " created_at, operation_id) VALUES ('hl1', 'u1', '{\"chapter\": 1}', 'A passage',"
                      " 'yellow', ?, '00000000-0000-4000-8000-000000000002')", (NOW,))
         conn.commit()
-    migrate(path, MIGRATIONS, snapshot_dir=tmp_path / "snap")
+    migrate(path, MIGRATIONS[:VERSION], snapshot_dir=tmp_path / "snap")
     return path
 
 
@@ -95,11 +95,11 @@ def test_text_is_now_a_format_and_nothing_else_is(before):
 
 
 def test_fresh_database_has_contiguous_migrations_and_both_schema_changes(tmp_path):
-    assert [(m.version, m.name) for m in MIGRATIONS[-2:]] == [
+    assert [(m.version, m.name) for m in MIGRATIONS[VERSION - 2:VERSION]] == [
         (16, "mark_operation_ids"), (17, "text_format")]
-    assert [m.version for m in MIGRATIONS] == list(range(1, VERSION + 1))
+    assert [m.version for m in MIGRATIONS[:VERSION]] == list(range(1, VERSION + 1))
     path = tmp_path / "fresh.db"
-    assert migrate(path, MIGRATIONS, snapshot_dir=tmp_path / "snap") == list(range(1, VERSION + 1))
+    assert migrate(path, MIGRATIONS[:VERSION], snapshot_dir=tmp_path / "snap") == list(range(1, VERSION + 1))
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("SELECT version, name FROM schema_migrations ORDER BY version DESC LIMIT 2").fetchall() == [
             (17, "text_format"), (16, "mark_operation_ids")]
@@ -136,9 +136,9 @@ def test_failed_text_migration_rolls_back_to_main_schema_and_can_retry(tmp_path)
     broken = Migration(VERSION, "text_format", "CREATE TABLE should_rollback (id INTEGER);"
                        " INSERT INTO missing_table VALUES (1);")
     with pytest.raises(MigrationError, match="migration v17"):
-        migrate(path, (*MIGRATIONS[:-1], broken), snapshot_dir=tmp_path / "snap")
+        migrate(path, (*MIGRATIONS[:VERSION - 1], broken), snapshot_dir=tmp_path / "snap")
     assert current_version(path) == 16
     with closing(sqlite3.connect(path)) as conn:
         assert conn.execute("SELECT name FROM sqlite_master WHERE name = 'should_rollback'").fetchone() is None
         assert "operation_id" in {row[1] for row in conn.execute("PRAGMA table_info(reading_bookmarks)")}
-    assert migrate(path, MIGRATIONS, snapshot_dir=tmp_path / "snap") == [17]
+    assert migrate(path, MIGRATIONS[:VERSION], snapshot_dir=tmp_path / "snap") == [17]

@@ -98,6 +98,37 @@ def test_search_uses_cache_on_the_second_call_and_refresh_bypasses_it(live):
     assert refreshed["source_status"][TS]["state"] == "done"
 
 
+def test_search_accepts_repeated_category_and_language_scope_values(live):
+    client, _ = live
+    bind(client, "manga-scope", "Scoped Story Manga", language="en", content_type="manga")
+    bind(client, "book-scope", "Scoped Story Book", language="ar", content_type="book")
+    scoped = sse_events(client.get("/api/search", params=[("q", "Scoped Story"),
+                   ("category", "Manga"), ("category", "Books"),
+                   ("language", "en"), ("language", "ar")]))[-1][1]
+    assert {result["title"] for result in scoped["results"]} == {"Scoped Story Manga", "Scoped Story Book"}
+    assert scoped["sources_total"] == 0 and scoped["source_status"] == {}
+    assert scoped["sources_available"] == 1
+
+
+def test_search_normalizes_category_case_and_rejects_unknown_category(live):
+    client, _ = live
+    bind(client, "case-scope", "Case Scope Manga", language="en", content_type="manga")
+    valid = sse_events(client.get("/api/search", params={"q": "Case Scope", "category": "manga"}))[-1][1]
+    assert [result["title"] for result in valid["results"]] == ["Case Scope Manga"]
+    invalid = client.get("/api/search", params={"q": "Case Scope", "category": "not-a-category"})
+    assert invalid.status_code == 422
+
+
+def test_search_retry_preserves_scope_and_excludes_nonmatching_source(live):
+    client, server = live
+    before = len([r for r in server.scenario.request_log if r.startswith("testsource.example/search")])
+    body = client.post("/api/search/retry", json={"query": "scope", "source_id": TS,
+                                                  "categories": ["Manga"], "languages": ["en"]}).json()
+    after = len([r for r in server.scenario.request_log if r.startswith("testsource.example/search")])
+    assert after == before
+    assert body["sources_total"] == 0 and body["source_status"] == {}
+
+
 def test_direct_url_entry_previews_without_persisting(live):
     client, _ = live
     response = client.post("/api/resolve-url", json={"url": "http://testsource.example/work/irregular"})

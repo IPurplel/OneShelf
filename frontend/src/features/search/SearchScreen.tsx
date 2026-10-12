@@ -6,6 +6,7 @@ import { ApiError, api } from "@/api/client";
 import type { SearchUpdate } from "@/api/types";
 import { ResultCard } from "./ResultCard";
 import { useI18n } from "@/i18n/i18n";
+import { categoryLabel, languageLabel, parseScopes } from "./scopes";
 
 /**
  * Search (Master §6, §32.7).
@@ -15,9 +16,13 @@ import { useI18n } from "@/i18n/i18n";
  * no invented relevance score to show.
  */
 export function SearchScreen() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [params, setParams] = useSearchParams();
   const submitted = (params.get("q") ?? "").trim();
+  const categories = params.getAll("category");
+  const languages = params.getAll("language");
+  const categoryKey = categories.join("\u0000");
+  const languageKey = languages.join("\u0000");
   const [query, setQuery] = useState(submitted);
   const [attempt, setAttempt] = useState(0);
   const [streamFailed, setStreamFailed] = useState(false);
@@ -43,7 +48,10 @@ export function SearchScreen() {
     setRetryProblem(null);
     setRetrying(null);
     if (submitted === "") return;
-    const source = new EventSource(`/api/search?q=${encodeURIComponent(submitted)}`);
+    const searchParams = new URLSearchParams({ q: submitted });
+    for (const category of categories) searchParams.append("category", category);
+    for (const language of languages) searchParams.append("language", language);
+    const source = new EventSource(`/api/search?${searchParams.toString()}`);
     stream.current = source;
     source.addEventListener("error", () => {
       if (generation.current !== current || stream.current !== source) return;
@@ -58,14 +66,33 @@ export function SearchScreen() {
       });
     }
     return () => { generation.current++; close(); };
-  }, [submitted, attempt, close]);
+  // Keys change only when scope values change; URLSearchParams is a new object on render.
+  }, [submitted, categoryKey, languageKey, attempt, close]);
+
+  const removeScope = (kind: "category" | "language", value: string) => {
+    const next = new URLSearchParams(params);
+    next.delete(kind);
+    for (const scope of (kind === "category" ? categories : languages).filter(scope => scope !== value)) next.append(kind, scope);
+    setParams(next);
+  };
+
+  const toggleScope = (kind: "category" | "language", value: string) => {
+    const next = new URLSearchParams(params);
+    const scopes = kind === "category" ? categories : languages;
+    next.delete(kind);
+    for (const scope of scopes.filter(scope => scope !== value)) next.append(kind, scope);
+    if (!scopes.includes(value)) next.append(kind, value);
+    setParams(next);
+  };
 
   const retry = async (sourceId: string) => {
     const current = generation.current;
     setRetryProblem(null);
     setRetrying(sourceId);
     try {
-      const result = await api.post<SearchUpdate>("/api/search/retry", { query: submitted, source_id: sourceId });
+      const result = await api.post<SearchUpdate>("/api/search/retry", {
+        query: submitted, source_id: sourceId, categories, languages,
+      });
       if (current === generation.current) setUpdate(result);
     } catch (error) {
       if (current === generation.current) {
@@ -89,15 +116,38 @@ export function SearchScreen() {
         event.preventDefault();
         generation.current++;
         close();
-        const next = query.trim();
-        setQuery(next);
-        if (next === submitted) setAttempt(value => value + 1);
-        else setParams(next ? { q: next } : {});
+        const parsed = parseScopes(query);
+        setQuery(parsed.query);
+        const next = new URLSearchParams();
+        if (parsed.query) next.set("q", parsed.query);
+        for (const category of Array.from(new Set([...categories, ...parsed.categories]))) next.append("category", category);
+        for (const language of Array.from(new Set([...languages, ...parsed.languages]))) next.append("language", language);
+        if (next.toString() === params.toString()) setAttempt(value => value + 1);
+        else setParams(next);
       }}>
         <input type="search" className="field field--large" aria-label={t("search.field")}
                placeholder={t("search.placeholder")} value={query}
                onChange={(event) => setQuery(event.target.value)} />
       </form>
+
+      <p className="search__scope-hint">{t("search.scopeHint")}</p>
+      <div className="search__quick-scopes" role="group" aria-label={t("search.quickScopes")}>
+        {(["Manga", "Books", "Journal", "Academic books", "Children's books", "Manuscripts"] as const).map(value =>
+          <button type="button" className="chip" key={value} aria-pressed={categories.includes(value)}
+            onClick={() => toggleScope("category", value)}>{categoryLabel(value, language)}</button>)}
+        <button type="button" className="chip" aria-pressed={languages.includes("AR")}
+          onClick={() => toggleScope("language", "AR")}>{languageLabel("AR", language)}</button>
+      </div>
+      {(categories.length > 0 || languages.length > 0) && <div className="search__scopes" role="group" aria-label={t("search.scopes")}>
+        {categories.map(category => <button type="button" className="chip" key={`category:${category}`}
+          onClick={() => removeScope("category", category)}>
+          {t("search.scopeRemove", { scope: categoryLabel(category, language) })}
+        </button>)}
+        {languages.map(code => <button type="button" className="chip" key={`language:${code}`}
+          onClick={() => removeScope("language", code)}>
+          {t("search.scopeRemove", { scope: languageLabel(code, language) })}
+        </button>)}
+      </div>}
 
       {submitted === "" && <p className="screen__subtitle">{t("search.intro")}</p>}
 
@@ -113,13 +163,19 @@ export function SearchScreen() {
 
       {update !== null && !streamFailed && update.sources_total > 0 && (
         <p className="search__status" role="status">
+          {(categories.length > 0 || languages.length > 0) && <>{update.sources_available === undefined
+            ? t("search.scopeActive", { count: update.sources_total })
+            : t("search.scopeCount", { scoped: update.sources_total, available: update.sources_available })}. </>}
           {update.stage === "complete" && update.sources_failed > 0
             ? t(update.sources_failed === 1 ? "search.failed" : "search.failedMany", { count: update.sources_failed })
             : t("search.progress", { done: update.sources_done, total: update.sources_total })}
         </p>
       )}
       {update !== null && !streamFailed && update.sources_total === 0 && (
-        <p className="search__status" role="status">{t("search.noSources")} <Link to="/sources">{t("search.addSource")}</Link></p>
+        <p className="search__status" role="status">{update.sources_available !== undefined && update.sources_available > 0
+          && (categories.length > 0 || languages.length > 0)
+          ? t("search.noScopeSources")
+          : <>{t("search.noSources")} <Link to="/sources">{t("search.addSource")}</Link></>}</p>
       )}
 
       {failedSources.length > 0 && (

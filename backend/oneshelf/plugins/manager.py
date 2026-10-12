@@ -26,6 +26,7 @@ from oneshelf.db.connection import transaction
 from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.plugins.package import PackageError, PluginPackage, load_package
+from oneshelf.plugins.labels import metadata_from_manifest
 from oneshelf.plugins.registry import Registry, RegistryEntry, RegistryError, api_supported, pick
 from oneshelf.plugins.runtime import run_packaged_tests
 
@@ -60,6 +61,8 @@ class PluginRecord:
     active_version: str | None
     trust_label: str
     channel: str
+    category: str | None = None
+    languages: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -121,6 +124,26 @@ class PluginManager:
         self.first_party_registry = first_party_registry or None
         self.fault = fault or (lambda _p: None)
         self._cache: dict[tuple[str, str, str], PluginPackage] = {}
+        self._backfill_metadata()
+
+    def _backfill_metadata(self) -> None:
+        """Upgrade existing installs once; keep queries free of manifest parsing."""
+        rows = self.conn.execute("SELECT id, name, active_version FROM plugins WHERE metadata_ready = 0").fetchall()
+        for row in rows:
+            manifest = {"name": row["name"]}
+            if row["active_version"]:
+                version = self._active_row(row["id"])
+                if version is not None:
+                    path = self._store_path(version["store_relpath"])
+                    try:
+                        if path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == version["sha256"]:
+                            manifest = load_package(path).manifest
+                    except (OSError, PackageError):
+                        pass
+            category, languages = metadata_from_manifest(manifest)
+            with transaction(self.conn):
+                self.conn.execute("UPDATE plugins SET category = ?, languages_json = ?, metadata_ready = 1 WHERE id = ?",
+                                  (category, json.dumps(languages), row["id"]))
 
     # -- queries ----------------------------------------------------------------------------------
 
@@ -128,7 +151,8 @@ class PluginManager:
         row = self.conn.execute("SELECT * FROM plugins WHERE id = ?", (plugin_id,)).fetchone()
         if row is None:
             raise PluginUnavailable(f"plugin {plugin_id!r} is not installed")
-        return PluginRecord(row["id"], row["name"], row["state"], row["active_version"], row["trust_label"], row["channel"])
+        return PluginRecord(row["id"], row["name"], row["state"], row["active_version"], row["trust_label"],
+                            row["channel"], row["category"], tuple(json.loads(row["languages_json"])))
 
     def list(self) -> list[PluginRecord]:
         return [self.get(r[0]) for r in self.conn.execute("SELECT id FROM plugins ORDER BY name")]
@@ -251,14 +275,21 @@ class PluginManager:
                 state, active_version = "pending_review", None
             if status == "active" or plugin is None or not has_active:
                 label, chan = trust_label, channel
+                name = package.manifest.name
+                category, languages = metadata_from_manifest(package.manifest)
             else:
                 label, chan = plugin["trust_label"], plugin["channel"]
+                name = plugin["name"]
+                category, languages = plugin["category"], tuple(json.loads(plugin["languages_json"]))
             self.conn.execute(
-                "INSERT INTO plugins (id, name, state, active_version, trust_label, channel, registry_url, installed_at, updated_at)"
-                " VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name, state=excluded.state,"
+                "INSERT INTO plugins (id, name, state, active_version, trust_label, channel, registry_url, installed_at,"
+                " updated_at, category, languages_json, metadata_ready)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,1) ON CONFLICT(id) DO UPDATE SET name=excluded.name, state=excluded.state,"
                 " active_version=excluded.active_version, trust_label=excluded.trust_label, channel=excluded.channel,"
+                " category=excluded.category, languages_json=excluded.languages_json, metadata_ready=1,"
                 " registry_url=coalesce(excluded.registry_url, plugins.registry_url), updated_at=excluded.updated_at",
-                (package.id, package.manifest.name, state, active_version, label, chan, registry_url, now, now),
+                (package.id, name, state, active_version, label, chan, registry_url, now, now,
+                 category, json.dumps(languages)),
             )
             if status == "active":
                 self.conn.execute("UPDATE plugin_versions SET status = 'retired' WHERE plugin_id = ? AND status = 'previous'",
@@ -457,13 +488,22 @@ class PluginManager:
         active = self._active_row(plugin_id)
         if previous is None or active is None:
             raise PluginUnavailable("no previous version to roll back to")
+        previous_row = self._version_row(plugin_id, previous["version"])
+        assert previous_row is not None
+        path = self._store_path(previous_row["store_relpath"])
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != previous_row["sha256"]:
+            raise PluginUnavailable("previous plugin package is missing or modified")
+        package = load_package(path)
+        category, languages = metadata_from_manifest(package.manifest)
         with transaction(self.conn):
             self.conn.execute("UPDATE plugin_versions SET status = 'previous' WHERE plugin_id = ? AND version = ?",
                               (plugin_id, active["version"]))
             self.conn.execute("UPDATE plugin_versions SET status = 'active' WHERE plugin_id = ? AND version = ?",
                               (plugin_id, previous["version"]))
-            self.conn.execute("UPDATE plugins SET active_version = ?, state = 'active', updated_at = ? WHERE id = ?",
-                              (previous["version"], utcnow_iso(), plugin_id))
+            self.conn.execute("UPDATE plugins SET active_version = ?, state = 'active', name = ?, category = ?,"
+                              " languages_json = ?, metadata_ready = 1, updated_at = ? WHERE id = ?",
+                              (previous["version"], package.manifest.name, category, json.dumps(languages),
+                               utcnow_iso(), plugin_id))
 
     def uninstall(self, plugin_id: str) -> None:
         self.get(plugin_id)

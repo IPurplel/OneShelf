@@ -4,6 +4,7 @@ import { ApiError, api } from "@/api/client";
 import { Drawer } from "@/components/Drawer";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
+import { CATEGORIES, categoryLabel, languageLabel } from "@/features/search/scopes";
 import { explain } from "./permissions";
 
 type RegistryState = "installed" | "available" | "update_available" | "pending_review" | "installed_newer"
@@ -23,6 +24,8 @@ type Card = {
   plugin_state: string | null;
   channel: string | null;
   installed_trust: string | null;
+  category?: string | null;
+  languages?: string[];
 };
 
 type Listing = { configured: boolean; location?: string; plugins: Card[] };
@@ -84,7 +87,7 @@ function trustKey(effective: string, claimed: string, basis?: string): StringKey
  * untouched and this section simply says so.
  */
 export function RegistryPanel({ revision, onChanged }: { revision: number; onChanged: () => void }) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const heading = useId();
   const [listing, setListing] = useState<Listing | null>(null);
   const [unavailable, setUnavailable] = useState(false);
@@ -93,6 +96,9 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
   const [problem, setProblem] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [category, setCategory] = useState<string | null>(null);
+  const [sourceLanguage, setSourceLanguage] = useState<string | null>(null);
+  const [nameQuery, setNameQuery] = useState("");
 
   const load = useCallback(async (refresh: boolean) => {
     try {
@@ -162,7 +168,27 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
     }
   };
 
-  const plugins = listing?.plugins ?? [];
+  const allPlugins = listing?.plugins ?? [];
+  const categories = Array.from(new Set(allPlugins.map(card => card.category).filter((value): value is string => Boolean(value))));
+  const categoryOrder = (value: string) => {
+    const index = CATEGORIES.findIndex(category => category === value);
+    return index < 0 ? CATEGORIES.length : index;
+  };
+  const compareCategories = (a: string, b: string) =>
+    categoryOrder(a) - categoryOrder(b) || categoryLabel(a, language).localeCompare(categoryLabel(b, language), language);
+  categories.sort(compareCategories);
+  const languages = Array.from(new Set(allPlugins.flatMap(card => card.languages ?? []).map(code => code.toUpperCase())));
+  languages.sort((a, b) => a === "AR" ? -1 : b === "AR" ? 1 : languageLabel(a, language).localeCompare(languageLabel(b, language), language));
+  const supportsLanguage = (card: Card, code: string) => card.languages?.some(value => {
+    const normalized = value.toUpperCase();
+    return normalized === code || normalized === "MULTI";
+  });
+  const plugins = allPlugins.filter(card =>
+    (category === null || card.category === category) &&
+    (sourceLanguage === null || supportsLanguage(card, sourceLanguage)) &&
+    card.name.toLocaleLowerCase().includes(nameQuery.trim().toLocaleLowerCase()),
+  );
+  const grouped = Array.from(new Set(plugins.map(card => card.category ?? ""))).sort(compareCategories);
   const buttonKey: StringKey = review?.state === "update_available" ? "registry.review.update"
     : review?.state === "pending_review" ? "registry.review.approve" : "install.action";
 
@@ -181,13 +207,38 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
       )}
       {listing !== null && !listing.configured && <p className="cards__meta">{t("registry.notConfigured")}</p>}
 
-      {plugins.length > 0 && (
-        <ul className="cards">
-          {plugins.map((card) => {
+      {allPlugins.length > 0 && <div className="registry__filters">
+        <div className="registry__filter-group" role="group" aria-label={t("registry.categories")}>
+          <button type="button" className="chip" aria-pressed={category === null} onClick={() => setCategory(null)}>
+            {t("registry.allCategories")} · {allPlugins.length}
+          </button>
+          {categories.map(value => <button type="button" className="chip" key={value}
+            aria-pressed={category === value} onClick={() => setCategory(category === value ? null : value)}>
+            {categoryLabel(value, language)} · {allPlugins.filter(card => card.category === value).length}
+          </button>)}
+        </div>
+        <div className="registry__filter-group" role="group" aria-label={t("registry.languages")}>
+          {languages.map(value => <button type="button" className="chip" key={value}
+            aria-pressed={sourceLanguage === value} onClick={() => setSourceLanguage(sourceLanguage === value ? null : value)}>
+            {languageLabel(value, language)} · {allPlugins.filter(card => supportsLanguage(card, value)).length}
+          </button>)}
+        </div>
+        <label className="registry__name-search">{t("registry.nameSearch")}
+          <input type="search" className="field" value={nameQuery} onChange={event => setNameQuery(event.target.value)} />
+        </label>
+      </div>}
+
+      {allPlugins.length > 0 && plugins.length === 0 && <p className="shelf__empty">{t("registry.noMatch")}</p>}
+      {grouped.map(group => (
+        <div className="registry__group" key={group}>
+          {group && <h3 className="display registry__group-title">{categoryLabel(group, language)}</h3>}
+          <ul className="cards">
+          {plugins.filter(card => (card.category ?? "") === group).sort((a, b) => a.name.localeCompare(b.name, language)).map((card) => {
             const action = ACTION[card.state];
             return (
               <li key={card.id} className="cards__row">
                 <span className="cards__name display" dir="auto">{card.name}</span>
+                {card.languages?.length ? <span className="cards__meta" dir="auto">{card.languages.join(", ")}</span> : null}
                 <span className="cards__meta">{card.version}</span>
                 <span className="chip chip--static">{t(trustKey(card.effective_trust, card.trust_label, card.trust_basis))}</span>
                 <span className={`cards__state cards__state--${card.state}`}>{status(card)}</span>
@@ -199,8 +250,9 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
               </li>
             );
           })}
-        </ul>
-      )}
+          </ul>
+        </div>
+      ))}
 
       {reviewing !== null && (
         <Drawer title={t("registry.review.title", { name: reviewing.name })} onClose={close}>
