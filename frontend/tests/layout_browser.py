@@ -228,7 +228,7 @@ def run(args):
             page.wait_for_load_state('networkidle')
             expect(page.locator('.shelf__row').first.locator('.workcard')).to_have_count(10)
             page.set_viewport_size({'width': 390, 'height': 1000})
-            expect(page.locator('.shelf__row').first.locator('.workcard')).to_have_count(1)
+            expect(page.locator('.shelf__row').first.locator('.workcard')).to_have_count(2)
             check_layout(page)
             page.set_viewport_size({'width': 2560, 'height': 1000})
             page.locator('.shelfview').evaluate("e => e.style.width = '500px'")
