@@ -110,7 +110,7 @@ describe("Settings", () => {
              get("/api/notifications/settings", NOTIFY), get("/api/diagnostics", DIAGNOSTICS)]);
     renderWithProviders(<SettingsScreen />);
     await screen.findByRole("tablist", { name: /settings/i });
-    expect(document.querySelector(".shelf__plank")).toBeNull();
+    expect(document.querySelector(".shelf__case")).toBeNull();
   });
 
   // §32.14: every category holds its settings. §45: what a reader needs first, the technical knobs

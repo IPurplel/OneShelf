@@ -6,6 +6,7 @@ import { ModalSurface } from "@/components/ModalSurface";
 import { LoadingState } from "@/components/LoadingState";
 import type { ShelfResponse } from "@/api/types";
 import { WorkCard } from "@/components/WorkCard";
+import { ShelfCase } from "@/components/ShelfCase";
 import { useShelfColumns } from "./useShelfColumns";
 import { RemoveFromShelf } from "./RemoveFromShelf";
 import type { RemovalSummary } from "./RemoveFromShelf";
@@ -134,16 +135,13 @@ export function ShelfScreen() {
             ))}
           </div>
         ) : (
-          /* The shelf motif belongs here too (§32.9): works stand in rows on their own planks. */
+          /* The shelf motif belongs here too (§32.9): works stand in rows on their own ledges. */
           chunk(entries, columns).map((row, index) => (
-            <div className="shelf__case" key={row[0]?.work_id ?? index}>
-              <div className="shelf__row shelf__row--wrap">
-                {row.map((entry) => (
-                  <WorkCard key={entry.work_id} work={{ work_id: entry.work_id, title: entry.title, cover_url: entry.cover_url ?? null }} />
-                ))}
-              </div>
-              <div className="shelf__plank" aria-hidden="true" />
-            </div>
+            <ShelfCase key={row[0]?.work_id ?? index} wrap>
+              {row.map((entry) => (
+                <WorkCard key={entry.work_id} work={{ work_id: entry.work_id, title: entry.title, cover_url: entry.cover_url ?? null }} />
+              ))}
+            </ShelfCase>
           ))
         )}
       </section>

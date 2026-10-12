@@ -82,7 +82,7 @@ describe("Downloads", () => {
     mockApi([get("/api/downloads", BATCHES)]);
     renderWithProviders(<DownloadsScreen />);
     await screen.findAllByRole("listitem");
-    expect(document.querySelector(".shelf__plank, canvas")).toBeNull();
+    expect(document.querySelector(".shelf__case, canvas")).toBeNull();
   });
 
   it("says plainly when nothing has been downloaded", async () => {

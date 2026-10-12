@@ -78,17 +78,17 @@
   block-size: var(--shelf-cover-height);
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   background:
-    radial-gradient(ellipse 100% 75% at 50% 15%, rgba(255, 252, 245, 0.48), transparent 75%),
-    linear-gradient(180deg, rgba(111, 83, 53, 0.065), rgba(111, 83, 53, 0.015) 40%, rgba(111, 83, 53, 0.11));
-  box-shadow: inset 0 -16px 24px rgba(65, 44, 25, 0.06);
+    radial-gradient(ellipse 90% 85% at 50% 18%, rgba(255, 252, 245, 0.42), transparent 80%),
+    linear-gradient(180deg, rgba(111, 83, 53, 0.045), transparent 38%, rgba(111, 83, 53, 0.095));
+  box-shadow: inset 0 -18px 22px rgba(65, 44, 25, 0.05);
   pointer-events: none;
 }
 :root[data-resolved-theme="dark"] .shelf__case::before {
   background: linear-gradient(180deg, rgba(178, 143, 99, 0.055), transparent 42%, rgba(0, 0, 0, 0.16));
   box-shadow: inset 0 -16px 24px rgba(0, 0, 0, 0.11);
 }
-.shelf__case > .shelf__plank { position: absolute; }
 .shelf--recessed .shelf__case {
+  --shelf-base-offset: calc(var(--space-4) + 1px);
   background: var(--recessed-surface);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-lg);
@@ -110,6 +110,7 @@
   align-items: end;
   padding-bottom: var(--space-2);
 }
+.shelf__row:focus-within { z-index: 4; }
 .shelf--compactRow { --shelf-card-width: 118px; --shelf-cover-height: 168px; }
 /* On My Shelf the rows do not scroll: they fill the width and wrap into further shelves. */
 .shelfview { --shelf-card-width: 190px; --shelf-cover-height: 270px; }
@@ -119,54 +120,63 @@
                                -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .shelfview .shelf__case { margin-bottom: var(--space-6); }
 .shelf__row > * { scroll-snap-align: start; }
-/* The top, front and underside read as one timber ledge. Its front edge passes over the
-   last pixels of each cover, so the volumes have visible weight on the shared shelf. */
-.shelf__plank {
+/* The deck sits behind the books; only the fascia crosses their bottom edge. */
+.shelf__deck,
+.shelf__fascia {
   position: absolute;
   inset-inline: 0;
-  z-index: 3;
-  top: calc(var(--shelf-cover-height) - 1px);
-  block-size: 13px;
-  border: 1px solid rgba(64, 39, 22, 0.35);
-  border-block-start-color: rgba(255, 236, 195, 0.85);
-  border-radius: 1px 1px 4px 4px;
-  background:
-    repeating-linear-gradient(97deg, transparent 0 56px, rgba(249, 224, 182, 0.085) 57px 58px,
-                              transparent 59px 114px),
-    linear-gradient(180deg, #ad8658 0%, #926b46 30%, #765135 66%, #563b2a 100%);
-  box-shadow: inset 0 2px rgba(255, 245, 216, 0.38), inset 0 -2px rgba(48, 30, 18, 0.22),
-              0 3px 0 rgba(60, 41, 27, 0.16), 0 9px 13px rgba(58, 40, 24, 0.20),
-              0 17px 25px rgba(58, 40, 24, 0.08);
   pointer-events: none;
+  background-image: url("../assets/shelf-grain.svg");
+  background-repeat: repeat-x;
+  background-size: 640px 64px;
 }
-.shelf__plank::before {
-  content: "";
-  position: absolute;
-  inset-inline: -1px;
-  bottom: calc(100% - 1px);
-  block-size: 13px;
-  transform: perspective(90px) rotateX(68deg);
+.shelf__deck {
+  z-index: 1;
+  top: calc(var(--shelf-cover-height) + var(--shelf-base-offset, 0px) - 14px);
+  block-size: 15px;
+  transform: perspective(180px) rotateX(52deg);
   transform-origin: bottom;
-  border-radius: 2px 2px 0 0;
-  background:
-    repeating-linear-gradient(94deg, transparent 0 44px, rgba(255, 245, 218, 0.18) 45px 46px,
-                              transparent 47px 92px),
-    linear-gradient(180deg, #dfbf91, #be9466 70%, #a5774c);
-  box-shadow: inset 0 1px rgba(255, 250, 227, 0.8);
+  border: 1px solid rgba(91, 60, 35, 0.38);
+  border-radius: 3px 3px 0 0;
+  background-color: #bf9466;
+  box-shadow: inset 0 2px rgba(255, 245, 219, 0.55), 0 -2px 7px rgba(65, 44, 27, 0.14);
 }
-.shelf__plank::after {
+.shelf__fascia {
+  z-index: 3;
+  inset-inline: -2px;
+  top: calc(var(--shelf-cover-height) + var(--shelf-base-offset, 0px) - 2px);
+  block-size: 17px;
+  border: 1px solid rgba(61, 39, 24, 0.55);
+  border-block-start-color: rgba(255, 230, 187, 0.74);
+  border-radius: 1px 1px 4px 4px;
+  background-color: #775238;
+  background-image: linear-gradient(180deg, rgba(251, 221, 174, 0.25), transparent 38%, rgba(38, 23, 15, 0.22)), url("../assets/shelf-grain.svg");
+  box-shadow: inset 0 2px rgba(255, 238, 202, 0.34), inset 0 -3px rgba(50, 32, 20, 0.28),
+              0 3px 0 rgba(51, 34, 23, 0.3), 0 10px 17px rgba(48, 32, 21, 0.20);
+}
+.shelf__fascia::before {
   content: "";
   position: absolute;
-  inset-inline: 10px;
-  top: 100%;
-  block-size: 9px;
-  background:
-    linear-gradient(125deg, #78583d 0 52%, transparent 53%) left top / 17px 9px no-repeat,
-    linear-gradient(235deg, #78583d 0 52%, transparent 53%) right top / 17px 9px no-repeat,
-    linear-gradient(180deg, rgba(67, 43, 28, 0.25), transparent) center top / calc(100% - 28px) 5px no-repeat;
-  filter: drop-shadow(0 2px 2px rgba(47, 32, 22, 0.12));
+  inset-inline: 2px;
+  top: 3px;
+  block-size: 1px;
+  background: rgba(64, 39, 23, 0.23);
+  box-shadow: 0 1px rgba(255, 223, 176, 0.15);
 }
-.shelf--recessed .shelf__plank { inset-inline: var(--space-4); top: calc(var(--shelf-cover-height) + var(--space-4) - 1px); }
+.shelf__fascia::after {
+  content: "";
+  position: absolute;
+  inset-inline: 8px;
+  top: 100%;
+  block-size: 10px;
+  background:
+    linear-gradient(125deg, #684831 0 53%, transparent 54%) left top / 18px 10px no-repeat,
+    linear-gradient(235deg, #684831 0 53%, transparent 54%) right top / 18px 10px no-repeat,
+    linear-gradient(180deg, rgba(54, 35, 23, 0.28), transparent) center top / calc(100% - 30px) 5px no-repeat;
+  filter: drop-shadow(0 2px 2px rgba(47, 32, 22, 0.15));
+}
+.shelf--recessed .shelf__deck,
+.shelf--recessed .shelf__fascia { inset-inline: var(--space-4); }
 
 .workcard { min-inline-size: 0; overflow-wrap: anywhere; display: grid; gap: 0; color: inherit; text-decoration: none; align-content: start; }
 /* Each linked or live card occupies one column and shares the cover/caption rows. */
@@ -180,43 +190,75 @@
 .shelf__row .workcard__cover {
   isolation: isolate;
   overflow: visible;
-  border-radius: 4px 5px 2px 2px;
-  box-shadow: inset 2px 0 3px rgba(27, 22, 18, 0.24),
-              0 10px 16px rgba(39, 29, 20, 0.23), 0 2px 4px rgba(39, 29, 20, 0.16);
+  background: transparent;
+  box-shadow: none;
 }
-.shelf__row .workcard__cover::before {
+.shelf__row .workcard__pages {
+  display: block;
+  position: absolute;
+  inset-block: 4px 0;
+  inset-inline: 5px -3px;
+  border: 1px solid #aa9a80;
+  border-radius: 2px 4px 2px 2px;
+  background:
+    repeating-linear-gradient(180deg, rgba(128, 112, 88, 0.11) 0 1px, transparent 1px 6px),
+    linear-gradient(90deg, #ded5c4, #f2eadb 30%, #e0d2bd 88%, #bba990);
+  box-shadow: 2px 2px 0 #77644e, 4px 7px 10px rgba(36, 26, 19, 0.23);
+}
+.shelf__row .workcard__face {
+  inset-block: 0 2px;
+  inset-inline: 0 2px;
+  transform: perspective(900px) rotateY(-2deg);
+  transform-origin: left bottom;
+  border-radius: 4px 3px 2px 2px;
+  box-shadow: 1px 2px 3px rgba(20, 18, 16, 0.18), 3px 10px 15px rgba(36, 26, 19, 0.20);
+}
+.shelf__row .workcard__face::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(105deg, transparent 44%, rgba(255, 248, 229, 0.035) 58%, transparent 72%);
+  box-shadow: inset 1px 0 rgba(255, 255, 255, 0.25), inset 0 0 0 1px rgba(32, 26, 19, 0.13);
+  pointer-events: none;
+}
+.shelf__row .workcard__face::after { inline-size: 10px; }
+.shelf__row .workcard__cover::after {
   content: "";
   position: absolute;
   z-index: -1;
-  inset-block: 3px -2px;
-  inset-inline: 4px -6px;
-  border-radius: 2px 5px 2px 2px;
-  background: repeating-linear-gradient(180deg, #e7dfcf 0 1px, #f7f0e1 1px 3px);
-  box-shadow: 2px 2px 0 #89745c, 5px 5px 8px rgba(40, 30, 21, 0.24);
-}
-.shelf__row .workcard__cover > img,
-.shelf__row .workcard__cover > .workcard__blank {
-  border-radius: inherit;
+  inset-inline: 5px;
+  bottom: -5px;
+  block-size: 11px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(43, 30, 19, 0.48), transparent 70%);
+  pointer-events: none;
 }
 [dir="rtl"] .shelf__row .workcard__cover {
-  box-shadow: inset -2px 0 3px rgba(27, 22, 18, 0.24),
-              0 10px 16px rgba(39, 29, 20, 0.23), 0 2px 4px rgba(39, 29, 20, 0.16);
+  direction: rtl;
 }
-.shelf__row .workcard:focus-visible { outline-offset: -2px; }
+[dir="rtl"] .shelf__row .workcard__pages {
+  box-shadow: -2px 2px 0 #77644e, -4px 7px 10px rgba(36, 26, 19, 0.23);
+}
+[dir="rtl"] .shelf__row .workcard__face {
+  transform: perspective(900px) rotateY(2deg);
+  transform-origin: right bottom;
+}
+.shelf__row .workcard:focus-visible { position: relative; z-index: 4; outline-offset: -2px; }
 .workcard__cover { transition: transform var(--motion-fast) var(--ease); }
 a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4px lift, nothing more (§32.20) */
 /* A result with no Work yet opens as a button: it must look and lift exactly like a linked card. */
 button.workcard { background: none; border: 0; padding: 0; font: inherit; text-align: start; cursor: pointer; inline-size: 100%; }
 button.workcard:hover:not(:disabled) .workcard__cover { transform: translateY(-3px); }
 button.workcard:disabled { cursor: progress; opacity: 0.7; }
-.workcard:focus-visible { outline: 2px solid var(--forest-600); outline-offset: 4px; border-radius: 4px; }
+.workcard:focus-visible { outline: 2px solid var(--press-accent); outline-offset: 4px; border-radius: 4px; }
 .resultcard__problem { margin-top: var(--space-2); font-size: 14px; }
 .choice { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: grid; gap: var(--space-2); }
 .choice__option { inline-size: 100%; justify-content: flex-start; display: grid; gap: 2px; text-align: start; }
 .choice__title { font-size: 13px; color: var(--ink-500); }
 .work__cover img { inline-size: 100%; block-size: 100%; object-fit: cover; display: block; border-radius: inherit; }
 .workcard__caption { display: grid; gap: 4px; padding-top: var(--space-4); align-content: start; }
-.shelf__row .workcard__caption { padding-top: var(--space-5); }
+.shelf__row .workcard__caption { padding-top: var(--space-7); }
 
 .workcard__cover {
   position: relative;
@@ -229,20 +271,31 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   background: linear-gradient(160deg, var(--ivory-200), var(--ivory-100));
   box-shadow: 0 12px 22px rgba(31, 29, 26, 0.16), 0 2px 5px rgba(31, 29, 26, 0.12);
 }
-/* A hint of a spine, so a cover reads as a book rather than a tile. */
-.workcard__cover::after {
+.workcard__pages { display: none; }
+.workcard__face {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: inherit;
+  background: linear-gradient(160deg, var(--ivory-200), var(--ivory-100));
+}
+.workcard__face img,
+.workcard__face .workcard__blank { inline-size: 100%; block-size: 100%; border-radius: inherit; }
+/* The binding wraps over the front cover; direction changes its side, not the reading order. */
+.workcard__face::after {
   content: "";
   position: absolute;
   inset-block: 0;
   inset-inline-start: 0;
   inline-size: 7px;
-  background: linear-gradient(90deg, rgba(31, 29, 26, 0.22), rgba(31, 29, 26, 0.04) 60%, transparent);
+  background: linear-gradient(90deg, rgba(19, 16, 13, 0.27), rgba(19, 16, 13, 0.07) 63%, transparent);
   pointer-events: none;
 }
-[dir="rtl"] .workcard__cover::after {
-  background: linear-gradient(270deg, rgba(31, 29, 26, 0.22), rgba(31, 29, 26, 0.04) 60%, transparent);
+[dir="rtl"] .workcard__face::after {
+  background: linear-gradient(270deg, rgba(19, 16, 13, 0.27), rgba(19, 16, 13, 0.07) 63%, transparent);
 }
-.workcard__cover img { inline-size: 100%; block-size: 100%; object-fit: cover; display: block; }
+.workcard__face img { object-fit: cover; display: block; }
 .cover-placeholder {
   --cover-bg: #314b3a;
   --cover-ink: #fffaf0;
@@ -504,6 +557,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .search__status { color: var(--ink-500); margin: 0 0 var(--space-3); }
 .search__retries { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); }
 .search__results { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-5); }
+.search__results .workcard { max-inline-size: 220px; }
 
 .screen__head { display: flex; align-items: baseline; gap: var(--space-4); }
 .screen__head .button { margin-inline-start: auto; }

@@ -17,7 +17,7 @@ export type CardWork = {
 /**
  * One logical Work, in three sizes (Master §32.6, and the approved reference).
  *
- * The cover stays dominant and stands on the shelf; below the plank come the title, the kind of work,
+ * The cover stays dominant and stands on the shelf; below the front edge come the title, the kind of work,
  * and — when there is progress — a slim olive bar with its percentage. Availability stays concise: a
  * language and a source count, never every internal state.
  */
@@ -40,9 +40,12 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
 
   const cover = (
     <span className="workcard__cover">
-      {showCover
-        ? <img src={work.cover_url!} alt="" loading="lazy" onError={() => setFailed(work.cover_url ?? null)} />
-        : <CoverPlaceholder title={work.title} className="workcard__blank" />}
+      <span className="workcard__pages" aria-hidden="true" />
+      <span className="workcard__face">
+        {showCover
+          ? <img src={work.cover_url!} alt="" loading="lazy" onError={() => setFailed(work.cover_url ?? null)} />
+          : <CoverPlaceholder title={work.title} className="workcard__blank" />}
+      </span>
     </span>
   );
 

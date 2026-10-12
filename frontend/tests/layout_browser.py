@@ -89,10 +89,13 @@ def geometry(page):
         shelves: [...document.querySelectorAll('.shelf__case')].map(s => ({
           stacked: s.closest('.shelf')?.classList.contains('shelf--stacked') ?? false,
           rowOverflow: s.querySelector('.shelf__row').scrollWidth - s.querySelector('.shelf__row').clientWidth,
-          plank: rect(s.querySelector('.shelf__plank')).top,
+          deck: s.querySelector('.shelf__deck') ? rect(s.querySelector('.shelf__deck')).toJSON() : null,
+          fascia: s.querySelector('.shelf__fascia') ? rect(s.querySelector('.shelf__fascia')).toJSON() : null,
           cards: [...s.querySelectorAll('.workcard')].map(c => ({
             cover: rect(c.querySelector('.workcard__cover')).toJSON(),
-            caption: rect(c.querySelector('.workcard__caption')).toJSON()
+            pages: c.querySelector('.workcard__pages') ? rect(c.querySelector('.workcard__pages')).toJSON() : null,
+            caption: rect(c.querySelector('.workcard__caption')).toJSON(),
+            title: rect(c.querySelector('.workcard__title')).toJSON()
           }))
         }))
       };
@@ -106,6 +109,7 @@ def check_layout(page):
     assert g['overflow'] <= 1, f"document overflow {g['overflow']}px"
     assert abs(g['width'] - g['available']) <= 1, f"screen {g['width']} vs available {g['available']}"
     for shelf in g['shelves']:
+        assert shelf['deck'] and shelf['fascia'], 'shelf must have separate top and front surfaces'
         if shelf['stacked']:
             assert shelf['rowOverflow'] <= 1, f"stacked shelf overflow {shelf['rowOverflow']}px"
         for card in shelf['cards']:
@@ -114,10 +118,16 @@ def check_layout(page):
                 assert caption['top'] >= cover['bottom'] - 1, 'stacked caption overlaps cover'
                 assert 130 <= cover['width'] <= 240, f"unreadable/stretched stacked cover {cover['width']}"
             else:
-                assert abs(cover['bottom'] - shelf['plank']) <= 1, f"cover/plank: {cover['bottom']} vs {shelf['plank']}"
-                assert caption['top'] >= shelf['plank'], 'caption above plank'
+                assert shelf['deck']['top'] <= cover['bottom'] <= shelf['deck']['bottom'] + 1, 'book does not meet shelf top'
+                assert abs(shelf['fascia']['top'] - cover['bottom']) <= 3, 'front edge is detached from book base'
+                assert card['title']['top'] >= shelf['fascia']['bottom'] + 4, 'caption overlaps shelf front'
                 assert 95 <= cover['width'] <= 200, f"unreadable/stretched cover {cover['width']}"
             assert cover['height'] >= 145, f"clipped cover {cover['height']}"
+            assert card['pages'], 'shelf book has no page block'
+            if g['rtl']:
+                assert card['pages']['left'] < cover['left'] - 1, 'RTL pages are not behind the left edge'
+            else:
+                assert card['pages']['right'] > cover['right'] + 1, 'pages are not behind the right edge'
             edge = 'right' if g['rtl'] else 'left'
             assert abs(cover[edge] - caption[edge]) <= 1, 'caption in another column'
     for card in page.locator('.search__results .workcard').all():
@@ -184,6 +194,10 @@ def run(args):
                             assert opener.locator('[role=alert]').count() == 1
                             check_layout(page)
                         if path == '/shelf':
+                            focused = page.locator('.shelfview .workcard').first
+                            focused.focus()
+                            assert focused.evaluate('''e => Number(getComputedStyle(e.closest('.shelf__row')).zIndex) >
+                                Number(getComputedStyle(e.closest('.shelf__case').querySelector('.shelf__fascia')).zIndex)'''), 'focus ring sits behind shelf front'
                             for control in page.locator('.toolbar input, .toolbar select, .toolbar button').all():
                                 box = control.bounding_box()
                                 assert box and box['x'] >= 0 and box['x'] + box['width'] <= width + 1

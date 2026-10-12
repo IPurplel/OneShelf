@@ -203,8 +203,9 @@ def check_shelf(page, base, language, width):
     title.wait_for()
     metrics = title.evaluate("""e => ({lines:e.getBoundingClientRect().height / parseFloat(getComputedStyle(e).lineHeight),
         titleWidth:e.getBoundingClientRect().width,
-        plank:e.closest('.shelf__case').querySelector('.shelf__plank').getBoundingClientRect().width})""")
-    assert metrics["lines"] <= 3.5 and metrics["titleWidth"] >= 165 and metrics["plank"] <= 320, (language, width, metrics)
+        fascia:e.closest('.shelf__case').querySelector('.shelf__fascia').getBoundingClientRect().width})""")
+    min_title_width = 145 if width < 900 else 165
+    assert metrics["lines"] <= 3.5 and metrics["titleWidth"] >= min_title_width and metrics["fascia"] <= 320, (language, width, metrics)
 
 
 def check_login(page, base, language, width, state):

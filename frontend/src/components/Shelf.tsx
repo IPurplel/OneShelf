@@ -2,9 +2,10 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { useI18n } from "@/i18n/i18n";
+import { ShelfCase } from "@/components/ShelfCase";
 
 /**
- * A row of works standing on a wooden plank (Master §32.5, and the approved reference).
+ * A row of face-out works on a wooden display shelf (Master §32.5).
  *
  * The plank sits directly under the covers; each work's title, type and progress read below it, so the
  * shelf looks like a shelf rather than a grid with decoration. Library content gets this treatment;
@@ -31,10 +32,7 @@ export function Shelf({ title, children, id, viewAllHref, recessed = false, comp
           </Link>
         )}
       </header>
-      <div className="shelf__case">
-        <div className="shelf__row">{children}</div>
-        <div className="shelf__plank" aria-hidden="true" />
-      </div>
+      <ShelfCase>{children}</ShelfCase>
     </section>
   );
 }
