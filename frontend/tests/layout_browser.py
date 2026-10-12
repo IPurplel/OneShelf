@@ -89,6 +89,7 @@ def geometry(page):
         shelves: [...document.querySelectorAll('.shelf__case')].map(s => ({
           stacked: s.closest('.shelf')?.classList.contains('shelf--stacked') ?? false,
           rowOverflow: s.querySelector('.shelf__row').scrollWidth - s.querySelector('.shelf__row').clientWidth,
+          back: s.querySelector('.shelf__back') ? rect(s.querySelector('.shelf__back')).toJSON() : null,
           deck: s.querySelector('.shelf__deck') ? rect(s.querySelector('.shelf__deck')).toJSON() : null,
           fascia: s.querySelector('.shelf__fascia') ? rect(s.querySelector('.shelf__fascia')).toJSON() : null,
           cards: [...s.querySelectorAll('.workcard')].map(c => ({
@@ -109,7 +110,10 @@ def check_layout(page):
     assert g['overflow'] <= 1, f"document overflow {g['overflow']}px"
     assert abs(g['width'] - g['available']) <= 1, f"screen {g['width']} vs available {g['available']}"
     for shelf in g['shelves']:
-        assert shelf['deck'] and shelf['fascia'], 'shelf must have separate top and front surfaces'
+        assert shelf['back'] and shelf['deck'] and shelf['fascia'], 'shelf needs a back, top, and front'
+        if len(shelf['cards']) >= 2:
+            heights = [card['cover']['height'] for card in shelf['cards']]
+            assert max(heights) - min(heights) >= 5, 'every volume has the same silhouette'
         if shelf['stacked']:
             assert shelf['rowOverflow'] <= 1, f"stacked shelf overflow {shelf['rowOverflow']}px"
         for card in shelf['cards']:
@@ -118,6 +122,7 @@ def check_layout(page):
                 assert caption['top'] >= cover['bottom'] - 1, 'stacked caption overlaps cover'
                 assert 130 <= cover['width'] <= 240, f"unreadable/stretched stacked cover {cover['width']}"
             else:
+                assert shelf['back']['top'] < shelf['deck']['top'], 'rear rail does not sit behind the deck'
                 assert shelf['deck']['top'] <= cover['bottom'] <= shelf['deck']['bottom'] + 1, 'book does not meet shelf top'
                 assert abs(shelf['fascia']['top'] - cover['bottom']) <= 3, 'front edge is detached from book base'
                 assert card['title']['top'] >= shelf['fascia']['bottom'] + 4, 'caption overlaps shelf front'
