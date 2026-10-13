@@ -173,7 +173,7 @@ describe("My Shelf", () => {
     mockApi([get("/api/shelf", { view: "all", entries: [] })]);
     renderWithProviders(<ShelfScreen />);
     expect(await screen.findByText(/nothing on this shelf yet/i)).toBeInTheDocument();
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /search sources/i })).toHaveAttribute("href", "/search");
   });
 
   it("switches between grid and list without losing the works", async () => {

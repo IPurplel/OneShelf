@@ -182,8 +182,15 @@ class PluginManager:
 
     def load_active(self, plugin_id: str) -> PluginPackage:
         record = self.get(plugin_id)
+        if record.state != "active":
+            raise PluginUnavailable(f"plugin {plugin_id!r} is {record.state}")
+        return self.load_installed(plugin_id)
+
+    def load_installed(self, plugin_id: str) -> PluginPackage:
+        """Read the installed package for display, including a source the owner disabled."""
+        record = self.get(plugin_id)
         row = self._active_row(plugin_id)
-        if record.state != "active" or row is None:
+        if record.state not in ("active", "disabled") or row is None:
             raise PluginUnavailable(f"plugin {plugin_id!r} is {record.state}")
         key = (plugin_id, row["version"], row["sha256"])
         if key not in self._cache:
@@ -204,6 +211,7 @@ class PluginManager:
         trust_label: str = "local",
         registry_url: str | None = None,
         expected_sha256: str | None = None,
+        expected_identity: tuple[str, str] | None = None,
     ) -> InstallOutcome:
         steps: list[str] = []
         (self.store / STAGING).mkdir(parents=True, exist_ok=True)
@@ -219,6 +227,8 @@ class PluginManager:
                 package = load_package(staged)
             except PackageError as exc:
                 raise _rejection(exc) from exc
+            if expected_identity is not None and (package.id, package.version) != expected_identity:
+                raise InstallRejected("package identity does not match the registry entry")
             steps.extend(STEPS_VALIDATION)
 
             existing = self._version_row(package.id, package.version)
@@ -359,7 +369,8 @@ class PluginManager:
         download.write_bytes(data)
         try:
             outcome = await self.install_file(download, approved_permissions=approved_permissions, channel="registry",
-                                              trust_label=label, registry_url=registry.location, expected_sha256=entry.sha256)
+                                              trust_label=label, registry_url=registry.location,
+                                              expected_sha256=entry.sha256, expected_identity=(entry.id, entry.version))
         finally:
             if download.exists():
                 download.unlink()

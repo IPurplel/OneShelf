@@ -23,10 +23,13 @@ def test_invalid_labels_are_absent_and_legacy_language_uses_defaults():
     assert metadata_from_manifest({"name": "Old source", "defaults": {"language": "arz-EG"}}) == (None, ("AR",))
     assert metadata_from_manifest({"name": "Old source", "defaults": {"language": "en-US"}}) == (None, ("EN",))
     assert metadata_from_manifest({"name": "Old source"}) == (None, ())
+
+
+def test_valid_name_label_takes_precedence_over_conflicting_defaults():
     assert metadata_from_manifest({"name": "Source · Manga · AR",
-                                   "defaults": {"language": "en", "content_type": "manga"}}) == (None, ("EN",))
+                                   "defaults": {"language": "en", "content_type": "manga"}}) == ("Manga", ("AR",))
     assert metadata_from_manifest({"name": "Source · Manga · EN",
-                                   "defaults": {"language": "en", "content_type": "book"}}) == (None, ("EN",))
+                                   "defaults": {"language": "en", "content_type": "book"}}) == ("Manga", ("EN",))
 
 
 def test_untrusted_index_metadata_requires_known_category_and_valid_codes():

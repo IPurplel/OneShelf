@@ -108,6 +108,7 @@ function Section({ id, title, follows, onCheck, language, disabled }: {
               {t("follow.lastAnswered", { when: relative(follow.last_successful_at, language) })}
             </span>
             <button type="button" className="chip" disabled={disabled}
+                    aria-label={`${t("follow.check")} · ${follow.work_title} · ${languageName(follow.language, language)}`}
                     onClick={() => onCheck(api.post(`/api/follows/${follow.work_id}/check?${new URLSearchParams({ language: follow.language })}`))}>
               {t("follow.check")}
             </button>

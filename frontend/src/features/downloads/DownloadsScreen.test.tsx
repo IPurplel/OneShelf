@@ -45,6 +45,20 @@ describe("Downloads", () => {
     expect(within(rows[0]!).getByText(/2 done/i)).toBeInTheDocument();
     expect(within(rows[0]!).getByText(/3 waiting/i)).toBeInTheDocument();
     expect(within(rows[1]!).getByText(/1 failed/i)).toBeInTheDocument();
+    expect(within(rows[0]!).getByRole("progressbar")).toHaveAttribute("value", "2");
+    expect(within(rows[0]!).getByRole("progressbar")).toHaveAttribute("max", "5");
+    expect(within(rows[1]!).getByRole("progressbar")).toHaveAttribute("value", "6");
+    expect(within(rows[1]!).getByRole("progressbar")).toHaveAttribute("max", "6");
+    expect(within(rows[0]!).getByRole("button", { name: /pause.*b1/i })).toBeInTheDocument();
+  });
+
+  it.each(["en", "ar"] as const)("shows canceled units in the batch total in %s", async (language) => {
+    mockApi([get("/api/downloads", { batches: [{ ...BATCHES.batches[0], completed: 1, pending: 0, canceled: 2 }] })]);
+    renderWithProviders(<DownloadsScreen />, { language });
+    const row = (await screen.findAllByRole("listitem"))[0]!;
+    expect(row).toHaveTextContent(language === "en" ? "2 canceled" : "2 ملغى");
+    expect(within(row).getByRole("progressbar")).toHaveAttribute("value", "3");
+    expect(within(row).getByRole("progressbar")).toHaveAttribute("max", "3");
   });
 
   it("offers pause, resume, retry and cancel where they make sense", async () => {
@@ -89,6 +103,7 @@ describe("Downloads", () => {
     mockApi([get("/api/downloads", { batches: [] })]);
     renderWithProviders(<DownloadsScreen />);
     expect(await screen.findByText(/nothing has been downloaded yet/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /my shelf/i })).toHaveAttribute("href", "/shelf");
   });
 
   it("follows the library live, re-reading only what changed", async () => {

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { useResource } from "@/api/useApi";
 import { Icon } from "@/components/Icon";
@@ -124,7 +125,11 @@ export function ShelfScreen() {
 
       <div role="tabpanel" id="shelf-tabpanel" aria-labelledby={`shelf-tab-${activeView}`} tabIndex={0}>
       <section ref={shelfRef} className="shelfview" role="region" aria-label={t("shelf.title")} data-layout={layout}>
-        {entries.length === 0 && data !== null && !loading && <p className="shelf__empty">{t(searchTerm ? "shelf.searchEmpty" : "shelf.empty")}</p>}
+        {entries.length === 0 && data !== null && !loading && <div className="empty shelfview__empty">
+          <p className="empty__body">{t(searchTerm ? "shelf.searchEmpty" : "shelf.empty")}</p>
+          {!searchTerm && activeView === "all" &&
+            <Link className="button button--primary" to="/search">{t("home.empty.search")}</Link>}
+        </div>}
         {layout === "list" ? (
           <div className="shelfview__list">
             {entries.map((entry) => (

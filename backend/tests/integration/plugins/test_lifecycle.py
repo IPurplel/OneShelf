@@ -243,6 +243,24 @@ def test_registry_hash_mismatch_is_rejected(manager, tmp_path):
         run(manager.install_from_registry(registry, "example.books", approved_permissions=all_perms(path)))
 
 
+@pytest.mark.parametrize("package_id,package_version", [
+    ("other.books", "1.0.0"),
+    ("example.books", "2.0.0"),
+])
+def test_registry_package_identity_mismatch_has_no_install_side_effects(
+        manager, tmp_path, db, package_id, package_version):
+    manifest = copy.deepcopy(MANIFEST)
+    manifest["id"] = package_id
+    path = osp(tmp_path, version=package_version, manifest=manifest)
+    registry = make_registry(tmp_path, [registry_entry(tmp_path, path)])
+
+    with pytest.raises(InstallRejected, match="identity"):
+        run(manager.install_from_registry(registry, "example.books", approved_permissions=all_perms(path)))
+
+    assert db.execute("SELECT count(*) FROM plugins").fetchone()[0] == 0
+    assert not list((tmp_path / "app" / "plugins").rglob("*.osp"))
+
+
 def test_official_label_requires_locally_trusted_signature(db, tmp_path):
     key = Ed25519PrivateKey.generate()
     public = key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)

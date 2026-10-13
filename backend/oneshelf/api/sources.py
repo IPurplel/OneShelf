@@ -51,7 +51,7 @@ def _source_view(s, record) -> dict:
         version.status == "previous" for version in s.plugins.versions(record.id))
     if record.active_version is not None:
         try:
-            package = s.plugins.load_active(record.id) if record.state == "active" else None
+            package = s.plugins.load_installed(record.id)
         except PluginUnavailable:
             package = None
         if package is not None:

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
@@ -55,10 +56,16 @@ export function DownloadsScreen() {
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
       {loading && <LoadingState />}
 
-      {data !== null && !loading && batches.length === 0 && <p className="shelf__empty">{t("downloads.empty")}</p>}
+      {data !== null && !loading && batches.length === 0 && <div className="empty">
+        <p className="empty__body">{t("downloads.empty")}</p>
+        <Link className="button button--primary" to="/shelf">{t("nav.shelf")}</Link>
+      </div>}
 
       <ul className="batches">
-        {batches.map((batch) => (
+        {batches.map((batch) => {
+          const processed = batch.completed + batch.failed + batch.canceled + batch.skipped;
+          const total = processed + batch.pending;
+          return (
           <li key={batch.batch_id} className="batches__row">
             <span className={`batches__state batches__state--${batch.state}`}>{t(`downloads.state.${batch.state}`)}</span>
             <span className="batches__counts">
@@ -66,35 +73,39 @@ export function DownloadsScreen() {
               {batch.pending > 0 && <span>{t("downloads.waiting", { count: batch.pending })}</span>}
               {batch.failed > 0 && <span>{t("downloads.failed", { count: batch.failed })}</span>}
               {batch.skipped > 0 && <span>{t("downloads.skipped", { count: batch.skipped })}</span>}
+              {batch.canceled > 0 && <span>{t("downloads.canceled", { count: batch.canceled })}</span>}
             </span>
+            <progress className="batches__progress" value={processed} max={Math.max(1, total)}
+                      aria-label={t("downloads.progress", { done: processed, total })} />
             <span className="batches__actions">
               {batch.state === "active" && (
-                <button type="button" className="chip" disabled={loading}
+                <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.pause")} · ${batch.batch_id}`}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/pause`))}>
                   {t("downloads.pause")}
                 </button>
               )}
               {batch.state === "paused" && (
-                <button type="button" className="chip" disabled={loading}
+                <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.resume")} · ${batch.batch_id}`}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/resume`))}>
                   {t("downloads.resume")}
                 </button>
               )}
               {batch.failed > 0 && (
-                <button type="button" className="chip" disabled={loading}
+                <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.retry")} · ${batch.batch_id}`}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/retry-failed`))}>
                   {t("downloads.retry")}
                 </button>
               )}
               {(batch.state === "active" || batch.state === "paused") && (
-                <button type="button" className="chip" disabled={loading}
+                <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.cancel")} · ${batch.batch_id}`}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/cancel`))}>
                   {t("downloads.cancel")}
                 </button>
               )}
             </span>
           </li>
-        ))}
+          );
+        })}
       </ul>
 
       {confirming && (

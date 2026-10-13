@@ -56,6 +56,8 @@ describe("Following", () => {
     expect(links.map(link => link.getAttribute("href"))).toEqual([
       "/works/w1?track=t-en", "/works/w1?track=t-ar",
     ]);
+    expect(within(section).getByRole("button", { name: /check now.*irregular chronicle.*english/i })).toBeInTheDocument();
+    expect(within(section).getByRole("button", { name: /check now.*irregular chronicle.*arabic/i })).toBeInTheDocument();
     await user.click(within(section).getAllByRole("button", { name: /check now/i })[1]!);
     expect(calls).toContainEqual({ url: "/api/follows/w1/check?language=ar", method: "POST", body: undefined });
   });

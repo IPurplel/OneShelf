@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { ApiError, api } from "@/api/client";
 import { CoverPlaceholder } from "@/components/CoverPlaceholder";
+import { LoadingState } from "@/components/LoadingState";
 import { useResource } from "@/api/useApi";
 import type { Track, Unit, WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
@@ -67,7 +68,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
     );
   }
   if (data === null) {
-    return <section className="screen"><p className="screen__subtitle">{t("state.loading")}</p></section>;
+    return <section className="screen"><LoadingState /></section>;
   }
   if (trackId !== null && data.selected_track_id !== trackId) {
     return <section className="screen">

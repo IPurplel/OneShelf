@@ -51,7 +51,13 @@ def test_management_actions_and_session_endpoints(api):
     client, tmp_path = api
     review = upload(client, tmp_path)
     client.post("/api/sources/install", json={"upload_id": review["upload_id"], "approved_permissions": review["permissions"]})
-    assert client.post(f"/api/sources/{TS}/disable").json()["state"] == "disabled"
+    disabled = client.post(f"/api/sources/{TS}/disable").json()
+    assert disabled["state"] == "disabled"
+    assert set(disabled["capabilities"]) >= {"search", "catalog", "check_session"}
+    assert disabled["auth_available"] is True
+    listed = client.get("/api/sources").json()["sources"][0]
+    assert set(listed["capabilities"]) >= {"search", "catalog", "check_session"}
+    assert listed["auth_available"] is True
     assert client.post(f"/api/sources/{TS}/enable").json()["state"] == "active"
     assert client.post(f"/api/sources/{TS}/rollback").status_code == 409  # nothing to roll back to
     session = client.get(f"/api/sources/{TS}/session").json()

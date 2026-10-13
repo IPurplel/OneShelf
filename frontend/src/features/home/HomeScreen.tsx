@@ -6,6 +6,7 @@ import type { HomeResponse } from "@/api/types";
 import { Shelf } from "@/components/Shelf";
 import { WorkCard } from "@/components/WorkCard";
 import { CoverPlaceholder } from "@/components/CoverPlaceholder";
+import { LoadingState } from "@/components/LoadingState";
 import { ResultCard } from "@/features/search/ResultCard";
 import { useI18n } from "@/i18n/i18n";
 
@@ -34,7 +35,7 @@ export function HomeScreen() {
     return (
       <section className="screen">
         <h1 className="screen__title">{t("home.welcome")}</h1>
-        <p className="screen__subtitle">{t("state.loading")}</p>
+        <LoadingState />
       </section>
     );
   }

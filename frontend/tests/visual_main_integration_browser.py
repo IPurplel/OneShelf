@@ -208,6 +208,16 @@ def check_shelf(page, base, language, width):
     assert metrics["lines"] <= 3.5 and metrics["titleWidth"] >= min_title_width and metrics["fascia"] <= 320, (language, width, metrics)
 
 
+def check_work_unit_focus(page, base, language, width):
+    page.goto(base + "/works/w0")
+    link = page.locator(".units__link").first
+    link.wait_for()
+    link.focus()
+    box = link.bounding_box()
+    outline = link.evaluate("e => getComputedStyle(e).outlineStyle")
+    assert box and box["width"] >= 80 and box["height"] >= 40 and outline != "none", (language, width, box, outline)
+
+
 def check_login(page, base, language, width, state):
     page.goto(base + "/sources")
     page.locator(".cards__row button").first.click()
@@ -287,6 +297,7 @@ def main():
                   ("settings", "normal", check_settings),
                   ("bidi", "bidi", check_bidi),
                   ("shelf", "shelf_long", check_shelf),
+                  ("work-unit-focus", "normal", check_work_unit_focus),
                   ("zero-source", "zero_source", check_zero_source),
                   ("advanced", "normal", check_advanced)]
         for language in ("en", "ar"):

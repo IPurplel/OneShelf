@@ -458,7 +458,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .toolbar__end { min-inline-size: 0; max-inline-size: 100%; flex-wrap: wrap; margin-inline-start: auto; display: flex; gap: var(--space-2); align-items: center; }
 
 .chip {
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 var(--space-4);
   border: 1px solid var(--surface-border);
   border-radius: 999px;
@@ -548,12 +548,26 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   border-bottom: 1px solid var(--ivory-200);
 }
 .units__row:last-child { border-bottom: 0; }
-.units__link { display: contents; text-decoration: none; color: inherit; }
+.units__link {
+  grid-area: 1 / 1 / 2 / 3;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: center;
+  min-inline-size: 0;
+  min-block-size: 44px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: inherit;
+}
+.units__link:hover .units__title { text-decoration: underline; }
+.units__link:focus-visible { outline: 2px solid var(--press-accent); outline-offset: 2px; }
 .units__number { color: var(--ink-300); font-variant-numeric: tabular-nums; text-align: end; }
 .units__title { font-family: var(--font-display); font-size: 17px; }
-.units__state { color: var(--ink-500); font-size: 14px; }
-.units__badge { color: var(--positive-text); font-size: 13px; }
-.units__action { border: 0; background: transparent; color: var(--link-text); font: inherit; cursor: pointer; }
+.units__state { grid-area: 1 / 3; color: var(--ink-500); font-size: 14px; }
+.units__badge { grid-area: 1 / 4; color: var(--positive-text); font-size: 13px; }
+.units__action { grid-area: 1 / 4; min-block-size: 44px; padding-inline: var(--space-2); border: 0; background: transparent; color: var(--link-text); font: inherit; cursor: pointer; }
+.units__action:focus-visible { outline: 2px solid var(--press-accent); outline-offset: 2px; border-radius: var(--radius-sm); }
 
 .details { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-5);
            margin-top: var(--space-5); }
@@ -574,7 +588,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 @media (max-width: 899px) {
   .work__header { grid-template-columns: 120px minmax(0, 1fr); gap: var(--space-4); padding: var(--space-4); }
   .units__row { grid-template-columns: 44px 1fr auto; }
-  .units__state { grid-column: 2 / -1; }
+  .units__link { grid-template-columns: 44px minmax(0, 1fr); }
+  .units__state { grid-area: 2 / 2 / 3 / 4; }
+  .units__badge, .units__action { grid-area: 1 / 3; }
 }
 @media (max-width: 540px) {
   .work__header { grid-template-columns: minmax(0, 1fr); }
@@ -631,8 +647,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .batches__state { text-transform: capitalize; color: var(--ink-700); }
 .batches__state--failed { color: var(--danger-text); }
 .batches__state--completed_with_issues { color: var(--warning-text); }
-.batches__counts { display: flex; gap: var(--space-3); color: var(--ink-500); font-size: 14px; }
-.batches__actions { margin-inline-start: auto; display: flex; gap: var(--space-2); }
+.batches__counts { display: flex; flex-wrap: wrap; gap: var(--space-3); color: var(--ink-500); font-size: 14px; }
+.batches__progress { flex: 1 1 100%; inline-size: 100%; block-size: 8px; accent-color: var(--olive-600); }
+.batches__actions { margin-inline-start: auto; display: flex; flex-wrap: wrap; gap: var(--space-2); }
 
 .confirm {
   position: fixed;
@@ -671,8 +688,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .cards__warn { color: var(--warning-text); font-size: 14px; }
 .cards__ok { color: var(--positive-text); font-size: 14px; }
 .cards__row .chip { margin-inline-start: auto; }
-.registry__filters { display: grid; gap: var(--space-3); margin-bottom: var(--space-5); }
-.registry__filter-group { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.registry__filters, .sources__filters { display: grid; gap: var(--space-3); margin-bottom: var(--space-5); }
+.registry__filter-group, .sources__filter-group { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .registry__name-search { display: grid; gap: var(--space-2); max-inline-size: 360px; color: var(--ink-700); }
 .registry__group { margin-top: var(--space-5); }
 .registry__group-title { font-size: 18px; margin: 0 0 var(--space-3); }

@@ -23,6 +23,86 @@ const HEALTH = { source_id: "oneshelf.mangadex", state: "healthy", last_successf
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Sources", () => {
+  it.each([
+    ["en", "More about MangaDex", "More about WEBTOON"],
+    ["ar", "المزيد عن MangaDex", "المزيد عن WEBTOON"],
+  ] as const)("names each installed source's More action in %s", async (language, first, second) => {
+    mockApi([get("/api/sources", SOURCES)]);
+    renderWithProviders(<SourcesScreen />, { language });
+    const installed = await screen.findByRole("region", { name: language === "ar" ? "المصادر المثبّتة" : "Installed sources" });
+    const rows = within(installed).getAllByRole("listitem");
+    expect(within(rows[0]!).getByRole("button", { name: first })).toBeInTheDocument();
+    expect(within(rows[1]!).getByRole("button", { name: second })).toBeInTheDocument();
+  });
+
+  it("browses installed sources by category and language, counting multilingual matches", async () => {
+    mockApi([get("/api/sources", { sources: [
+      { ...SOURCES.sources[0], category: "Manga", languages: ["EN"] },
+      { ...SOURCES.sources[1], category: "Manga", languages: ["Multi"] },
+      { ...SOURCES.sources[0], id: "books", name: "Arabic Books", category: "Books", languages: ["AR"] },
+      { ...SOURCES.sources[0], id: "unknown", name: "Unlabeled Source", category: null, languages: [] },
+      { ...SOURCES.sources[0], id: "removed", name: "Removed Source", state: "uninstalled", category: "Journal", languages: ["FR"] },
+    ] })]);
+    const user = userEvent.setup();
+    renderWithProviders(<SourcesScreen />);
+    const installed = await screen.findByRole("region", { name: "Installed sources" });
+    const categories = within(installed).getByRole("group", { name: "Categories" });
+    const languages = within(installed).getByRole("group", { name: "Languages" });
+    expect(within(installed).getByRole("status")).toHaveTextContent("4 of 4");
+    expect(within(categories).getByRole("button", { name: "Manga · 2" })).toHaveAttribute("aria-pressed", "false");
+    expect(within(languages).getByRole("button", { name: "English · 2" })).toBeInTheDocument();
+    expect(within(languages).getByRole("button", { name: "Arabic · 2" })).toBeInTheDocument();
+    expect(within(categories).queryByRole("button", { name: /journal/i })).toBeNull();
+    await user.click(within(categories).getByRole("button", { name: "Manga · 2" }));
+    await user.click(within(languages).getByRole("button", { name: "English · 2" }));
+    expect(within(installed).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(installed).getByText("WEBTOON")).toBeInTheDocument();
+    expect(within(installed).getByRole("status")).toHaveTextContent("2 of 4");
+    await user.click(within(languages).getByRole("button", { name: "Arabic · 2" }));
+    expect(within(installed).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(installed).getByText("WEBTOON")).toBeInTheDocument();
+    expect(within(installed).queryByText("MangaDex")).toBeNull();
+    await user.click(within(languages).getByRole("button", { name: "All languages" }));
+    expect(within(installed).getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("keeps unlabeled sources browseable and distinguishes filtered emptiness from no installs", async () => {
+    mockApi([get("/api/sources", { sources: [
+      { ...SOURCES.sources[0], category: "Manga", languages: ["EN"] },
+      { ...SOURCES.sources[1], category: null, languages: [] },
+    ] })]);
+    const user = userEvent.setup();
+    renderWithProviders(<SourcesScreen />);
+    const installed = await screen.findByRole("region", { name: "Installed sources" });
+    expect(within(installed).getByText("WEBTOON")).toBeInTheDocument();
+    const categories = within(installed).getByRole("group", { name: "Categories" });
+    const languages = within(installed).getByRole("group", { name: "Languages" });
+    await user.click(within(categories).getByRole("button", { name: "Unknown category · 1" }));
+    expect(within(installed).getByText("WEBTOON")).toBeInTheDocument();
+    await user.click(within(languages).getByRole("button", { name: "Unknown language · 1" }));
+    expect(within(installed).getByRole("status")).toHaveTextContent("1 of 2");
+    await user.click(within(categories).getByRole("button", { name: "Manga · 1" }));
+    expect(within(installed).getByText("No installed sources match these filters.")).toBeInTheDocument();
+    expect(within(installed).queryByText("No sources are installed yet.")).toBeNull();
+    expect(within(installed).getByRole("status")).toHaveTextContent("0 of 2");
+  });
+
+  it("localizes installed browsing controls and results in Arabic", async () => {
+    mockApi([get("/api/sources", { sources: [
+      { ...SOURCES.sources[0], category: "Manga", languages: ["AR"] },
+      { ...SOURCES.sources[1], category: "Books", languages: ["EN"] },
+    ] })]);
+    const user = userEvent.setup();
+    renderWithProviders(<SourcesScreen />, { language: "ar" });
+    const installed = await screen.findByRole("region", { name: "المصادر المثبّتة" });
+    const categories = within(installed).getByRole("group", { name: "التصنيفات" });
+    const languages = within(installed).getByRole("group", { name: "اللغات" });
+    await user.click(within(categories).getByRole("button", { name: "مانجا · 1" }));
+    await user.click(within(languages).getByRole("button", { name: "الإنجليزية · 1" }));
+    expect(within(installed).getByText("لا توجد مصادر مثبّتة تطابق هذه المرشحات.")).toBeInTheDocument();
+    expect(within(installed).getByRole("status")).toHaveTextContent("0 من أصل 2");
+  });
+
   it.each(["en", "ar"] as const)("offers rollback only for a source with a previous version in %s", async (language) => {
     const calls = mockApi([get("/api/sources", { sources: [
       { ...SOURCES.sources[0], can_rollback: false },
@@ -191,7 +271,8 @@ describe("Sources", () => {
   });
 
   it("offers Use My Session only for a source that can sign in", async () => {
-    mockApi([get("/api/sources", SOURCES), post("/api/sources/oneshelf.webtoon/login",
+    mockApi([get("/api/sources", { sources: [SOURCES.sources[0], { ...SOURCES.sources[1], state: "active" }] }),
+      post("/api/sources/oneshelf.webtoon/login",
                                                 { login_id: "l1", status: "open" })]);
     const user = userEvent.setup();
     renderWithProviders(<SourcesScreen />);
@@ -204,6 +285,17 @@ describe("Sources", () => {
     await user.click(within(rows[1]!).getByRole("button", { name: /more/i }));
     await user.click(screen.getByRole("button", { name: /use my session/i }));
     expect(await screen.findByRole("dialog", { name: /sign in/i })).toBeInTheDocument();
+  });
+
+  it("does not offer sign-in while a source is disabled", async () => {
+    mockApi([get("/api/sources", SOURCES)]);
+    const user = userEvent.setup();
+    renderWithProviders(<SourcesScreen />);
+    const rows = await screen.findAllByRole("listitem");
+    await user.click(within(rows[1]!).getByRole("button", { name: /more/i }));
+    const drawer = screen.getByRole("dialog", { name: "WEBTOON" });
+    expect(within(drawer).getByRole("button", { name: /^enable$/i })).toBeInTheDocument();
+    expect(within(drawer).queryByRole("button", { name: /use my session/i })).toBeNull();
   });
 
   it("lets a package be reviewed and installed from this screen", async () => {

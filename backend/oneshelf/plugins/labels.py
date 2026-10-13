@@ -73,20 +73,13 @@ def metadata_from_manifest(manifest: object) -> tuple[str | None, tuple[str, ...
         name = manifest.get("name")
         defaults = manifest.get("defaults") or {}
         language = defaults.get("language") if isinstance(defaults, Mapping) else None
-        content_type = defaults.get("content_type") if isinstance(defaults, Mapping) else None
     else:
         name = getattr(manifest, "name", None)
         defaults = getattr(manifest, "defaults", None)
         language = getattr(defaults, "language", None)
-        content_type = getattr(defaults, "content_type", None)
     parsed = parse_adapter_label(name)
     if parsed is not None:
-        category, languages = parsed
-        expected = language_code(language) if isinstance(language, str) else None
-        if (not content_type or content_type in CATEGORIES[category]) and (
-            not expected or languages == (MULTI,) or expected in languages
-        ):
-            return parsed
+        return parsed
     if not isinstance(language, str):
         return None, ()
     code = language_code(language)
