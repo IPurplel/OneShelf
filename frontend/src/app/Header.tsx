@@ -1,6 +1,8 @@
 import { useI18n } from "@/i18n/i18n";
 import { Icon } from "@/components/Icon";
+import { useLocation } from "react-router-dom";
 import { useNotifications } from "./notifications";
+import { destinationForPath } from "./navigation";
 
 /**
  * Header controls only (Master §32.2): notifications, Needs Attention when something is unresolved,
@@ -12,6 +14,7 @@ export function Header({ onOpenNotifications, onOpenAttention }: {
 }) {
   const { t, language, toggleLanguage } = useI18n();
   const { unseen, attention } = useNotifications();
+  const currentDestination = destinationForPath(useLocation().pathname);
 
   return (
     <header className="header" role="banner">
@@ -22,6 +25,7 @@ export function Header({ onOpenNotifications, onOpenAttention }: {
           </svg>
         </span>
         <span className="display">{t("app.name")}</span>
+        {currentDestination && <span className="header__mobileSection">{t(currentDestination.labelKey)}</span>}
       </div>
       <div className="header__spacer" />
       <p className="header__promise">

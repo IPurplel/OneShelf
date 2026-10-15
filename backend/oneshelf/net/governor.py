@@ -14,6 +14,7 @@ import time
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Literal
+from weakref import WeakKeyDictionary
 
 from oneshelf.settings.defaults import DEFAULTS
 
@@ -97,6 +98,7 @@ class TrafficGovernor:
         self._browser_in_use = 0
         self._seq = itertools.count()
         self._timer: asyncio.TimerHandle | None = None
+        self._promoted: WeakKeyDictionary[asyncio.Task, Priority] = WeakKeyDictionary()
 
     # -- configuration --------------------------------------------------------------------------
 
@@ -124,9 +126,20 @@ class TrafficGovernor:
             raise ValueError(f"invalid lease kind {kind!r}")
         return _LeaseContext(self, source, priority, kind)
 
+    def promote(self, task: asyncio.Task, priority: Priority) -> None:
+        """Raise a queued request's priority, including one that has not reached its lease yet."""
+        priority = Priority(priority)
+        self._promoted[task] = min(priority, self._promoted.get(task, priority))
+        for waiter in self._waiters:
+            if waiter.task is task and priority < waiter.priority:
+                waiter.priority = priority
+        self._dispatch()
+
     async def _wait(self, source: str, priority: Priority, kind: Kind) -> Lease:
         loop = asyncio.get_running_loop()
-        waiter = _Waiter(next(self._seq), source, priority, kind, loop.create_future(), asyncio.current_task())
+        task = asyncio.current_task()
+        effective = min(Priority(priority), self._promoted.get(task, Priority(priority))) if task else Priority(priority)
+        waiter = _Waiter(next(self._seq), source, effective, kind, loop.create_future(), task)
         self._waiters.append(waiter)
         self._dispatch()
         try:

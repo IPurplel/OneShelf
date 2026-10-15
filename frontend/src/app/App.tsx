@@ -9,7 +9,7 @@ import { Sidebar } from "./Sidebar";
 import { NotificationsDrawer } from "@/features/notifications/NotificationsDrawer";
 import { Drawer } from "@/components/Drawer";
 import { Icon } from "@/components/Icon";
-import { DESTINATIONS } from "./navigation";
+import { DESTINATIONS, destinationForPath } from "./navigation";
 import { routes } from "./routes";
 
 function Layout() {
@@ -17,6 +17,7 @@ function Layout() {
   const [panel, setPanel] = useState<null | "notifications" | "attention" | "more">(null);
   const closePanel = useCallback(() => setPanel(null), []);
   const location = useLocation();
+  const currentDestination = destinationForPath(location.pathname);
   useEffect(closePanel, [location, closePanel]);
   const mobile = useMediaQuery(MOBILE_QUERY);
 
@@ -38,11 +39,18 @@ function Layout() {
       {panel === "more" && (
         <Drawer title={t("nav.more")} onClose={closePanel}>
           <nav className="more__nav" aria-label={t("nav.more")}>
-            {DESTINATIONS.filter(destination => !destination.mobile).map(destination => (
-              <Link key={destination.path} className="button" to={destination.path} onClick={closePanel}>
-                <Icon name={destination.icon} />{t(destination.labelKey)}
-              </Link>
-            ))}
+            {DESTINATIONS.filter(destination => !destination.mobile).map(destination =>
+              currentDestination?.path === destination.path ? (
+                <span key={destination.path} className="more__current" aria-current="page">
+                  <Icon name={destination.icon} />
+                  <span>{t(destination.labelKey)}</span>
+                  <span className="more__currentHint">{t("nav.current")}</span>
+                </span>
+              ) : (
+                <Link key={destination.path} className="button" to={destination.path} onClick={closePanel}>
+                  <Icon name={destination.icon} />{t(destination.labelKey)}
+                </Link>
+              ))}
             <button type="button" className="button" onClick={() => setPanel("notifications")}>
               <Icon name="bell" />{t("notify.title")}
             </button>

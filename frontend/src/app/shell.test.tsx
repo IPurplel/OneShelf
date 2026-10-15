@@ -79,9 +79,44 @@ describe("mobile shell", () => {
     expect(more).toHaveClass("is-active");
     expect(more).toHaveAttribute("aria-expanded", "false");
   });
+
+  it.each([
+    ["/downloads", "Downloads"],
+    ["/sources", "Sources"],
+    ["/settings/storage", "Settings"],
+  ])("names the current section in the mobile header on %s", async (route, name) => {
+    setViewport("mobile");
+    renderApp({ route });
+    const header = await screen.findByRole("banner");
+    expect(within(header).getByText(name)).toBeVisible();
+    expect(within(screen.getByRole("navigation", { name: /primary/i })).getByRole("button", { name: "More" }))
+      .toBeInTheDocument();
+  });
+
+  it("translates the mobile current section when switching to Arabic", async () => {
+    setViewport("mobile");
+    const user = userEvent.setup();
+    renderApp({ route: "/settings/storage" });
+    await user.click(screen.getByRole("button", { name: /العربية|arabic/i }));
+    expect(within(screen.getByRole("banner")).getByText("الإعدادات")).toBeVisible();
+    expect(screen.getByRole("button", { name: "المزيد" })).toBeInTheDocument();
+  });
 });
 
 describe("mobile More drawer", () => {
+  it("marks the current destination as a non-link while other destinations remain links", async () => {
+    setViewport("mobile");
+    const user = userEvent.setup();
+    renderApp({ route: "/settings/storage" });
+    await user.click(screen.getByRole("button", { name: "More" }));
+    const drawer = screen.getByRole("dialog", { name: "More" });
+    expect(within(drawer).getAllByRole("link").map(link => link.textContent?.trim()))
+      .toEqual(["Downloads", "Sources"]);
+    const current = within(drawer).getByText("Settings").closest("[aria-current]");
+    expect(current).toHaveAttribute("aria-current", "page");
+    expect(current).toHaveTextContent("Current");
+  });
+
   it.each(["Downloads", "Sources", "Settings"])("navigates to %s and closes", async (name) => {
     setViewport("mobile");
     const user = userEvent.setup();

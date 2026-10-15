@@ -14,6 +14,7 @@ import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "./settings";
 import type { ReaderSettings } from "./settings";
 import { readerLink, workLink } from "./links";
 import { useProgress } from "./useProgress";
+import { PagePreloads } from "./pagePreloads";
 
 type Page = { index: number; label: string | null; url: string | null };
 type PagesResponse = { reading_unit_id: string; pages: Page[] };
@@ -80,10 +81,13 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
   const [summoned, setSummoned] = useState(false);
   const [hint, setHint] = useState(false);
   const [loaded, setLoaded] = useState<Set<number>>(new Set());
+  const [readyUnit, setReadyUnit] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const [atEnd, setAtEnd] = useState(false);
   const [failed, setFailed] = useState<Set<number>>(new Set());
   const [pageRetries, setPageRetries] = useState<Map<number, number>>(new Map());
+  const [, rerenderPreloads] = useState(0);
+  const preloads = useRef<PagePreloads | null>(null);
   const [skipped, setSkipped] = useState<Set<number>>(new Set());
   const [repairing, setRepairing] = useState(false);
   const [repairProblem, setRepairProblem] = useState<string | null>(null);
@@ -237,6 +241,10 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
       return;
     }
     const clamped = Math.max(0, target);
+    if (settings.mode !== "long_strip" && clamped !== indexRef.current) {
+      const nextPages = new Set(visiblePages(pages, clamped, settings).map((page) => page.index));
+      setLoaded((current) => new Set([...current].filter((page) => nextPages.has(page))));
+    }
     indexRef.current = clamped;
     setIndex(clamped);
     setAtEnd(false);
@@ -377,6 +385,31 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
   const before = settings.mode === "long_strip" ? window_.first : 0;
   const after = settings.mode === "long_strip" ? pages.length - 1 - window_.last : 0;
 
+  useEffect(() => {
+    const pool = new PagePreloads(id, () => rerenderPreloads((version) => version + 1));
+    preloads.current = pool;
+    return () => {
+      pool.dispose();
+      if (preloads.current === pool) preloads.current = null;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    const pool = preloads.current;
+    if (pool?.unitId !== id) return;
+    const visibleIndexes = visible.map((page) => page.index);
+    const foregroundPage = visible.find((page) => !loaded.has(page.index) && !pool.url(page.index))?.index ?? null;
+    if (settings.mode === "long_strip" || readyUnit !== id) {
+      pool.update([], visibleIndexes, readyUnit === id ? foregroundPage : null);
+      return;
+    }
+    const band = preloadBand(pages, index, visible.length, preload);
+    pool.update(band.map((page) => page.index), visibleIndexes, foregroundPage);
+  }, [id, pages, index, visible.length, settings.mode, readyUnit,
+      preload.preload_next, preload.preload_previous, loaded]);
+
+  const currentPreloads = preloads.current?.unitId === id ? preloads.current : null;
+
   return (
     <div className={`reader reader--${settings.background}`} onMouseMove={show}>
       <div role="toolbar" aria-label={t("reader.controls")} className="reader__bar reader__bar--top"
@@ -512,28 +545,29 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
                  className={`reader__frame${loaded.has(page.index) ? "" : " reader__page--skeleton"}`}
                  style={settings.mode === "long_strip" ? { minBlockSize: `${pageHeight}px` } : undefined}>
               <img className="reader__page"
-                   src={`/api/reader/units/${id}/pages/${page.index}${pageRetries.has(page.index) ? `?retry=${pageRetries.get(page.index)}` : ""}`}
-                   alt={t("reader.page", { index: page.label ?? page.index })} loading="lazy"
+                   src={pageRetries.has(page.index)
+                     ? `/api/reader/units/${id}/pages/${page.index}?retry=${pageRetries.get(page.index)}`
+                     : currentPreloads?.url(page.index) ?? (currentPreloads?.pending(page.index)
+                       ? undefined : `/api/reader/units/${id}/pages/${page.index}`)}
+                   alt={t("reader.page", { index: page.label ?? page.index })}
+                   loading={settings.mode === "long_strip" ? "lazy" : "eager"}
+                   fetchPriority={settings.mode === "long_strip" ? "auto" : "high"}
                    onLoad={(event) => {
+                     setReadyUnit(id);
+                     currentPreloads?.visibleLoaded(page.index);
                      setLoaded((set) => new Set(set).add(page.index));
                      const height = event.currentTarget.getBoundingClientRect().height;
                      // One estimate for the whole strip, updated only when it is materially wrong, so the
                      // spacers and the reserved page heights never disagree.
                      if (height > 0 && Math.abs(height - pageHeight) > 24) setPageHeight(height);
                    }}
-                   onError={() => setFailed((set) => new Set(set).add(page.index))} />
+                   onError={() => {
+                     setFailed((set) => new Set(set).add(page.index));
+                   }} />
             </div>
           )
         ))}
-        {/*
-          * §26.18: in Single and Double the band around the page is fetched quietly — the next seven and
-          * the previous four — so a page turn is instant without ever putting those pages on screen.
-          * Long Strip needs none of this: its window already mounts the same band.
-          */}
-        {settings.mode !== "long_strip" && preloadBand(pages, index, visible.length, preload).map((page) => (
-          <img key={`preload-${page.index}`} className="reader__preload" data-preload="true" aria-hidden="true"
-               alt="" src={`/api/reader/units/${id}/pages/${page.index}`} loading="eager" decoding="async" />
-        ))}
+        {/* Single and Double keep the same bounded band in memory, without a second image request on page turn. */}
         {after > 0 && (
           <div className="reader__spacer" data-spacer="after" data-pages={after} aria-hidden="true"
                style={{ blockSize: `${after * pageHeight}px` }} />
@@ -554,6 +588,10 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
                  aria-valuenow={Math.min(index + 1, pages.length)}
                  onChange={(event) => {
                    const slot = Number(event.target.value) - 1;
+                   if (settings.mode !== "long_strip" && slot !== indexRef.current) {
+                     const nextPages = new Set(visiblePages(pages, slot, settings).map((page) => page.index));
+                     setLoaded((current) => new Set([...current].filter((page) => nextPages.has(page))));
+                   }
                    indexRef.current = slot;
                    setIndex(slot);
                    setScrollTo(slot);
@@ -627,10 +665,7 @@ function stripWindow(count: number, index: number, preload: ReaderDefaults): { f
 function preloadBand(pages: Page[], index: number, onScreen: number, preload: ReaderDefaults): Page[] {
   const first = Math.max(0, index - preload.preload_previous);
   const last = Math.min(pages.length - 1, index + onScreen - 1 + preload.preload_next);
-  return pages.slice(first, last + 1).filter((_, offset) => {
-    const slot = first + offset;
-    return slot < index || slot >= index + onScreen;
-  });
+  return [...pages.slice(index + onScreen, last + 1), ...pages.slice(first, index).reverse()];
 }
 
 /**

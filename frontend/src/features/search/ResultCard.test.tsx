@@ -3,7 +3,7 @@
  * render as a plain span — seen, never opened. Now every result is a link or a button. Opening binds exactly
  * the listing the person chose; when a result was grouped from several sources, they choose which.
  */
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -173,7 +173,7 @@ describe("Covers", () => {
     renderApp({ route: "/search" });
     await searchFor([result({})]);
     const card = await screen.findByRole("button", { name: /one piece/i });
-    expect(card.querySelector("img")).toHaveAttribute("src", COVER);
+    await waitFor(() => expect(card.querySelector("img")).toHaveAttribute("src", COVER));
   });
 
   it("shows the placeholder when there is no cover", async () => {
@@ -190,6 +190,7 @@ describe("Covers", () => {
     renderApp({ route: "/search" });
     await searchFor([result({})]);
     const card = await screen.findByRole("button", { name: /one piece/i });
+    await waitFor(() => expect(card.querySelector("img")).toHaveAttribute("src", COVER));
     fireEvent.error(card.querySelector("img")!);
     expect(card.querySelector("img")).toBeNull();
     expect(card.querySelector(".workcard__blank")).not.toBeNull();

@@ -139,6 +139,20 @@ describe("Sequential Reader", () => {
     expect(screen.getByTestId("reader-stage")).toHaveAttribute("data-mode", "double");
   });
 
+  it("requests visible single pages eagerly with high browser priority", async () => {
+    stub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    const first = (await screen.findAllByRole("img", { name: /page \d/i }))[0]!;
+    expect(first).toHaveAttribute("loading", "lazy");
+
+    await user.click(screen.getByRole("button", { name: /reader settings/i }));
+    await user.click(within(screen.getByRole("dialog", { name: /reader settings/i }))
+      .getByRole("radio", { name: /single/i }));
+    expect(screen.getByRole("img", { name: /page 1/i })).toHaveAttribute("loading", "eager");
+    expect(screen.getByRole("img", { name: /page 1/i })).toHaveAttribute("fetchpriority", "high");
+  });
+
   it("respects reading direction rather than assuming left to right", async () => {
     stub();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -535,7 +549,7 @@ describe("Sequential Reader", () => {
   });
 
   it("prefetches the band around a single page without putting it on screen", async () => {
-    longStub({ ...PROGRESS, read_state: "partial", fraction: 0.5, locator: { page: 30 }, revision: 2 });
+    const calls = longStub({ ...PROGRESS, read_state: "partial", fraction: 0.5, locator: { page: 30 }, revision: 2 });
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
     await screen.findAllByRole("img", { name: /page \d/i });
@@ -547,17 +561,133 @@ describe("Sequential Reader", () => {
 
     // One page is on screen; §26.18's band is fetched quietly around it.
     await waitFor(() => expect(screen.getAllByRole("img", { name: /page \d/i })).toHaveLength(1));
-    const stage = screen.getByTestId("reader-stage");
-    const prefetched = [...stage.querySelectorAll<HTMLImageElement>("[data-preload]")]
-      .map((img) => Number(img.getAttribute("src")!.split("/").pop()))
+    fireEvent.load(screen.getByRole("img", { name: /page 30/i }));
+    await waitFor(() => expect(calls.filter((call) => call.url.includes("?prefetch=1"))).toHaveLength(11));
+    const prefetched = calls.filter((call) => call.url.includes("?prefetch=1"))
+      .map((call) => Number(call.url.split("/").pop()!.split("?")[0]))
       .sort((a, b) => a - b);
 
     expect(Math.min(...prefetched)).toBe(26);                  // 30 − 4
     expect(Math.max(...prefetched)).toBe(37);                  // 30 + 7
     expect(prefetched).not.toContain(30);                      // the page itself is already on screen
-    stage.querySelectorAll("[data-preload]").forEach((node) => {
-      expect(node.getAttribute("aria-hidden")).toBe("true");   // never announced, never in the way
+    expect(screen.getAllByRole("img", { name: /page \d/i })).toHaveLength(1);
+  });
+
+  it("waits for the first visible page before starting background preloads", async () => {
+    const calls = stub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    await user.click(screen.getByRole("button", { name: /reader settings/i }));
+    await user.click(within(screen.getByRole("dialog", { name: /reader settings/i }))
+      .getByRole("radio", { name: /single/i }));
+    await user.keyboard("{Escape}");
+    await act(async () => {});
+    expect(calls.some((call) => call.url.includes("?prefetch=1"))).toBe(false);
+
+    fireEvent.load(screen.getByRole("img", { name: /page 1/i }));
+    await waitFor(() => expect(calls.some((call) => call.url === "/api/reader/units/u2/pages/2?prefetch=1"))
+      .toBe(true));
+  });
+
+  it("does not fan out preloads when the first visible page fails", async () => {
+    const calls = stub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    await user.click(screen.getByRole("button", { name: /reader settings/i }));
+    await user.click(within(screen.getByRole("dialog", { name: /reader settings/i }))
+      .getByRole("radio", { name: /single/i }));
+    await user.keyboard("{Escape}");
+    fireEvent.error(screen.getByRole("img", { name: /page 1/i }));
+    await act(async () => {});
+    expect(calls.some((call) => call.url.includes("?prefetch=1"))).toBe(false);
+  });
+
+  it("reuses a completed preload on page turn and releases it on leaving the reader", async () => {
+    const create = vi.fn(() => "blob:reader-page-2");
+    const revoke = vi.fn();
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL = create;
+      static revokeObjectURL = revoke;
     });
+    const calls = stub([get("/api/reader/units/u2/pages/2", { image: "synthetic" })]);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const view = renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    await user.click(screen.getByRole("button", { name: /reader settings/i }));
+    await user.click(within(screen.getByRole("dialog", { name: /reader settings/i }))
+      .getByRole("radio", { name: /single/i }));
+    await user.keyboard("{Escape}");
+
+    fireEvent.load(screen.getByRole("img", { name: /page 1/i }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("img", { name: /page 2/i })).toHaveAttribute("src", "blob:reader-page-2");
+    expect(calls.filter((call) => call.url.includes("/pages/2"))).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: /reader settings/i }));
+    await user.click(within(screen.getByRole("dialog", { name: /reader settings/i }))
+      .getByRole("radio", { name: /long strip/i }));
+    expect(revoke).not.toHaveBeenCalled();
+
+    view.unmount();
+    expect(revoke).toHaveBeenCalledWith("blob:reader-page-2");
+  });
+
+  it("cancels a queued preload and requests it as a visible page on turn", async () => {
+    const create = vi.fn(() => "blob:in-flight-page-2");
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL = create;
+      static revokeObjectURL = vi.fn();
+    });
+    const calls = stub();
+    const original = globalThis.fetch;
+    let pendingSignal: AbortSignal | undefined;
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/reader/units/u2/pages/2?prefetch=1") {
+        calls.push({ url: String(input), method: "GET", body: undefined });
+        pendingSignal = init?.signal ?? undefined;
+        return new Promise<Response>((_resolve, reject) => {
+          pendingSignal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+        });
+      }
+      return original(input, init);
+    }));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    await user.click(screen.getByRole("button", { name: /reader settings/i }));
+    await user.click(within(screen.getByRole("dialog", { name: /reader settings/i }))
+      .getByRole("radio", { name: /single/i }));
+    await user.keyboard("{Escape}");
+    fireEvent.load(screen.getByRole("img", { name: /page 1/i }));
+    await waitFor(() => expect(pendingSignal).toBeDefined());
+
+    await user.keyboard("{ArrowRight}");
+    await waitFor(() => expect(pendingSignal?.aborted).toBe(true));
+    expect(screen.getByRole("img", { name: /page 2/i }))
+      .toHaveAttribute("src", "/api/reader/units/u2/pages/2");
+    expect(create).not.toHaveBeenCalled();
+    expect(calls.filter((call) => call.url.includes("/pages/2"))).toHaveLength(1);
+  });
+
+  it("treats a revisited page without a retained blob as a new foreground load", async () => {
+    stub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    await user.click(screen.getByRole("button", { name: /reader settings/i }));
+    await user.click(within(screen.getByRole("dialog", { name: /reader settings/i }))
+      .getByRole("radio", { name: /single/i }));
+    await user.keyboard("{Escape}");
+    fireEvent.load(screen.getByRole("img", { name: /page 1/i }));
+
+    await user.keyboard("{ArrowRight}");
+    fireEvent.load(screen.getByRole("img", { name: /page 2/i }));
+    await user.keyboard("{ArrowLeft}");
+    expect(screen.getByRole("img", { name: /page 1/i }).closest("[data-loaded]"))
+      .toHaveAttribute("data-loaded", "false");
   });
 
   it("reads its position from the pages themselves, not from an estimated height", async () => {

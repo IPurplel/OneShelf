@@ -53,6 +53,13 @@ class PageData:
     content_type: str = "image/*"
 
 
+@dataclass
+class _PageFlight:
+    task: asyncio.Task[bytes]
+    interests: int = 0
+    orphan_timer: asyncio.TimerHandle | None = None
+
+
 @dataclass(frozen=True)
 class LocalArtefact:
     format: str
@@ -101,6 +108,7 @@ class ReaderService:
         self.events = events
         self._reading: dict[str, str] = {}   # work_id -> unit currently being read
         self._descriptors: dict[str, list] = {}
+        self._page_fetches: dict[tuple[str, str, str], _PageFlight] = {}
 
     # -- unit context ------------------------------------------------------------------------------
 
@@ -190,7 +198,8 @@ class ReaderService:
             self._descriptors[unit_id] = list(result.entries)
         return self._descriptors[unit_id]
 
-    async def page(self, unit_id: str, index: int, *, timeout: float | None = None) -> PageData:
+    async def page(self, unit_id: str, index: int, *, timeout: float | None = None,
+                   prefetch: bool = False) -> PageData:
         if index < 1:
             raise IndexError("page index must be at least 1")
         asset = self._local_asset(unit_id, "cbz")
@@ -213,14 +222,55 @@ class ReaderService:
         cached = self.cache.get(unit["source_id"], unit["source_unit_key"], descriptor.url)
         if cached is not None:
             return PageData(index, cached, "cache")
-        coro = self.sources.fetch_resource(unit["source_id"], descriptor.url, capability="reader",
-                                           priority=Priority.READER)
-        response = await (asyncio.wait_for(coro, timeout) if timeout else coro)
+        key = (unit["source_id"], unit["source_unit_key"], descriptor.url)
+        flight = self._page_fetches.get(key)
+        if flight is None:
+            task = asyncio.create_task(self._fetch_online_page(unit, descriptor.url, index,
+                                       Priority.READ_AHEAD if prefetch else Priority.READER))
+            flight = _PageFlight(task)
+            self._page_fetches[key] = flight
+
+            def clear(done: asyncio.Task[bytes]) -> None:
+                if flight.orphan_timer is not None:
+                    flight.orphan_timer.cancel()
+                    flight.orphan_timer = None
+                if self._page_fetches.get(key) is flight:
+                    self._page_fetches.pop(key, None)
+                if not done.cancelled():
+                    done.exception()  # consume an error when the HTTP waiter has gone away
+
+            task.add_done_callback(clear)
+        elif not prefetch:
+            governor = getattr(self.sources, "governor", None)
+            if governor is not None:
+                governor.promote(flight.task, Priority.READER)
+        if flight.orphan_timer is not None:
+            flight.orphan_timer.cancel()
+            flight.orphan_timer = None
+        flight.interests += 1
+        try:
+            data = await (asyncio.wait_for(asyncio.shield(flight.task), timeout)
+                          if timeout else asyncio.shield(flight.task))
+        finally:
+            flight.interests -= 1
+            if flight.interests == 0 and not flight.task.done():
+                flight.orphan_timer = asyncio.get_running_loop().call_later(
+                    0.15, self._cancel_orphan_page, key, flight)
+        return PageData(index, data, "online")
+
+    def _cancel_orphan_page(self, key: tuple[str, str, str], flight: _PageFlight) -> None:
+        flight.orphan_timer = None
+        if self._page_fetches.get(key) is flight and flight.interests == 0 and not flight.task.done():
+            self._page_fetches.pop(key)
+            flight.task.cancel()
+
+    async def _fetch_online_page(self, unit: sqlite3.Row, url: str, index: int, priority: Priority) -> bytes:
+        response = await self.sources.fetch_resource(unit["source_id"], url, capability="reader", priority=priority)
         problem = _validate_image(response.body)
         if problem:
             raise ValueError(f"page {index}: {problem}")
-        self.cache.put(unit["source_id"], unit["source_unit_key"], descriptor.url, response.body)
-        return PageData(index, response.body, "online")
+        self.cache.put(unit["source_id"], unit["source_unit_key"], url, response.body)
+        return response.body
 
     def local_file(self, unit_id: str, *, format: str | None = None) -> LocalArtefact:
         """The downloaded artefact itself, for readers that render a whole document (§26.22)."""

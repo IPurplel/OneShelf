@@ -59,6 +59,62 @@ def test_waiters_are_granted_in_priority_order():
     assert run(scenario()) == ["READER", "MANUAL", "FOLLOW", "HEALTH"]
 
 
+def test_promoting_an_existing_waiter_moves_it_ahead_of_background_work():
+    async def scenario():
+        gov = TrafficGovernor(http_capacity=1, reserved_for_foreground=0)
+        release = asyncio.Event()
+        started = asyncio.Event()
+        order = []
+
+        async def blocker():
+            async with gov.acquire("source", Priority.MANUAL):
+                started.set()
+                await release.wait()
+
+        holding = asyncio.create_task(blocker())
+        await started.wait()
+        other = asyncio.create_task(hold(gov, "source", Priority.READ_AHEAD, "http", order, "other", 0))
+        while gov.snapshot()["waiting"] < 1:
+            await asyncio.sleep(0)
+        page = asyncio.create_task(hold(gov, "source", Priority.READ_AHEAD, "http", order, "page", 0))
+        while gov.snapshot()["waiting"] < 2:
+            await asyncio.sleep(0)
+        gov.promote(page, Priority.READER)
+        release.set()
+        await asyncio.gather(holding, other, page)
+        return order
+
+    assert run(scenario()) == ["page", "other"]
+
+
+def test_promotion_before_lease_registration_applies_when_waiter_arrives():
+    async def scenario():
+        gov = TrafficGovernor(http_capacity=1, reserved_for_foreground=0)
+        release = asyncio.Event()
+        started = asyncio.Event()
+        order = []
+
+        async def blocker():
+            async with gov.acquire("source", Priority.MANUAL):
+                started.set()
+                await release.wait()
+
+        holding = asyncio.create_task(blocker())
+        await started.wait()
+        other = asyncio.create_task(hold(gov, "source", Priority.READ_AHEAD, "http", order, "other", 0))
+        while gov.snapshot()["waiting"] < 1:
+            await asyncio.sleep(0)
+        page = asyncio.create_task(hold(gov, "source", Priority.READ_AHEAD, "http", order, "page", 0))
+        gov.promote(page, Priority.READER)  # before page has run as far as acquire()
+        while gov.snapshot()["waiting"] < 2:
+            await asyncio.sleep(0)
+        release.set()
+        await asyncio.gather(holding, other, page)
+        return order
+
+    assert run(scenario()) == ["page", "other"]
+
+
 def test_background_work_cannot_take_the_last_http_slot():
     async def scenario():
         gov = TrafficGovernor(http_capacity=4)

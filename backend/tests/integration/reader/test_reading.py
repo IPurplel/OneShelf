@@ -1,15 +1,18 @@
 """Master §19, §26.11–26.23, §42; INV-07, INV-08, INV-16: online reading, cache, progress, auto-download."""
 import asyncio
 import io
+import time
 import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
+from multidict import CIMultiDict
 
 from oneshelf.downloads.contract import Settings
 from oneshelf.downloads.engine import DownloadEngine
-from oneshelf.net.governor import TrafficGovernor
+from oneshelf.net.governor import Priority, TrafficGovernor
+from oneshelf.net.http import HttpResponse
 from oneshelf.plugins.manager import PluginManager
 from oneshelf.plugins.package import load_package
 from oneshelf.reader.cache import ReaderCache
@@ -141,6 +144,210 @@ def test_cached_pages_are_not_refetched_and_are_keyed_by_resource_identity(readi
     assert origin == "cache" and other_origin == "online"
     assert all(TS in key and "irr-1" in key for key in keys)
     assert not any("Chapter" in key or key.endswith("/1") for key in keys)  # never keyed by title or number
+
+
+def test_visible_page_overtakes_queued_preloads_on_a_slow_source(reading, monkeypatch):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await reader.pages(unit)  # measure image scheduling after the descriptor request
+            governor = TrafficGovernor(http_capacity=2, reserved_for_foreground=0)
+            governor.configure_source(TS, concurrency=1, requests_per_minute=None)
+            acquired = asyncio.Event()
+            release_first = asyncio.Event()
+            order = []
+
+            async def slow_image(source_id, url, *, capability, priority):
+                async with governor.acquire(source_id, priority):
+                    number = int(url.rsplit("/", 1)[-1].split(".")[0])
+                    order.append(number)
+                    if number == 1:
+                        acquired.set()
+                        await release_first.wait()
+                    await asyncio.sleep(0.12)
+                    return HttpResponse(url, 200, CIMultiDict(), png_bytes())
+
+            monkeypatch.setattr(env.service, "fetch_resource", slow_image)
+
+            async def run_window(*, demote_preloads):
+                order.clear()
+                acquired.clear()
+                release_first.clear()
+                first = asyncio.create_task(reader.page(unit, 1, **({"prefetch": True} if demote_preloads else {})))
+                await acquired.wait()
+                second = asyncio.create_task(reader.page(unit, 2, **({"prefetch": True} if demote_preloads else {})))
+                while governor.snapshot()["waiting"] < 1:
+                    await asyncio.sleep(0)
+                started = time.monotonic()
+                visible = asyncio.create_task(reader.page(unit, 3))
+                while governor.snapshot()["waiting"] < 2:
+                    await asyncio.sleep(0)
+                release_first.set()
+                await visible
+                latency = time.monotonic() - started
+                await asyncio.gather(first, second)
+                cache.clear()
+                return list(order), latency
+
+            baseline_order, baseline_latency = await run_window(demote_preloads=False)
+            priority_order, priority_latency = await run_window(demote_preloads=True)
+            return baseline_order, baseline_latency, priority_order, priority_latency
+
+    baseline_order, baseline_latency, priority_order, priority_latency = run(scenario())
+    print(f"reader visible page, controlled 120 ms source: baseline={baseline_latency:.3f}s "
+          f"prioritized={priority_latency:.3f}s")
+    assert baseline_order == [1, 2, 3]
+    assert priority_order == [1, 3, 2]
+
+
+def test_visible_page_shares_an_already_started_preload_after_browser_disconnect(reading, monkeypatch):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await reader.pages(unit)
+            started = asyncio.Event()
+            release = asyncio.Event()
+            calls = []
+
+            async def slow_image(source_id, url, *, capability, priority):
+                calls.append((url, priority))
+                started.set()
+                await release.wait()
+                return HttpResponse(url, 200, CIMultiDict(), png_bytes())
+
+            monkeypatch.setattr(env.service, "fetch_resource", slow_image)
+            preload = asyncio.create_task(reader.page(unit, 1, prefetch=True))
+            await started.wait()
+            preload.cancel()  # the browser discarded its preload request
+            with pytest.raises(asyncio.CancelledError):
+                await preload
+            visible = asyncio.create_task(reader.page(unit, 1))
+            await asyncio.sleep(0)
+            release.set()
+            page = await visible
+            return page, len(calls), cache.count()
+
+    page, calls, cached = run(scenario())
+    assert page.origin == "online" and page.data == png_bytes()
+    assert calls == 1 and cached == 1
+
+
+def test_abandoned_preload_cancels_source_fetch_after_handoff_window(reading, monkeypatch):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await reader.pages(unit)
+            started = asyncio.Event()
+            cancelled = asyncio.Event()
+
+            async def slow_image(source_id, url, *, capability, priority):
+                started.set()
+                try:
+                    await asyncio.Event().wait()
+                except asyncio.CancelledError:
+                    cancelled.set()
+                    raise
+
+            monkeypatch.setattr(env.service, "fetch_resource", slow_image)
+            preload = asyncio.create_task(reader.page(unit, 1, prefetch=True))
+            await started.wait()
+            preload.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await preload
+            await asyncio.wait_for(cancelled.wait(), timeout=1)
+            await asyncio.sleep(0)
+            return len(reader._page_fetches), cache.count()
+
+    active, cached = run(scenario())
+    assert active == 0 and cached == 0
+
+
+def test_foreground_arriving_as_orphan_is_cancelled_starts_fresh_fetch(reading, monkeypatch):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await reader.pages(unit)
+            started = asyncio.Event()
+            calls = 0
+
+            async def slow_then_fast(source_id, url, *, capability, priority):
+                nonlocal calls
+                calls += 1
+                if calls == 1:
+                    started.set()
+                    await asyncio.Event().wait()
+                return HttpResponse(url, 200, CIMultiDict(), png_bytes())
+
+            monkeypatch.setattr(env.service, "fetch_resource", slow_then_fast)
+            preload = asyncio.create_task(reader.page(unit, 1, prefetch=True))
+            await started.wait()
+            preload.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await preload
+            key, flight = next(iter(reader._page_fetches.items()))
+            flight.orphan_timer.cancel()
+            reader._cancel_orphan_page(key, flight)
+            visible = await reader.page(unit, 1)
+            return visible, calls, cache.count()
+
+    visible, calls, cached = run(scenario())
+    assert visible.data == png_bytes() and calls == 2 and cached == 1
+
+
+def test_queued_preload_is_promoted_without_refetching_when_page_turns(reading, monkeypatch):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await reader.pages(unit)
+            governor = env.governor
+            governor.configure_source(TS, concurrency=1, requests_per_minute=None)
+            held = asyncio.Event()
+            release = asyncio.Event()
+            order = []
+            calls = []
+
+            async def blocker():
+                async with governor.acquire(TS, Priority.MANUAL):
+                    held.set()
+                    await release.wait()
+
+            async def other_background():
+                async with governor.acquire(TS, Priority.READ_AHEAD):
+                    order.append("other")
+
+            async def slow_image(source_id, url, *, capability, priority):
+                calls.append((url, priority))
+                async with governor.acquire(source_id, priority):
+                    order.append("page")
+                    return HttpResponse(url, 200, CIMultiDict(), png_bytes())
+
+            monkeypatch.setattr(env.service, "fetch_resource", slow_image)
+            holding = asyncio.create_task(blocker())
+            await held.wait()
+            other = asyncio.create_task(other_background())
+            while governor.snapshot()["waiting"] < 1:
+                await asyncio.sleep(0)
+            preload = asyncio.create_task(reader.page(unit, 1, prefetch=True))
+            while governor.snapshot()["waiting"] < 2:
+                await asyncio.sleep(0)
+            preload.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await preload
+            visible = asyncio.create_task(reader.page(unit, 1))
+            await asyncio.sleep(0)
+            release.set()
+            page = await visible
+            await asyncio.gather(holding, other)
+            return order, len(calls), page.origin, cache.count()
+
+    order, calls, origin, cached = run(scenario())
+    assert order == ["page", "other"]
+    assert calls == 1 and origin == "online" and cached == 1
 
 
 def test_cache_eviction_protects_the_current_unit_and_permanent_files(reading):

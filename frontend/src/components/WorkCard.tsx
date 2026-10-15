@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { languageName } from "@/i18n/language";
@@ -32,6 +32,26 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
   const { t, language } = useI18n();
   // A cover that fails to load becomes the placeholder; the card itself never becomes unusable (INV-28).
   const [failed, setFailed] = useState<string | null>(null);
+  const coverRef = useRef<HTMLSpanElement>(null);
+  const [nearViewport, setNearViewport] = useState(false);
+  // Native lazy loading fetches well beyond the viewport. A crowded Search can otherwise start many
+  // cover requests at once, all competing for the same source's limited request slots.
+  useEffect(() => {
+    if (!work.cover_url || nearViewport) return;
+    const node = coverRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setNearViewport(true);
+      return;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setNearViewport(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: "240px 0px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [work.cover_url, nearViewport]);
   const showCover = work.cover_url && failed !== work.cover_url;
   const languages = Object.entries(work.availability ?? {});
   const sources = languages.reduce((total, [, count]) => total + count, 0);
@@ -39,12 +59,13 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
   const percent = work.fraction === null || work.fraction === undefined ? null : Math.round(work.fraction * 100);
 
   const cover = (
-    <span className="workcard__cover">
+    <span className="workcard__cover" ref={coverRef}>
       <span className="workcard__pages" aria-hidden="true" />
       <span className="workcard__face">
-        {showCover
-          ? <img src={work.cover_url!} alt="" loading="lazy" onError={() => setFailed(work.cover_url ?? null)} />
-          : <CoverPlaceholder title={work.title} className="workcard__blank" />}
+        <CoverPlaceholder title={work.title} className="workcard__blank" />
+        {showCover && nearViewport &&
+          <img src={work.cover_url!} alt="" loading="lazy" decoding="async" fetchPriority="high"
+               onError={() => setFailed(work.cover_url ?? null)} />}
       </span>
     </span>
   );

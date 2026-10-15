@@ -21,7 +21,7 @@ describe("Shelf covers", () => {
     mockApi([get("/api/shelf", { view: "all", entries: [{ ...ENTRY, cover_url: COVERED }] })]);
     const { container } = renderWithProviders(<ShelfScreen />);
     await screen.findAllByText(ENTRY.title);
-    expect(container.querySelector(".workcard img")).toHaveAttribute("src", COVERED);
+    await waitFor(() => expect(container.querySelector(".workcard img")).toHaveAttribute("src", COVERED));
   });
 });
 

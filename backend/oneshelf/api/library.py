@@ -1,6 +1,7 @@
 """Downloads and Reader API."""
 from __future__ import annotations
 
+import asyncio
 from dataclasses import asdict
 from typing import Literal
 from uuid import UUID
@@ -202,10 +203,26 @@ async def reader_pages(request: Request, unit_id: str):
 
 
 @router.get("/reader/units/{unit_id}/pages/{index}")
-async def reader_page(request: Request, unit_id: str, index: int):
+async def reader_page(request: Request, unit_id: str, index: int, prefetch: bool = False):
     s = services(request)
     try:
-        page = await s.reader.page(unit_id, index)
+        if prefetch:
+            page_task = asyncio.create_task(s.reader.page(unit_id, index, prefetch=True))
+            try:
+                while not page_task.done():
+                    if await request.is_disconnected():
+                        return Response(status_code=204, headers=CONTENT_HEADERS)
+                    await asyncio.wait({page_task}, timeout=0.05)
+                page = await page_task
+            finally:
+                if not page_task.done():
+                    page_task.cancel()
+                    try:
+                        await page_task
+                    except asyncio.CancelledError:
+                        pass
+        else:
+            page = await s.reader.page(unit_id, index, prefetch=False)
     except FileNotFoundError as exc:
         return error(404, "PAGES_NOT_AVAILABLE", str(exc))
     except (ValueError, IndexError) as exc:

@@ -290,7 +290,7 @@ def test_reader_writes_for_missing_units_return_404(api, path, body):
 def test_reader_page_reports_source_failures(api, monkeypatch, failure, status, code):
     client, _ = api
 
-    async def failing_page(_unit_id, _index):
+    async def failing_page(_unit_id, _index, *, prefetch=False):
         raise failure
 
     monkeypatch.setattr(client.app.state.services.reader, "page", failing_page)

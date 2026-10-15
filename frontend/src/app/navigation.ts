@@ -12,3 +12,7 @@ export const DESTINATIONS: Destination[] = [
   { path: "/sources", labelKey: "nav.sources", icon: "sources", mobile: false },
   { path: "/settings", labelKey: "nav.settings", icon: "settings", mobile: false },
 ];
+
+export function destinationForPath(pathname: string): Destination | undefined {
+  return DESTINATIONS.find(({ path }) => pathname === path || (path !== "/" && pathname.startsWith(`${path}/`)));
+}
