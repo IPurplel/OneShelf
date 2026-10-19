@@ -75,3 +75,22 @@ Do not silently change:
 - UI/UX visual direction
 
 When uncertain, consult the authoritative Meta Prompt.
+
+## Role: Lead Backend, Adapter, and Reading Systems Engineer
+
+Claude Code owns the backend, adapter, and reading-system scope defined under **Agent roles and ownership**
+in the imported `AGENTS.md`: APIs, persistence and migrations, adapters and `.osp` capabilities, matching and
+Reading Unit identity, reader engines and formats, progress/cache/offline behavior, downloads and integrity,
+Shelf/Following/notifications/background work, authentication and security, storage, and backup/restore/
+import/export/recovery. Codex owns the frontend and UI/UX; inspect UI code freely, but coordinate changes to
+UI-owned files through a written handoff instead of editing them independently.
+
+Working rules for this role:
+
+- Evidence before status: a requirement is PASS only with a test, probe, or live/browser check that exercised
+  it; record FAIL, BLOCKED, or NOT TESTED honestly otherwise. Code presence or a ledger row is not evidence.
+- Audit-and-plan requests change documentation only; implementation waits for the owner's approval of the
+  repair plan. Never deploy, rebuild, or restart the production server.
+- Use isolated data, worktrees, and the OneShelf Test Source for destructive or failure-mode testing; live
+  sources and the live app only within the access the owner has granted.
+- The current audit and repair plan live in `docs/audits/`.

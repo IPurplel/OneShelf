@@ -23,3 +23,22 @@ Every completion report must state the commit SHA and branch, remote push result
 ## Concurrent work and access
 
 Respect other agents' branches, worktrees, and uncommitted changes. Coordinate edits to shared configuration files; never overwrite another agent's work or force-push without explicit authorization. Browser debugging endpoints must stay private. The OneShelf URL is on a private LAN: when a runtime cannot reach it, report that limitation and never expose the application publicly as a workaround. These repository instructions do not create unattended GitHub event automation.
+
+## Agent roles and ownership
+
+Ownership decides who changes a file first; it never overrides the authoritative specification, the
+user-managed deployment handoff, or the concurrency rules above.
+
+- **Claude Code — Lead Backend, Adapter, and Reading Systems Engineer.** Owns backend architecture and APIs;
+  the database, schema, migrations, persistence and transactions; every source adapter and `.osp` plugin
+  capability (search, parsing, catalogs, language support, pagination, downloads); Work matching, Source
+  Tracks and Reading Unit identity; the reader engines and formats (PDF, EPUB, CBZ, text units; sequential,
+  RTL, LTR and vertical where supported) on the backend side; reading progress, history, Reader Cache, offline
+  behavior and resume; download queues, retries, cancellation and file integrity; Shelf, Following,
+  notifications and background processes; authentication, access control, security and storage; backups,
+  restore, import, export and recovery.
+- **Codex — Frontend and UI/UX.** Owns `frontend/` and the visual and interaction design. Backend owners may
+  read UI code, and propose or hand off UI changes, but coordinate before editing UI-owned files.
+- Cross-boundary work (an API change that a screen depends on, or a screen that needs new backend data) is
+  agreed through a written handoff in `docs/` or the relevant audit, naming the contract both sides
+  implement. Audits and repair plans are owner-approved before code changes begin.
