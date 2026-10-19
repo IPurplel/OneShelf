@@ -28,6 +28,38 @@ The `--isolated` browser profile prevents saved cookies from carrying between se
 
 For every browser call, use the local MCP tools in this order as needed: `browser_navigate`, `browser_snapshot`, `browser_take_screenshot`, `browser_click`/`browser_type`, `browser_resize`, `browser_console_messages`, and `browser_network_requests`. The last two show what the browser observed; check them after navigation and again after interactions. A screenshot of a browser error page is evidence of an access failure, not a successful OneShelf screenshot.
 
+## Helper scripts and field notes
+
+**Frontend revision from the agent runtime.** Agents in `ai-box` have no shell on the deployment host.
+`scripts/agent/deployed-revision.sh <sha>` builds the frontend of `<sha>` in a throwaway worktree and
+compares Vite's content-hashed entry assets (`/assets/index-*.js|css`) with the ones the live `index.html`
+serves. Results are cached in `~/.cache/oneshelf-agent/`. Exit codes: 0 = MATCH, 1 = MISMATCH (report
+**BLOCKED — DEPLOYMENT NOT UPDATED**), 2 = could not check. A MATCH is revision evidence for the
+**frontend only**. A backend-only or docs-only commit leaves the hashes unchanged, so it still needs the
+host evidence in step 3 above. Say in the report which kind of evidence was used.
+
+**Scripted evidence.** `backend/.venv/bin/python scripts/agent/browser_check.py --path / --path /sources --click Search`
+opens each path in headless Chrome at 1440×900 and 390×844. It saves viewport and full-page screenshots,
+and records console errors, page exceptions, failed or ≥400 requests, and horizontal overflow, to
+`qa-artifacts/browser/<timestamp>/report.json`. `--click` follows one link or button by accessible name
+(navigation only). Exit codes: 0 clean, 1 problems, 2 unreachable. Use it alongside the MCP session for
+repeatable before/after evidence, not instead of looking at the page.
+
+Field notes from setting this up in `ai-box`:
+
+- Pages render "Loading…" first, so a screenshot taken straight after `browser_navigate` or `browser_click`
+  shows the loading state. Call `browser_wait_for` with text from the loaded page before taking it.
+- In full-page screenshots, fixed elements (the desktop sidebar, the mobile tab bar) are drawn where the
+  viewport ended, part-way down the page. That is a capture artifact. Judge layout from viewport shots.
+- `networkidle` waits can time out because the app keeps a live `/api/events` connection open. Wait for
+  content instead.
+- Codex loads `.codex/config.toml` only when the **exact** checkout or worktree path is trusted in
+  `~/.codex/config.toml`. A trusted parent such as `/workspace` is not enough. `codex mcp list` shows
+  "No MCP servers configured" until the path is trusted.
+- Claude Code ignores project permissions until the workspace trust dialog has been accepted once
+  interactively. `claude mcp list` shows `⏸ Pending approval` until the `.mcp.json` server is approved.
+- `claude -p --allowedTools …` is variadic. Pass the prompt on stdin, or it is taken as a tool name.
+
 ## Completion report
 
 Report these fields even when a gate is blocked:
