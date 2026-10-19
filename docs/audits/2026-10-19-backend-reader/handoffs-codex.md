@@ -55,6 +55,24 @@ payloads. Handoff IDs H-1…H-9 match `repair-plan.md`.
 - **Frontend tests:** the notification renders with its action, in Arabic and English.
 - **Acceptance:** unplugging a storage location shows "unavailable", never "0 bytes remain".
 
-## H-3, H-4, H-5, H-7, H-8, H-9
+## H-3 · Work details: user corrections and honest classification (WP-5/6/7, branch `repair/be-phase2-classification`)
 
-Written when their work packages land (Phases 2–4); see `implementation-log.md`.
+- **Feature:** Work details header and unit list, Reader title, Settings → Maintenance.
+- **API contract changes:**
+  - `PATCH /api/works/{id}` with a body containing any of `{"content_type": "manga"|"manhwa"|"manhua"|"comic"|"book"|"novel"|"paper"|"other"|null, "title": string|null}`. Only the fields sent change. `null` clears the user's correction and restores what it replaced. Returns the same payload as `GET /api/works/{id}`. Errors: 422 `INVALID_CORRECTION`, 404 `WORK_NOT_FOUND`.
+  - `PATCH /api/reading-units/{id}` with a body containing any of `{"number": string|null, "title": string|null, "unit_type": "chapter"|"special"|"extra"|"prologue"|"epilogue"|"one_shot"|"other"|null}`. Returns the Work payload. Errors: 422 `INVALID_CORRECTION`, 404 `UNIT_NOT_FOUND`.
+  - `work.content_type_source` is one of `user | source | plugin_default | unknown`.
+  - Search results and `/api/resolve-url` now carry the plugin's default language and type where the source is silent (3asq → `ar`/`manga`). The UI already echoes them to `/api/listings/open`; no change is needed there.
+  - `GET /api/maintenance/reclassification` returns a preview with no writes: `{applied: false, count, changes: [{kind: work_type|track_language|track_merge, work_id, detail}]}`. `POST` applies it, after a database snapshot, and returns `{applied: true, snapshot, count, changes}`.
+- **Expected UI behaviour:**
+  - Work details: an "Edit details" control for type and title. Each unit's More menu gets a "Correct number/title/type" control.
+  - Show "(your correction)" subtly when `content_type_source === "user"`. Offer "Use source value" (sends `null`).
+  - Never show "unknown · Unknown language" when a value is known.
+  - Settings → Maintenance (advanced): "Repair library classification". It shows the preview list in plain language ("Berserk: language Unknown → Arabic", "merge duplicate Arabic track") with a single Apply button. After applying, show the result and the snapshot path.
+- **Errors:** 422 messages render under the field. The Apply button is disabled while a request is pending.
+- **Frontend tests:** an edit round-trip, clearing a correction, the 422 message, the preview list with an empty state, and apply → refreshed counts. Arabic and English.
+- **Acceptance:** on a library with old `und` tracks, the preview lists them and Apply fixes them. A 3asq Work then shows "manga · Arabic". A corrected unit number survives a catalog refresh.
+
+## H-4, H-5, H-7, H-8, H-9
+
+Written when their work packages land (Phases 3–4); see `implementation-log.md`.
