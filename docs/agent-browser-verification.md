@@ -15,28 +15,49 @@ From the repository root in **each** agent runtime:
 
 The `--isolated` browser profile prevents saved cookies from carrying between sessions. Treat screenshots and diagnostic output as private anyway. Never commit tokens, browser profiles, or sensitive screenshots. Never bind an MCP or Chrome debugging endpoint to a public interface; use the configured local stdio server. If a remote agent lacks a route to the private IP, run verification from an authorized LAN runtime or report **BLOCKED — BROWSER CANNOT REACH PRIVATE LAN**. Do not expose OneShelf publicly to satisfy this check.
 
+## User-managed deployment and evidence
+
+The user owns updates of the production server at `192.168.8.32`. Agents must not deploy, rebuild, restart, or update it unless the user explicitly requests that action. The documented [`./update.sh` procedure](../README.md#updating) remains available for the user's manual update; see its preconditions and [upgrade notes](operations.md#7-upgrades). A GitHub push never proves it ran. Lack of agent SSH credentials is not evidence that the server is outdated; do not repeatedly try SSH authentication without authorized credentials.
+
+The user's confirmation that they updated the server starts browser QA. Record these as **separate** facts:
+
+| State | What establishes it |
+| --- | --- |
+| GitHub push verified | Full expected SHA equals the remote branch SHA from `git ls-remote` |
+| User confirmed manual deployment | Explicit user confirmation for this push |
+| Deployment checkout SHA verified | Fresh `git rev-parse HEAD` output from the deployment host, supplied by the user or obtained with authorized access |
+| Running image revision verified | Build/deployment provenance tying the running container image to the expected commit; a checkout SHA or healthy container alone is insufficient |
+| Browser functionality verified | Chrome opened the real URL and the relevant screenshots, interactions, console, and network checks passed |
+
+The user reported on 2026-10-19 that GitHub `main` and the deployment checkout both held `dca1907d838be4dbeb5c0ea0963e67e900118357`, and container `oneshelf-oneshelf-1` was `Up (healthy)`. This is a dated baseline, not standing proof for later pushes or of the image's source revision. The deployment-host command `docker compose ps` returned `no configuration file provided` from the repository root because Compose did not discover `deploy/compose.yaml` there; it does not indicate that OneShelf is broken. The documented invocation supplies `--env-file .env -f deploy/compose.yaml`.
+
+If the running image revision cannot be proven, state **running image revision unverified**. The browser may still be used after user deployment confirmation to report what the currently accessible application does, but do not call it verification of the new Git revision without sufficient provenance. Use **BLOCKED — DEPLOYMENT NOT UPDATED** only when evidence actually establishes a stale deployment. Before user confirmation, use **READY — AWAITING USER-MANAGED DEPLOYMENT**.
+
 ## After every committed and pushed change
 
-1. Inspect `git status`, worktrees, and the current branch. Preserve other agents' work. Run tests and checks relevant to the change (`frontend`: `npm test`, `npm run build`; `backend`: the relevant `pytest` subset or full suite as appropriate; docs/config: parse files, check commands, and inspect the diff). Run additional checks for risks the change introduces.
-2. Commit and push using the existing branch and the user's authorization. Never force-push. Record `git rev-parse HEAD`, the branch name, and the push result. Verify the remote branch directly, for example `git ls-remote origin refs/heads/main`, and compare its full SHA to the expected SHA. Resolve a mismatch before proceeding.
-3. Establish what revision the **running deployment** actually uses. On the deployment host, record the deployed checkout's `git rev-parse HEAD`, `git status --short`, the result of the most recent update/build, and the running container/image identity (`podman inspect` or `docker inspect` as appropriate). Confirm the checkout is at the expected SHA **and** that the running container was rebuilt/restarted from it. If there is no trustworthy revision/build evidence, status is blocked. A GitHub push, a healthy `/api/ready`, or a visually plausible page cannot prove the deployed revision. A documentation-only commit can leave app assets identical, but the deployment checkout revision still needs confirmation for this gate.
-4. If an update is authorized and needed, use the established [`./update.sh` procedure](../README.md#updating) from the deployment checkout. It fast-forwards `main` from `origin/main`, rebuilds the image, restarts the service, then checks readiness and health. Respect its clean-tree, upstream, backup, and migration preconditions; see [operations](operations.md#7-upgrades). Do not assume a push runs this script. If an update is not authorized or cannot be verified, record **BLOCKED — DEPLOYMENT NOT UPDATED** and do not treat the old deployment as a post-change test.
-5. Once the updated revision is running, navigate in Playwright MCP to `http://192.168.8.32:8420/`. Record the page title/URL and inspect an actual desktop screenshot. For relevant UI work, resize or emulate a mobile viewport and inspect its screenshot. Check layout, alignment, spacing, clipping/overflow, visibility, and responsive behavior.
+1. Inspect `git status`, worktrees, and the current branch. Preserve other agents' work. Run tests and checks relevant to the change before committing (`frontend`: `npm test`, `npm run build`; `backend`: the relevant `pytest` subset or full suite as appropriate; docs/config: parse files, check commands, and inspect the diff). Run additional checks for risks the change introduces.
+2. Commit and push using the existing branch and the user's authorization. Never force-push. Record `git rev-parse HEAD`, the branch name, and the push result. Verify the remote branch directly, for example `git ls-remote origin refs/heads/main`, and compare its full SHA to the expected SHA. Resolve a mismatch before proceeding. Run the relevant checks against the exact pushed commit.
+3. Tell the user the change is ready for their manual server update and report **READY — AWAITING USER-MANAGED DEPLOYMENT**. Do not start production deployment actions. This is a handoff state, not a failed application or failed push.
+4. After the user confirms their update, record the distinct deployment evidence above. Use reliable host output the user supplies, such as checkout SHA, update/build output, container health, and image identity. Do not infer an image revision from a healthy `/api/ready`, an unchanged page, or the checkout SHA alone. If image provenance remains unknown, carry that limitation into the browser report.
+5. Navigate in Playwright MCP to `http://192.168.8.32:8420/`. Record the page title/URL and inspect an actual desktop screenshot. For relevant UI work, resize or emulate a mobile viewport and inspect its screenshot. Check layout, alignment, spacing, clipping/overflow, visibility, and responsive behavior.
 6. Use the accessibility snapshot to select controls, then exercise the changed feature and related flows. Inspect loading, empty, success, and failure states where applicable. Check buttons, menus, forms, navigation, and dialogs. For OneShelf, pay particular attention to discovery/search, work details, source selection and installed adapters, chapter/book navigation, the reader, and downloads. Do not mutate or delete real library data merely to create a QA state; use a safe test account/data or report the state that could not be exercised.
 7. Call `browser_console_messages` and `browser_network_requests` after the interactions. Identify JavaScript exceptions, console errors, failed requests, and relevant HTTP errors. For backend-only changes, run API/functional checks as well; use the browser whenever behavior is observable in the app.
-8. If a defect appears, save the issue and evidence, find its root cause, correct it within the authorized scope, rerun relevant tests, commit/push and verify the new remote SHA, confirm the new deployment revision, and reopen the app in Chrome. Repeat until the relevant blocking defect is resolved. Never call an old screenshot a retest.
+8. If a defect appears, save the issue and evidence, find its root cause, correct it within the authorized scope, rerun relevant tests, commit/push and verify the new remote SHA, then return to the user-managed deployment handoff. Reopen the app in Chrome after the user confirms the correction is deployed. Repeat until the relevant blocking defect is resolved. Never call an old screenshot a retest.
 
 For every browser call, use the local MCP tools in this order as needed: `browser_navigate`, `browser_snapshot`, `browser_take_screenshot`, `browser_click`/`browser_type`, `browser_resize`, `browser_console_messages`, and `browser_network_requests`. The last two show what the browser observed; check them after navigation and again after interactions. A screenshot of a browser error page is evidence of an access failure, not a successful OneShelf screenshot.
 
 ## Helper scripts and field notes
 
-**Frontend revision from the agent runtime.** Agents in `ai-box` have no shell on the deployment host.
-`scripts/agent/deployed-revision.sh <sha>` builds the frontend of `<sha>` in a throwaway worktree and
+**Frontend revision from the agent runtime.** After the user confirms the manual update,
+`scripts/agent/deployed-revision.sh <sha>` can build the frontend of `<sha>` in a throwaway worktree and
 compares Vite's content-hashed entry assets (`/assets/index-*.js|css`) with the ones the live `index.html`
-serves. Results are cached in `~/.cache/oneshelf-agent/`. Exit codes: 0 = MATCH, 1 = MISMATCH (report
-**BLOCKED — DEPLOYMENT NOT UPDATED**), 2 = could not check. A MATCH is revision evidence for the
-**frontend only**. A backend-only or docs-only commit leaves the hashes unchanged, so it still needs the
-host evidence in step 3 above. Say in the report which kind of evidence was used.
+serves. Results are cached in `~/.cache/oneshelf-agent/`. Exit codes: 0 = MATCH, 1 = MISMATCH,
+2 = could not check. A MISMATCH means the live frontend assets differ from the local build; investigate
+the build conditions and deployment evidence before concluding the server is stale. A MATCH is evidence
+for the **frontend assets only**, not proof of the running image's Git revision. A backend-only or
+docs-only commit leaves the hashes unchanged, so it still needs the host evidence in step 4 above.
+Say in the report which kind of evidence was used. Do not run this check before user deployment
+confirmation or describe a pre-deployment mismatch as a failed deployment.
 
 **Scripted evidence.** `backend/.venv/bin/python scripts/agent/browser_check.py --path / --path /sources --click Search`
 opens each path in headless Chrome at 1440×900 and 390×844. It saves viewport and full-page screenshots,
@@ -67,14 +88,14 @@ Report these fields even when a gate is blocked:
 | Field | Required result |
 | --- | --- |
 | Git | Branch, full commit SHA, push result, remote branch SHA |
-| Deployment | Expected and observed checkout/container revision evidence; updated, stale, or unconfirmed |
+| Deployment | User confirmation; expected and observed checkout SHA; running image revision evidence, each stated separately |
 | Browser | Runtime, Chrome version, URL access result |
 | Coverage | Pages and interactions; desktop/mobile screenshots and observations |
 | Diagnostics | Console errors, failed network requests, JavaScript exceptions |
 | Evidence | Local screenshot/log paths outside version control or in ignored `qa-artifacts/` |
-| Outcome | Defects and fixes; final **PASS**, **FAIL**, or **BLOCKED**, with exact reason |
+| Outcome | Defects and fixes; **READY — AWAITING USER-MANAGED DEPLOYMENT**, **PASS**, **FAIL**, or **BLOCKED**, with exact reason |
 
-Do not turn a partial check into **PASS**. If the deployment is stale, write **BLOCKED — DEPLOYMENT NOT UPDATED**. If the LAN is unavailable, say so separately. These instructions run when an agent performs work; they do not install a self-hosted runner or trigger checks after independent GitHub pushes. Such automation requires a separately authorized CI/runner setup.
+Do not turn a partial check into **PASS** or claim the new revision was visually verified without enough evidence of the running image. An unproven image revision is an explicit limitation, not a confirmed deployment failure. If the deployment is proven stale, write **BLOCKED — DEPLOYMENT NOT UPDATED**. If the LAN is unavailable, say so separately. These instructions run when an agent performs work; they do not install a self-hosted runner or trigger checks after independent GitHub pushes. Such automation requires a separately authorized CI/runner setup.
 
 ## Maintainer references
 

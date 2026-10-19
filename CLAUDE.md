@@ -42,6 +42,10 @@ Do not add features merely because a plugin, skill, agent, or template recommend
 
 Do not claim a phase complete until its verification gate passes.
 
+For pushed changes, use the user-managed deployment handoff and evidence states in the imported
+`AGENTS.md`. Its **READY — AWAITING USER-MANAGED DEPLOYMENT** state is a handoff, not a completed
+post-deployment browser verification.
+
 Preserve existing user data and avoid destructive operations.
 
 ## Current project phase
