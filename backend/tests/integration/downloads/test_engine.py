@@ -1,4 +1,5 @@
 """Master §16–§17, §14, §39; INV-16, INV-17, INV-23: durable downloads, recovery, contracts."""
+import json
 import zipfile
 from dataclasses import replace
 from pathlib import Path
@@ -561,3 +562,32 @@ def test_i106_an_unavailable_storage_location_is_not_reported_as_low_storage(env
     assert job["state"] == "FAILED" and job["error_category"] == "storage_unavailable"
     assert [n["dedupe_key"] for n in notes] == [f"storage-unavailable:{root_id}"]
     assert "0 bytes remain" not in notes[0]["payload_json"]
+
+
+# -- I-93 (BE-003): what is downloaded follows what the source delivers, not the Work's label --------------------
+
+@pytest.mark.parametrize("content_type", ["unknown", "other", "manga"])
+def test_i93_image_reader_units_package_as_cbz_whatever_the_work_is_labelled(environment, content_type):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle", content_type=content_type)
+            batch = env.engine.enqueue([env.unit_id("irr-1")])
+            report = await env.engine.run_until_idle()
+            job = env.job_rows(batch)[0]
+            return report, json.loads(job["extraction_contract_json"])["output_format"], env.assets(), env.files()
+
+    report, output, assets, files = run(scenario())
+    assert output == "cbz" and report.completed == 1
+    assert [a["format"] for a in assets] == ["cbz"] and len(cbz_pages(files[0])) == 3
+
+
+def test_i93_a_book_from_a_source_with_both_recipes_still_downloads_its_file(environment):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("manual", "The Manual", content_type="book")
+            batch = env.engine.enqueue([env.unit_id("manual-1")], one_time_method="direct")
+            await env.engine.run_until_idle()
+            return json.loads(env.job_rows(batch)[0]["extraction_contract_json"])["output_format"], env.assets()
+
+    output, assets = run(scenario())
+    assert output == "file" and [a["format"] for a in assets] == ["pdf"]

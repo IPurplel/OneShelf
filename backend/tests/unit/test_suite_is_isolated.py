@@ -56,8 +56,9 @@ def test_every_data_directory_a_test_configures_is_a_temporary_one():
     assert offenders == [], offenders
 
 
-def test_the_live_source_suite_is_the_only_test_that_needs_the_real_internet():
+def test_only_the_live_suites_need_the_real_internet():
     """Everything else runs against the Test Source or fixtures, so a normal run touches no network."""
     marked = {path.relative_to(TESTS).as_posix() for path in _test_sources()
               if "pytest.mark.live" in path.read_text(encoding="utf-8")}
-    assert marked == {"live/test_source_suite.py"}, marked
+    # Live tests are kept together in tests/live/ (the recipe-level suite and the product journey, I-93).
+    assert "live/test_source_suite.py" in marked and all(m.startswith("live/") for m in marked), marked

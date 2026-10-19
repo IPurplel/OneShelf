@@ -190,10 +190,7 @@ class DownloadEngine:
                 recommendation = "direct" if "downloads" in package.recipes and "reader" not in package.recipes else "html_api"
                 resolved = resolve_method(self.settings, context["source_id"], plugin_recommendation=recommendation,
                                           one_time=one_time_method)
-                if is_text_reader(package.recipes.get("reader")):
-                    output = TEXT_FORMAT
-                else:
-                    output = SEQUENTIAL_FORMAT if family_for(context["content_type"]) == "Sequential Art" else "file"
+                output = required_output(package, resolved.method, context["content_type"])
                 contract = ExtractionContract(source_id=context["source_id"], language=context["language"],
                                               reading_unit_id=unit_id, output_format=output, method=resolved.method,
                                               mode=resolved.mode, fallback_order=resolved.fallback_order)
@@ -749,6 +746,23 @@ class DownloadEngine:
             self._notify_failure(job_id, context, category)
             report.failed += 1
             report.errors.append(f"{job_id}: {category}: {message}")
+
+
+def required_output(package, method: str, content_type: str) -> str:
+    """The Extraction Contract's required output, from what the source delivers (Master §14, I-93).
+
+    A text reader gives the text container; the direct method, or a source without a reader, gives the
+    original file; a reader that yields image pages gives a CBZ. The Work's label decides only when a source
+    offers both a reader and files and the label says book — never because the label is unknown.
+    """
+    reader = package.recipes.get("reader")
+    if is_text_reader(reader):
+        return TEXT_FORMAT
+    if method == "direct" or reader is None:
+        return "file"
+    if "downloads" in package.recipes and family_for(content_type) == "Books":
+        return "file"
+    return SEQUENTIAL_FORMAT
 
 
 def detect_image_suffix(data: bytes) -> str:
