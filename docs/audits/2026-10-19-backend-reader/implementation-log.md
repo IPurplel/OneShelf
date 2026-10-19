@@ -61,3 +61,17 @@ Tests: `pytest -m "not browser and not live"` gives **1,528 passed, 1 skipped**.
 
 Phase 3 (WP-8, WP-9, WP-3, WP-4), then Phase 4 (WP-10…WP-14). See
 `repair-plan.md`.
+
+## Checkpoint — 2026-10-19 (session ended at its usage limit)
+
+Branch `repair/be-phase3-responsiveness` (stacked on phase 2) in worktree `/tmp/oneshelf-repair`:
+
+| WP | State |
+|---|---|
+| WP-3 (BE-007, I-97), WP-9 (BE-011, I-101), BE-019 (I-109) | **Done** in commit "fix(transport): stream downloads…": `HttpClient.stream_to`, honest resume, `retry_job` resets the file, `/file` served as a Range-capable `FileResponse` |
+| WP-4 (BE-008, I-98; BE-009, I-99) | **Done** in commit "fix(commit): a new copy replaces a broken one…": replace-commit with retire/restore and crash tests |
+| WP-8 (BE-006, I-96) | **Partly done.** Backup, verify, restore preflight and restore, scan, import, migration and export run on worker threads with their own connections (`services/worker.py`). `tests/integration/test_responsiveness.py` takes the full-backup worst poll from 1,170 ms to 2 ms. **Not done:** moving the Download Engine's commit, hashing and validation off the loop. A first attempt broke 38 tests; it is saved, unapplied, at `qa-artifacts/be-audit-20261019/wip/wp8-engine-offload.patch` in the audit worktree |
+
+Suite at this checkpoint: 1,558 passed, 1 skipped.
+
+Remaining: finish WP-8 (engine), then Phase 3 docs, ledger states and PR; then Phase 4: WP-10 (Follow baseline pending), WP-11 (format selection), WP-12 (reader errors and descriptor cache), WP-13 (preflight size), WP-14 (adapters, OneShelf-Adapters repo); and handoffs H-4, H-5, H-7, H-8, H-9. PRs #4 (phase 1) and #5 (phase 2) await review.

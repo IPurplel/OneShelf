@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from oneshelf.services.worker import in_worker, rebound
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,7 +21,7 @@ class BackupRunner:
         if not self.backups.due():
             return None
         try:
-            record = self.backups.create("library")
+            record = await in_worker(self.backups.conn, lambda conn: rebound(self.backups, conn).create("library"))
         except Exception as exc:
             logger.exception("scheduled library backup failed")
             if self.notifications is not None:
