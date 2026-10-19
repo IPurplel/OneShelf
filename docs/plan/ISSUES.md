@@ -262,11 +262,11 @@ audit-and-plan task, and no fix has been made.
 
 | ID | Audit ID | Priority | Component | Defect | State |
 |---|---|---|---|---|---|
-| I-91 | BE-001 | P1 | Remote auth / trust boundary | A signed-in remote session can change the inbound trust configuration and keep LAN-level access after LAN Recovery (details withheld until fixed) | Open |
+| I-91 | BE-001 | P1 | Remote auth / trust boundary | A signed-in remote session can change the inbound trust configuration and keep LAN-level access after LAN Recovery (details withheld until fixed) | Fixed on `repair/be-phase1-security-jobs`; awaiting review and merge |
 | I-92 | BE-002 | P1 | Classification | Plugin `defaults` (language, content type) are never applied on search or bind; Arabic sources are stored `und`/`unknown` (also on production) | Open |
 | I-93 | BE-003 | P1 | Downloads | Image-reader units on `unknown` Works are downloaded as a single file and fail (MangaDex, 3asq, Tapas, WEBTOON) | Open |
 | I-94 | BE-004 | P2 | Identity | One source listing becomes two Source Tracks (`und` via search, `en` via URL) | Open |
-| I-95 | BE-005 | P1 | Downloads | Unexpected exceptions (e.g. no storage root, oversized resource) leave jobs in active states forever (also on production) | Open |
+| I-95 | BE-005 | P1 | Downloads | Unexpected exceptions (e.g. no storage root, oversized resource) leave jobs in active states forever (also on production) | Fixed on `repair/be-phase1-security-jobs`; awaiting review and merge |
 | I-96 | BE-006 | P1 | Responsiveness | Backup, restore, export, scan and file serving run on the event loop; an 82 MB backup stalled every request for 1.06 s | Open |
 | I-97 | BE-007 | P2 | Downloads / resume | A complete body then a failure → the retry sends an unsatisfiable `Range` → HTTP 416, permanent failure | Open |
 | I-98 | BE-008 | P2 | Commit journal | Re-downloading a missing-file unit orphans the new file and wedges the journal at `verified` | Open |
@@ -276,8 +276,8 @@ audit-and-plan task, and no fix has been made.
 | I-102 | BE-012 | P2 | Overrides | No write path for user overrides (classification, numbering); traceability M9.2 overstated | Open |
 | I-103 | BE-013 | P2 | Downloads / formats | No format selection; only the first offered file is ever downloaded | Open |
 | I-104 | BE-014 | P2 | Adapters | Bundled Gutenberg search fails live, Hindawi Latin queries are blocked, MangaDex bundle diverges from the Registry | Open |
-| I-105 | BE-015 | P3 | Backup | Backups include `remote_sessions`, `remote_recovery`, `remote_credentials` (§33.3) | Open |
-| I-106 | BE-016 | P3 | Notifications / batches | An offline or missing root is reported as "0 bytes remain"; an all-canceled batch reads "Completed" | Open |
+| I-105 | BE-015 | P3 | Backup | Backups include `remote_sessions`, `remote_recovery`, `remote_credentials` (§33.3) | Fixed on `repair/be-phase1-security-jobs`; awaiting review and merge |
+| I-106 | BE-016 | P3 | Notifications / batches | An offline or missing root is reported as "0 bytes remain"; an all-canceled batch reads "Completed" | Fixed on `repair/be-phase1-security-jobs`; awaiting review and merge |
 | I-107 | BE-017 | P3 | Reader | Upstream HTTP status hidden; descriptor cache unbounded; disabled source → wrong `DOWNLOAD_REQUIRED` and cached pages unreachable | Open |
 | I-108 | BE-018 | P3 | Storage guard | Download preflight ignores known sizes | Open |
 | I-109 | BE-019 | P3 | HTTP client | A read timeout leaks the connection (seen in the live suite) | Open |
