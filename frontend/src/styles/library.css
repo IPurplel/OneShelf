@@ -595,6 +595,10 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 @media (max-width: 540px) {
   .work__header { grid-template-columns: minmax(0, 1fr); }
   .work__cover { inline-size: 132px; }
+  .tracks__row { flex-wrap: wrap; }
+  .tracks__name { flex: 1 1 100%; min-inline-size: 0; overflow-wrap: anywhere; }
+  .tracks__count { margin-inline-start: 0; }
+  .tracks__row .button { max-inline-size: 100%; white-space: normal; }
 }
 
 /* Search: warm canvas, serif title, a large field, cover-focused results (§32.7). */

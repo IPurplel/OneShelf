@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import { ApiError, api } from "@/api/client";
 import { CoverPlaceholder } from "@/components/CoverPlaceholder";
@@ -18,6 +18,8 @@ import { readerLink } from "@/features/reader/links";
 import { bytes } from "@/lib/format";
 
 type Tab = "read" | "details" | "sources";
+type CatalogAttempt = { trackId: string; status: string; reason: string | null };
+type CatalogRefresh = { state: string; unit_count: number; reason: string | null };
 const CONTENT_TYPES = ["manga", "manhwa", "manhua", "comic", "book", "paper"];
 function typeLabel(value: string, t: ReturnType<typeof useI18n>["t"]): string {
   return CONTENT_TYPES.includes(value) ? t(`work.type.${value}` as StringKey) : value.replaceAll("_", " ");
@@ -58,6 +60,41 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${id}`,
     trackId ? { track_id: trackId } : undefined);
   const [problem, setProblem] = useState<string | null>(null);
+  const location = useLocation();
+  const alreadyChecked = useRef(new Set<string>());
+  const openedAttempt = (location.state as { catalogAttempt?: CatalogAttempt } | null)?.catalogAttempt ?? null;
+  const [catalogAttempt, setCatalogAttempt] = useState<CatalogAttempt | null>(null);
+  const selectedTrackId = data?.selected_track_id ?? null;
+  const selectedAttempt = catalogAttempt?.trackId === selectedTrackId ? catalogAttempt
+    : openedAttempt?.trackId === selectedTrackId ? openedAttempt : null;
+
+  const refreshCatalog = useCallback(async (selected: Track) => {
+    setCatalogAttempt({ trackId: selected.id, status: "checking", reason: null });
+    try {
+      const result = await api.post<CatalogRefresh>(`/api/tracks/${selected.id}/catalog/refresh`);
+      const status = result.state === "incomplete" || result.state === "suspicious" ? result.state
+        : result.state === "trusted" || result.state === "unchanged" || result.state === "recovered"
+          ? result.unit_count > 0 ? "loaded" : "empty" : "failed";
+      setCatalogAttempt({ trackId: selected.id, status, reason: result.reason });
+      reload();
+    } catch (error) {
+      const status = error instanceof ApiError && error.code === "SESSION_REQUIRED" ? "session_required"
+        : error instanceof ApiError && error.code === "RATE_LIMITED" ? "rate_limited" : "failed";
+      setCatalogAttempt({ trackId: selected.id, status, reason: error instanceof ApiError ? error.code : null });
+    }
+  }, [reload]);
+
+  useEffect(() => {
+    if (data === null || data.units.length > 0 || data.selected_track_id === null ||
+        (trackId !== null && data.selected_track_id !== trackId)) return;
+    const selected = data.tracks.find(track => track.id === data.selected_track_id);
+    if (selected?.kind !== "source") return;
+    const key = `${id}:${selected.id}`;
+    if (alreadyChecked.current.has(key)) return;
+    alreadyChecked.current.add(key);
+    if (openedAttempt?.trackId === selected.id) return;
+    void refreshCatalog(selected);
+  }, [data, id, openedAttempt?.trackId, refreshCatalog, trackId]);
 
   if (error !== null) {
     return (
@@ -295,7 +332,9 @@ export function WorkScreen({ workId }: { workId?: string }) {
       <div role="tabpanel" id="work-tabpanel" aria-labelledby={`work-tab-${tab}`} tabIndex={-1}>
         <div hidden={tab !== "read"}>
           <UnitIndex units={units} workId={id} trackId={data.selected_track_id}
-            downloadable={current !== null && current.kind !== "local"} />
+            downloadable={current !== null && current.kind !== "local"} track={current}
+            attempt={selectedAttempt} onRetry={() => { if (current) void refreshCatalog(current); }}
+            onLanguages={() => setTab("sources")} />
         </div>
         {tab === "details" && <Details data={data} />}
         {tab === "sources" && (
@@ -304,7 +343,12 @@ export function WorkScreen({ workId }: { workId?: string }) {
             next.set("track", track.id);
             setSearch(next);
           }}
-                   onRefreshed={reload} />
+                   workId={id} onOpened={(openedTrackId) => {
+                     const next = new URLSearchParams(search);
+                     next.set("track", openedTrackId);
+                     setSearch(next);
+                   }}
+                   attempt={selectedAttempt} onRefresh={refreshCatalog} onRefreshed={reload} />
         )}
       </div>
       {exporting && <ExportWizard workId={id} trackId={data.selected_track_id}
@@ -313,8 +357,9 @@ export function WorkScreen({ workId }: { workId?: string }) {
   );
 }
 
-function UnitIndex({ units, workId, trackId, downloadable }: {
+function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRetry, onLanguages }: {
   units: Unit[]; workId: string; trackId: string | null; downloadable: boolean;
+  track: Track | null; attempt: CatalogAttempt | null; onRetry: () => void; onLanguages: () => void;
 }) {
   const { t } = useI18n();
   const [problem, setProblem] = useState<string | null>(null);
@@ -340,7 +385,8 @@ function UnitIndex({ units, workId, trackId, downloadable }: {
       setQueueing(false);
     }
   };
-  if (units.length === 0) return <p className="notice">{t("work.noUnits")}</p>;
+  if (units.length === 0) return <CatalogStatus track={track} attempt={attempt}
+    onRetry={onRetry} onLanguages={onLanguages} />;
 
   return (
     <>
@@ -380,6 +426,33 @@ function UnitIndex({ units, workId, trackId, downloadable }: {
   );
 }
 
+function CatalogStatus({ track, attempt, onRetry, onLanguages, showActions = true }: {
+  track: Track | null; attempt: CatalogAttempt | null; onRetry: () => void;
+  onLanguages: () => void; showActions?: boolean;
+}) {
+  const { t, language } = useI18n();
+  if (track?.kind !== "source") return <p className="notice">{t("work.noUnits")}</p>;
+  const status = attempt?.status ?? "checking";
+  const problem = !["checking", "empty"].includes(status);
+  const message: StringKey = status === "checking" ? "work.catalog.checking"
+    : status === "empty" ? "work.catalog.empty"
+    : status === "incomplete" ? "work.catalog.incomplete"
+    : status === "session_required" ? "work.catalog.reconnect"
+    : status === "rate_limited" ? "work.catalog.rateLimited"
+    : status === "suspicious" ? "work.catalog.suspicious"
+    : status === "unsupported" ? "work.catalog.unsupported" : "work.catalog.failed";
+  return <div className={`notice${problem ? " notice--problem" : ""}`}>
+    <p role={problem ? "alert" : "status"}>{t(message, { language: languageName(track.language, language) })}</p>
+    {showActions && status !== "checking" && <div className="work__actions">
+      <button type="button" className="button" onClick={onRetry}>{t("work.catalog.retry")}</button>
+      {status === "empty" && <button type="button" className="button" onClick={onLanguages}>
+        {t("work.track.findLanguages")}
+      </button>}
+      {status === "session_required" && <Link className="button" to="/sources">{t("work.catalog.sources")}</Link>}
+    </div>}
+  </div>;
+}
+
 function Details({ data }: { data: WorkDetails }) {
   const { t } = useI18n();
   const { work } = data;
@@ -397,34 +470,82 @@ function Details({ data }: { data: WorkDetails }) {
   );
 }
 
-function Sources({ tracks, selected, onChoose, onRefreshed }: {
+type ReadingLanguages = {
+  source_id: string; listing_key: string; title: string; content_type: string | null; languages: string[];
+};
+
+function Sources({ tracks, selected, workId, attempt, onChoose, onOpened, onRefresh, onRefreshed }: {
   tracks: Track[];
   selected: string | null;
+  workId: string;
+  attempt: CatalogAttempt | null;
   onChoose: (track: Track) => void;
+  onOpened: (trackId: string) => void;
+  onRefresh: (track: Track) => Promise<void>;
   onRefreshed: () => void;
 }) {
   const { t, language } = useI18n();
-  const [refreshing, setRefreshing] = useState(false);
+  const [finding, setFinding] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const [readingLanguages, setReadingLanguages] = useState<{ trackId: string; value: ReadingLanguages } | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
   // What the empty state tells a person to do, and what a first open that could not reach the source leaves
   // to try again: ask the selected source for its catalogue now.
   const refresh = async (track: Track) => {
-    setRefreshing(true);
+    setProblem(null);
+    await onRefresh(track);
+  };
+
+  const findLanguages = async (track: Track) => {
+    setFinding(true);
     setProblem(null);
     try {
-      await api.post(`/api/tracks/${track.id}/catalog/refresh`);
-      onRefreshed();
+      const value = await api.get<ReadingLanguages>(`/api/tracks/${track.id}/languages`);
+      setReadingLanguages({ trackId: track.id, value });
     } catch (error) {
       setProblem(error instanceof ApiError ? error.message : t("state.offline"));
     } finally {
-      setRefreshing(false);
+      setFinding(false);
     }
   };
+
+  const openLanguage = async (choice: string, listing: ReadingLanguages) => {
+    setOpening(true);
+    setProblem(null);
+    try {
+      const opened = await api.post<{ work_id: string; track_id: string; catalog: string }>("/api/listings/open", {
+        source_id: listing.source_id, listing_key: listing.listing_key, title: listing.title,
+        content_type: listing.content_type, language: choice,
+      });
+      if (opened.work_id !== workId) throw new Error("Unexpected work");
+      if (opened.catalog === "empty") {
+        setProblem(t("work.track.noReadableChapters"));
+        return;
+      }
+      if (opened.catalog !== "refreshed" && opened.catalog !== "present") {
+        setProblem(t("work.track.openFailed"));
+        return;
+      }
+      setReadingLanguages(null);
+      if (opened.track_id === selected) onRefreshed();
+      else onOpened(opened.track_id);
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("work.track.openFailed"));
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  const current = tracks.find(track => track.id === selected) ?? null;
+  const choices = readingLanguages?.trackId === selected ? readingLanguages.value : null;
 
   return (
     <>
     {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
+    {current?.unit_count === 0 && attempt !== null &&
+      <CatalogStatus track={current} attempt={attempt} onRetry={() => {}}
+        onLanguages={() => {}} showActions={false} />}
     <ul className="tracks">
       {tracks.map((track) => (
         <li key={track.id} className="tracks__row">
@@ -434,9 +555,14 @@ function Sources({ tracks, selected, onChoose, onRefreshed }: {
             <>
               <span className="chip chip--static">{t("work.track.current")}</span>
               {track.kind === "source" && (
-                <button type="button" className="button" disabled={refreshing} onClick={() => void refresh(track)}>
+                <button type="button" className="button" disabled={attempt?.status === "checking"}
+                  onClick={() => void refresh(track)}>
                   {t("work.track.refresh")}
                 </button>
+              )}
+              {track.kind === "source" && track.unit_count === 0 && (
+                <button type="button" className="button" disabled={finding || opening}
+                  onClick={() => void findLanguages(track)}>{t("work.track.findLanguages")}</button>
               )}
             </>
           ) : (
@@ -449,6 +575,17 @@ function Sources({ tracks, selected, onChoose, onRefreshed }: {
         </li>
       ))}
     </ul>
+    {choices !== null && <div className="notice" role="status">
+      {choices.languages.length === 0 ? t("work.track.noLanguages") : <>
+        <p>{t("work.track.availableLanguages")}</p>
+        <div className="work__actions">
+          {choices.languages.map((choice) => (
+            <button key={choice} type="button" className="button" disabled={opening}
+              onClick={() => void openLanguage(choice, choices)}>{languageName(choice, language)}</button>
+          ))}
+        </div>
+      </>}
+    </div>}
     </>
   );
 }

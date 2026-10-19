@@ -5,6 +5,7 @@ Every test here goes through the real PluginManager with real packages built fro
 package, because what matters is how the normal pipeline treats them, not a mock of it.
 """
 import asyncio
+import re
 import shutil
 from pathlib import Path
 
@@ -40,7 +41,7 @@ def edit_manifest(directory, plugin, *, version=None, extra_domain=None):
     path = directory / plugin / "manifest.yaml"
     text = path.read_text(encoding="utf-8")
     if version:
-        text = text.replace("version: 1.0.0", f"version: {version}", 1)
+        text = re.sub(r"^version: \d+\.\d+\.\d+$", f"version: {version}", text, count=1, flags=re.MULTILINE)
     if extra_domain:
         text = text.replace("  domains: [", f"  domains: [{extra_domain}, ", 1)
     path.write_text(text, encoding="utf-8")
@@ -158,6 +159,28 @@ def test_a_newer_bundled_version_updates_through_the_normal_path_keeping_rollbac
                                                                                   "1.1.0": "active"}
     manager.rollback("oneshelf.arxiv")                                  # rollback still works
     assert plugin_rows(db)["oneshelf.arxiv"][1] == "1.0.0"
+
+
+def test_mangadex_chapter_language_fix_reaches_an_existing_bundled_install(db, manager, tmp_path):
+    legacy = bundle(tmp_path, "oneshelf.mangadex")
+    source = legacy / "oneshelf.mangadex"
+    manifest = source / "manifest.yaml"
+    manifest.write_text(manifest.read_text(encoding="utf-8")
+                        .replace("version: 1.0.2", "version: 1.0.0").replace("api: '1.1'", "api: '1.0'"),
+                        encoding="utf-8")
+    for name in ("search", "work"):
+        recipe = source / "recipes" / f"{name}.yaml"
+        recipe.write_text("\n".join(line for line in recipe.read_text(encoding="utf-8").splitlines()
+                                if "available_languages:" not in line) + "\n", encoding="utf-8")
+    [installed] = run(sync_bundled(db, manager, legacy))
+    assert installed.result == "installed"
+    assert plugin_rows(db)["oneshelf.mangadex"][1] == "1.0.0"
+
+    outcomes = by_id(run(sync_bundled(db, manager, OFFICIAL)))
+    assert outcomes["oneshelf.mangadex"].result == "updated"
+    assert plugin_rows(db)["oneshelf.mangadex"][1] == "1.0.2"
+    assert {version.version: version.status for version in manager.versions("oneshelf.mangadex")} == {
+        "1.0.0": "previous", "1.0.2": "active"}
 
 
 def test_a_rolled_back_source_is_not_rolled_forward_again_on_restart(db, manager, tmp_path):

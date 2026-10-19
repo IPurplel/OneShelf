@@ -10,13 +10,14 @@ import { WorkCard } from "@/components/WorkCard";
 import { useI18n } from "@/i18n/i18n";
 import { languageName } from "@/i18n/language";
 
-type Opened = { listing_id: string; work_id: string; track_id: string; details: string; catalog: string };
+type Opened = { listing_id: string; work_id: string; track_id: string; details: string; catalog: string;
+                catalog_reason?: string | null };
 
 /**
  * A search or discovery result, always actionable (found on the real UI, 2026-09-21).
  *
- * A result that already has a Work links to it. One that does not is a button: opening it binds the one
- * concrete listing the person chose — never the others it was grouped with for display — and lands on its
+ * A live result opens the one concrete listing the person chose, reusing its Work when one exists.
+ * It never binds the other listings it was grouped with, and lands on its
  * Work with that source's track selected. When several sources offered it, they choose which; OneShelf never
  * picks a source or language for them because it happened to be listed first.
  */
@@ -26,8 +27,6 @@ export function ResultCard({ result, size }: { result: ResultWork; size?: "compa
   const [choosing, setChoosing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-
-  if (result.work_id) return <WorkCard work={result} size={size} />;
 
   const listings = result.provenance.filter((p) => p.source_id !== "local");
 
@@ -39,8 +38,12 @@ export function ResultCard({ result, size }: { result: ResultWork; size?: "compa
       const opened = await api.post<Opened>("/api/listings/open", {
         source_id: listing.source_id, listing_key: listing.listing_key, title: listing.title, url: listing.url,
         language: listing.language, content_type: result.content_type, cover_url: listing.cover_url ?? null,
+        ...(result.work_id ? { work_id: result.work_id } : {}),
       });
-      navigate(`/works/${opened.work_id}?track=${encodeURIComponent(opened.track_id)}`);
+      navigate(`/works/${opened.work_id}?track=${encodeURIComponent(opened.track_id)}`, {
+        state: { catalogAttempt: { trackId: opened.track_id, status: opened.catalog,
+                                   reason: opened.catalog_reason ?? null } },
+      });
     } catch (error) {
       setProblem(t("search.open.failed", {
         title: result.title, message: error instanceof ApiError ? error.message : t("state.offline"),
@@ -55,9 +58,11 @@ export function ResultCard({ result, size }: { result: ResultWork; size?: "compa
     else if (listings.length > 1) setChoosing(true);
   };
 
+  if (listings.length === 0) return <WorkCard work={result} size={size} />;
+
   return (
     <>
-      <WorkCard work={result} size={size} onOpen={listings.length > 0 ? onOpen : undefined} busy={busy} problem={problem} />
+      <WorkCard work={{ ...result, work_id: null }} size={size} onOpen={onOpen} busy={busy} problem={problem} />
       {choosing && createPortal(
         <Drawer title={t("search.open.choose", { title: result.title })} onClose={() => setChoosing(false)}>
           <SourceChoice listings={listings} onChoose={(listing) => void open(listing)} />

@@ -14,6 +14,7 @@ extract:
     original_title: {json: "$.data.attributes.altTitles[*][*]"}
     description: {json: "$.data.attributes.description[*]"}
     language: {json: "$.data.attributes.originalLanguage"}
+    available_languages: {json: "$.data.attributes.availableTranslatedLanguages[*]", all: true}
     status: {json: "$.data.attributes.status"}
     cover_url:
       template: "https://uploads.mangadex.org/covers/{manga_id}/{cover_file}.256.jpg"

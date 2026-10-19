@@ -35,6 +35,55 @@ const DETAILS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Work Details", () => {
+  it("lets an empty source track open an available translation without replacing its saved track", async () => {
+    const empty = { ...DETAILS, tracks: [{ id: "t-ja", source_id: "oneshelf.mangadex", language: "ja",
+      kind: "source", availability: "available", unit_count: 0 }],
+      selected_track_id: "t-ja", units: [], continue_unit_id: null };
+    const translated = { ...DETAILS, tracks: [...empty.tracks, { id: "t-new", source_id: "oneshelf.mangadex",
+      language: "en", kind: "source", availability: "available", unit_count: 2 }],
+      selected_track_id: "t-new" };
+    const calls = mockApi([
+      { match: url => url === "/api/works/w1?track_id=t-new", payload: translated },
+      get("/api/works/w1", empty),
+      post("/api/tracks/t-ja/catalog/refresh", { track_id: "t-ja", state: "trusted", unit_count: 0,
+        reason: null }),
+      get("/api/tracks/t-ja/languages", { source_id: "oneshelf.mangadex", listing_key: "manga-1",
+        title: "The Irregular Chronicle", content_type: "manga", languages: ["en", "fr"] }),
+      post("/api/listings/open", { work_id: "w1", track_id: "t-new", catalog: "refreshed" }),
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-ja" });
+    await user.click(await screen.findByRole("tab", { name: /sources/i }));
+    await user.click(screen.getByRole("button", { name: /find reading languages/i }));
+    await user.click(await screen.findByRole("button", { name: /english/i }));
+    expect(calls).toContainEqual({ url: "/api/listings/open", method: "POST", body: {
+      source_id: "oneshelf.mangadex", listing_key: "manga-1", title: "The Irregular Chronicle",
+      content_type: "manga", language: "en",
+    } });
+    await user.click(await screen.findByRole("tab", { name: /read/i }));
+    expect(await screen.findByRole("link", { name: /chapter 3.5/i })).toBeInTheDocument();
+  });
+
+  it("explains when a reported translation has no chapters readable in OneShelf", async () => {
+    const empty = { ...DETAILS, tracks: [{ id: "t-ja", source_id: "oneshelf.mangadex", language: "ja",
+      kind: "source", availability: "available", unit_count: 0 }],
+      selected_track_id: "t-ja", units: [], continue_unit_id: null };
+    mockApi([
+      get("/api/works/w1", empty),
+      get("/api/tracks/t-ja/languages", { source_id: "oneshelf.mangadex", listing_key: "manga-1",
+        title: "The Irregular Chronicle", content_type: "manga", languages: ["en"] }),
+      post("/api/tracks/t-ja/catalog/refresh", { track_id: "t-ja", state: "trusted", unit_count: 0, reason: null }),
+      post("/api/listings/open", { work_id: "w1", track_id: "t-en", catalog: "empty" }),
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-ja" });
+    await user.click(await screen.findByRole("tab", { name: /sources/i }));
+    await user.click(screen.getByRole("button", { name: /find reading languages/i }));
+    await user.click(await screen.findByRole("button", { name: /english/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/no readable chapters/i);
+    expect(screen.getByText("Current source")).toBeInTheDocument();
+  });
+
   it("queues all available chapters that are not already downloaded in one action", async () => {
     const details = { ...DETAILS, selected_track_id: "t-ar", units: [...DETAILS.units,
       { ...DETAILS.units[1], id: "u3", title: "Chapter 4", availability: "unknown" },
@@ -290,18 +339,67 @@ describe("Work Details", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Download unavailable");
     expect(within(index).getByText("Chapter 3.5")).toBeInTheDocument();
   });
-  it("can refresh the selected track's catalogue, as its empty state says", async () => {
+  it("lets someone recheck a genuinely empty catalogue from Sources", async () => {
     const empty = { ...DETAILS, units: [], continue_unit_id: null,
                     tracks: [{ ...DETAILS.tracks[1], unit_count: 0 }], selected_track_id: "t-ar" };
-    const calls = mockApi([post("/api/tracks/t-ar/catalog/refresh", { track_id: "t-ar", state: "trusted", unit_count: 5 }),
+    const calls = mockApi([post("/api/tracks/t-ar/catalog/refresh", { track_id: "t-ar", state: "trusted", unit_count: 0,
+                                                                    reason: null }),
                            get("/api/works/w1", empty)]);
     const user = userEvent.setup();
     renderWithProviders(<WorkScreen workId="w1" />);
-    expect(await screen.findByText(/no reading units yet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no readable chapters/i)).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: /sources/i }));
     await user.click(await screen.findByRole("button", { name: /refresh catalogue/i }));
-    expect(calls.some((c) => c.url === "/api/tracks/t-ar/catalog/refresh" && c.method === "POST")).toBe(true);
-    expect(calls.filter((c) => c.url.startsWith("/api/works/w1")).length).toBeGreaterThan(1);   // reloaded
+    await waitFor(() => expect(calls.filter((c) => c.url === "/api/tracks/t-ar/catalog/refresh"
+                                               && c.method === "POST")).toHaveLength(2));
+    expect(screen.getByRole("status")).toHaveTextContent(/no readable chapters/i);
+  });
+
+  it("checks an empty source track once when opened directly and shows its recovered units", async () => {
+    const empty = { ...DETAILS, units: [], continue_unit_id: null,
+      tracks: [{ ...DETAILS.tracks[1], unit_count: 0 }], selected_track_id: "t-ar" };
+    const recovered = { ...empty, units: [{ ...DETAILS.units[0], id: "u-ar", title: "Chapter 1" }],
+      tracks: [{ ...DETAILS.tracks[1], unit_count: 1 }], continue_unit_id: "u-ar" };
+    let refreshes = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "/api/works/w1?track_id=t-ar") return Response.json(refreshes ? recovered : empty);
+      if (url === "/api/tracks/t-ar/catalog/refresh" && init?.method === "POST") {
+        refreshes += 1;
+        return Response.json({ track_id: "t-ar", state: "trusted", unit_count: 1, reason: null });
+      }
+      return Response.json({ error: { code: "NOT_STUBBED", message: url } }, { status: 404 });
+    }));
+    renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-ar" });
+    expect(await screen.findByRole("link", { name: /chapter 1/i })).toBeInTheDocument();
+    expect(refreshes).toBe(1);
+  });
+
+  it("explains an incomplete catalogue and retries it without losing the book", async () => {
+    const empty = { ...DETAILS, units: [], continue_unit_id: null,
+      tracks: [{ ...DETAILS.tracks[1], unit_count: 0 }], selected_track_id: "t-ar" };
+    const calls = mockApi([get("/api/works/w1", empty),
+      post("/api/tracks/t-ar/catalog/refresh", { track_id: "t-ar", state: "incomplete",
+        unit_count: 0, reason: "server_error" })]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-ar" });
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not finish loading/i);
+    expect(screen.getByRole("heading", { name: "The Irregular Chronicle" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /retry catalogue/i }));
+    await waitFor(() => expect(calls.filter(c => c.method === "POST" &&
+      c.url === "/api/tracks/t-ar/catalog/refresh")).toHaveLength(2));
+  });
+
+  it("distinguishes a complete empty catalogue from a failed check", async () => {
+    const empty = { ...DETAILS, units: [], continue_unit_id: null,
+      tracks: [{ ...DETAILS.tracks[1], unit_count: 0 }], selected_track_id: "t-ar" };
+    mockApi([get("/api/works/w1", empty),
+      post("/api/tracks/t-ar/catalog/refresh", { track_id: "t-ar", state: "trusted",
+        unit_count: 0, reason: null })]);
+    renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-ar" });
+    expect(await screen.findByText(/no readable chapters/i)).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("button", { name: /find reading languages/i })).toBeInTheDocument();
   });
 
 

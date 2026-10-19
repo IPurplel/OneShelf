@@ -106,7 +106,8 @@ def test_a_fresh_library_reads_all_eight_official_sources_as_installed(tmp_path)
     assert sorted(plugins) == EIGHT
     for plugin in plugins.values():
         assert plugin["state"] == "installed", plugin
-        assert plugin["installed_version"] == plugin["version"] == "1.0.0"
+        expected = "1.0.2" if plugin["id"] == "oneshelf.mangadex" else "1.0.0"
+        assert plugin["installed_version"] == plugin["version"] == expected
         assert (plugin["channel"], plugin["installed_trust"]) == ("bundled", "official")
 
 
@@ -222,12 +223,13 @@ def test_without_a_registry_the_listing_says_so_plainly(tmp_path):
         assert client.get("/api/registry").json() == {"configured": False, "plugins": []}
 
 
-def test_the_committed_official_registry_matches_what_a_fresh_library_bundles(tmp_path):
+def test_the_frozen_core_registry_remains_usable_when_the_bundle_has_a_newer_mangadex(tmp_path):
     committed = Path(__file__).resolve().parents[3] / "registry"
     with start(tmp_path, committed) as client:
         plugins = listing(client)
     assert sorted(plugins) == EIGHT
-    assert {p["state"] for p in plugins.values()} == {"installed"}
+    assert {plugin: entry["state"] for plugin, entry in plugins.items()} == {
+        plugin: ("installed_newer" if plugin == "oneshelf.mangadex" else "installed") for plugin in EIGHT}
 
 
 def test_a_pending_update_is_approved_from_the_registry_review_bound_to_its_bytes(tmp_path):

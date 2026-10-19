@@ -67,12 +67,24 @@ async function searchFor(results: unknown[]) {
 const opened = { listing_id: "l9", work_id: "w9", track_id: "t9", details: "fetched", catalog: "refreshed" };
 
 describe("Opening a search result", () => {
-  it("links a result that already has a Work straight to it", async () => {
+  it("opens a live listing on its existing Work and selected source track", async () => {
+    const calls = mockApi([post("/api/listings/open", { ...opened, work_id: "w1" }),
+      get("/api/works/w1", { ...DETAILS, work: { ...DETAILS.work, id: "w1" } })]);
+    renderApp({ route: "/search" });
+    const user = await searchFor([result({ work_id: "w1", soft: false })]);
+    await user.click(await screen.findByRole("button", { name: /one piece/i }));
+    expect(calls.find(c => c.url === "/api/listings/open")?.body).toMatchObject({
+      source_id: P_AR.source_id, listing_key: P_AR.listing_key, work_id: "w1",
+    });
+    expect(await screen.findByRole("heading", { level: 1, name: "One Piece" })).toBeInTheDocument();
+    expect(calls.some(c => c.url === "/api/works/w1?track_id=t9")).toBe(true);
+  });
+
+  it("keeps a local-only result linked to its existing Work", async () => {
     mockApi([]);
     renderApp({ route: "/search" });
-    await searchFor([result({ work_id: "w1", soft: false })]);
-    const link = await screen.findByRole("link", { name: /one piece/i });
-    expect(link).toHaveAttribute("href", "/works/w1");
+    await searchFor([result({ work_id: "w1", soft: false, provenance: [] })]);
+    expect(await screen.findByRole("link", { name: /one piece/i })).toHaveAttribute("href", "/works/w1");
   });
 
   it("makes a result without a Work a real button, and opens exactly its listing", async () => {
@@ -88,6 +100,24 @@ describe("Opening a search result", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "One Piece" })).toBeInTheDocument();
     expect(calls.some((c) => c.url === "/api/works/w9?track_id=t9")).toBe(true);
     expect(screen.getByText("الفصل 1")).toBeInTheDocument();
+  });
+
+  it("shows an incomplete first catalogue without immediately requesting it twice", async () => {
+    const empty = { ...DETAILS, units: [], continue_unit_id: null,
+      tracks: [{ ...DETAILS.tracks[0], unit_count: 0 }] };
+    const calls = mockApi([
+      post("/api/listings/open", { ...opened, catalog: "incomplete", catalog_reason: "server_error" }),
+      get("/api/works/w9", empty),
+      post("/api/tracks/t9/catalog/refresh", { track_id: "t9", state: "incomplete", unit_count: 0,
+        reason: "server_error" }),
+    ]);
+    renderApp({ route: "/search" });
+    const user = await searchFor([result({})]);
+    await user.click(await screen.findByRole("button", { name: /one piece/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not finish loading/i);
+    expect(calls.filter(c => c.url === "/api/tracks/t9/catalog/refresh")).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: /retry catalogue/i }));
+    expect(calls.filter(c => c.url === "/api/tracks/t9/catalog/refresh")).toHaveLength(1);
   });
 
   it("opens with the keyboard as well", async () => {

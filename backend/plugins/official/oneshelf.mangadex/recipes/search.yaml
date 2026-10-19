@@ -13,6 +13,7 @@ extract:
     original_title: {json: "$.attributes.altTitles[*][*]"}
     description: {json: "$.attributes.description[*]"}
     language: {json: "$.attributes.originalLanguage"}
+    available_languages: {json: "$.attributes.availableTranslatedLanguages[*]", all: true}
 pagination:
   mode: offset
   start: 0

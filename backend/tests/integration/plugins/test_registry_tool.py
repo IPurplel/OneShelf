@@ -59,7 +59,8 @@ def test_every_official_adapter_is_published_with_its_real_hash(tmp_path):
         package = tmp_path / "r" / entry["file"]
         assert entry["file"] == f"packages/{entry['id']}-{entry['version']}.osp"
         assert hashlib.sha256(package.read_bytes()).hexdigest() == entry["sha256"]
-        assert (entry["trust_label"], entry["api"]) == ("official", "1.0")
+        assert entry["trust_label"] == "official"
+        assert entry["api"] == ("1.1" if entry["id"] == "oneshelf.mangadex" else "1.0")
         assert "signature" not in entry
 
 

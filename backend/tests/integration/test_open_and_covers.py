@@ -220,12 +220,77 @@ def test_opening_again_reuses_the_same_work_and_track(api):
     assert durable(tmp_path)["works"] == 1 and durable(tmp_path)["source_tracks"] == 1
 
 
+def test_opening_a_live_listing_uses_the_work_the_reader_chose(api):
+    from oneshelf.domain.clock import utcnow_iso
+    from oneshelf.domain.ids import new_id
+
+    client, tmp_path = api
+    work_id, now = new_id(), utcnow_iso()
+    conn = client.app.state.services.conn
+    conn.execute("INSERT INTO works (id, display_title, content_type, content_type_source, created_at, updated_at)"
+                 " VALUES (?,?,?,?,?,?)", (work_id, "The Irregular Chronicle", "manga", "user", now, now))
+    before = durable(tmp_path)["works"]
+    provenance = result_for(search(client, "chronicle"), "The Irregular Chronicle")["provenance"][0]
+    opened = open_listing(client, provenance, work_id=work_id)
+    assert opened.status_code == 200, opened.text
+    body = opened.json()
+    assert body["work_id"] == work_id
+    assert durable(tmp_path)["works"] == before
+    details = client.get(f"/api/works/{work_id}", params={"track_id": body["track_id"]}).json()
+    assert len(details["units"]) == 9
+
+
+def test_opening_cannot_bind_a_listing_to_a_nonexistent_work(api):
+    client, tmp_path = api
+    provenance = result_for(search(client, "chronicle"), "The Irregular Chronicle")["provenance"][0]
+    before = durable(tmp_path)
+    response = open_listing(client, provenance, work_id="does-not-exist")
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "WORK_NOT_FOUND"
+    assert durable(tmp_path) == before
+
+
 def test_the_language_chosen_is_the_track_created(api):
     client, _ = api
     result = result_for(search(client, "القمر"), "حكاية القمر")
     body = open_listing(client, result["provenance"][0]).json()
     track = client.get(f"/api/works/{body['work_id']}").json()["tracks"][0]
     assert (track["source_id"], track["language"], track["unit_count"]) == (TS, "ar", 3)
+
+
+def test_an_empty_source_track_can_find_and_open_a_reading_language(api, monkeypatch):
+    from oneshelf.plugins.results import WorkDetails
+
+    client, _ = api
+    bound = client.post("/api/listings/bind", json={
+        "source_id": TS, "listing_key": "irregular", "title": "The Irregular Chronicle",
+        "language": "ja", "content_type": "manga",
+    }).json()
+    source = client.app.state.services.source_service
+    original_run = source.run
+
+    async def work_with_translations(plugin_id, capability, inputs, **kwargs):
+        if capability == "work":
+            return WorkDetails(title="The Irregular Chronicle", available_languages=["en", "fr"])
+        return await original_run(plugin_id, capability, inputs, **kwargs)
+
+    monkeypatch.setattr(source, "run", work_with_translations)
+    response = client.get(f"/api/tracks/{bound['track_id']}/languages")
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "source_id": TS, "listing_key": "irregular", "title": "The Irregular Chronicle",
+        "content_type": "manga", "languages": ["en", "fr"],
+    }
+    chosen = client.post("/api/listings/open", json={
+        "source_id": TS, "listing_key": "irregular", "title": "The Irregular Chronicle",
+        "language": "en", "content_type": "manga",
+    }).json()
+    assert chosen["work_id"] == bound["work_id"]
+    assert chosen["track_id"] != bound["track_id"]
+    assert chosen["catalog"] == "refreshed"
+    details = client.get(f"/api/works/{bound['work_id']}", params={"track_id": chosen["track_id"]}).json()
+    assert len(details["units"]) == 9
+    assert {track["language"] for track in details["tracks"]} == {"ja", "en"}
 
 
 def test_an_opened_unit_opens_in_the_reader(api):
@@ -244,6 +309,28 @@ def test_a_catalogue_that_needs_a_session_still_opens_the_work(api):
     body = open_listing(client, result["provenance"][0])
     assert body.status_code == 200
     assert body.json()["work_id"] and body.json()["catalog"] == "session_required"
+
+
+def test_opening_reports_an_incomplete_catalogue_without_claiming_chapters(api, monkeypatch):
+    from oneshelf.plugins.results import Evidence, Issue, ListResult, UnitDescriptor
+
+    client, _ = api
+    source = client.app.state.services.source_service
+    original_run = source.run
+
+    async def partial_catalog(plugin_id, capability, inputs, **kwargs):
+        if capability == "catalog":
+            return ListResult("catalog", [UnitDescriptor("first", 0, "Chapter 1")], False,
+                              Evidence(pages=1, issues=[Issue("server_error", "HTTP 502")]))
+        return await original_run(plugin_id, capability, inputs, **kwargs)
+
+    monkeypatch.setattr(source, "run", partial_catalog)
+    provenance = result_for(search(client, "chronicle"), "The Irregular Chronicle")["provenance"][0]
+    opened = open_listing(client, provenance)
+    assert opened.status_code == 200, opened.text
+    body = opened.json()
+    assert body["catalog"] == "incomplete" and body["catalog_reason"] == "server_error"
+    assert client.get(f"/api/works/{body['work_id']}").json()["units"] == []
 
 
 def test_open_refuses_a_source_that_is_not_installed(api):

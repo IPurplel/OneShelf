@@ -202,6 +202,7 @@ class OpenBody(BaseModel):
     language: str | None = Field(default=None, max_length=35)
     content_type: str | None = Field(default=None, max_length=32)
     cover_url: str | None = Field(default=None, max_length=4096)
+    work_id: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 def _source_problem(exc: Exception) -> str:
@@ -237,24 +238,30 @@ async def _open_details(s, package, work_id: str, body: OpenBody) -> str:
     return "fetched"
 
 
-async def _open_catalog(s, package, track_id: str, body: OpenBody) -> str:
+async def _open_catalog(s, package, track_id: str, body: OpenBody) -> tuple[str, str | None]:
     if "catalog" not in package.recipes:
-        return "unsupported"
+        return "unsupported", None
     if s.conn.execute("SELECT 1 FROM reading_units WHERE track_id = ? LIMIT 1", (track_id,)).fetchone():
-        return "present"
+        return "present", None
     try:
         result = await s.source_service.run(body.source_id, "catalog",
                                             {"listing_key": body.listing_key, "language": body.language or "und"},
                                             priority=Priority.INTERACTIVE)
     except (AuthRequired, RateLimited, CapabilityError) as exc:
-        return _source_problem(exc)
+        return _source_problem(exc), exc.category if isinstance(exc, CapabilityError) else None
     except Exception:           # transport failures and the like: the Work opens anyway, and says so
-        return "failed"
+        return "failed", None
     if not result.entries:
         # Nothing to show: a failed first page is a failure, not an empty catalogue to record.
-        return "failed" if result.evidence.issues else "empty"
-    s.catalog.refresh(track_id, result, plugin_version=package.version)
-    return "refreshed"
+        if result.evidence.issues:
+            return "failed", result.evidence.issues[0].category
+        if not result.complete:
+            return "incomplete", result.evidence.stop_reason
+        return "empty", None
+    outcome = s.catalog.refresh(track_id, result, plugin_version=package.version)
+    if outcome.state in ("incomplete", "suspicious"):
+        return outcome.state, outcome.reason
+    return "refreshed", None
 
 
 @router.post("/listings/open")
@@ -263,15 +270,18 @@ async def open_listing(request: Request, body: OpenBody):
     other listings it was shown with — and given its details and catalogue so the Work can be read at once.
     A source that cannot answer right now still leaves an openable Work; the response says what happened."""
     s = services(request)
+    if body.work_id is not None and s.conn.execute(
+            "SELECT 1 FROM works WHERE id = ?", (body.work_id,)).fetchone() is None:
+        return error(404, "WORK_NOT_FOUND", "This work is not in your library.")
     try:
         package = s.plugins.load_active(body.source_id)
     except PluginUnavailable as exc:
         return error(409, "SOURCE_UNAVAILABLE", str(exc))
     binding = _bind(s, BindBody(**body.model_dump(), decided_by="user"))
     details = await _open_details(s, package, binding.work_id, body)
-    catalog = await _open_catalog(s, package, binding.track_id, body)
+    catalog, catalog_reason = await _open_catalog(s, package, binding.track_id, body)
     return {"listing_id": binding.listing_id, "work_id": binding.work_id, "track_id": binding.track_id,
-            "details": details, "catalog": catalog}
+            "details": details, "catalog": catalog, "catalog_reason": catalog_reason}
 
 
 @router.get("/tracks/{track_id}/catalog")
@@ -285,6 +295,36 @@ async def catalog_state(request: Request, track_id: str):
                         "fetched_at": trusted.fetched_at} if trusted else None,
             "previous": {"snapshot_id": previous.snapshot_id, "unit_count": previous.unit_count} if previous else None,
             "suspicious": {"snapshot_id": candidate.snapshot_id, "unit_count": candidate.unit_count} if candidate else None}
+
+
+@router.get("/tracks/{track_id}/languages")
+async def track_languages(request: Request, track_id: str):
+    """Offer a saved source listing's actual reading languages for an explicit track choice."""
+    s = services(request)
+    row = s.conn.execute(
+        "SELECT t.source_id, t.language, l.source_listing_key, w.display_title, w.content_type"
+        " FROM source_tracks t JOIN source_listings l ON l.id = t.listing_id"
+        " JOIN works w ON w.id = t.work_id WHERE t.id = ?", (track_id,)).fetchone()
+    if row is None:
+        return error(404, "TRACK_NOT_FOUND", "Unknown source track.")
+    try:
+        package = s.plugins.load_active(row["source_id"])
+        if "work" not in package.recipes:
+            return error(409, "UNSUPPORTED", "This source cannot list reading languages.")
+        details = await s.source_service.run(row["source_id"], "work",
+                                             {"listing_key": row["source_listing_key"],
+                                              "language": row["language"]}, priority=Priority.INTERACTIVE)
+    except PluginUnavailable as exc:
+        return error(409, "SOURCE_UNAVAILABLE", str(exc))
+    except AuthRequired:
+        return error(409, "SESSION_REQUIRED", "This source needs a connected account.")
+    except RateLimited as exc:
+        return error(429, "RATE_LIMITED", f"The source is rate limited (retry after {exc.retry_after}s).")
+    except CapabilityError as exc:
+        return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
+    return {"source_id": row["source_id"], "listing_key": row["source_listing_key"],
+            "title": row["display_title"], "content_type": row["content_type"],
+            "languages": list(dict.fromkeys(details.available_languages or []))}
 
 
 @router.post("/tracks/{track_id}/catalog/refresh")
