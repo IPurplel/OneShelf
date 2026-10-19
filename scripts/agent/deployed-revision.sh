@@ -6,9 +6,10 @@
 # The app does not report its commit, so this builds the frontend of <commit> (default: origin/main) in a
 # throwaway worktree and compares Vite's content-hashed entry assets with the ones the live index.html
 # names. Equal hashes mean the deployed interface was built from that frontend source.
-# Exit 0 = MATCH, 1 = MISMATCH (deployment not updated, or built from another commit), 2 = could not check.
-# A backend-only commit leaves the frontend hashes unchanged, so a MATCH there only proves the frontend;
-# confirm backend changes through the behaviour they change (see docs/agent-browser-verification.md).
+# Exit 0 = MATCH, 1 = MISMATCH (live assets differ from this build), 2 = could not check.
+# Deployment is user-managed (AGENTS.md): run this only after the user confirms their manual update. A MATCH
+# is evidence for the frontend assets only, not the running image's Git revision; a MISMATCH is a reason to
+# compare build conditions and the user's host evidence, not by itself proof that the server is stale.
 
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -20,8 +21,8 @@ git -C "$ROOT" fetch -q origin 2>/dev/null || echo "warning: fetch failed, using
 SHA="$(git -C "$ROOT" rev-parse --verify "$COMMIT^{commit}")" || { echo "unknown commit: $COMMIT" >&2; exit 2; }
 
 live="$(curl -fsS -m 15 "$URL" | grep -oE '/assets/index-[A-Za-z0-9_-]+\.(js|css)' | sort -u)" \
-  || { echo "BLOCKED: cannot fetch $URL" >&2; exit 2; }
-[ -n "$live" ] || { echo "BLOCKED: no entry assets found in $URL" >&2; exit 2; }
+  || { echo "UNCHECKED: cannot fetch $URL" >&2; exit 2; }
+[ -n "$live" ] || { echo "UNCHECKED: no entry assets found in $URL" >&2; exit 2; }
 
 mkdir -p "$CACHE"
 expected_file="$CACHE/assets-$SHA.txt"
@@ -30,7 +31,7 @@ if [ ! -s "$expected_file" ]; then
   trap 'git -C "$ROOT" worktree remove --force "$tree" >/dev/null 2>&1 || rm -rf "$tree"' EXIT
   git -C "$ROOT" worktree add -q --detach "$tree" "$SHA"
   (cd "$tree/frontend" && npm ci --no-audit --no-fund --silent >/dev/null && npm run -s build >/dev/null 2>&1) \
-    || { echo "BLOCKED: frontend build of $SHA failed" >&2; exit 2; }
+    || { echo "UNCHECKED: frontend build of $SHA failed" >&2; exit 2; }
   grep -oE '/assets/index-[A-Za-z0-9_-]+\.(js|css)' "$tree/frontend/dist/index.html" | sort -u > "$expected_file"
 fi
 
@@ -38,8 +39,10 @@ echo "commit:   $SHA"
 echo "expected: $(tr '\n' ' ' < "$expected_file")"
 echo "live:     $(echo "$live" | tr '\n' ' ')"
 if [ "$live" = "$(cat "$expected_file")" ]; then
-  echo "MATCH: $URL serves the interface built from $SHA"
+  echo "MATCH: $URL serves frontend assets identical to a build of $SHA (frontend evidence only)"
 else
-  echo "MISMATCH: $URL is not serving the interface of $SHA — BLOCKED — DEPLOYMENT NOT UPDATED"
+  echo "MISMATCH: $URL serves different frontend assets than a build of $SHA."
+  echo "  Before the user confirms their manual update this is expected (READY — AWAITING USER-MANAGED DEPLOYMENT)."
+  echo "  After it, compare build conditions and the user's host evidence; it does not by itself prove a stale server."
   exit 1
 fi
