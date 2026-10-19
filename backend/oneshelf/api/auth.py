@@ -37,6 +37,17 @@ def error(status: int, code: str, message: str) -> Response:
                     media_type="application/json", headers={"Cache-Control": "no-store"})
 
 
+def lan_only(request: Request) -> Response | None:
+    """Refuse a change to the trust boundary unless it comes from a genuine LAN or loopback device (I-91).
+
+    Who counts as LAN, and the hostname passkeys are bound to, define what a remote session is. A remote
+    session must never be able to redefine them, or it could outlive its own revocation (Master §28.2, §28.5).
+    """
+    if access(request).kind in ("loopback", "lan"):
+        return None
+    return error(403, "LAN_REQUIRED", "This setting can only be changed from a device on your own network.")
+
+
 def _is_https(request: Request) -> bool:
     forwarded = request.headers.get("x-forwarded-proto", "").split(",")[0].strip().lower()
     return request.url.scheme == "https" or forwarded == "https"
@@ -90,6 +101,8 @@ async def state(request: Request):
 
 @router.post("/hostname")
 async def set_hostname(request: Request, body: HostnameBody):
+    if (refused := lan_only(request)) is not None:
+        return refused
     try:
         host = services(request).remote_auth.set_canonical_hostname(body.hostname)
     except RemoteAuthError as exc:
@@ -99,6 +112,8 @@ async def set_hostname(request: Request, body: HostnameBody):
 
 @router.post("/networks")
 async def set_networks(request: Request, body: NetworksBody):
+    if (refused := lan_only(request)) is not None:
+        return refused
     policy = services(request).access_policy
     try:
         policy.update(trusted_networks=body.trusted_networks, trusted_proxies=body.trusted_proxies)

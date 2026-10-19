@@ -251,3 +251,48 @@ def test_the_configured_canonical_hostname_is_accepted_without_extra_configurati
         client.post("/api/auth/hostname", json={"hostname": HOSTNAME})
         assert client.get("/api/health", headers={"Host": HOSTNAME}).status_code == 200
         assert client.get("/api/health", headers={"Host": "someone-elses.example"}).status_code == 421
+
+
+# -- I-91 (BE-001): only a genuine LAN or loopback device may change the trust boundary ------------------
+
+def _signed_in_remote(lan, remote, authenticator):
+    enrol(lan, authenticator)
+    assert sign_in(remote, authenticator).status_code == 200
+    return remote
+
+
+@pytest.mark.parametrize("path, body", [
+    ("/api/auth/networks", {"trusted_networks": ["192.168.1.0/24"]}),
+    ("/api/auth/networks", {"trusted_proxies": ["192.168.1.5/32"]}),
+    ("/api/auth/hostname", {"hostname": "elsewhere.example.net"}),
+    ("/api/first-run/access-mode", {"mode": "lan", "trusted_proxies": ["192.168.1.5/32"]}),
+])
+def test_i91_a_remote_session_cannot_change_the_trust_boundary(app, lan, remote, authenticator, path, body):
+    before = app.state.services.access_policy.describe()
+    refused = _signed_in_remote(lan, remote, authenticator).post(path, json=body)
+    assert refused.status_code == 403 and refused.json()["error"]["code"] == "LAN_REQUIRED"
+    assert app.state.services.access_policy.describe() == before
+    assert app.state.services.remote_auth.state()["canonical_hostname"] == HOSTNAME
+
+
+@pytest.mark.parametrize("proxies", [["0.0.0.0/0"], ["::/0"], ["203.0.113.0/24"], ["198.51.100.77/32"],
+                                     ["10.0.0.0/7"]])
+def test_i91_trusted_proxies_must_be_private_and_specific(lan, proxies):
+    for path, body in (("/api/auth/networks", {"trusted_proxies": proxies}),
+                       ("/api/first-run/access-mode", {"mode": "lan", "trusted_proxies": proxies})):
+        rejected = lan.post(path, json=body)
+        assert rejected.status_code == 422 and rejected.json()["error"]["code"] == "INVALID_NETWORK"
+
+
+def test_i91_private_proxies_are_still_accepted_from_the_lan(lan):
+    accepted = lan.post("/api/auth/networks", json={"trusted_proxies": ["192.168.1.5/32", "fd00::1/128"]})
+    assert accepted.status_code == 200
+    assert accepted.json()["trusted_proxies"] == ["192.168.1.5/32", "fd00::1/128"]
+
+
+def test_i91_a_stored_unsafe_proxy_is_reported_and_not_honoured(app, lan):
+    policy = app.state.services.access_policy
+    policy._set("access.trusted_proxies", ["198.51.100.77/32", "192.168.1.5/32"])  # written by an older build
+    config = policy.current()
+    assert [str(p) for p in config.trusted_proxies] == ["192.168.1.5/32"]
+    assert policy.describe()["ignored_proxies"] == ["198.51.100.77/32"]

@@ -34,7 +34,18 @@ SUFFIX = ".osbackup"
 
 # Cleared from the snapshot: secrets, transient job state and anything rebuildable (§33.3).
 EXCLUDED_TABLES = ("source_session_refs", "commit_journal", "download_jobs", "download_batches", "search_index",
-                   "source_health_signals", "source_health_state", "storage_migrations", "storage_migration_files")
+                   "source_health_signals", "source_health_state", "storage_migrations", "storage_migration_files",
+                   # Remote Web UI authentication is device access, not library state: active sessions, the
+                   # Recovery Code verifier, passkeys and pending ceremonies never travel (§33.3, I-105).
+                   "remote_sessions", "remote_recovery", "remote_credentials", "webauthn_challenges")
+# Everything else in the schema, carried on purpose. A table in neither list fails the inventory test, so a
+# new table cannot ride along in backups without someone deciding that it should.
+KEPT_TABLES = ("app_meta", "assets", "backup_records", "bundled_plugins", "catalog_snapshots", "download_history",
+               "export_items", "export_jobs", "first_run", "follow_baseline_units", "follow_baselines", "follows",
+               "generator_drafts", "imports", "notifications", "plugin_versions", "plugins", "reading_bookmarks",
+               "reading_highlights", "reading_state", "reading_units", "release_events", "schema_migrations",
+               "settings", "shelf_entries", "snapshot_units", "source_listings", "source_tracks", "storage_roots",
+               "user_overrides", "work_aliases", "work_mappings", "works")
 COUNTED_TABLES = ("works", "source_tracks", "reading_units", "assets", "shelf_entries", "follows", "reading_state",
                   "work_mappings", "user_overrides", "settings", "reading_bookmarks", "reading_highlights")
 
