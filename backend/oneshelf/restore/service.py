@@ -145,9 +145,11 @@ class RestoreService:
                     record = self.backups.create("library")
                     report.safety_snapshot = record.path
                     self._replace(staged)
+                    asset_ids = {}
                 else:
-                    self._merge(staged, report)
-                report.repaired_files = self._restore_content(archive, manifest, replace_all=(mode == "replace"), report=report)
+                    asset_ids = self._merge(staged, report)
+                report.repaired_files = self._restore_content(archive, manifest, replace_all=(mode == "replace"),
+                                                              report=report, asset_ids=asset_ids)
         return report
 
     # -- table handling ---------------------------------------------------------------------------
@@ -191,20 +193,144 @@ class RestoreService:
                 self._insert(table, self._rows(staged, table))
             self._insert("reading_state", self._rows(staged, "reading_state"))
 
-    def _merge(self, staged: Path, report: RestoreReport) -> None:
+    def _merge(self, staged: Path, report: RestoreReport) -> dict[str, str]:
+        ids: dict[str, dict[str, str]] = {table: {} for table in
+                                            ("source_listings", "source_tracks", "reading_units", "assets",
+                                             "follows", "follow_baselines")}
+        skipped: dict[str, set[str]] = {"follows": set(), "follow_baselines": set()}
         with transaction(self.conn):
             for table in RESTORE_TABLES:
-                rows = self._rows(staged, table)
-                added = self._insert(table, rows)     # current rows always win; only missing ones are added
+                added = kept = 0
+                for saved in self._rows(staged, table):
+                    row = dict(saved)
+                    old_id = row.get("id")
+                    if table == "source_listings":
+                        existing = self.conn.execute(
+                            "SELECT id FROM source_listings WHERE source_id = ? AND source_listing_key = ?",
+                            (row["source_id"], row["source_listing_key"])).fetchone()
+                    else:
+                        existing = None
+                    if table == "source_tracks":
+                        if row["listing_id"] is not None:
+                            row["listing_id"] = ids["source_listings"].get(row["listing_id"], row["listing_id"])
+                            listing = self.conn.execute("SELECT work_id FROM source_listings WHERE id = ?",
+                                                        (row["listing_id"],)).fetchone()
+                            if listing is not None and listing["work_id"] is not None:
+                                row["work_id"] = listing["work_id"]
+                                existing = self.conn.execute(
+                                    "SELECT id FROM source_tracks WHERE listing_id = ? AND language = ?",
+                                    (row["listing_id"], row["language"])).fetchone()
+                            else:
+                                row["listing_id"], row["availability"] = None, "unavailable"
+                        if row["kind"] == "local":
+                            existing = self.conn.execute(
+                                "SELECT id FROM source_tracks WHERE kind = 'local' AND work_id = ? AND language = ?",
+                                (row["work_id"], row["language"])).fetchone()
+                    elif table == "reading_units":
+                        row["track_id"] = ids["source_tracks"].get(row["track_id"], row["track_id"])
+                        existing = self.conn.execute(
+                            "SELECT id FROM reading_units WHERE track_id = ? AND source_unit_key = ?",
+                            (row["track_id"], row["source_unit_key"])).fetchone()
+                    elif table == "assets":
+                        row["reading_unit_id"] = ids["reading_units"].get(row["reading_unit_id"], row["reading_unit_id"])
+                        existing = self.conn.execute(
+                            "SELECT id FROM assets WHERE reading_unit_id = ? AND format = ? AND variant = ?",
+                            (row["reading_unit_id"], row["format"], row["variant"])).fetchone()
+                    elif table == "follows":
+                        row["track_id"] = ids["source_tracks"].get(row["track_id"], row["track_id"])
+                        track = self.conn.execute("SELECT work_id, language, source_id FROM source_tracks WHERE id = ?",
+                                                  (row["track_id"],)).fetchone()
+                        if track is None or (track["work_id"], track["language"], track["source_id"]) != (
+                                row["work_id"], row["language"], row["preferred_source_id"]):
+                            skipped["follows"].add(old_id)
+                            kept += 1
+                            continue
+                        existing = self.conn.execute("SELECT id FROM follows WHERE work_id = ? AND language = ?",
+                                                     (row["work_id"], row["language"])).fetchone()
+                    elif table == "follow_baselines":
+                        if row["follow_id"] in skipped["follows"]:
+                            skipped["follow_baselines"].add(old_id)
+                            kept += 1
+                            continue
+                        row["follow_id"] = ids["follows"].get(row["follow_id"], row["follow_id"])
+                        row["track_id"] = ids["source_tracks"].get(row["track_id"], row["track_id"])
+                        owner = self.conn.execute(
+                            "SELECT f.work_id, f.language FROM follows f WHERE f.id = ?", (row["follow_id"],)
+                        ).fetchone()
+                        track = self.conn.execute("SELECT work_id, language FROM source_tracks WHERE id = ?",
+                                                  (row["track_id"],)).fetchone()
+                        if owner is None or track is None or tuple(owner) != tuple(track):
+                            skipped["follow_baselines"].add(old_id)
+                            kept += 1
+                            continue
+                    elif table == "follow_baseline_units":
+                        if row["baseline_id"] in skipped["follow_baselines"]:
+                            kept += 1
+                            continue
+                        row["baseline_id"] = ids["follow_baselines"].get(row["baseline_id"], row["baseline_id"])
+                    elif table == "release_events":
+                        if row["follow_id"] in skipped["follows"]:
+                            kept += 1
+                            continue
+                        row["follow_id"] = ids["follows"].get(row["follow_id"], row["follow_id"])
+                        row["track_id"] = ids["source_tracks"].get(row["track_id"], row["track_id"])
+                        owner = self.conn.execute(
+                            "SELECT work_id, language FROM follows WHERE id = ?", (row["follow_id"],)
+                        ).fetchone()
+                        track = self.conn.execute("SELECT work_id, language FROM source_tracks WHERE id = ?",
+                                                  (row["track_id"],)).fetchone()
+                        if owner is None or track is None or tuple(owner) != tuple(track):
+                            kept += 1
+                            continue
+                        if row["reading_unit_id"] is not None:
+                            row["reading_unit_id"] = ids["reading_units"].get(row["reading_unit_id"], row["reading_unit_id"])
+                    elif table == "work_mappings":
+                        if row["listing_id"] is not None:
+                            row["listing_id"] = ids["source_listings"].get(row["listing_id"], row["listing_id"])
+                            listing = self.conn.execute("SELECT work_id FROM source_listings WHERE id = ?",
+                                                        (row["listing_id"],)).fetchone()
+                            # A backup's old exclusion must not undo the current library's mapping.
+                            if (listing is not None and row["kind"] in ("never_match", "split", "unlink")
+                                    and listing["work_id"] == row["work_id"]):
+                                kept += 1
+                                continue
+                        existing = self.conn.execute(
+                            "SELECT id FROM work_mappings WHERE kind = ? AND listing_id IS ?"
+                            " AND work_id IS ? AND other_work_id IS ?",
+                            (row["kind"], row["listing_id"], row["work_id"], row["other_work_id"])
+                        ).fetchone()
+                    elif table == "user_overrides":
+                        target = {"listing": "source_listings", "track": "source_tracks",
+                                  "reading_unit": "reading_units"}.get(row["target_kind"])
+                        if target:
+                            row["target_id"] = ids[target].get(row["target_id"], row["target_id"])
+                    elif table == "imports" and row["asset_id"] is not None:
+                        row["asset_id"] = ids["assets"].get(row["asset_id"], row["asset_id"])
+                    elif table == "download_history":
+                        row["reading_unit_id"] = ids["reading_units"].get(row["reading_unit_id"], row["reading_unit_id"])
+                    elif table in ("reading_bookmarks", "reading_highlights"):
+                        row["reading_unit_id"] = ids["reading_units"].get(row["reading_unit_id"], row["reading_unit_id"])
+                    if existing is not None:
+                        kept += 1
+                        if old_id is not None and table in ids:
+                            ids[table][old_id] = existing["id"]
+                        continue
+                    inserted = self._insert(table, [row])
+                    added += inserted
+                    kept += 1 - inserted
+                    if old_id is not None and table in ids:
+                        ids[table][old_id] = row["id"]
                 if added:
                     report.added[table] = added
-                kept = len(rows) - added
                 if kept:
                     report.kept[table] = kept
-            self._merge_progress(staged, report)
+            self._merge_progress(staged, report, ids["reading_units"])
+        return ids["assets"]
 
-    def _merge_progress(self, staged: Path, report: RestoreReport) -> None:
-        for row in self._rows(staged, "reading_state"):
+    def _merge_progress(self, staged: Path, report: RestoreReport, unit_ids: dict[str, str]) -> None:
+        for saved in self._rows(staged, "reading_state"):
+            row = dict(saved)
+            row["reading_unit_id"] = unit_ids.get(row["reading_unit_id"], row["reading_unit_id"])
             current = self.conn.execute("SELECT * FROM reading_state WHERE reading_unit_id = ?",
                                         (row["reading_unit_id"],)).fetchone()
             if current is None:
@@ -228,10 +354,11 @@ class RestoreService:
     # -- content ----------------------------------------------------------------------------------
 
     def _restore_content(self, archive: zipfile.ZipFile, manifest: dict, *, replace_all: bool,
-                         report: RestoreReport) -> int:
+                         report: RestoreReport, asset_ids: dict[str, str] | None = None) -> int:
         repaired = 0
         for entry in manifest.get("content", []):
-            asset = self.conn.execute("SELECT * FROM assets WHERE id = ?", (entry["asset_id"],)).fetchone()
+            asset_id = (asset_ids or {}).get(entry["asset_id"], entry["asset_id"])
+            asset = self.conn.execute("SELECT * FROM assets WHERE id = ?", (asset_id,)).fetchone()
             if asset is None:
                 report.issues.append(f"{entry['asset_id']}: asset record is unavailable")
                 continue
@@ -268,7 +395,7 @@ class RestoreService:
                         raise RestoreError("restored content failed verification")
                 with transaction(self.conn):
                     self.conn.execute("UPDATE assets SET integrity = 'ok', sha256 = ?, size_bytes = ?, updated_at = ?"
-                                      " WHERE id = ?", (entry["sha256"], entry["size"], utcnow_iso(), entry["asset_id"]))
+                                      " WHERE id = ?", (entry["sha256"], entry["size"], utcnow_iso(), asset_id))
                 repaired += 1
             except (OSError, ValueError, RuntimeError, KeyError, zipfile.BadZipFile) as exc:
                 report.issues.append(f"{entry['asset_id']}: {exc}")

@@ -220,6 +220,40 @@ def test_opening_again_reuses_the_same_work_and_track(api):
     assert durable(tmp_path)["works"] == 1 and durable(tmp_path)["source_tracks"] == 1
 
 
+def test_opening_second_edition_from_same_source_loads_its_own_catalog(api):
+    client, _ = api
+    first = client.post("/api/listings/open", json={"source_id": TS, "listing_key": "irregular",
+                "title": "The Irregular Chronicle", "language": "en", "content_type": "manga"}).json()
+    second = client.post("/api/listings/open", json={"source_id": TS, "listing_key": "big",
+                "title": "A Very Long Saga", "language": "en", "content_type": "manga",
+                "work_id": first["work_id"]}).json()
+    assert second["track_id"] != first["track_id"]
+    assert second["catalog"] == "refreshed"
+    work = client.get(f"/api/works/{first['work_id']}", params={"track_id": second["track_id"]}).json()
+    assert len(work["units"]) == 300
+    assert len(work["tracks"]) == 2
+    editions = {track["id"]: (track["listing_title"], track["listing_key"]) for track in work["tracks"]}
+    assert editions == {first["track_id"]: ("The Irregular Chronicle", "irregular"),
+                        second["track_id"]: ("A Very Long Saga", "big")}
+
+
+def test_unlinked_source_track_cannot_refresh_from_old_listing(api):
+    client, _ = api
+    opened = client.post("/api/listings/open", json={"source_id": TS, "listing_key": "irregular",
+                "title": "The Irregular Chronicle", "language": "en"}).json()
+    client.post("/api/mappings/unlink", json={"listing_id": opened["listing_id"]})
+    response = client.post(f"/api/tracks/{opened['track_id']}/catalog/refresh")
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "NO_LISTING"
+    work = client.get(f"/api/works/{opened['work_id']}").json()
+    archived = next(track for track in work["tracks"] if track["id"] == opened["track_id"])
+    assert (archived["listing_id"], archived["listing_title"], archived["listing_key"]) == (
+        None, "The Irregular Chronicle", "irregular")
+    unit_id = work["units"][0]["id"]
+    assert client.get(f"/api/reader/units/{unit_id}/pages").status_code == 404
+    assert client.post("/api/downloads", json={"unit_ids": [unit_id]}).status_code == 422
+
+
 def test_opening_a_live_listing_uses_the_work_the_reader_chose(api):
     from oneshelf.domain.clock import utcnow_iso
     from oneshelf.domain.ids import new_id

@@ -69,7 +69,8 @@ class FollowService:
 
     def _validate_track(self, work_id: str, language: str, source_id: str, track_id: str) -> None:
         if self.conn.execute(
-            "SELECT 1 FROM source_tracks WHERE id = ? AND work_id = ? AND language = ? AND source_id = ?",
+            "SELECT 1 FROM source_tracks WHERE id = ? AND work_id = ? AND language = ?"
+            " AND source_id = ? AND availability != 'unavailable'",
             (track_id, work_id, language, source_id)).fetchone() is None:
             raise ValueError("the selected track does not match this work, language and source")
 

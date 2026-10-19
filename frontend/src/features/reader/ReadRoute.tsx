@@ -40,6 +40,13 @@ function OpenUnit({ unitId, workId, trackId, formats, text, download, onChange }
   if (!data.units.some(unit => unit.id === unitId)) {
     return <Unavailable message={t("reader.unitUnavailable")} back={workLink(workId, trackId)} retry={reload} />;
   }
+  if (formats.length === 0 && data.tracks?.some(track => track.id === trackId && track.kind === "source"
+      && track.listing_id === null && track.availability === "unavailable")) {
+    return <section className="screen">
+      <p className="notice notice--problem" role="alert">{t("work.track.archived")}</p>
+      <Link className="button" to={workLink(workId, trackId)}>{t("reader.backToWork")}</Link>
+    </section>;
+  }
   if (formats.includes("epub")) return <BookReader unitId={unitId} format="epub" workId={workId} trackId={trackId} />;
   if (formats.includes("pdf")) return <BookReader unitId={unitId} format="pdf" workId={workId} trackId={trackId} />;
   // A text unit is read in the Book Reader, downloaded or not: it has no pages to show (plugin API 1.2).

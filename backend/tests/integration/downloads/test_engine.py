@@ -8,6 +8,7 @@ import pytest
 
 from tests.integration.downloads.conftest import TS, cbz_pages, run
 from testsource.server import png
+from oneshelf.search.mapping import MappingService
 
 
 def test_sequential_download_produces_verified_cbz_assets(environment):
@@ -28,6 +29,22 @@ def test_sequential_download_produces_verified_cbz_assets(environment):
     with zipfile.ZipFile(files[0]) as z:
         assert "ComicInfo.xml" in z.namelist()
     assert env.engine.batch(batch)["state"] == "completed"
+
+
+def test_queued_download_does_not_fetch_after_edition_is_unlinked(environment):
+    async def scenario():
+        async with environment() as env:
+            binding = await env.add_work("irregular", "The Irregular Chronicle")
+            batch = env.engine.enqueue([env.unit_id("irr-1")])
+            before = len(env.server.scenario.request_log)
+            MappingService(env.db).unlink(binding.listing_id)
+            report = await env.engine.run_once()
+            return report, env.job_rows(batch)[0], env.assets(), env.files(), len(env.server.scenario.request_log) - before
+
+    report, job, assets, files, new_requests = run(scenario())
+    assert report.failed == 1 and job["state"] == "FAILED"
+    assert job["error_category"] == "source_unlinked"
+    assert assets == [] and files == [] and new_requests == 0
 
 
 def test_direct_method_downloads_the_original_file(environment):

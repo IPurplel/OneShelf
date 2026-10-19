@@ -83,6 +83,41 @@ def test_actions_bind_to_the_concrete_listing_and_track(db):
     assert (again.listing_id, again.track_id) == (binding.listing_id, binding.track_id)
 
 
+def test_two_editions_from_one_source_keep_separate_tracks(db):
+    work = add_work(db, "A Shared Work")
+    first = persist_listing(db, listing("gutenberg", "First edition", key="first"), work_id=work)
+    second = persist_listing(db, listing("gutenberg", "Second edition", key="second"), work_id=work)
+    assert first.track_id != second.track_id
+    rows = db.execute("SELECT t.id, l.source_listing_key FROM source_tracks t"
+                      " JOIN source_listings l ON l.id = t.listing_id WHERE t.work_id = ?", (work,)).fetchall()
+    assert {(row["id"], row["source_listing_key"]) for row in rows} == {
+        (first.track_id, "first"), (second.track_id, "second")}
+
+
+def test_unlink_detaches_live_source_without_erasing_saved_units(db, mappings):
+    work = add_work(db, "A Shared Work")
+    bound = persist_listing(db, listing("gutenberg", "A Shared Work"), work_id=work)
+    db.execute("INSERT INTO reading_units (id, track_id, source_unit_key, source_order, first_seen_at)"
+               " VALUES ('saved', ?, 'chapter-1', 1, ?)", (bound.track_id, NOW))
+    mappings.unlink(bound.listing_id)
+    track = db.execute("SELECT listing_id, availability FROM source_tracks WHERE id = ?", (bound.track_id,)).fetchone()
+    assert (track["listing_id"], track["availability"]) == (None, "unavailable")
+    assert db.execute("SELECT id FROM reading_units WHERE track_id = ?", (bound.track_id,)).fetchone()[0] == "saved"
+
+
+def test_explicit_reassignment_archives_old_track_and_creates_new_one(db):
+    old = add_work(db, "Old Work")
+    new = add_work(db, "New Work")
+    entry = listing("gutenberg", "Shared Edition")
+    first = persist_listing(db, entry, work_id=old, decided_by="user")
+    second = persist_listing(db, entry, work_id=new, decided_by="user")
+    assert first.track_id != second.track_id
+    archive = db.execute("SELECT listing_id, availability FROM source_tracks WHERE id = ?", (first.track_id,)).fetchone()
+    live = db.execute("SELECT listing_id, work_id FROM source_tracks WHERE id = ?", (second.track_id,)).fetchone()
+    assert (archive["listing_id"], archive["availability"]) == (None, "unavailable")
+    assert (live["listing_id"], live["work_id"]) == (first.listing_id, new)
+
+
 def test_never_match_prevents_grouping_and_persists(db, mappings):
     work = add_work(db, "Solo Leveling")
     entry = listing("mangadex", "Solo Leveling")
@@ -117,14 +152,15 @@ def test_merge_moves_tracks_and_keeps_alias_history(db, mappings):
     assert db.execute("SELECT count(*) FROM work_mappings WHERE kind = 'merge' AND decided_by = 'user'").fetchone()[0] == 1
 
 
-def test_merge_refuses_conflicting_source_and_language_tracks(db, mappings):
+def test_merge_keeps_distinct_editions_from_same_source_and_language(db, mappings):
     keep = add_work(db, "A")
     other = add_work(db, "B")
-    persist_listing(db, listing("mangadex", "A", key="a"), work_id=keep, decided_by="user")
-    persist_listing(db, listing("mangadex", "B", key="b"), work_id=other, decided_by="user")
-    with pytest.raises(MappingError):
-        mappings.merge(keep, other)
-    assert db.execute("SELECT count(*) FROM works").fetchone()[0] == 2
+    first = persist_listing(db, listing("mangadex", "A", key="a"), work_id=keep, decided_by="user")
+    second = persist_listing(db, listing("mangadex", "B", key="b"), work_id=other, decided_by="user")
+    mappings.merge(keep, other)
+    assert db.execute("SELECT count(*) FROM works").fetchone()[0] == 1
+    assert {r["id"] for r in db.execute("SELECT id FROM source_tracks WHERE work_id = ?", (keep,))} == {
+        first.track_id, second.track_id}
 
 
 def test_split_detaches_a_listing_into_its_own_work(db, mappings):

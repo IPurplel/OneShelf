@@ -59,6 +59,15 @@ describe('a book from a download-only source', () => {
     expect(screen.queryByText('page reader')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Back to the work' })).toHaveAttribute('href', '/works/w?track=second');
   });
+  it('does not offer a new download for an archived source edition', async () => {
+    const archived = { ...details, tracks: [{ id: 'second', kind: 'source', listing_id: null,
+      availability: 'unavailable' }] };
+    mockApi([get('/api/reader/units/u/context', needsFile), get('/api/works/w', archived)]);
+    live();
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Archived source/i);
+    expect(screen.queryByRole('button', { name: 'Download to read' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Back to the work' })).toHaveAttribute('href', '/works/w?track=second');
+  });
   it('downloads on request and opens the Book Reader once the file is there', async () => {
     const contextRoute = get('/api/reader/units/u/context', needsFile);
     const calls = mockApi([contextRoute, get('/api/works/w', details), post('/api/downloads', { batch_id: 'b', queued: 1 })]);

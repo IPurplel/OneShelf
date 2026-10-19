@@ -12,7 +12,8 @@ def _load() -> tuple[Migration, ...]:
     migrations = []
     for f in files:
         version, _, name = f.name.removesuffix(".sql").partition("_")
-        migrations.append(Migration(int(version), name, f.read_text(encoding="utf-8")))
+        migrations.append(Migration(int(version), name, f.read_text(encoding="utf-8"),
+                                    rebuilds_referenced_table=(name == "source_track_identity")))
     return tuple(migrations)
 
 

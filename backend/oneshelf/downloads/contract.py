@@ -136,6 +136,8 @@ def may_fall_back(category: str | None) -> bool:
 
 def next_method(contract: ExtractionContract, *, attempts: int, retry_budget: int, category: str | None) -> FallbackDecision:
     """Smart Retry stays within the current method; only then is a method change considered."""
+    if category == "source_unlinked":
+        return FallbackDecision("fail", None, category)
     if category in WAITING:
         return FallbackDecision(WAITING[category])
     if attempts < retry_budget:

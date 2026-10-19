@@ -20,6 +20,8 @@ import { bytes } from "@/lib/format";
 type Tab = "read" | "details" | "sources";
 type CatalogAttempt = { trackId: string; status: string; reason: string | null };
 type CatalogRefresh = { state: string; unit_count: number; reason: string | null };
+const archivedTrack = (track: Track | null) => track?.kind === "source"
+  && track.listing_id === null && track.availability === "unavailable";
 const CONTENT_TYPES = ["manga", "manhwa", "manhua", "comic", "book", "paper"];
 function typeLabel(value: string, t: ReturnType<typeof useI18n>["t"]): string {
   return CONTENT_TYPES.includes(value) ? t(`work.type.${value}` as StringKey) : value.replaceAll("_", " ");
@@ -88,7 +90,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
     if (data === null || data.units.length > 0 || data.selected_track_id === null ||
         (trackId !== null && data.selected_track_id !== trackId)) return;
     const selected = data.tracks.find(track => track.id === data.selected_track_id);
-    if (selected?.kind !== "source") return;
+    if (selected?.kind !== "source" || archivedTrack(selected)) return;
     const key = `${id}:${selected.id}`;
     if (alreadyChecked.current.has(key)) return;
     alreadyChecked.current.add(key);
@@ -241,7 +243,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
               </button>
             )}
             <button type="button" className="button" aria-pressed={selectedFollowing}
-                    disabled={current === null}
+                    disabled={current === null || (archivedTrack(current) && !selectedFollowing)}
                     onClick={() => {
                       if (current === null) return;
                       void toggle(selectedFollowing
@@ -332,7 +334,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
       <div role="tabpanel" id="work-tabpanel" aria-labelledby={`work-tab-${tab}`} tabIndex={-1}>
         <div hidden={tab !== "read"}>
           <UnitIndex units={units} workId={id} trackId={data.selected_track_id}
-            downloadable={current !== null && current.kind !== "local"} track={current}
+            downloadable={current !== null && !archivedTrack(current)} track={current}
             attempt={selectedAttempt} onRetry={() => { if (current) void refreshCatalog(current); }}
             onLanguages={() => setTab("sources")} />
         </div>
@@ -392,7 +394,7 @@ function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRet
     <>
     {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
     <div className="units__bulk">
-      {downloadable && eligible.length > 0 && <button type="button" className="button" disabled={queueing}
+      {downloadable && track?.kind !== "local" && eligible.length > 0 && <button type="button" className="button" disabled={queueing}
         aria-busy={queueing} onClick={() => void queueAll()}>{t("work.downloadAll")}</button>}
       {requested.length > 0 && <p role="status" className="cards__meta">{requested.length === 1
         ? t("work.downloadRequestedOne") : t("work.downloadRequested", { count: requested.length })}</p>}
@@ -411,7 +413,7 @@ function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRet
           {unit.downloaded
             ? <span className="units__badge">{t("work.downloaded")}</span>
             : requested.includes(unit.id) ? <span className="units__badge">{t("work.requested")}</span>
-            : <button type="button" className="units__action"
+            : downloadable && <button type="button" className="units__action"
                       onClick={() => {
                         setProblem(null);
                         void api.post("/api/downloads", { unit_ids: [unit.id] }).catch((error: unknown) =>
@@ -431,6 +433,7 @@ function CatalogStatus({ track, attempt, onRetry, onLanguages, showActions = tru
   onLanguages: () => void; showActions?: boolean;
 }) {
   const { t, language } = useI18n();
+  if (archivedTrack(track)) return <p className="notice">{t("work.track.archived")}</p>;
   if (track?.kind !== "source") return <p className="notice">{t("work.noUnits")}</p>;
   const status = attempt?.status ?? "checking";
   const problem = !["checking", "empty"].includes(status);
@@ -539,6 +542,11 @@ function Sources({ tracks, selected, workId, attempt, onChoose, onOpened, onRefr
 
   const current = tracks.find(track => track.id === selected) ?? null;
   const choices = readingLanguages?.trackId === selected ? readingLanguages.value : null;
+  const editionLabel = (track: Track) => {
+    if (track.listing_title && track.listing_key) return `${track.listing_title} · #${track.listing_key}`;
+    if (track.listing_key) return `#${track.listing_key}`;
+    return track.listing_title ?? null;
+  };
 
   return (
     <>
@@ -549,25 +557,30 @@ function Sources({ tracks, selected, workId, attempt, onChoose, onOpened, onRefr
     <ul className="tracks">
       {tracks.map((track) => (
         <li key={track.id} className="tracks__row">
-          <span className="tracks__name"><bdi>{track.source_id}</bdi> · {languageName(track.language, language)}</span>
+          <span className="tracks__name">
+            <span><bdi>{track.source_id}</bdi> · {languageName(track.language, language)}</span>
+            {editionLabel(track) && <span className="tracks__edition" dir="auto">{editionLabel(track)}</span>}
+            {archivedTrack(track) && <span className="tracks__edition">{t("work.track.archived")}</span>}
+          </span>
           <span className="tracks__count">{track.unit_count}</span>
           {track.id === selected ? (
             <>
               <span className="chip chip--static">{t("work.track.current")}</span>
-              {track.kind === "source" && (
+              {track.kind === "source" && !archivedTrack(track) && (
                 <button type="button" className="button" disabled={attempt?.status === "checking"}
                   onClick={() => void refresh(track)}>
                   {t("work.track.refresh")}
                 </button>
               )}
-              {track.kind === "source" && track.unit_count === 0 && (
+              {track.kind === "source" && !archivedTrack(track) && track.unit_count === 0 && (
                 <button type="button" className="button" disabled={finding || opening}
                   onClick={() => void findLanguages(track)}>{t("work.track.findLanguages")}</button>
               )}
             </>
           ) : (
             <button type="button" className="button"
-                    aria-label={`${t("work.track.use")}: ${track.source_id} · ${languageName(track.language, language)}`}
+                    aria-label={`${t("work.track.use")}: ${track.source_id} · ${languageName(track.language, language)}`
+                      + `${editionLabel(track) ? ` · ${editionLabel(track)}` : ""}`}
                     onClick={() => onChoose(track)}>
               {t("work.track.use")}
             </button>

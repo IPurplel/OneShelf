@@ -169,6 +169,11 @@ def persist_listing(conn: sqlite3.Connection, listing: LiveListing, *, work_id: 
                  now, listing.cover_url))
         else:
             previous_title = row["raw_title"]
+            if target != current_work:
+                # Keep downloaded units and progress on the old Work, but stop treating its track as
+                # a live link to a listing the user moved or detached.
+                conn.execute("UPDATE source_tracks SET listing_id = NULL, availability = 'unavailable'"
+                             " WHERE listing_id = ?", (listing_id,))
             # A result that simply did not carry a cover never erases one that is known.
             conn.execute("UPDATE source_listings SET raw_title = ?, canonical_url = ?, work_id = ?,"
                          " mapping_decided_by = ?, last_seen_at = ?, cover_url = COALESCE(?, cover_url) WHERE id = ?",
@@ -182,16 +187,19 @@ def persist_listing(conn: sqlite3.Connection, listing: LiveListing, *, work_id: 
             return Binding(listing_id, None, None)
 
         language = listing.language or "und"
-        track = conn.execute("SELECT * FROM source_tracks WHERE work_id = ? AND source_id = ? AND language = ?",
-                             (target, listing.source_id, language)).fetchone()
+        track = conn.execute("SELECT * FROM source_tracks WHERE listing_id = ? AND language = ?",
+                             (listing_id, language)).fetchone()
         if track is None:
             track_id = new_id()
-            conn.execute("INSERT INTO source_tracks (id, work_id, source_id, language, kind, listing_id, availability,"
-                         " created_at) VALUES (?,?,?,?,'source',?, 'available', ?)",
-                         (track_id, target, listing.source_id, language, listing_id, now))
+            conn.execute("INSERT INTO source_tracks (id, work_id, source_id, language, kind, listing_id,"
+                         " listing_title, listing_key, availability, created_at)"
+                         " VALUES (?,?,?,?,'source',?,?,?, 'available', ?)",
+                         (track_id, target, listing.source_id, language, listing_id, listing.title,
+                          listing.listing_key, now))
         else:
             track_id = track["id"]
-            conn.execute("UPDATE source_tracks SET listing_id = coalesce(listing_id, ?) WHERE id = ?", (listing_id, track_id))
+            conn.execute("UPDATE source_tracks SET availability = 'available', listing_title = ?, listing_key = ?"
+                         " WHERE id = ?", (listing.title, listing.listing_key, track_id))
     if reindex:
         index_work(conn, target)
     return Binding(listing_id, target, track_id)

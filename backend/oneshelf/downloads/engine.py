@@ -117,7 +117,8 @@ class DownloadEngine:
         row = self.conn.execute(
             "SELECT u.id AS unit_id, u.source_unit_key, u.url_hint, u.display_title, u.raw_title, u.unit_type,"
             " u.source_number,"
-            " t.id AS track_id, t.source_id, t.language, w.id AS work_id, w.display_title AS work_title,"
+            " t.id AS track_id, t.source_id, t.language, t.availability AS track_availability,"
+            " w.id AS work_id, w.display_title AS work_title,"
             " w.content_type FROM reading_units u JOIN source_tracks t ON t.id = u.track_id"
             " JOIN works w ON w.id = t.work_id WHERE u.id = ?", (unit_id,)).fetchone()
         if row is None:
@@ -179,6 +180,8 @@ class DownloadEngine:
                 if (self._already_downloaded(unit_id) and not repair) or self._active_job(unit_id):
                     skipped.append(unit_id)
                     continue
+                if context["track_availability"] == "unavailable":
+                    raise ValueError("this source edition is no longer linked")
                 package = self.plugins.load_active(context["source_id"])
                 recommendation = "direct" if "downloads" in package.recipes and "reader" not in package.recipes else "html_api"
                 resolved = resolve_method(self.settings, context["source_id"], plugin_recommendation=recommendation,
@@ -445,6 +448,8 @@ class DownloadEngine:
         started_at = job["started_at"] or utcnow_iso()
         self._set_state(job_id, "PREPARING", attempts=attempts, started_at=started_at, method=contract.method)
         try:
+            if context["track_availability"] == "unavailable":
+                raise CapabilityError("source_unlinked", "this source edition is no longer linked")
             root = self._choose_root(job)
             availability = check_availability(root)
             if not availability.available:
@@ -612,6 +617,8 @@ class DownloadEngine:
                       staging_rel: str, artifact: Path, asset_format: str, page_count: int | None,
                       started_at: str) -> None:
         self._ensure_not_canceled(job_id)
+        if self._unit_context(context["unit_id"])["track_availability"] == "unavailable":
+            raise CapabilityError("source_unlinked", "this source edition is no longer linked")
         sha, size = sha256_file(artifact)
         label = context["display_title"] or context["raw_title"] or context["source_unit_key"]
         relative_path = asset_relative_path(context["content_type"], context["work_title"], context["work_id"],

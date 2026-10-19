@@ -74,6 +74,9 @@ export type Track = {
   language: string;
   kind: "source" | "local";
   availability: string;
+  listing_title?: string | null;
+  listing_key?: string | null;
+  listing_id?: string | null;
   unit_count: number;
 };
 

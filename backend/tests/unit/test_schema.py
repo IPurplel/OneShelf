@@ -72,13 +72,12 @@ def test_same_title_distinct_works_are_allowed(conn):
     assert a != b
 
 
-def test_one_track_per_work_source_language(conn):
+def test_one_local_track_per_work_language(conn):
     w = add_work(conn)
-    add_track(conn, w, "mangadex", "en", "source")
-    add_track(conn, w, "mangadex", "ar", "source")  # different language: distinct track
-    add_track(conn, w, "3asq", "ar", "source")  # different source: distinct track
+    add_track(conn, w, "local", "en", "local")
+    add_track(conn, w, "local", "ar", "local")
     with pytest.raises(sqlite3.IntegrityError):
-        add_track(conn, w, "mangadex", "en", "source")
+        add_track(conn, w, "local", "en", "local")
 
 
 def test_unknown_language_is_representable(conn):

@@ -30,6 +30,7 @@ class Migration:
     version: int
     name: str
     sql: str
+    rebuilds_referenced_table: bool = False
 
 
 _META_DDL = """CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -100,19 +101,29 @@ def migrate(db_path: str | Path, migrations: Sequence[Migration], *, snapshot_di
             snapshot(conn, snapshot_dir / f"pre-migration-v{current}-{stamp}.db")
         conn.execute(_META_DDL)
         for migration in pending:
-            conn.execute("BEGIN IMMEDIATE")
+            if migration.rebuilds_referenced_table:
+                conn.execute("PRAGMA foreign_keys = OFF")
             try:
-                for statement in split_statements(migration.sql):
-                    conn.execute(statement)
-                conn.execute(
-                    "INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
-                    (migration.version, migration.name, datetime.now(UTC).isoformat()),
-                )
-            except Exception as exc:
-                conn.execute("ROLLBACK")
-                raise MigrationError(
-                    f"migration v{migration.version} ({migration.name}) failed: {exc}"
-                ) from exc
-            conn.execute("COMMIT")
+                conn.execute("BEGIN IMMEDIATE")
+                try:
+                    for statement in split_statements(migration.sql):
+                        conn.execute(statement)
+                    if migration.rebuilds_referenced_table:
+                        violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+                        if violations:
+                            raise MigrationError(f"foreign key check found {len(violations)} violations")
+                    conn.execute(
+                        "INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)",
+                        (migration.version, migration.name, datetime.now(UTC).isoformat()),
+                    )
+                except Exception as exc:
+                    conn.execute("ROLLBACK")
+                    raise MigrationError(
+                        f"migration v{migration.version} ({migration.name}) failed: {exc}"
+                    ) from exc
+                conn.execute("COMMIT")
+            finally:
+                if migration.rebuilds_referenced_table:
+                    conn.execute("PRAGMA foreign_keys = ON")
             applied.append(migration.version)
     return applied

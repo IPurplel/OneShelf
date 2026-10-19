@@ -582,7 +582,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .tracks { list-style: none; margin: var(--space-5) 0 0; padding: 0; display: grid; gap: var(--space-2); }
 .tracks__row { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-4);
                background: var(--paper-raised); border: 1px solid var(--surface-border); border-radius: var(--radius-md); box-shadow: var(--shadow-card); }
-.tracks__name { font-family: var(--font-display); }
+.tracks__name { font-family: var(--font-display); display: grid; min-inline-size: 0; overflow-wrap: anywhere; }
+.tracks__edition { font-family: var(--font-body); color: var(--ink-500); font-size: 13px; overflow-wrap: anywhere; }
 .tracks__count { color: var(--ink-500); margin-inline-start: auto; }
 
 @media (max-width: 899px) {

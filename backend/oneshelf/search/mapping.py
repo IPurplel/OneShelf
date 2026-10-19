@@ -38,6 +38,8 @@ class MappingService:
         with transaction(self.conn):
             if row["work_id"]:
                 self._record("unlink", listing_id=listing_id, work_id=row["work_id"])
+            self.conn.execute("UPDATE source_tracks SET listing_id = NULL, availability = 'unavailable'"
+                              " WHERE listing_id = ?", (listing_id,))
             self.conn.execute("UPDATE source_listings SET work_id = NULL, mapping_decided_by = NULL WHERE id = ?",
                               (listing_id,))
 
@@ -71,10 +73,10 @@ class MappingService:
         if len(works) != 2:
             raise MappingError("unknown work")
         conflicts = self.conn.execute(
-            "SELECT count(*) FROM source_tracks a JOIN source_tracks b ON a.source_id = b.source_id"
+            "SELECT count(*) FROM source_tracks a JOIN source_tracks b ON a.kind = 'local' AND b.kind = 'local'"
             " AND a.language = b.language WHERE a.work_id = ? AND b.work_id = ?", (work_id, other_work_id)).fetchone()[0]
         if conflicts:
-            raise MappingError("these works have tracks for the same source and language; unlink or split them first")
+            raise MappingError("these works have local tracks for the same language; split them first")
         now = utcnow_iso()
         with transaction(self.conn):
             self.conn.execute("INSERT OR IGNORE INTO work_aliases (id, work_id, title, kind, created_at)"

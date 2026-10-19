@@ -119,7 +119,8 @@ class ReaderService:
     def _unit(self, unit_id: str) -> sqlite3.Row:
         row = self.conn.execute(
             "SELECT u.id AS unit_id, u.source_unit_key, u.url_hint, u.track_id, u.source_order, t.source_id,"
-            " t.language, t.work_id FROM reading_units u JOIN source_tracks t ON t.id = u.track_id WHERE u.id = ?",
+            " t.language, t.work_id, t.availability AS track_availability FROM reading_units u"
+            " JOIN source_tracks t ON t.id = u.track_id WHERE u.id = ?",
             (unit_id,)).fetchone()
         if row is None:
             raise ValueError(f"unknown reading unit {unit_id}")
@@ -206,6 +207,8 @@ class ReaderService:
 
     async def _online_descriptors(self, unit_id: str) -> list:
         unit = self._unit(unit_id)
+        if unit["track_availability"] == "unavailable":
+            raise FileNotFoundError("this source edition is no longer linked")
         if self._file_only(unit["source_id"]):
             # Asking anyway fails as "unsupported" and is recorded against the source's health.
             raise DownloadRequired("this book has to be downloaded before it can be read")

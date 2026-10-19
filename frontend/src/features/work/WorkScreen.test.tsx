@@ -35,6 +35,27 @@ const DETAILS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Work Details", () => {
+  it("distinguishes same-source editions and marks detached saved tracks", async () => {
+    const tracks = [
+      { id: "first", source_id: "gutenberg", language: "en", kind: "source", availability: "available",
+        listing_title: "Frankenstein", listing_key: "edition-1818", unit_count: 2 },
+      { id: "second", source_id: "gutenberg", language: "en", kind: "source", availability: "available",
+        listing_title: "Frankenstein", listing_key: "edition-1831", unit_count: 3 },
+      { id: "archived", source_id: "gutenberg", language: "en", kind: "source", availability: "unavailable",
+        listing_id: null, listing_title: "Frankenstein", listing_key: "edition-1797", unit_count: 1 },
+    ];
+    mockApi([get("/api/works/w1", { ...DETAILS, tracks, selected_track_id: "archived" })]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await user.click(await screen.findByRole("tab", { name: /sources/i }));
+    const panel = screen.getByRole("tabpanel");
+    expect(within(panel).getByText(/Frankenstein.*edition-1818/i)).toBeInTheDocument();
+    expect(within(panel).getByText(/Frankenstein.*edition-1831/i)).toBeInTheDocument();
+    expect(within(panel).getByText(/Frankenstein.*edition-1797/i)).toBeInTheDocument();
+    expect(within(panel).getByText(/Archived source/i)).toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: /refresh catalogue/i })).toBeNull();
+  });
+
   it("lets an empty source track open an available translation without replacing its saved track", async () => {
     const empty = { ...DETAILS, tracks: [{ id: "t-ja", source_id: "oneshelf.mangadex", language: "ja",
       kind: "source", availability: "available", unit_count: 0 }],

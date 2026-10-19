@@ -16,7 +16,7 @@ def test_existing_installed_label_is_backfilled_once(tmp_path):
         conn.execute("INSERT INTO plugins (id, name, state, active_version, trust_label, channel, installed_at,"
                      " updated_at) VALUES ('old.source', 'Old · Journal · FA/AR', 'uninstalled', NULL,"
                      " 'local', 'upload', '2026-01-01', '2026-01-01')")
-    assert migrate(path, MIGRATIONS, snapshot_dir=tmp_path / "snap") == [18, 19]
+    assert migrate(path, MIGRATIONS[:19], snapshot_dir=tmp_path / "snap") == [18, 19]
     with open_database(path) as conn:
         manager = PluginManager(conn, store_dir=tmp_path / "plugins")
         record = manager.get("old.source")
@@ -65,7 +65,7 @@ def test_existing_wrong_label_metadata_is_recalculated_after_upgrade(tmp_path):
                      " VALUES ('example.books', '1.0.0', ?, '[]', '[]', 'active', 'local', '{}',"
                      " 'example.books/1.0.0.osp', '2026-01-01')", (sha256,))
 
-    assert migrate(path, MIGRATIONS, snapshot_dir=tmp_path / "snap") == [19]
+    assert migrate(path, MIGRATIONS[:19], snapshot_dir=tmp_path / "snap") == [19]
     with open_database(path) as conn:
         record = PluginManager(conn, store_dir=tmp_path / "plugins").get("example.books")
         assert (record.category, record.languages) == ("Manga", ("AR",))

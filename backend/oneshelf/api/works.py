@@ -27,9 +27,12 @@ def error(status: int, code: str, message: str) -> Response:
 
 def _tracks(conn: sqlite3.Connection, work_id: str) -> list[dict]:
     rows = conn.execute(
-        "SELECT t.id, t.source_id, t.language, t.kind, t.availability,"
+        "SELECT t.id, t.source_id, t.language, t.kind, t.availability, t.listing_id,"
+        " coalesce(l.raw_title, t.listing_title) AS listing_title,"
+        " coalesce(l.source_listing_key, t.listing_key) AS listing_key,"
         " (SELECT count(*) FROM reading_units u WHERE u.track_id = t.id) AS unit_count"
-        " FROM source_tracks t WHERE t.work_id = ? ORDER BY (t.kind = 'local') DESC, t.source_id, t.language",
+        " FROM source_tracks t LEFT JOIN source_listings l ON l.id = t.listing_id"
+        " WHERE t.work_id = ? ORDER BY (t.kind = 'local') DESC, t.source_id, t.language, t.id",
         (work_id,)).fetchall()
     return [dict(row) for row in rows]
 
