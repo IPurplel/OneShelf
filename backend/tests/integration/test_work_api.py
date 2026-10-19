@@ -331,3 +331,22 @@ def test_the_same_file_imported_twice_is_stored_twice(api):
     assert len(files) == 2, "identical content was stored once and shared between two works"
     assert files[0].read_bytes() == files[1].read_bytes()
     assert files[0].stat().st_ino != files[1].stat().st_ino     # two files, not one under two names
+
+
+def test_i101_a_local_document_is_served_in_ranges_with_its_isolation_headers(api):
+    """§26.22 / §56: pdf.js can ask for byte ranges; the whole file is never held in memory to answer."""
+    client, tmp_path = api
+    path = make_pdf(tmp_path / "book.pdf", pages=3)
+    review = client.post("/api/import/uploads?filename=book.pdf", content=path.read_bytes(),
+                         headers={"Content-Type": "application/octet-stream"}).json()
+    unit = client.post("/api/import", json={"upload_id": review["upload_id"], "title": "A Book",
+                                            "content_type": "book", "language": "en"}).json()["reading_unit_id"]
+    whole = client.get(f"/api/reader/units/{unit}/file")
+    assert whole.status_code == 200 and whole.content == path.read_bytes()
+    assert whole.headers["accept-ranges"] == "bytes"
+    part = client.get(f"/api/reader/units/{unit}/file", headers={"Range": "bytes=0-99"})
+    assert part.status_code == 206 and part.content == path.read_bytes()[:100]
+    for response in (whole, part):
+        assert response.headers["content-security-policy"] == "sandbox; default-src 'none'"
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.headers["content-type"] == "application/pdf"

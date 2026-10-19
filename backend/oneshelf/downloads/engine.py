@@ -381,8 +381,13 @@ class DownloadEngine:
         contract = ExtractionContract.from_json(job["extraction_contract_json"])
         if method is not None:
             contract = contract.with_method(method)
+        # A retry of a whole-file download starts the file over (I-97): whatever was kept is what failed.
+        # Validated image pages stay, since each was checked on its own and resume skips only matching ones.
+        manifest = json.loads(job["manifest_json"] or "{}")
+        manifest.pop("file", None)
         self._set_state(job_id, "QUEUED", allow_canceled=True, attempts=0, next_attempt_at=None, last_error=None, error_category=None,
-                        pending_decision_json=None, extraction_contract_json=contract.to_json(), method=contract.method)
+                        pending_decision_json=None, extraction_contract_json=contract.to_json(), method=contract.method,
+                        manifest_json=json.dumps(manifest))
 
     def retry_all_failed(self, batch_id: str) -> int:
         jobs = self.conn.execute("SELECT id FROM download_jobs WHERE batch_id = ? AND state = 'FAILED'",
@@ -549,16 +554,21 @@ class DownloadEngine:
                     and sha256_file(target)[0] == entry["sha256"]):
                 self.fault("page_skipped")
                 continue
-            response = await self.sources.fetch_resource(contract.source_id, resource.url, capability="reader",
-                                                         priority=Priority.MANUAL, max_bytes=MAX_RESOURCE_BYTES)
+            part = area / f"{name}.part"
+            response = await self.sources.fetch_resource_to(contract.source_id, resource.url, part,
+                                                            capability="reader", priority=Priority.MANUAL,
+                                                            max_bytes=MAX_RESOURCE_BYTES)
             self._ensure_not_canceled(job_id)
             if response.status != 200:
+                part.unlink(missing_ok=True)
                 raise CapabilityError("unexpected_response", f"page {index} returned HTTP {response.status}")
-            problem = _validate_image(response.body)
+            problem = _validate_image(part.read_bytes())      # one page: small, and checked before it counts
             if problem:
+                part.unlink(missing_ok=True)
                 raise MediaInvalid(f"page {index}: {problem}")
-            target.write_bytes(response.body)
-            pages[str(index)] = {"url": resource.url, "sha256": sha256_file(target)[0], "size": len(response.body)}
+            part.replace(target)
+            sha, size = sha256_file(target)
+            pages[str(index)] = {"url": resource.url, "sha256": sha, "size": size}
             self._save_manifest(job_id, manifest)
             self.fault("page_downloaded")
         self.fault("after_pages_downloaded")
@@ -614,28 +624,28 @@ class DownloadEngine:
                              manifest: dict) -> tuple[Path, str]:
         target = area / "artifact.bin"
         state = manifest.setdefault("file", {})
-        headers = {}
-        if state.get("validator") and target.is_file():
-            headers = {"Range": f"bytes={target.stat().st_size}-", "If-Range": state["validator"]}
-        response = await self.sources.fetch_resource(contract.source_id, resource.url, capability="downloads",
-                                                     priority=Priority.MANUAL, max_bytes=MAX_RESOURCE_BYTES,
-                                                     headers=headers or None)
+        size = target.stat().st_size if target.is_file() else 0
+        # Resume only a file that is known to be short of its known total (§16.4, I-97): a complete body
+        # that failed later never asks for bytes past its end.
+        resumable = bool(state.get("validator") and state.get("expected") and 0 < size < state["expected"])
+        response = await self.sources.fetch_resource_to(
+            contract.source_id, resource.url, target, capability="downloads", priority=Priority.MANUAL,
+            max_bytes=MAX_RESOURCE_BYTES, resume_from=size if resumable else 0,
+            validator=state.get("validator") if resumable else None)
         self._ensure_not_canceled(job_id)
-        validator = response.headers.get("ETag") or response.headers.get("Last-Modified")
-        if response.status == 206 and state.get("validator") == validator:
-            with open(target, "ab") as handle:
-                handle.write(response.body)
-        elif response.status in (200, 206):
-            target.write_bytes(response.body)  # changed validator or fresh start: never splice versions
-        else:
+        if response.status not in (200, 206):
             raise CapabilityError("unexpected_response", f"file returned HTTP {response.status}")
-        state["validator"] = validator
-        state["bytes"] = target.stat().st_size
+        state.update(validator=response.headers.get("ETag") or response.headers.get("Last-Modified"),
+                     expected=response.total, bytes=target.stat().st_size)
         self._save_manifest(job_id, manifest)
         self.fault("file_partially_downloaded")
         self._set_state(job_id, "VERIFYING")
         result = validate(target)
         if not result.ok:
+            # These bytes are known to be bad: the next attempt starts over rather than building on them.
+            target.unlink(missing_ok=True)
+            manifest["file"] = {}
+            self._save_manifest(job_id, manifest)
             raise MediaInvalid(f"downloaded file failed validation: {result.reason}")
         self._set_state(job_id, "PACKAGING")
         return target, result.format

@@ -205,7 +205,7 @@ def test_i81_resume_refetches_a_page_whose_source_url_changed(environment):
                 await env.engine.run_until_idle()
 
             original_resources = env.engine._resources
-            original_fetch = env.service.fetch_resource
+            original_fetch = env.service.fetch_resource_to
             changed_url = "http://cdn.testsource.example/img/irr-1/1.png?revision=2"
             fetched = []
 
@@ -214,14 +214,15 @@ def test_i81_resume_refetches_a_page_whose_source_url_changed(environment):
                 resources[0] = replace(resources[0], url=changed_url)
                 return resources
 
-            async def changed_fetch(source_id, url, **kwargs):
+            async def changed_fetch(source_id, url, path, **kwargs):
                 if url == changed_url:
                     fetched.append(url)
-                    return SimpleNamespace(status=200, body=changed_page)
-                return await original_fetch(source_id, url, **kwargs)
+                    Path(path).write_bytes(changed_page)
+                    return SimpleNamespace(status=200, headers={}, total=len(changed_page))
+                return await original_fetch(source_id, url, path, **kwargs)
 
             env.engine._resources = changed_resources
-            env.service.fetch_resource = changed_fetch
+            env.service.fetch_resource_to = changed_fetch
             env.engine.fault = lambda _point: None
             await env.engine.recover()
             report = await env.engine.run_until_idle()
@@ -447,6 +448,7 @@ def test_repair_downloads_a_broken_copy_again_through_the_normal_pipeline(enviro
 
 from oneshelf.downloads import engine as engine_module
 from oneshelf.downloads.engine import ACTIVE_STATES, NoStorageLocation
+from oneshelf.integrity.validators import ValidationResult
 from oneshelf.notifications.service import NotificationService
 
 
@@ -511,7 +513,7 @@ def test_i95_a_redirect_loop_is_a_transport_failure(environment, monkeypatch):
             async def looping(*_args, **_kwargs):
                 raise TooManyRedirects("more than 5 redirects")
 
-            monkeypatch.setattr(env.service, "fetch_resource", looping)
+            monkeypatch.setattr(env.service, "fetch_resource_to", looping)
             batch = env.engine.enqueue([env.unit_id("irr-1")])
             await env.engine.run_until_idle(max_seconds=40)
             return env.job_rows(batch)[0]
@@ -591,3 +593,59 @@ def test_i93_a_book_from_a_source_with_both_recipes_still_downloads_its_file(env
 
     output, assets = run(scenario())
     assert output == "file" and [a["format"] for a in assets] == ["pdf"]
+
+
+# -- I-97 (BE-007): resume asks only for bytes that exist, and Retry starts a bad file over -------------------
+
+def _recording(env, calls):
+    original = env.service.fetch_resource_to
+
+    async def recording(source_id, url, path, **kwargs):
+        calls.append(kwargs.get("resume_from", 0))
+        return await original(source_id, url, path, **kwargs)
+    env.service.fetch_resource_to = recording
+
+
+def test_i97_a_complete_file_that_failed_later_is_fetched_whole_again(environment, monkeypatch):
+    real_validate = engine_module.validate
+    failures = {"left": 1}
+
+    def flaky(path):
+        if failures["left"]:
+            failures["left"] -= 1
+            return ValidationResult(ok=False, format=None, reason="transient")
+        return real_validate(path)
+
+    monkeypatch.setattr(engine_module, "validate", flaky)
+
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("manual", "The Manual", content_type="book")
+            calls = []
+            _recording(env, calls)
+            batch = env.engine.enqueue([env.unit_id("manual-1")], one_time_method="direct")
+            await env.engine.run_until_idle(max_seconds=40)
+            return env.job_rows(batch)[0], calls, env.assets()
+
+    job, calls, assets = run(scenario(), timeout=90)
+    assert job["state"] == "COMPLETED" and [a["format"] for a in assets] == ["pdf"]
+    assert calls == [0, 0]                       # never a Range request for bytes past the end
+
+
+def test_i97_manual_retry_starts_a_failed_file_over(environment, monkeypatch):
+    monkeypatch.setattr(engine_module, "validate",
+                        lambda path: ValidationResult(ok=False, format=None, reason="bad"))
+
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("manual", "The Manual", content_type="book")
+            batch = env.engine.enqueue([env.unit_id("manual-1")], one_time_method="direct")
+            await env.engine.run_until_idle(max_seconds=60)
+            job = env.job_rows(batch)[0]
+            env.db.execute("UPDATE download_jobs SET manifest_json = ? WHERE id = ?",
+                           (json.dumps({"file": {"validator": '"v1"', "expected": 10**6, "bytes": 5}}), job["id"]))
+            env.engine.retry_job(job["id"])
+            return job["state"], json.loads(env.engine.job(job["id"])["manifest_json"] or "{}")
+
+    state, manifest = run(scenario(), timeout=120)
+    assert state == "FAILED" and "file" not in manifest

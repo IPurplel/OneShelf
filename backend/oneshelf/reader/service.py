@@ -68,7 +68,7 @@ class _PageFlight:
 @dataclass(frozen=True)
 class LocalArtefact:
     format: str
-    data: bytes
+    path: Path
 
 
 @dataclass(frozen=True)
@@ -296,7 +296,10 @@ class ReaderService:
         return response.body
 
     def local_file(self, unit_id: str, *, format: str | None = None) -> LocalArtefact:
-        """The downloaded artefact itself, for readers that render a whole document (§26.22)."""
+        """Where the downloaded artefact is, for readers that render a whole document (§26.22).
+
+        A path, not the bytes: the API streams it in ranges, so a large PDF is never read into memory (I-101).
+        """
         self._unit(unit_id)
         asset = self._local_asset(unit_id, format)
         if asset is None:
@@ -304,7 +307,7 @@ class ReaderService:
         path = self._local_path(asset)
         if not path.is_file():
             raise FileNotFoundError("the local file is missing; run a storage scan or download it again")
-        return LocalArtefact(asset["format"], path.read_bytes())
+        return LocalArtefact(asset["format"], path)
 
     def set_open_units(self, unit_ids: list[str]) -> None:
         keys = [self._unit(u)["source_unit_key"] for u in unit_ids]

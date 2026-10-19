@@ -1,5 +1,6 @@
 """Regression coverage for cancellation, read-ahead, and bilingual follows."""
 import asyncio
+from pathlib import Path
 import pytest
 from tests.fixtures.builders import make_cbz, png_bytes
 from tests.fixtures.library import library
@@ -28,7 +29,7 @@ def test_cancel_active_download_stays_canceled(reading, delete_partial, phase):
             unit=env.unit_id('irr-1'); batch=env.engine.enqueue([unit])
             job=env.job_rows(batch)[0]['id']
             entered=asyncio.Event(); release=asyncio.Event()
-            method = "run" if phase == "catalog" else "fetch_resource"
+            method = "run" if phase == "catalog" else "fetch_resource_to"
             original=getattr(env.service, method)
             async def delayed(*args,**kwargs):
                 result=await original(*args,**kwargs)
@@ -94,10 +95,10 @@ def test_explicit_reader_format_and_context(library, tmp_path):
     context = asyncio.run(reader_context(request, work['unit_id']))
     assert context == {'work_id': work['work_id'], 'track_id': work['track_id'], 'formats': ['epub', 'pdf'], 'kind': 'images'}
     assert asyncio.run(reader_context(request, 'missing')).status_code == 404
-    assert asyncio.run(reader_file(request, work['unit_id'], format='epub')).body == epub
-    assert asyncio.run(reader_file(request, work['unit_id'], format='pdf')).body == pdf
+    assert Path(asyncio.run(reader_file(request, work['unit_id'], format='epub')).path).read_bytes() == epub
+    assert Path(asyncio.run(reader_file(request, work['unit_id'], format='pdf')).path).read_bytes() == pdf
     assert asyncio.run(reader_file(request, work['unit_id'], format='cbz')).status_code == 404
-    assert asyncio.run(reader_file(request, work['unit_id'])).body == pdf
+    assert Path(asyncio.run(reader_file(request, work['unit_id'])).path).read_bytes() == pdf
 
 
 def test_page_reader_selects_cbz_when_an_older_pdf_exists(library, tmp_path):

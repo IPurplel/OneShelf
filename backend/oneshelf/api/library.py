@@ -7,7 +7,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from oneshelf.downloads.engine import NoStorageLocation
@@ -275,11 +275,10 @@ async def reader_file(request: Request, unit_id: str, format: Literal["epub", "p
     except ValueError as exc:
         return error(404, "UNIT_NOT_FOUND", str(exc))
     media_type = MEDIA_TYPES.get(artefact.format, "application/octet-stream")
-    return Response(artefact.data, media_type=media_type, headers={
-        **CONTENT_HEADERS,
-        "Content-Security-Policy": "sandbox; default-src 'none'",
-        "Content-Disposition": f'inline; filename="{unit_id}.{EXTENSIONS.get(artefact.format, artefact.format)}"',
-    })
+    # Streamed from disk with Range support, so pdf.js can fetch what it shows (§56, I-101).
+    return FileResponse(artefact.path, media_type=media_type, content_disposition_type="inline",
+                        filename=f"{unit_id}.{EXTENSIONS.get(artefact.format, artefact.format)}",
+                        headers={**CONTENT_HEADERS, "Content-Security-Policy": "sandbox; default-src 'none'"})
 
 
 @router.get("/reader/units/{unit_id}/text")

@@ -186,6 +186,26 @@ class SourceService:
             self._record(package, capability, "success", None)
         return result
 
+    async def fetch_resource_to(self, plugin_id: str, url: str, path, *, capability: str,
+                                priority: Priority = Priority.MANUAL, max_bytes: int | None = None,
+                                headers: dict[str, str] | None = None, resume_from: int = 0,
+                                validator: str | None = None):
+        """`fetch_resource`, with the body written to `path` instead of held in memory (I-101)."""
+        package, fetcher = await self._fetcher(plugin_id, priority)
+        recipe = package.recipes.get(capability)
+        auth_mode = recipe.request.auth if recipe is not None else "none"
+        declared = dict(recipe.resource_headers) if recipe is not None else {}
+        declared.update(headers or {})
+        response = await fetcher.stream(url, path, capability=capability, auth_mode=auth_mode, max_bytes=max_bytes,
+                                        headers=declared or None, resume_from=resume_from, validator=validator)
+        if response.status == 429:
+            self._record(package, capability, "failure", "rate_limit")
+            raise_for_rate_limit(response)
+        if response.status in (401, 403) and auth_mode != "none":
+            self._auth_failed(plugin_id)
+            raise AuthRequired()
+        return response
+
     async def fetch_resource(self, plugin_id: str, url: str, *, capability: str,
                              priority: Priority = Priority.MANUAL, max_bytes: int | None = None,
                              headers: dict[str, str] | None = None) -> HttpResponse:
