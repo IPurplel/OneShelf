@@ -191,3 +191,22 @@ async def correct_unit(request: Request, unit_id: str, body: UnitPatch):
     work_id = conn.execute("SELECT t.work_id FROM reading_units u JOIN source_tracks t ON t.id = u.track_id"
                            " WHERE u.id = ?", (unit_id,)).fetchone()[0]
     return await work_details(request, work_id)
+
+
+@router.get("/maintenance/reclassification")
+async def reclassification_preview(request: Request):
+    """Dry run: what the classification repair would change (I-92, I-94). Nothing is written."""
+    from oneshelf.library import reclassify
+    s = services(request)
+    return reclassify.preview(s.conn, s.plugins).as_dict()
+
+
+@router.post("/maintenance/reclassification")
+async def reclassification_apply(request: Request):
+    """Apply the repair the preview showed, after a consistent snapshot of the library database."""
+    from pathlib import Path
+
+    from oneshelf.library import reclassify
+    s = services(request)
+    snapshots = Path(request.app.state.config.data_dir) / "snapshots"
+    return reclassify.apply(s.conn, s.plugins, snapshot_dir=snapshots).as_dict()
