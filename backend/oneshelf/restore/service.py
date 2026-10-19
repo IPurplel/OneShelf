@@ -22,6 +22,7 @@ from oneshelf.db.connection import transaction
 from oneshelf.db.migrate import migrate
 from oneshelf.db.schema import MIGRATIONS
 from oneshelf.domain.clock import utcnow_iso
+from oneshelf.library.overrides import apply_all_overrides
 from oneshelf.storage.paths import resolve_within
 from oneshelf.storage.roots import get_root, check_availability, preflight as storage_preflight
 from oneshelf.storage.hashing import sha256_file
@@ -325,6 +326,8 @@ class RestoreService:
                 if kept:
                     report.kept[table] = kept
             self._merge_progress(staged, report, ids["reading_units"])
+            # A correction added from the backup must also show where readers look (INV-04, I-102).
+            apply_all_overrides(self.conn)
         return ids["assets"]
 
     def _merge_progress(self, staged: Path, report: RestoreReport, unit_ids: dict[str, str]) -> None:

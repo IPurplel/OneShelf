@@ -14,6 +14,7 @@ from dataclasses import asdict, dataclass, field
 from oneshelf.db.connection import transaction
 from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
+from oneshelf.library.overrides import apply_unit_overrides
 from oneshelf.plugins.results import ListResult, UnitDescriptor
 from oneshelf.settings.defaults import DEFAULTS
 
@@ -199,3 +200,5 @@ class CatalogTrust:
         self.conn.execute(
             f"UPDATE reading_units SET availability = 'unavailable', missing_since = coalesce(missing_since, ?)"
             f" WHERE track_id = ? AND source_unit_key NOT IN ({placeholders})", (now, track_id, *keys))
+        # The source rewrote its own columns; the user's corrections still win (INV-04, I-102).
+        apply_unit_overrides(self.conn, track_id)
