@@ -34,6 +34,10 @@ class StaleProgress(RuntimeError):
     """A newer progress revision exists; a stale tab must not undo it (§26.23)."""
 
 
+class DownloadRequired(RuntimeError):
+    """The source has no reader: this unit is read from its downloaded file, which is not here yet."""
+
+
 class MarkOperationConflict(RuntimeError):
     """One mark operation ID cannot be reused for different content."""
 
@@ -126,12 +130,24 @@ class ReaderService:
         formats = [row[0] for row in self.conn.execute(
             "SELECT DISTINCT format FROM assets WHERE reading_unit_id = ? AND integrity = 'ok' ORDER BY format",
             (unit_id,))]
+        context = {"work_id": unit["work_id"], "track_id": unit["track_id"], "formats": formats}
+        if not formats and self._file_only(unit["source_id"]):
+            job = self.conn.execute(
+                "SELECT state, last_error FROM download_jobs WHERE reading_unit_id = ?"
+                " ORDER BY created_at DESC, id DESC LIMIT 1", (unit_id,)).fetchone()
+            return {**context, "kind": "download",
+                    "download": {"state": job["state"] if job else None, "error": job["last_error"] if job else None}}
         kind = "text" if "text" in formats or self._reads_text(unit["source_id"]) else "images"
-        return {"work_id": unit["work_id"], "track_id": unit["track_id"], "formats": formats, "kind": kind}
+        return {**context, "kind": kind}
 
     def _reads_text(self, source_id: str) -> bool:
         reads_text = getattr(self.sources, "reads_text", None)
         return bool(reads_text and source_id != "local" and reads_text(source_id))
+
+    def _file_only(self, source_id: str) -> bool:
+        """A download-only source: its units are read from their file, never through a `reader` recipe."""
+        reads_online = getattr(self.sources, "reads_online", None)
+        return bool(reads_online and source_id != "local" and not reads_online(source_id))
 
     def _local_asset(self, unit_id: str, format: str | None = None) -> sqlite3.Row | None:
         return self.conn.execute(
@@ -190,6 +206,9 @@ class ReaderService:
 
     async def _online_descriptors(self, unit_id: str) -> list:
         unit = self._unit(unit_id)
+        if self._file_only(unit["source_id"]):
+            # Asking anyway fails as "unsupported" and is recorded against the source's health.
+            raise DownloadRequired("this book has to be downloaded before it can be read")
         if unit_id not in self._descriptors:
             result = await self.sources.run(unit["source_id"], "reader",
                                             {"unit_key": unit["source_unit_key"], "url": unit["url_hint"],

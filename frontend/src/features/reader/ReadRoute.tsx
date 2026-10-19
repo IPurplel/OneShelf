@@ -4,10 +4,12 @@ import { useResource } from "@/api/useApi";
 import type { WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
 import { BookReader } from "./BookReader";
+import { DownloadToRead, type DownloadState } from "./DownloadToRead";
 import { ReaderScreen } from "./ReaderScreen";
 import { workLink } from "./links";
 
-type UnitContext = { work_id: string; track_id: string; formats: string[]; kind?: "images" | "text" };
+type UnitContext = { work_id: string; track_id: string; formats: string[]; kind?: "images" | "text" | "download";
+                     download?: DownloadState };
 
 /** Resolve old unit-only links as well as explicit work/track links before selecting a reader. */
 export function ReadRoute() {
@@ -19,13 +21,18 @@ export function ReadRoute() {
 }
 function ResolveUnit({ unitId, workId, trackId }: { unitId: string; workId: string | null; trackId: string | null }) {
   const { t } = useI18n();
-  const { data, error, loading, reload } = useResource<UnitContext>(`/api/reader/units/${unitId}/context`);
+  const { data, error, reload } = useResource<UnitContext>(`/api/reader/units/${unitId}/context`);
   if (error !== null) return <Unavailable message={error} back={workLink(workId ?? "", trackId)} retry={reload} />;
-  if (loading || data === null) return <p className="screen__subtitle">{t("state.loading")}</p>;
+  // A reload keeps what is shown (a download finishing, say) instead of blanking the reader.
+  if (data === null) return <p className="screen__subtitle">{t("state.loading")}</p>;
+  const download = data.kind === "download" ? data.download ?? { state: null, error: null } : null;
   return <OpenUnit unitId={unitId} workId={workId ?? data.work_id} trackId={trackId ?? data.track_id} formats={data.formats}
-                   text={data.kind === "text"} />;
+                   text={data.kind === "text"} download={download} onChange={reload} />;
 }
-function OpenUnit({ unitId, workId, trackId, formats, text }: { unitId: string; workId: string; trackId: string; formats: string[]; text: boolean }) {
+function OpenUnit({ unitId, workId, trackId, formats, text, download, onChange }: {
+  unitId: string; workId: string; trackId: string; formats: string[]; text: boolean;
+  download: DownloadState | null; onChange: () => void;
+}) {
   const { t } = useI18n();
   const { data, error, loading, reload } = useResource<WorkDetails>(`/api/works/${workId}`, { track_id: trackId });
   if (error !== null) return <Unavailable message={error} back={workLink(workId, trackId)} retry={reload} />;
@@ -37,6 +44,10 @@ function OpenUnit({ unitId, workId, trackId, formats, text }: { unitId: string; 
   if (formats.includes("pdf")) return <BookReader unitId={unitId} format="pdf" workId={workId} trackId={trackId} />;
   // A text unit is read in the Book Reader, downloaded or not: it has no pages to show (plugin API 1.2).
   if (text || formats.includes("text")) return <BookReader unitId={unitId} format="text" workId={workId} trackId={trackId} />;
+  // A download-only source has no pages to show: the book is read from its file (plugin without `reader`).
+  if (download !== null) {
+    return <DownloadToRead unitId={unitId} workId={workId} trackId={trackId} download={download} onChange={onChange} />;
+  }
   return <ReaderScreen unitId={unitId} workId={workId} trackId={trackId} />;
 }
 function Unavailable({ message, back, retry }: { message: string; back: string; retry: () => void }) {

@@ -144,6 +144,14 @@ class SourceService:
             return False
         return is_text_reader(package.recipes.get("reader"))
 
+    def reads_online(self, plugin_id: str) -> bool:
+        """Whether this source can be read without its file: a download-only source cannot."""
+        try:
+            package = self.plugins.load_active(plugin_id)
+        except Exception:
+            return False
+        return "reader" in package.recipes
+
     def searchable_sources(self) -> list[tuple[str, str]]:
         return self.sources_with_capability("search")
 

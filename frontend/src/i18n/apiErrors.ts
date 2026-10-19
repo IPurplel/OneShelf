@@ -10,6 +10,7 @@ const ARABIC_ERRORS: Record<string, StringKey> = {
   IMPORT_REJECTED: "error.importRejected",
   UNSUPPORTED_FILE: "error.unsupportedFile",
   INSTALL_REJECTED: "error.sourceRejected",
+  DOWNLOAD_REQUIRED: "error.downloadRequired",
 };
 
 /** Service prose is English; use stable codes for supported Arabic messages and a safe generic fallback. */

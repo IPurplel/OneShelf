@@ -15,7 +15,7 @@ from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.plugins.manager import PluginUnavailable
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
 from oneshelf.reader.alternatives import alternatives
-from oneshelf.reader.service import MarkOperationConflict, StaleProgress
+from oneshelf.reader.service import DownloadRequired, MarkOperationConflict, StaleProgress
 
 router = APIRouter(prefix="/api")
 
@@ -184,11 +184,16 @@ async def clear_history(request: Request, before: str | None = None):
     return {"removed": services(request).downloads.clear_history(before=before)}
 
 
+DOWNLOAD_REQUIRED = "This book has to be downloaded before it can be read."
+
+
 @router.get("/reader/units/{unit_id}/pages")
 async def reader_pages(request: Request, unit_id: str):
     s = services(request)
     try:
         pages = await s.reader.pages(unit_id)
+    except DownloadRequired:
+        return error(409, "DOWNLOAD_REQUIRED", DOWNLOAD_REQUIRED)
     except FileNotFoundError as exc:
         return error(404, "PAGES_NOT_AVAILABLE", str(exc))
     except ValueError as exc:
@@ -223,6 +228,8 @@ async def reader_page(request: Request, unit_id: str, index: int, prefetch: bool
                         pass
         else:
             page = await s.reader.page(unit_id, index, prefetch=False)
+    except DownloadRequired:
+        return error(409, "DOWNLOAD_REQUIRED", DOWNLOAD_REQUIRED)
     except FileNotFoundError as exc:
         return error(404, "PAGES_NOT_AVAILABLE", str(exc))
     except (ValueError, IndexError) as exc:

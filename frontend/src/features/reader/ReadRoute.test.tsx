@@ -1,8 +1,9 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
-import { afterEach, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '@/test/render';
-import { get, mockApi } from '@/test/http';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { renderLive, renderWithProviders } from '@/test/render';
+import { get, mockApi, post } from '@/test/http';
 import { ReadRoute } from './ReadRoute';
 vi.mock('./BookReader', () => ({ BookReader: ({ format, unitId }: { format: string; unitId: string }) => <p>{format} reader {unitId}</p> }));
 vi.mock('./ReaderScreen', () => ({ ReaderScreen: () => <p>page reader</p> }));
@@ -44,4 +45,43 @@ it('keeps image units in the page reader', async () => {
   mockApi([get('/api/reader/units/u/context', { ...context, formats: [], kind: 'images' }), get('/api/works/w', details)]);
   open('/read/u');
   expect(await screen.findByText('page reader')).toBeInTheDocument();
+});
+
+describe('a book from a download-only source', () => {
+  const needsFile = { ...context, formats: [], kind: 'download', download: { state: null, error: null } };
+  function live(route = '/read/u?work=w&track=second', language: 'en' | 'ar' = 'en') {
+    return renderLive(<Routes><Route path="/read/:unitId" element={<ReadRoute />} /></Routes>, { route, language });
+  }
+  it('asks for its file instead of opening the page reader', async () => {
+    mockApi([get('/api/reader/units/u/context', needsFile), get('/api/works/w', details)]);
+    live();
+    expect(await screen.findByRole('button', { name: 'Download to read' })).toBeInTheDocument();
+    expect(screen.queryByText('page reader')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Back to the work' })).toHaveAttribute('href', '/works/w?track=second');
+  });
+  it('downloads on request and opens the Book Reader once the file is there', async () => {
+    const contextRoute = get('/api/reader/units/u/context', needsFile);
+    const calls = mockApi([contextRoute, get('/api/works/w', details), post('/api/downloads', { batch_id: 'b', queued: 1 })]);
+    const { emit } = live();
+    await userEvent.click(await screen.findByRole('button', { name: 'Download to read' }));
+    expect(calls.find(call => call.method === 'POST')).toMatchObject({ url: '/api/downloads', body: { unit_ids: ['u'] } });
+    contextRoute.payload = { ...needsFile, download: { state: 'DOWNLOADING', error: null } };
+    act(() => { emit('download.job', { job_id: 'j', state: 'DOWNLOADING' }); });
+    expect(await screen.findByText(/Downloading/)).toBeInTheDocument();
+    contextRoute.payload = { ...context, formats: ['pdf'], kind: 'images' };
+    act(() => { emit('download.job', { job_id: 'j', state: 'COMPLETED' }); });
+    expect(await screen.findByText('pdf reader u')).toBeInTheDocument();
+  });
+  it('shows a failed download and lets it be tried again', async () => {
+    mockApi([get('/api/reader/units/u/context', { ...needsFile, download: { state: 'FAILED', error: 'HTTP 503' } }),
+             get('/api/works/w', details)]);
+    live();
+    expect(await screen.findByRole('alert')).toHaveTextContent('The download failed.');
+    expect(screen.getByRole('button', { name: 'Try the download again' })).toBeInTheDocument();
+  });
+  it('speaks Arabic', async () => {
+    mockApi([get('/api/reader/units/u/context', needsFile), get('/api/works/w', details)]);
+    live('/read/u?work=w&track=second', 'ar');
+    expect(await screen.findByRole('button', { name: 'نزِّل للقراءة' })).toBeInTheDocument();
+  });
 });
