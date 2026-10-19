@@ -25,7 +25,7 @@ from oneshelf.domain.ids import new_id
 from oneshelf.downloads.contract import ExtractionContract, Settings, next_method, resolve_method
 from oneshelf.integrity.validators import _validate_image, detect_format, validate
 from oneshelf.net.governor import Priority, TrafficGovernor
-from oneshelf.net.http import FetchFailed
+from oneshelf.net.http import FetchFailed, ResponseTooLarge, TooManyRedirects
 from oneshelf.net.policy import BlockedDestination, DisallowedTarget
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
 from oneshelf.plugins.schema import is_text_reader
@@ -54,6 +54,10 @@ BACKOFF_BASE_SECONDS = 2
 
 class MediaInvalid(RuntimeError):
     pass
+
+
+class NoStorageLocation(ValueError):
+    """Nothing can be downloaded until the library has a Storage Location (§24.1, I-95)."""
 
 
 @dataclass
@@ -200,6 +204,13 @@ class DownloadEngine:
                     " extraction_contract_json, method, storage_root_id, created_at, updated_at)"
                     " VALUES (?,?,?, 'QUEUED', ?, 0, ?, ?, ?, ?, ?)",
                     (new_id(), batch_id, unit_id, position, contract.to_json(), contract.method, root_id, now, now))
+            # Checked after each unit's own reasons, so the more specific refusal is the one reported. A job
+            # without anywhere to go would otherwise wait forever (I-95).
+            if queued:
+                if root_id is not None:
+                    get_root(self.conn, root_id)
+                elif not any(root.is_default for root in list_roots(self.conn)):
+                    raise NoStorageLocation("there is no storage location for downloads yet; add one in Settings")
             self.conn.execute("UPDATE download_batches SET selection_json = ? WHERE id = ?",
                               (json.dumps({"requested": unit_ids, "skipped": skipped, "queued": queued,
                                            "reader_read_ahead": [u for u in (reader_read_ahead or []) if u in queued]}), batch_id))
@@ -289,6 +300,13 @@ class DownloadEngine:
     async def recover(self) -> int:
         """Startup/restart recovery: interrupted jobs are re-queued, open commits are replayed (§17)."""
         placeholders = ",".join("?" * len(ACTIVE_STATES))
+        # A job whose worker keeps dying (the process killed mid-download, say) has used its retries: it is
+        # failed rather than restarted forever (I-95).
+        exhausted = self.conn.execute(
+            f"SELECT * FROM download_jobs WHERE state IN ({placeholders}) AND attempts > ?",
+            (*ACTIVE_STATES, self.retry_budget)).fetchall()
+        for job in exhausted:
+            self._fail(job["id"], "interrupted", "the download was interrupted too many times")
         with transaction(self.conn):
             cursor = self.conn.execute(
                 f"UPDATE download_jobs SET state = 'RECOVERING', updated_at = ? WHERE state IN ({placeholders})",
@@ -403,6 +421,8 @@ class DownloadEngine:
             state = "completed_with_issues"
         elif failed:
             state = "failed"
+        elif counts.get("CANCELED", 0) and not completed:
+            state = "canceled"
         else:
             state = "completed"
         return {"batch_id": batch_id, "state": state, "completed": completed, "failed": failed, "pending": pending,
@@ -484,9 +504,15 @@ class DownloadEngine:
                                started_at)
             report.completed += 1
         except (AuthRequired, RateLimited, CapabilityError, MediaInvalid, FetchFailed, DisallowedTarget,
-                BlockedDestination, OSError, CommitError) as exc:
+                BlockedDestination, OSError, CommitError, ResponseTooLarge, TooManyRedirects) as exc:
             category = self._category(exc)
             self._handle_failure(job_id, contract, context, attempts, category, str(exc), report, started_at)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 — anything unforeseen still ends the job, never strands it (I-95)
+            logger.exception("download job %s hit an unexpected error", job_id)
+            self._handle_failure(job_id, contract, context, attempts, "internal_error",
+                                 f"{type(exc).__name__}: {exc}", report, started_at)
 
     @staticmethod
     def _category(exc: BaseException) -> str:
@@ -496,6 +522,10 @@ class DownloadEngine:
             return "rate_limit"
         if isinstance(exc, MediaInvalid):
             return "media_invalid"
+        if isinstance(exc, ResponseTooLarge):
+            return "too_large"
+        if isinstance(exc, TooManyRedirects):
+            return "transport"
         if isinstance(exc, CapabilityError):
             return exc.category
         if isinstance(exc, (DisallowedTarget, BlockedDestination)):
@@ -653,7 +683,15 @@ class DownloadEngine:
         if category == "auth_failure":
             self.notifications.reconnect_required(context["source_id"])
         elif category in ("storage_full", "storage_unavailable"):
-            self.notifications.low_storage(self.job(job_id)["storage_root_id"] or "default", free_bytes=0)
+            try:
+                root = self._choose_root(self.job(job_id))
+            except (RuntimeError, ValueError):
+                root = None
+            root_id = root.id if root is not None else "none"
+            if category == "storage_unavailable" or root is None:
+                self.notifications.storage_unavailable(root_id, name=root.name if root else None)
+            else:
+                self.notifications.low_storage(root_id, free_bytes=shutil.disk_usage(root.path).free)
         else:
             self.notifications.download_failed(context["unit_id"], title, category=category)
 
@@ -668,6 +706,14 @@ class DownloadEngine:
                 (job["id"], job["reading_unit_id"], context["work_id"], contract.source_id, contract.language, outcome,
                  contract.attempted_methods[0], contract.method, category, job["bytes_done"], job["started_at"],
                  utcnow_iso()))
+
+    def _fail(self, job_id: str, category: str, message: str) -> None:
+        """End a job that is not running now: FAILED, recorded and notified like any final failure."""
+        self._set_state(job_id, "FAILED", allow_canceled=True, last_error=message, error_category=category,
+                        finished_at=utcnow_iso())
+        job = self.job(job_id)
+        self._record_history(job, "failed", category)
+        self._notify_failure(job_id, self._unit_context(job["reading_unit_id"]), category)
 
     def _handle_failure(self, job_id: str, contract: ExtractionContract, context: sqlite3.Row, attempts: int,
                         category: str, message: str, report: RunReport, started_at: str) -> None:

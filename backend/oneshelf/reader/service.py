@@ -17,6 +17,7 @@ from oneshelf.db.connection import transaction
 from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.downloads.contract import Settings
+from oneshelf.downloads.engine import NoStorageLocation
 from oneshelf.integrity.validators import _is_image_entry, _natural_key, _validate_image
 from oneshelf.net.governor import Priority
 from oneshelf.reader.cache import ReaderCache
@@ -458,8 +459,11 @@ class ReaderService:
             units += [r[0] for r in following if self._needs_download(r[0])]
         if not units:
             return []
-        self.downloads.enqueue(units, label="auto-download while reading",
-                               reader_read_ahead=[u for u in units if u != unit_id])
+        try:
+            self.downloads.enqueue(units, label="auto-download while reading",
+                                   reader_read_ahead=[u for u in units if u != unit_id])
+        except NoStorageLocation:
+            return []          # reading goes on; the Downloads screen says what is missing (I-95)
         return units
 
     async def leaving_work(self, work_id: str) -> int:

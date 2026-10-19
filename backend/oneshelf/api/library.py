@@ -10,6 +10,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
+from oneshelf.downloads.engine import NoStorageLocation
 from oneshelf.api.sources import error, services
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.plugins.manager import PluginUnavailable
@@ -43,6 +44,8 @@ async def enqueue(request: Request, body: EnqueueBody):
     try:
         batch_id = s.downloads.enqueue(body.unit_ids, root_id=body.root_id, one_time_method=body.method,
                                        label=body.label, repair=body.repair)
+    except NoStorageLocation as exc:
+        return error(409, "NO_STORAGE_LOCATION", str(exc))
     except (ValueError, PluginUnavailable) as exc:
         return error(422, "CANNOT_ENQUEUE", str(exc))
     return s.downloads.batch(batch_id)

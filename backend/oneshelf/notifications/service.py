@@ -165,6 +165,14 @@ class NotificationService:
                            summary=f"{free_bytes} bytes remain. Automatic downloads are paused.",
                            actions=["manage_storage"], data={"storage_root_id": root_id, "free_bytes": free_bytes})
 
+    def storage_unavailable(self, root_id: str, *, name: str | None = None) -> Notification:
+        """§24.6: a location that cannot be reached is not a full one (I-106)."""
+        where = f"“{name}”" if name else "The storage location"
+        return self.notify(IMPORTANT, dedupe_key=f"storage-unavailable:{root_id}",
+                           title="Storage location unavailable",
+                           summary=f"{where} cannot be reached, so downloads to it are waiting. Nothing was deleted.",
+                           actions=["manage_storage"], data={"storage_root_id": root_id})
+
     def catalog_suspicious(self, source_id: str, work_title: str) -> Notification:
         return self.notify(IMPORTANT, dedupe_key=f"catalog-suspicious:{source_id}", title="Source catalog looks unusual",
                            summary=f"OneShelf kept the last trusted catalog for {work_title}.",

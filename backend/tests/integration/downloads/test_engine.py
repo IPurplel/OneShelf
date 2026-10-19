@@ -440,3 +440,124 @@ def test_repair_downloads_a_broken_copy_again_through_the_normal_pipeline(enviro
     assert batch["skipped"] == 0 and report.completed == 1
     assert len(files) == 1 and len(assets) == 1
     assert {a["integrity"] for a in assets} == {"ok"}
+
+
+# -- I-95 (BE-005), I-106 (BE-016): no job is ever stranded in an active state -------------------------------
+
+from oneshelf.downloads import engine as engine_module
+from oneshelf.downloads.engine import ACTIVE_STATES, NoStorageLocation
+from oneshelf.notifications.service import NotificationService
+
+
+def _notifications(db):
+    return [dict(r) for r in db.execute("SELECT dedupe_key, payload_json FROM notifications ORDER BY created_at")]
+
+
+def test_i95_a_download_without_any_storage_location_is_refused_at_enqueue(environment):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            env.db.execute("DELETE FROM storage_roots")
+            with pytest.raises(NoStorageLocation):
+                env.engine.enqueue([env.unit_id("irr-1")])
+            return env.db.execute("SELECT count(*) FROM download_jobs").fetchone()[0]
+
+    assert run(scenario()) == 0
+
+
+def test_i95_an_unexpected_error_fails_the_job_instead_of_stranding_it(environment, monkeypatch):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            env.engine.notifications = NotificationService(env.db)
+
+            async def broken(*_args, **_kwargs):
+                raise RuntimeError("an error nobody planned for")
+
+            monkeypatch.setattr(env.engine, "_resources", broken)
+            batch = env.engine.enqueue([env.unit_id("irr-1")])
+            report = await env.engine.run_until_idle(max_seconds=40)
+            history = env.db.execute("SELECT outcome, error_category FROM download_history").fetchall()
+            return report, env.job_rows(batch)[0], [tuple(h) for h in history], _notifications(env.db)
+
+    report, job, history, notes = run(scenario(), timeout=90)
+    assert job["state"] == "FAILED" and job["error_category"] == "internal_error"
+    assert report.failed == 1 and history == [("failed", "internal_error")]
+    assert len(notes) == 1 and notes[0]["dedupe_key"].startswith("download-failed")
+
+
+def test_i95_an_oversized_resource_fails_at_once(environment, monkeypatch):
+    monkeypatch.setattr(engine_module, "MAX_RESOURCE_BYTES", 100)
+
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            batch = env.engine.enqueue([env.unit_id("irr-1")])
+            await env.engine.run_until_idle(max_seconds=20)
+            return env.job_rows(batch)[0]
+
+    job = run(scenario())
+    assert job["state"] == "FAILED" and job["error_category"] == "too_large" and job["attempts"] == 1
+
+
+def test_i95_a_redirect_loop_is_a_transport_failure(environment, monkeypatch):
+    from oneshelf.net.http import TooManyRedirects
+
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+
+            async def looping(*_args, **_kwargs):
+                raise TooManyRedirects("more than 5 redirects")
+
+            monkeypatch.setattr(env.service, "fetch_resource", looping)
+            batch = env.engine.enqueue([env.unit_id("irr-1")])
+            await env.engine.run_until_idle(max_seconds=40)
+            return env.job_rows(batch)[0]
+
+    job = run(scenario(), timeout=90)
+    assert job["state"] == "FAILED" and job["error_category"] == "transport"
+
+
+def test_i95_a_job_interrupted_again_and_again_is_failed_by_recovery(environment):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            batch = env.engine.enqueue([env.unit_id("irr-1")])
+            job_id = env.job_rows(batch)[0]["id"]
+            # A worker died mid-download (process killed) more often than the retry budget allows.
+            env.db.execute("UPDATE download_jobs SET state = 'DOWNLOADING', attempts = ? WHERE id = ?",
+                           (env.engine.retry_budget + 1, job_id))
+            await env.engine.recover()
+            return env.engine.job(job_id)
+
+    job = run(scenario())
+    assert job["state"] == "FAILED" and job["error_category"] == "interrupted"
+    assert job["state"] not in ACTIVE_STATES
+
+
+def test_i106_a_batch_whose_jobs_were_all_canceled_is_canceled(environment):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            batch = env.engine.enqueue([env.unit_id("irr-1"), env.unit_id("irr-2")])
+            env.engine.cancel_batch(batch)
+            return env.engine.batch(batch)
+
+    assert run(scenario())["state"] == "canceled"
+
+
+def test_i106_an_unavailable_storage_location_is_not_reported_as_low_storage(environment, tmp_path):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            env.engine.notifications = NotificationService(env.db)
+            batch = env.engine.enqueue([env.unit_id("irr-1")])
+            Path(env.root.path).rename(tmp_path / "unplugged")            # the disk went away
+            await env.engine.run_until_idle(max_seconds=40)
+            return env.job_rows(batch)[0], _notifications(env.db), env.root.id
+
+    job, notes, root_id = run(scenario(), timeout=90)
+    assert job["state"] == "FAILED" and job["error_category"] == "storage_unavailable"
+    assert [n["dedupe_key"] for n in notes] == [f"storage-unavailable:{root_id}"]
+    assert "0 bytes remain" not in notes[0]["payload_json"]
