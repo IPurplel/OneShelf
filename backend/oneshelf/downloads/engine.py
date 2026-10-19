@@ -33,7 +33,6 @@ from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.storage.commit import CommitEngine, CommitError, CommitRequest
 from oneshelf.storage.hashing import sha256_file
 from oneshelf.storage.layout import asset_relative_path, family_for
-from oneshelf.storage.paths import PathSafetyError, delete_managed_file
 from oneshelf.storage.roots import StorageRoot, check_availability, get_root, list_roots, preflight
 from oneshelf.storage.staging import new_staging_area
 from oneshelf.text.container import TEXT_EXTENSION, TextUnit, write_text_container
@@ -72,6 +71,12 @@ class RunReport:
 def register_download(conn: sqlite3.Connection, payload: dict) -> None:
     """Idempotent registration replayed by the commit journal."""
     asset, job_id, now = payload["asset"], payload["job_id"], payload["now"]
+    if asset.get("replaces"):
+        # The broken or missing copy's record becomes the new copy's (I-98): one unit, one record per format.
+        conn.execute("UPDATE assets SET storage_root_id = ?, relative_path = ?, size_bytes = ?, sha256 = ?,"
+                     " page_count = ?, integrity = 'ok', updated_at = ? WHERE id = ?",
+                     (asset["storage_root_id"], asset["relative_path"], asset["size_bytes"], asset["sha256"],
+                      asset.get("page_count"), now, asset["id"]))
     conn.execute(
         "INSERT OR IGNORE INTO assets (id, reading_unit_id, format, variant, storage_root_id, relative_path, size_bytes,"
         " sha256, page_count, integrity, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?, 'ok', ?, ?)",
@@ -129,30 +134,6 @@ class DownloadEngine:
             raise ValueError(f"unknown reading unit {unit_id}")
         return row
 
-    def _clear_broken_copy(self, unit_id: str) -> int:
-        """Make room for a repair (§16.5, §26.21).
-
-        A copy that is not sound is being replaced, so its record goes and, if the file is still there,
-        it goes too — otherwise the commit would refuse to overwrite its own final path and the repair
-        would fail on every attempt. A sound copy is never touched: it is not what repair is for.
-        """
-        removed = 0
-        rows = self.conn.execute(
-            "SELECT * FROM assets WHERE reading_unit_id = ? AND integrity != 'ok'", (unit_id,)).fetchall()
-        for asset in rows:
-            try:
-                root = get_root(self.conn, asset["storage_root_id"])
-                delete_managed_file(root.path, asset["relative_path"])
-            except (PathSafetyError, FileNotFoundError, ValueError):
-                pass                    # already gone, or never ours to delete
-            # A finished job and its journal entry point at the asset they produced; the copy is going,
-            # so those pointers go with it rather than dangling.
-            self.conn.execute("UPDATE download_jobs SET asset_id = NULL WHERE asset_id = ?", (asset["id"],))
-            self.conn.execute("UPDATE imports SET asset_id = NULL WHERE asset_id = ?", (asset["id"],))
-            self.conn.execute("DELETE FROM assets WHERE id = ?", (asset["id"],))
-            removed += 1
-        return removed
-
     def _already_downloaded(self, unit_id: str) -> bool:
         return self.conn.execute("SELECT 1 FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'",
                                  (unit_id,)).fetchone() is not None
@@ -179,9 +160,9 @@ class DownloadEngine:
             position = self.conn.execute("SELECT coalesce(max(queue_position), 0) FROM download_jobs").fetchone()[0]
             for unit_id in unit_ids:
                 context = self._unit_context(unit_id)
-                if repair:
-                    self._clear_broken_copy(unit_id)
-                if (self._already_downloaded(unit_id) and not repair) or self._active_job(unit_id):
+                # A sound copy is never re-downloaded, repair or not; a broken one is replaced only once the
+                # new copy is verified, at commit (I-99). Nothing is deleted here.
+                if self._already_downloaded(unit_id) or self._active_job(unit_id):
                     skipped.append(unit_id)
                     continue
                 if context["track_availability"] == "unavailable":
@@ -657,13 +638,18 @@ class DownloadEngine:
         if self._unit_context(context["unit_id"])["track_availability"] == "unavailable":
             raise CapabilityError("source_unlinked", "this source edition is no longer linked")
         sha, size = sha256_file(artifact)
+        existing = self.conn.execute("SELECT * FROM assets WHERE reading_unit_id = ? AND format = ? AND variant = ''",
+                                     (context["unit_id"], asset_format)).fetchone()
+        if existing is not None and existing["integrity"] == "ok":
+            raise CommitError("this reading unit already has a sound copy in that format")
         label = context["display_title"] or context["raw_title"] or context["source_unit_key"]
         relative_path = asset_relative_path(context["content_type"], context["work_title"], context["work_id"],
                                             contract.language, contract.source_id, label, context["unit_id"],
                                             EXTENSIONS.get(asset_format, asset_format))
         payload = {
             "job_id": job_id, "now": utcnow_iso(),
-            "asset": {"id": new_id(), "reading_unit_id": context["unit_id"], "format": asset_format, "variant": "",
+            "asset": {"id": existing["id"] if existing is not None else new_id(), "replaces": existing is not None,
+                      "reading_unit_id": context["unit_id"], "format": asset_format, "variant": "",
                       "storage_root_id": root.id, "relative_path": relative_path, "size_bytes": size, "sha256": sha,
                       "page_count": page_count},
             "history": {"work_id": context["work_id"], "source_id": contract.source_id, "language": contract.language,
@@ -672,9 +658,11 @@ class DownloadEngine:
                         "started_at": started_at},
         }
         engine = CommitEngine(self.conn, registrars=registrars(), fault=self.fault)
+        registration = {"kind": REGISTRAR_KIND, "payload": payload}
+        if existing is not None and existing["storage_root_id"] == root.id:
+            registration["replaces"] = {"relative_path": existing["relative_path"]}
         engine.commit(CommitRequest(root_id=root.id, staging_relpath=f"{staging_rel}/{artifact.name}",
-                                    final_relpath=relative_path,
-                                    registration={"kind": REGISTRAR_KIND, "payload": payload}))
+                                    final_relpath=relative_path, registration=registration))
         area = Path(root.path) / staging_rel
         if area.is_dir():
             shutil.rmtree(area, ignore_errors=True)

@@ -649,3 +649,126 @@ def test_i97_manual_retry_starts_a_failed_file_over(environment, monkeypatch):
 
     state, manifest = run(scenario(), timeout=120)
     assert state == "FAILED" and "file" not in manifest
+
+
+# -- I-98 (BE-008), I-99 (BE-009): a new copy replaces a broken one only once it is verified -----------------
+
+from oneshelf.storage.scanner import reconcile
+
+
+def _break_and_scan(env, how):
+    asset = env.assets()[0]
+    path = Path(env.root.path) / asset["relative_path"]
+    if how == "missing":
+        path.unlink()
+    else:
+        data = bytearray(path.read_bytes())
+        data[-10] ^= 0xFF
+        path.write_bytes(bytes(data))
+    reconcile(env.db, verify_checksums=True)
+    return asset, path
+
+
+@pytest.mark.parametrize("repair", [False, True])
+def test_i98_downloading_again_a_unit_whose_file_went_missing_completes(environment, repair):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            env.engine.enqueue([unit])
+            await env.engine.run_until_idle()
+            old, path = _break_and_scan(env, "missing")
+            batch = env.engine.enqueue([unit], repair=repair)
+            await env.engine.run_until_idle()
+            journal = [r[0] for r in env.db.execute("SELECT state FROM commit_journal")]
+            return old, env.job_rows(batch)[0], env.assets(), env.files(), journal, path
+
+    old, job, assets, files, journal, path = run(scenario())
+    assert job["state"] == "COMPLETED"
+    assert len(assets) == 1 and assets[0]["id"] == old["id"] and assets[0]["integrity"] == "ok"
+    assert files == [path] and set(journal) == {"done"}
+
+
+def test_i99_repair_keeps_the_broken_copy_while_the_source_cannot_supply_a_new_one(environment):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            env.engine.enqueue([unit])
+            await env.engine.run_until_idle()
+            old, path = _break_and_scan(env, "corrupt")
+            broken_bytes = path.read_bytes()
+
+            original = env.service.fetch_resource_to
+
+            async def offline(*_args, **_kwargs):
+                from oneshelf.net.http import FetchFailed
+                raise FetchFailed("source offline")
+
+            env.service.fetch_resource_to = offline
+            batch = env.engine.enqueue([unit], repair=True)
+            during = (len(env.assets()), path.read_bytes() == broken_bytes)
+            await env.engine.run_until_idle(max_seconds=40)
+            after_failure = (env.job_rows(batch)[0]["state"], env.assets()[0]["integrity"],
+                             path.read_bytes() == broken_bytes)
+
+            env.service.fetch_resource_to = original                 # the source is back
+            retry = env.engine.enqueue([unit], repair=True)
+            await env.engine.run_until_idle()
+            return during, after_failure, env.job_rows(retry)[0]["state"], env.assets(), env.files(), path, broken_bytes
+
+    during, after_failure, retried, assets, files, path, broken = run(scenario(), timeout=120)
+    assert during == (1, True)                                       # nothing deleted at enqueue
+    assert after_failure == ("FAILED", "corrupt", True)              # still there after the repair failed
+    assert retried == "COMPLETED" and len(assets) == 1 and assets[0]["integrity"] == "ok"
+    assert files == [path] and path.read_bytes() != broken           # replaced, with nothing left beside it
+
+
+def test_i99_a_repair_of_a_sound_copy_is_not_needed_and_is_skipped(environment):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            env.engine.enqueue([unit])
+            await env.engine.run_until_idle()
+            batch = env.engine.enqueue([unit], repair=True)
+            return env.engine.batch(batch)
+
+    assert run(scenario())["skipped"] == 1
+
+
+@pytest.mark.parametrize("point", ["after_journal", "after_retire", "after_move", "after_verify", "after_register"])
+def test_i99_a_crash_at_any_step_of_a_replacement_recovers_to_exactly_one_good_copy(environment, point):
+    class Crash(BaseException):
+        pass
+
+    armed = {"on": False}
+
+    def fault(name):
+        if armed["on"] and name == point:
+            armed["on"] = False
+            raise Crash(name)
+
+    async def scenario():
+        async with environment(fault=fault) as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            env.engine.enqueue([unit])
+            await env.engine.run_until_idle()
+            old, path = _break_and_scan(env, "corrupt")
+            env.engine.enqueue([unit], repair=True)
+            armed["on"] = True
+            with pytest.raises(Crash):
+                await env.engine.run_until_idle()
+            await env.engine.recover()                              # the restart
+            await env.engine.run_until_idle()
+            await env.engine.recover()                              # and again: recovery is idempotent
+            leftovers = [p for p in Path(env.root.path).rglob("*") if p.is_file() and "replaced" in p.name]
+            journal = {r[0] for r in env.db.execute("SELECT state FROM commit_journal")}
+            return env.assets(), env.files(), path, leftovers, journal
+
+    assets, files, path, leftovers, journal = run(scenario(), timeout=120)
+    assert len(assets) == 1 and assets[0]["integrity"] == "ok"
+    assert files == [path] and leftovers == [] and journal <= {"done", "aborted"}
+    from oneshelf.storage.hashing import sha256_file
+    assert sha256_file(path)[0] == assets[0]["sha256"]

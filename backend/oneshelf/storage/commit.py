@@ -12,6 +12,7 @@ from __future__ import annotations
 import errno
 import json
 import os
+import posixpath
 import sqlite3
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -25,7 +26,7 @@ from oneshelf.storage.paths import PathSafetyError, resolve_within
 from oneshelf.storage.roots import check_availability, get_root
 from oneshelf.storage.staging import STAGING_PREFIX
 
-FAULT_POINTS = ("after_journal", "after_move", "after_verify", "after_register")
+FAULT_POINTS = ("after_journal", "after_retire", "after_move", "after_verify", "after_register")
 OPEN_STATES = ("pending", "moved", "verified", "registered")
 
 Registrar = Callable[[sqlite3.Connection, dict[str, Any]], None]
@@ -114,7 +115,8 @@ class CommitEngine:
             raise CommitError(str(exc)) from exc
         if not os.path.isfile(staged) or os.path.islink(staged):
             raise CommitError("staged artifact is missing or not a regular file")
-        if os.path.lexists(final):
+        replaces = (request.registration.get("replaces") or {}).get("relative_path")
+        if os.path.lexists(final) and replaces != request.final_relpath:
             raise CommitError("final path already exists; refusing to overwrite")
         with open(staged, "rb") as f:
             os.fsync(f.fileno())
@@ -179,6 +181,40 @@ class CommitEngine:
                 (state, error, utcnow_iso(), journal_id),
             )
 
+    # -- replacing an existing copy (I-98, I-99) -----------------------------------------------------
+    #
+    # A registration may name a copy it replaces: {"replaces": {"relative_path": ...}}. That old file is
+    # moved aside into this commit's own staging area (same filesystem, protected while the journal is
+    # open), the new artifact takes its place, and the old file is deleted only after the new one is
+    # registered. If the commit aborts, the old file is put back. Every step is idempotent.
+
+    @staticmethod
+    def _retired(root, row) -> tuple[str, str] | None:
+        replaces = json.loads(row["registration_json"]).get("replaces")
+        if not replaces or not replaces.get("relative_path"):
+            return None
+        old = str(resolve_within(root.path, replaces["relative_path"]))
+        aside = str(resolve_within(root.path, posixpath.join(posixpath.dirname(row["staging_relpath"]),
+                                                             "replaced-" + posixpath.basename(row["final_relpath"]))))
+        return old, aside
+
+    def _retire(self, old: str, aside: str, final: str, sha: str, size: int) -> None:
+        if os.path.lexists(aside) or not os.path.lexists(old) or os.path.islink(old):
+            return
+        if old == final and _matches(final, sha, size):
+            return                                   # already replaced before a crash; nothing to set aside
+        os.rename(old, aside)
+        _fsync_dir(os.path.dirname(old))
+        self.fault("after_retire")
+
+    @staticmethod
+    def _restore(retired: tuple[str, str] | None, final: str) -> None:
+        if retired is None:
+            return
+        old, aside = retired
+        if os.path.lexists(aside) and not os.path.lexists(old):
+            os.rename(aside, old)
+
     def _advance(self, journal_id: str) -> str:
         while True:
             row = self._row(journal_id)
@@ -189,8 +225,11 @@ class CommitEngine:
             staged = str(resolve_within(root.path, row["staging_relpath"]))
             final = str(resolve_within(root.path, row["final_relpath"]))
             sha, size = row["expected_sha256"], row["expected_size"]
+            retired = self._retired(root, row)
 
             if state == "pending":
+                if retired is not None:
+                    self._retire(*retired, final, sha, size)
                 if _matches(final, sha, size):
                     if os.path.lexists(staged):
                         os.unlink(staged)  # crash between link and unlink; final copy is verified
@@ -207,12 +246,14 @@ class CommitEngine:
                     self.fault("after_move")
                 else:
                     self._set_state(journal_id, "aborted", "staged artifact missing or changed before move")
+                    self._restore(retired, final)
             elif state == "moved":
                 if _matches(final, sha, size):
                     self._set_state(journal_id, "verified")
                     self.fault("after_verify")
                 else:
                     self._set_state(journal_id, "aborted", "final artifact failed verification; not registered")
+                    self._restore(retired, final)
             elif state == "verified":
                 registration = json.loads(row["registration_json"])
                 registrar = self.registrars.get(registration["kind"])
@@ -228,4 +269,6 @@ class CommitEngine:
             elif state == "registered":
                 if os.path.lexists(staged) and not os.path.islink(staged):
                     os.unlink(staged)
+                if retired is not None and os.path.lexists(retired[1]) and not os.path.islink(retired[1]):
+                    os.unlink(retired[1])        # the old copy goes only once the new one is registered
                 self._set_state(journal_id, "done")
