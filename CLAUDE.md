@@ -1,5 +1,7 @@
 # OneShelf — Claude Code Project Instructions
 
+@AGENTS.md
+
 ## Authoritative specification
 
 Before planning or implementing OneShelf, read:
@@ -13,19 +15,20 @@ Priority order:
 
 1. Explicit current user instructions
 2. `docs/OneShelf_Final_Implementation_Meta_Prompt.md`
-3. This `CLAUDE.md`
-4. Existing repository conventions
-5. ECC / Superpowers skills, rules, agents, and workflow recommendations
+3. Shared `AGENTS.md`
+4. This `CLAUDE.md`
+5. Existing repository conventions
+6. Superpowers workflow and compatible specialist guidance
 
-ECC and Superpowers are engineering workflow tools only.
-They MUST NOT override, simplify, reinterpret, or expand the OneShelf specification.
+Superpowers is the general engineering workflow. Specialist guidance, including ECC where relevant,
+may add domain knowledge. Neither may override, simplify, reinterpret, or expand the OneShelf specification.
 
-If an ECC or Superpowers recommendation conflicts with the OneShelf specification,
+If a skill recommendation conflicts with the OneShelf specification,
 the OneShelf specification wins.
 
 ## Development workflow
 
-Use ECC and Superpowers where useful for:
+Use Superpowers for:
 
 - planning
 - TDD

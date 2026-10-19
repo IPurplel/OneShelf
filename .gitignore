@@ -26,6 +26,10 @@ frontend/dist/
 .vscode/
 .DS_Store
 
+# Browser verification evidence and local agent state
+/qa-artifacts/
+/.agent-browser/
+
 # Local environment variants, SQLite sidecars and runtime output
 .env.*
 !.env.example

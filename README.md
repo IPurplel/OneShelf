@@ -233,6 +233,7 @@ Want to add a source? See OneShelf-Adapters' [CONTRIBUTING.md](https://github.co
 | [docs/api.md](docs/api.md) | the HTTP API |
 | [docs/plugins.md](docs/plugins.md) | how source packages work, and how to write one |
 | [docs/development.md](docs/development.md) | running from source, tests, environment variables |
+| [docs/agent-browser-verification.md](docs/agent-browser-verification.md) | browser QA gate for coding agents after pushed changes |
 
 ## Licence
 
