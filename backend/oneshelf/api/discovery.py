@@ -11,6 +11,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from oneshelf.plugins.classification import classify, classify_listing, defaults_for
 from oneshelf.api.sources import error, services
 from oneshelf.catalog.trust import TrustRejected
 from oneshelf.plugins.manager import PluginUnavailable
@@ -162,9 +163,15 @@ class BindBody(BaseModel):
 
 
 def _bind(s, body: BindBody):
-    listing = LiveListing(source_id=body.source_id, listing_key=body.listing_key, title=body.title, url=body.url,
-                          content_type=body.content_type, language=body.language,
-                          cover_url=raw_cover_url(body.cover_url, body.source_id))
+    # The same classifier as search and URL entry, so how a listing was reached never changes what it is (I-92).
+    defaults = defaults_for(s.plugins, body.source_id)
+    classified = classify(language=body.language, content_type=body.content_type, defaults=defaults)
+    listing = classify_listing(LiveListing(source_id=body.source_id, listing_key=body.listing_key, title=body.title,
+                                           url=body.url, content_type=body.content_type, language=body.language,
+                                           cover_url=raw_cover_url(body.cover_url, body.source_id)), defaults)
+    type_source = classified.content_type_source
+    if type_source == "source" and defaults is not None and body.content_type == defaults.content_type:
+        type_source = "plugin_default"   # the UI echoes what search showed; it is the plugin's default
     work_id = body.work_id
     if work_id is None:
         existing = s.conn.execute("SELECT work_id FROM source_listings WHERE source_id = ? AND source_listing_key = ?",
@@ -181,8 +188,7 @@ def _bind(s, body: BindBody):
         with transaction(s.conn):
             s.conn.execute("INSERT INTO works (id, display_title, content_type, content_type_source, created_at,"
                            " updated_at) VALUES (?,?,?,?,?,?)",
-                           (work_id, body.title, body.content_type or "unknown",
-                            "source" if body.content_type else "unknown", now, now))
+                           (work_id, body.title, listing.content_type or "unknown", type_source, now, now))
         index_work(s.conn, work_id)
     return persist_listing(s.conn, listing, work_id=work_id, decided_by=body.decided_by)
 

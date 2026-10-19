@@ -14,6 +14,7 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any, Protocol
 
+from oneshelf.plugins.classification import classify_listing, defaults_for
 from oneshelf.net.governor import Priority
 from oneshelf.plugins.results import ListResult
 from oneshelf.plugins.labels import language_code
@@ -233,7 +234,8 @@ class SearchService:
         except Exception as exc:  # transport or unexpected plugin failure must not clear other results
             state.status[source_id] = {"state": "failed", "category": "transport", "detail": type(exc).__name__}
             return
-        entries = [_to_live(source_id, entry) for entry in result.entries]
+        defaults = defaults_for(getattr(self.sources, "plugins", None), source_id)
+        entries = [classify_listing(_to_live(source_id, entry), defaults) for entry in result.entries]
         for entry in entries:
             state.listings[(entry.source_id, entry.listing_key)] = entry
         self.cache.put(source_id, version, SEARCH_KIND, key, {"listings": [asdict(e) for e in entries]})

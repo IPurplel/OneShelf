@@ -26,6 +26,9 @@ WORKS = {
     "malformed": {"title": "  Weird   Metadata ", "type": "not-a-type", "language": "Klingon!!"},
     "novel": {"title": "A Quiet Novel", "type": "novel", "language": "en"},
     "riwaya": {"title": "رواية هادئة", "type": "novel", "language": "ar"},
+    # Like many real sources (3asq, Safahat): results say nothing of type or language, so the plugin's own
+    # declared defaults are the only classification there is (Master §9.2, I-92).
+    "unlabelled": {"title": "Unlabelled Scans", "type": "", "language": ""},
 }
 
 
@@ -113,6 +116,8 @@ def units_for(work: str, scenario: Scenario) -> list[dict]:
                 for i in range(1, 4)] + [{"id": "nov-empty", "title": "Empty", "label": "Chapter 4", "type": "chapter"}]
     if work == "riwaya":
         return [{"id": "rw-1", "title": "الفصل الأول", "label": "الفصل ١", "type": "chapter"}]
+    if work == "unlabelled":
+        return [{"id": f"un-{i}", "title": f"Chapter {i}", "label": f"Chapter {i}", "type": "chapter"} for i in (1, 2)]
     if work == "malformed":
         return [{"id": "mal-1", "title": None, "label": "???", "type": "Chapter-ish"}, {"title": "no id at all"}]
     raise web.HTTPNotFound()
