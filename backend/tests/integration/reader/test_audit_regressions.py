@@ -70,10 +70,17 @@ def test_following_a_second_language_keeps_both_baselines(library,tmp_path):
     en=library.add_work('Bilingual',source='example',language='en',content=None)
     ja=library.add_work('Bilingual Japanese',source='example',language='ja',content=None)
     library.conn.execute('UPDATE source_tracks SET work_id=? WHERE id=?',(en['work_id'],ja['track_id']))
+    from oneshelf.plugins.results import Evidence, ListResult, UnitDescriptor
     service=FollowService(library.conn,CatalogTrust(library.conn))
+    pending=service.follow(en['work_id'],language='en',source_id='example',track_id=en['track_id'])
+    assert pending.baseline_kind=='pending'     # no trusted catalog yet: nothing to set a baseline from (I-100)
+    service.unfollow(en['work_id'],language='en')
+    for track in (en['track_id'],ja['track_id']):
+        CatalogTrust(library.conn).refresh(track,ListResult('catalog',[UnitDescriptor(unit_key='k1',order_index=0)],True,Evidence()),plugin_version='1')
     first=service.follow(en['work_id'],language='en',source_id='example',track_id=en['track_id'])
     second=service.follow(en['work_id'],language='ja',source_id='example',track_id=ja['track_id'])
     rows=[dict(r) for r in library.conn.execute('SELECT f.id,f.language,f.track_id,b.track_id AS baseline_track FROM follows f LEFT JOIN follow_baselines b ON b.follow_id=f.id ORDER BY f.language')]
+    assert len(rows)==2
     print({'returned_same_follow_id':first.id==second.id,'rows':rows})
     assert all(row['track_id']==row['baseline_track'] for row in rows)
 

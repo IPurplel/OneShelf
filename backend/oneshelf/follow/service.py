@@ -18,6 +18,9 @@ from oneshelf.domain.ids import new_id
 from oneshelf.settings.defaults import DEFAULTS
 
 JITTER_SECONDS = 3600
+# A Follow made before its track has a trusted catalog has no baseline yet. The first check that finds one
+# sets it silently, so the catalog's existing units are never reported as new (§20 First Follow, I-100).
+PENDING = "pending"
 
 
 @dataclass(frozen=True)
@@ -41,6 +44,7 @@ class FollowStatus:
     last_attempted_at: str | None
     last_successful_at: str | None
     unseen_releases: int
+    baseline_pending: bool = False
 
 
 @dataclass(frozen=True)
@@ -86,16 +90,21 @@ class FollowService:
         due = (datetime.now(UTC) + self.next_check_delay()).isoformat()
         self.conn.execute("UPDATE follows SET next_check_at = ? WHERE id = ?", (due, follow_id))
 
-    def _baseline(self, follow_id: str, track_id: str, kind: str) -> int:
+    def _baseline(self, follow_id: str, track_id: str, kind: str) -> tuple[int, str]:
+        """Set the baseline from the trusted catalog; without one the baseline stays pending (I-100)."""
         trusted = self.catalog.trusted_catalog(track_id)
-        keys = trusted.unit_keys if trusted else []
-        baseline_id, now = new_id(), utcnow_iso()
+        self.conn.execute("DELETE FROM follow_baseline_units WHERE baseline_id IN"
+                          " (SELECT id FROM follow_baselines WHERE follow_id = ?)", (follow_id,))
         self.conn.execute("DELETE FROM follow_baselines WHERE follow_id = ?", (follow_id,))
+        if trusted is None:
+            return 0, PENDING
+        keys = trusted.unit_keys
+        baseline_id, now = new_id(), utcnow_iso()
         self.conn.execute("INSERT INTO follow_baselines (id, follow_id, kind, track_id, created_at) VALUES (?,?,?,?,?)",
                           (baseline_id, follow_id, kind, track_id, now))
         self.conn.executemany("INSERT OR IGNORE INTO follow_baseline_units (baseline_id, unit_key) VALUES (?, ?)",
                               [(baseline_id, key) for key in keys])
-        return len(keys)
+        return len(keys), kind
 
     def _baseline_keys(self, follow_id: str) -> set[str]:
         return {r[0] for r in self.conn.execute(
@@ -104,7 +113,7 @@ class FollowService:
 
     def _baseline_kind(self, follow_id: str) -> str:
         row = self.conn.execute("SELECT kind FROM follow_baselines WHERE follow_id = ?", (follow_id,)).fetchone()
-        return row[0] if row else "first_follow"
+        return row[0] if row else PENDING
 
     # -- lifecycle --------------------------------------------------------------------------------
 
@@ -121,10 +130,10 @@ class FollowService:
                 " VALUES (?,?,?,?,?,?) ON CONFLICT(work_id, language) DO UPDATE SET preferred_source_id=excluded.preferred_source_id,"
                 " track_id=excluded.track_id", (follow_id, work_id, language, source_id, track_id, now))
             row = self._row(work_id, language)
-            count = self._baseline(row["id"], track_id, "first_follow")
+            count, kind = self._baseline(row["id"], track_id, "first_follow")
             self._schedule(row["id"])
         self._emit("follow.changed", {"work_id": work_id, "action": "followed"})
-        return FollowRecord(row["id"], work_id, language, source_id, track_id, count, "first_follow")
+        return FollowRecord(row["id"], work_id, language, source_id, track_id, count, kind)
 
     def unfollow(self, work_id: str, *, language: str | None = None) -> str:
         row = self._row(work_id, language)
@@ -153,11 +162,13 @@ class FollowService:
                 " last_successful_at, next_check_at, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
                 (row["id"], row["work_id"], row["language"], row["preferred_source_id"], row["track_id"],
                  row["last_attempted_at"], row["last_successful_at"], row["next_check_at"], row["created_at"]))
-            baseline_id = new_id()
-            self.conn.execute("INSERT INTO follow_baselines (id, follow_id, kind, track_id, created_at) VALUES (?,?,?,?,?)",
-                              (baseline_id, row["id"], saved["kind"], row["track_id"], utcnow_iso()))
-            self.conn.executemany("INSERT OR IGNORE INTO follow_baseline_units (baseline_id, unit_key) VALUES (?, ?)",
-                                  [(baseline_id, key) for key in keys])
+            if saved["kind"] != PENDING:          # a pending baseline is restored as pending: no row
+                baseline_id = new_id()
+                self.conn.execute("INSERT INTO follow_baselines (id, follow_id, kind, track_id, created_at)"
+                                  " VALUES (?,?,?,?,?)", (baseline_id, row["id"], saved["kind"], row["track_id"],
+                                                         utcnow_iso()))
+                self.conn.executemany("INSERT OR IGNORE INTO follow_baseline_units (baseline_id, unit_key)"
+                                      " VALUES (?, ?)", [(baseline_id, key) for key in keys])
         self._emit("follow.changed", {"work_id": row["work_id"], "action": "restored"})
         return FollowRecord(row["id"], row["work_id"], row["language"], row["preferred_source_id"], row["track_id"],
                             len(keys), saved["kind"])
@@ -173,10 +184,10 @@ class FollowService:
             self.conn.execute("UPDATE follows SET preferred_source_id = ?, track_id = ? WHERE id = ?",
                               (source_id, track_id, row["id"]))
             self.conn.execute("DELETE FROM release_events WHERE follow_id = ?", (row["id"],))
-            count = self._baseline(row["id"], track_id, "source_change")
+            count, kind = self._baseline(row["id"], track_id, "source_change")
             self._schedule(row["id"])
         self._emit("follow.changed", {"work_id": work_id, "action": "source_changed", "source_id": source_id})
-        return FollowRecord(row["id"], work_id, row["language"], source_id, track_id, count, "source_change")
+        return FollowRecord(row["id"], work_id, row["language"], source_id, track_id, count, kind)
 
     # -- checking ---------------------------------------------------------------------------------
 
@@ -208,6 +219,12 @@ class FollowService:
         if trusted is None:
             self.record_attempt(work_id, language=row["language"], successful=False, category="no_trusted_catalog")
             return CheckOutcome(work_id, "degraded", [])
+        if self._baseline_kind(row["id"]) == PENDING:
+            # The first trusted catalog since the Follow: it becomes the baseline, and nothing in it is new.
+            with transaction(self.conn):
+                self._baseline(row["id"], track_id, "first_follow")
+            self.record_attempt(work_id, language=row["language"], successful=True)
+            return CheckOutcome(work_id, "up_to_date", [])
         known = self._baseline_keys(row["id"]) | {
             r[0] for r in self.conn.execute("SELECT unit_key FROM release_events WHERE follow_id = ?", (row["id"],))}
         new_keys = [key for key in trusted.unit_keys if key not in known]
@@ -245,7 +262,8 @@ class FollowService:
         else:
             state = "up_to_date"
         return FollowStatus(work_id, row["track_id"], row["preferred_source_id"], row["language"], state,
-                            row["last_attempted_at"], row["last_successful_at"], unseen)
+                            row["last_attempted_at"], row["last_successful_at"], unseen,
+                            baseline_pending=self._baseline_kind(row["id"]) == PENDING)
 
     def due_follow_keys(self, *, now: str | None = None) -> list[tuple[str, str]]:
         return [(r[0], r[1]) for r in self.conn.execute(
