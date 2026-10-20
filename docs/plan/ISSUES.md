@@ -267,12 +267,12 @@ audit-and-plan task, and no fix has been made.
 | I-93 | BE-003 | P1 | Downloads | Image-reader units on `unknown` Works are downloaded as a single file and fail (MangaDex, 3asq, Tapas, WEBTOON) | Fixed on `repair/be-phase2-classification`; awaiting review and merge |
 | I-94 | BE-004 | P2 | Identity | One source listing becomes two Source Tracks (`und` via search, `en` via URL) | Fixed on `repair/be-phase2-classification`; awaiting review and merge |
 | I-95 | BE-005 | P1 | Downloads | Unexpected exceptions (e.g. no storage root, oversized resource) leave jobs in active states forever (also on production) | Fixed on `repair/be-phase1-security-jobs`; awaiting review and merge |
-| I-96 | BE-006 | P1 | Responsiveness | Backup, restore, export, scan and file serving run on the event loop; an 82 MB backup stalled every request for 1.06 s | Open |
-| I-97 | BE-007 | P2 | Downloads / resume | A complete body then a failure → the retry sends an unsatisfiable `Range` → HTTP 416, permanent failure | Open |
-| I-98 | BE-008 | P2 | Commit journal | Re-downloading a missing-file unit orphans the new file and wedges the journal at `verified` | Open |
-| I-99 | BE-009 | P2 | Repair | Repair deletes the existing copy and record before a replacement is verified | Open |
+| I-96 | BE-006 | P1 | Responsiveness | Backup, restore, export, scan and file serving run on the event loop; an 82 MB backup stalled every request for 1.06 s | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
+| I-97 | BE-007 | P2 | Downloads / resume | A complete body then a failure → the retry sends an unsatisfiable `Range` → HTTP 416, permanent failure | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
+| I-98 | BE-008 | P2 | Commit journal | Re-downloading a missing-file unit orphans the new file and wedges the journal at `verified` | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
+| I-99 | BE-009 | P2 | Repair | Repair deletes the existing copy and record before a replacement is verified | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
 | I-100 | BE-010 | P2 | Follow | Following before any trusted catalog stores an empty baseline; the first check floods every unit as new | Open |
-| I-101 | BE-011 | P2 | Memory | Resources and local documents are fully buffered in RAM; `/file` ignores `Range` | Open |
+| I-101 | BE-011 | P2 | Memory | Resources and local documents are fully buffered in RAM; `/file` ignores `Range` | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
 | I-102 | BE-012 | P2 | Overrides | No write path for user overrides (classification, numbering); traceability M9.2 overstated | Fixed on `repair/be-phase2-classification`; awaiting review and merge |
 | I-103 | BE-013 | P2 | Downloads / formats | No format selection; only the first offered file is ever downloaded | Open |
 | I-104 | BE-014 | P2 | Adapters | Bundled Gutenberg search fails live, Hindawi Latin queries are blocked, MangaDex bundle diverges from the Registry | Open |
@@ -280,4 +280,4 @@ audit-and-plan task, and no fix has been made.
 | I-106 | BE-016 | P3 | Notifications / batches | An offline or missing root is reported as "0 bytes remain"; an all-canceled batch reads "Completed" | Fixed on `repair/be-phase1-security-jobs`; awaiting review and merge |
 | I-107 | BE-017 | P3 | Reader | Upstream HTTP status hidden; descriptor cache unbounded; disabled source → wrong `DOWNLOAD_REQUIRED` and cached pages unreachable | Open |
 | I-108 | BE-018 | P3 | Storage guard | Download preflight ignores known sizes | Open |
-| I-109 | BE-019 | P3 | HTTP client | A read timeout leaks the connection (seen in the live suite) | Open |
+| I-109 | BE-019 | P3 | HTTP client | A read timeout leaks the connection (seen in the live suite) | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |

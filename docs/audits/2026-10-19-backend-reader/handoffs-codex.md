@@ -73,6 +73,43 @@ payloads. Handoff IDs H-1…H-9 match `repair-plan.md`.
 - **Frontend tests:** an edit round-trip, clearing a correction, the 422 message, the preview list with an empty state, and apply → refreshed counts. Arabic and English.
 - **Acceptance:** on a library with old `und` tracks, the preview lists them and Apply fixes them. A 3asq Work then shows "manga · Arabic". A corrected unit number survives a catalog refresh.
 
-## H-4, H-5, H-7, H-8, H-9
+## H-7 · PDF/EPUB reader: load the file in ranges (WP-9, branch `repair/be-phase3-responsiveness`)
 
-Written when their work packages land (Phases 3–4); see `implementation-log.md`.
+- **Feature:** the Book Reader (pdf.js for PDF; the EPUB loader).
+- **API contract change:** `GET /api/reader/units/{id}/file[?format=]` is now a streamed `FileResponse`. It sends
+  `Accept-Ranges: bytes`, answers `Range: bytes=a-b` with **206** and `Content-Range`, and supports `If-Range`.
+  The headers are unchanged: `Content-Security-Policy: sandbox; default-src 'none'`, `nosniff`, `no-store`,
+  `Cross-Origin-Resource-Policy: same-origin`, `Content-Disposition: inline`.
+- **Expected UI behaviour:** give pdf.js the URL with range loading enabled (`disableRange: false`,
+  `rangeChunkSize` ≈ 1 MiB, `disableAutoFetch: true`), so the first page renders before a large file finishes
+  downloading. EPUB can keep loading the whole file.
+- **Error and success states:** 404 `FILE_NOT_AVAILABLE` and 404 `UNIT_NOT_FOUND` are as before.
+- **Frontend tests:** the PDF viewer requests ranges (a network assertion in the browser test) and still renders
+  page 1. A missing file still shows the existing message.
+- **Acceptance:** a 200 MB PDF shows its first page without waiting for the whole file. Memory in the browser
+  stays bounded.
+
+## H-9 · Long library jobs as background tasks (WP-8, branch `repair/be-phase3-responsiveness`)
+
+- **Feature:** Settings → Backup (create Full or Library backup, restore), Export, Storage (migrate, scan).
+- **API contract (additive; the synchronous form still works):**
+  - Add `?background=true` to `POST /api/backups`, `POST /api/restore`, `POST /api/export`,
+    `POST /api/export/{job}/retry-failed`, `POST /api/storage/roots/{id}/migrate` or `POST /api/storage/scan`.
+    The answer is **202** `{"task_id", "kind", "state": "running"}`. Input errors are still answered
+    immediately: 422 `MIGRATION_REFUSED`, 409 `PERMANENT_DOWNLOAD_NOTICE_REQUIRED`, 422 `EXPORT_REFUSED`.
+  - `GET /api/tasks/{task_id}` returns `{id, kind, state: running|completed|failed, started_at, finished_at,
+    status, result}`. `result` is exactly the body the synchronous call would have returned, including
+    `{"error": {code, message}}` on failure; `status` is its HTTP status. 404 `TASK_NOT_FOUND` after a restart.
+  - Event `task.finished` `{task_id, kind, state}` on `/api/events`.
+- **Expected UI behaviour:** start these jobs with `background=true` and show a calm in-progress state on that
+  panel (not a blocking spinner). The rest of the app stays usable. On `task.finished`, fetch the task and render
+  the result or the error with the existing copy. If the page reloads mid-job, the list views (backups, export
+  jobs, migrations) already show persisted state; the task handle itself is optional.
+- **Frontend tests:** a 202 → progress → `task.finished` → success flow for backup and export. A failed task
+  renders its error code's copy. Navigating away and back keeps the panel consistent.
+- **Acceptance:** a multi-GB Full Backup never ties up a request; the Reader and the rest of the UI stay
+  responsive while it runs (the backend measures a worst `/api/health` delay of 2 ms during a 96 MB backup).
+
+## H-4, H-5, H-8
+
+Written when their work packages land (Phase 4); see `implementation-log.md`.
