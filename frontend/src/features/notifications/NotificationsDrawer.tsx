@@ -41,14 +41,14 @@ export function NotificationsDrawer({ attentionOnly = false, onClose }: {
       {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
         <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
-      {!attentionOnly && (
+      {!attentionOnly && data !== null && items.length > 0 && (
         <div className="drawer__filters">
-          <button type="button" className="chip" onClick={() => void act(api.post("/api/notifications/mark-all-seen"))}>
+          {items.some(item => !item.seen) && <button type="button" className="chip" onClick={() => void act(api.post("/api/notifications/mark-all-seen"))}>
             {t("notify.markAll")}
-          </button>
-          <button type="button" className="chip" onClick={() => void act(api.post("/api/notifications/clear-seen"))}>
+          </button>}
+          {items.some(item => item.seen) && <button type="button" className="chip" onClick={() => void act(api.post("/api/notifications/clear-seen"))}>
             {t("notify.clearSeen")}
-          </button>
+          </button>}
         </div>
       )}
 
