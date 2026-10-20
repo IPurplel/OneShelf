@@ -815,3 +815,91 @@ def test_i96_validation_hashing_and_commit_run_off_the_event_loop(environment, m
     state, worst = run(scenario(), timeout=120)
     assert state == "COMPLETED"
     assert worst < 0.25, f"the event loop stalled for {worst:.2f}s"
+
+
+# -- I-103 (BE-013): a unit offered in several formats can be downloaded in the ones chosen ---------------
+
+def test_i103_two_chosen_formats_become_two_files_of_one_unit(environment):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("editions", "A Book in Two Editions", content_type="book")
+            unit = env.unit_id("ed-1")
+            batch = env.engine.enqueue([unit], formats=["pdf", "epub"])
+            report = await env.engine.run_until_idle()
+            works = env.db.execute("SELECT count(*) FROM works").fetchone()[0]
+            return report, env.engine.batch(batch), sorted(a["format"] for a in env.assets()), env.files(), works
+
+    report, batch, formats, files, works = run(scenario())
+    assert report.completed == 2 and batch["state"] == "completed"
+    assert formats == ["epub", "pdf"] and sorted(f.suffix for f in files) == [".epub", ".pdf"] and works == 1
+
+
+def test_i103_without_a_choice_the_preferred_format_is_taken(environment):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("editions", "A Book in Two Editions", content_type="book")
+            env.engine.enqueue([env.unit_id("ed-1")], one_time_method="direct")
+            await env.engine.run_until_idle()
+            return [a["format"] for a in env.assets()]
+
+    assert run(scenario()) == ["epub"]          # EPUB before PDF, although the source lists the PDF first
+
+
+def test_i103_a_format_the_source_does_not_offer_fails_without_retrying(environment):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("manual", "The Manual", content_type="book")
+            batch = env.engine.enqueue([env.unit_id("manual-1")], formats=["epub"])
+            await env.engine.run_until_idle()
+            return env.job_rows(batch)[0], env.assets()
+
+    job, assets = run(scenario())
+    assert job["state"] == "FAILED" and job["error_category"] == "format_unavailable" and job["attempts"] == 1
+    assert assets == []
+
+
+def test_i103_a_format_already_downloaded_is_skipped_and_another_is_not(environment):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("editions", "A Book in Two Editions", content_type="book")
+            unit = env.unit_id("ed-1")
+            env.engine.enqueue([unit], formats=["pdf"])
+            await env.engine.run_until_idle()
+            again = env.engine.batch(env.engine.enqueue([unit], formats=["pdf", "epub"]))
+            await env.engine.run_until_idle()
+            return again, sorted(a["format"] for a in env.assets())
+
+    again, formats = run(scenario())
+    assert again["skipped"] == 1 and formats == ["epub", "pdf"]
+
+
+# -- I-108 (BE-018): a file whose declared size would cross the reserve is refused before it is fetched ------
+
+def test_i108_preflight_uses_the_declared_size_before_fetching(environment, monkeypatch):
+    from collections import namedtuple
+    usage = namedtuple("usage", "total used free")
+    gib = 1024 ** 3
+    # 100 GiB disk: the reserve is 5 GiB; 5 GiB + 10 MiB free leaves room for small files only.
+    monkeypatch.setattr(engine_module.shutil, "disk_usage",
+                        lambda _path: usage(100 * gib, 95 * gib - 10 * 1024**2, 5 * gib + 10 * 1024**2))
+
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("editions", "A Book in Two Editions", content_type="book")
+            fetched = []
+            original = env.service.fetch_resource_to
+
+            async def counting(source_id, url, path, **kwargs):
+                fetched.append(url)
+                return await original(source_id, url, path, **kwargs)
+
+            env.service.fetch_resource_to = counting
+            big = env.engine.enqueue([env.unit_id("ed-1")], formats=["epub"])     # declares 50 MB
+            small = env.engine.enqueue([env.unit_id("ed-1")], formats=["pdf"])    # declares nothing, is tiny
+            await env.engine.run_until_idle(max_seconds=40)
+            return env.job_rows(big)[0], env.job_rows(small)[0], fetched
+
+    big, small, fetched = run(scenario(), timeout=90)
+    assert big["state"] == "FAILED" and big["error_category"] == "storage_full"
+    assert small["state"] == "COMPLETED"
+    assert not any(url.endswith(".epub") for url in fetched)            # refused before a byte was fetched

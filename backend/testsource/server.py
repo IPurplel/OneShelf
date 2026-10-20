@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import asyncio
-import threading
 import io
 import json
+import threading
+import zipfile
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -29,7 +30,26 @@ WORKS = {
     # Like many real sources (3asq, Safahat): results say nothing of type or language, so the plugin's own
     # declared defaults are the only classification there is (Master §9.2, I-92).
     "unlabelled": {"title": "Unlabelled Scans", "type": "", "language": ""},
+    # One book offered as more than one file (§22 "multiple formats may coexist", §41.3 Standard Ebooks).
+    "editions": {"title": "A Book in Two Editions", "type": "book", "language": "en"},
 }
+
+
+def epub(title: str = "A Book in Two Editions") -> bytes:
+    """A small, valid EPUB 3: mimetype first and stored, container, package, one spine document."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        z.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip", compress_type=zipfile.ZIP_STORED)
+        z.writestr("META-INF/container.xml", '<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:'
+                   'tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type='
+                   '"application/oebps-package+xml"/></rootfiles></container>')
+        z.writestr("OEBPS/content.opf", '<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version='
+                   '"3.0" unique-identifier="uid"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier'
+                   f' id="uid">urn:uuid:editions</dc:identifier><dc:title>{title}</dc:title><dc:language>en'
+                   '</dc:language></metadata><manifest><item id="ch1" href="ch1.xhtml" media-type="application/'
+                   'xhtml+xml"/></manifest><spine><itemref idref="ch1"/></spine></package>')
+        z.writestr("OEBPS/ch1.xhtml", "<html xmlns='http://www.w3.org/1999/xhtml'><body><p>Once.</p></body></html>")
+    return buffer.getvalue()
 
 
 def chapter_text(unit: str) -> dict:
@@ -116,6 +136,8 @@ def units_for(work: str, scenario: Scenario) -> list[dict]:
                 for i in range(1, 4)] + [{"id": "nov-empty", "title": "Empty", "label": "Chapter 4", "type": "chapter"}]
     if work == "riwaya":
         return [{"id": "rw-1", "title": "الفصل الأول", "label": "الفصل ١", "type": "chapter"}]
+    if work == "editions":
+        return [{"id": "ed-1", "title": "A Book in Two Editions", "label": "Book", "type": "one_shot"}]
     if work == "unlabelled":
         return [{"id": f"un-{i}", "title": f"Chapter {i}", "label": f"Chapter {i}", "type": "chapter"} for i in (1, 2)]
     if work == "malformed":
@@ -209,7 +231,14 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
                                   "files": [f"{i}.png" for i in range(1, 4)]})
 
     async def files(request: web.Request) -> web.Response:
-        return web.json_response({"files": [{"url": f"http://{HOST}/files/versioned.pdf", "format": "pdf"}]})
+        offered = [{"url": f"http://{HOST}/files/versioned.pdf", "format": "pdf"}]
+        if request.match_info.get("unit") == "ed-1":
+            # Declared, as real sources declare it, so a download can be refused before a byte arrives.
+            offered.append({"url": f"http://{HOST}/files/edition.epub", "format": "epub", "size": 50_000_000})
+        return web.json_response({"files": offered})
+
+    async def edition_epub(request: web.Request) -> web.Response:
+        return web.Response(body=epub(), content_type="application/epub+zip")
 
     async def image(request: web.Request) -> web.Response:
         if request.match_info.get("unit") == "bad-limited" and scenario.rate_limit_remaining > 0:
@@ -353,6 +382,7 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
         web.get("/api/units/{unit}/text", text), web.get("/api/units/{unit}/files", files), web.get("/img/{unit}/{page}.png", image),
         web.get("/covers/{work}.png", image), web.get("/media/html-as-image.png", html_as_image),
         web.get("/media/corrupt.png", corrupt_image), web.get("/files/versioned.pdf", versioned_file),
+        web.get("/files/edition.epub", edition_epub),
         web.get("/files/interrupted.pdf", interrupted), web.get("/limited", limited), web.get("/flaky", flaky),
         web.get("/redirect-out", redirect_out), web.get("/login", login_form), web.post("/login", login_submit),
         web.get("/account", account), web.get("/health", health), web.post("/__control", control),

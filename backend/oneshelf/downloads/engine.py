@@ -49,6 +49,9 @@ SEQUENTIAL_FORMAT = "cbz"
 TEXT_FORMAT = "text"
 EXTENSIONS = {TEXT_FORMAT: TEXT_EXTENSION}
 MAX_RESOURCE_BYTES = 256 * 1024 * 1024
+# Formats OneShelf can validate and keep as originals (§16.5, §34.4), in the order taken when the person did
+# not choose (I-103).
+KEEPABLE_FORMATS = ("epub", "pdf", "cbz")
 BACKOFF_BASE_SECONDS = 2
 
 
@@ -135,23 +138,29 @@ class DownloadEngine:
             raise ValueError(f"unknown reading unit {unit_id}")
         return row
 
-    def _already_downloaded(self, unit_id: str) -> bool:
-        return self.conn.execute("SELECT 1 FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'",
-                                 (unit_id,)).fetchone() is not None
+    def _already_downloaded(self, unit_id: str, file_format: str | None = None) -> bool:
+        return self.conn.execute("SELECT 1 FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'"
+                                 " AND (? IS NULL OR format = ?)", (unit_id, file_format, file_format)).fetchone() is not None
 
-    def _active_job(self, unit_id: str) -> bool:
+    def _active_job(self, unit_id: str, file_format: str | None = None) -> bool:
         placeholders = ",".join("?" * (len(ACTIVE_STATES) + len(RUNNABLE_STATES)))
-        return self.conn.execute(
-            f"SELECT 1 FROM download_jobs WHERE reading_unit_id = ? AND state IN ({placeholders})",
-            (unit_id, *ACTIVE_STATES, *RUNNABLE_STATES)).fetchone() is not None
+        rows = self.conn.execute(
+            f"SELECT extraction_contract_json FROM download_jobs WHERE reading_unit_id = ? AND state IN ({placeholders})",
+            (unit_id, *ACTIVE_STATES, *RUNNABLE_STATES)).fetchall()
+        if file_format is None:
+            return bool(rows)
+        return any(ExtractionContract.from_json(r[0]).file_format in (None, file_format) for r in rows)
 
     def enqueue(self, unit_ids: list[str], *, root_id: str | None = None, one_time_method: str | None = None,
                 label: str | None = None, repair: bool = False,
-                reader_read_ahead: list[str] | None = None) -> str:
+                reader_read_ahead: list[str] | None = None, formats: list[str] | None = None) -> str:
         """`repair` re-downloads a unit whose local copy is broken (§16.5, §26.21).
 
         It is the same contract, the same method and the same validated commit as any other download —
         never a side path — so a repaired unit is sound in exactly the way a fresh one is (INV-02).
+
+        `formats` asks for those file formats of each unit, one job and one file each, from the source's
+        `downloads` capability (§22 "multiple formats may coexist"; I-103).
         """
         batch_id, now = new_id(), utcnow_iso()
         skipped, queued = [], []
@@ -159,30 +168,41 @@ class DownloadEngine:
             self.conn.execute("INSERT INTO download_batches (id, label, selection_json, created_at, updated_at)"
                               " VALUES (?,?,?,?,?)", (batch_id, label, json.dumps({"requested": unit_ids}), now, now))
             position = self.conn.execute("SELECT coalesce(max(queue_position), 0) FROM download_jobs").fetchone()[0]
+            if formats is not None and (not formats or any(f not in KEEPABLE_FORMATS for f in formats)):
+                raise ValueError(f"formats must be chosen from {', '.join(KEEPABLE_FORMATS)}")
             for unit_id in unit_ids:
                 context = self._unit_context(unit_id)
-                # A sound copy is never re-downloaded, repair or not; a broken one is replaced only once the
-                # new copy is verified, at commit (I-99). Nothing is deleted here.
-                if self._already_downloaded(unit_id) or self._active_job(unit_id):
-                    skipped.append(unit_id)
-                    continue
-                if context["track_availability"] == "unavailable":
-                    raise ValueError("this source edition is no longer linked")
-                package = self.plugins.load_active(context["source_id"])
-                recommendation = "direct" if "downloads" in package.recipes and "reader" not in package.recipes else "html_api"
-                resolved = resolve_method(self.settings, context["source_id"], plugin_recommendation=recommendation,
-                                          one_time=one_time_method)
-                output = required_output(package, resolved.method, context["content_type"])
-                contract = ExtractionContract(source_id=context["source_id"], language=context["language"],
-                                              reading_unit_id=unit_id, output_format=output, method=resolved.method,
-                                              mode=resolved.mode, fallback_order=resolved.fallback_order)
-                position += 1
-                queued.append(unit_id)
-                self.conn.execute(
-                    "INSERT INTO download_jobs (id, batch_id, reading_unit_id, state, queue_position, attempts,"
-                    " extraction_contract_json, method, storage_root_id, created_at, updated_at)"
-                    " VALUES (?,?,?, 'QUEUED', ?, 0, ?, ?, ?, ?, ?)",
-                    (new_id(), batch_id, unit_id, position, contract.to_json(), contract.method, root_id, now, now))
+                for file_format in dict.fromkeys(formats or [None]):
+                    # A sound copy is never re-downloaded, repair or not; a broken one is replaced only once
+                    # the new copy is verified, at commit (I-99). Nothing is deleted here.
+                    if self._already_downloaded(unit_id, file_format) or self._active_job(unit_id, file_format):
+                        skipped.append(unit_id)
+                        continue
+                    if context["track_availability"] == "unavailable":
+                        raise ValueError("this source edition is no longer linked")
+                    package = self.plugins.load_active(context["source_id"])
+                    if file_format is not None:
+                        if "downloads" not in package.recipes:
+                            raise ValueError("this source offers no files to choose a format from")
+                        method, mode, order = "direct", "strict", ()     # a chosen file comes only as that file
+                        output = "file"
+                    else:
+                        recommendation = ("direct" if "downloads" in package.recipes and "reader" not in package.recipes
+                                          else "html_api")
+                        resolved = resolve_method(self.settings, context["source_id"],
+                                                  plugin_recommendation=recommendation, one_time=one_time_method)
+                        method, mode, order = resolved.method, resolved.mode, resolved.fallback_order
+                        output = required_output(package, method, context["content_type"])
+                    contract = ExtractionContract(source_id=context["source_id"], language=context["language"],
+                                                  reading_unit_id=unit_id, output_format=output, method=method,
+                                                  mode=mode, fallback_order=order, file_format=file_format)
+                    position += 1
+                    queued.append(unit_id)
+                    self.conn.execute(
+                        "INSERT INTO download_jobs (id, batch_id, reading_unit_id, state, queue_position, attempts,"
+                        " extraction_contract_json, method, storage_root_id, created_at, updated_at)"
+                        " VALUES (?,?,?, 'QUEUED', ?, 0, ?, ?, ?, ?, ?)",
+                        (new_id(), batch_id, unit_id, position, contract.to_json(), contract.method, root_id, now, now))
             # Checked after each unit's own reasons, so the more specific refusal is the one reported. A job
             # without anywhere to go would otherwise wait forever (I-95).
             if queued:
@@ -481,7 +501,17 @@ class DownloadEngine:
                 artifact, page_count = self._download_text(job_id, contract, resources, area, manifest, context)
                 asset_format = TEXT_FORMAT
             else:
-                artifact, asset_format = await self._download_file(job_id, contract, resources[0], area, manifest)
+                chosen = choose_file(resources, contract)
+                # §24.5: a large operation checks its expected size first. What is already staged counts
+                # as done, so a resumed file asks only for room for the rest (I-108).
+                declared = getattr(chosen, "size_bytes", None) or 0
+                staged = (area / "artifact.bin").stat().st_size if (area / "artifact.bin").is_file() else 0
+                if declared > staged:
+                    usage = shutil.disk_usage(root.path)
+                    if not preflight(total=usage.total, free=usage.free, expected_bytes=declared - staged,
+                                     override=root.reserve_override_bytes).allowed:
+                        raise CapabilityError("storage_full", "the file would not fit above the storage reserve")
+                artifact, asset_format = await self._download_file(job_id, contract, chosen, area, manifest)
                 page_count = None
             self._set_state(job_id, "COMMITTING")
             await self._commit(job_id, contract, context, root, staging_rel, artifact, asset_format, page_count,
@@ -742,6 +772,23 @@ class DownloadEngine:
             self._notify_failure(job_id, context, category)
             report.failed += 1
             report.errors.append(f"{job_id}: {category}: {message}")
+
+
+def choose_file(resources: list, contract: ExtractionContract):
+    """The file a whole-file download takes: the chosen format, else the first keepable one (I-103)."""
+    def fmt(resource) -> str:
+        return str(getattr(resource, "format", "") or "").lower()
+
+    if contract.file_format is not None:
+        match = next((r for r in resources if fmt(r) == contract.file_format), None)
+        if match is None:
+            raise CapabilityError("format_unavailable", f"the source does not offer this unit as {contract.file_format}")
+        return match
+    for wanted in KEEPABLE_FORMATS:
+        match = next((r for r in resources if fmt(r) == wanted), None)
+        if match is not None:
+            return match
+    return resources[0]
 
 
 def required_output(package, method: str, content_type: str) -> str:

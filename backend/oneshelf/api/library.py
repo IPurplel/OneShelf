@@ -10,7 +10,8 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
-from oneshelf.downloads.engine import NoStorageLocation
+from oneshelf.downloads.engine import KEEPABLE_FORMATS, NoStorageLocation
+from oneshelf.net.governor import Priority
 from oneshelf.api.sources import error, services
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.plugins.manager import PluginUnavailable
@@ -36,6 +37,8 @@ class EnqueueBody(BaseModel):
     label: str | None = Field(default=None, max_length=120)
     # §26.21: a unit whose local copy is broken is downloaded again rather than left unreadable.
     repair: bool = False
+    # §22, §41.3: the file formats wanted, for a source offering several (I-103). Omitted: the preferred one.
+    formats: list[Literal["epub", "pdf", "cbz"]] | None = Field(default=None, min_length=1, max_length=3)
 
 
 @router.post("/downloads")
@@ -43,13 +46,54 @@ async def enqueue(request: Request, body: EnqueueBody):
     s = services(request)
     try:
         batch_id = s.downloads.enqueue(body.unit_ids, root_id=body.root_id, one_time_method=body.method,
-                                       label=body.label, repair=body.repair)
+                                       label=body.label, repair=body.repair, formats=body.formats)
     except NoStorageLocation as exc:
         return error(409, "NO_STORAGE_LOCATION", str(exc))
     except (ValueError, PluginUnavailable) as exc:
         return error(422, "CANNOT_ENQUEUE", str(exc))
     return s.downloads.batch(batch_id)
 
+
+
+@router.get("/reading-units/{unit_id}/formats")
+async def unit_formats(request: Request, unit_id: str):
+    """The files a source offers for one unit, which of them OneShelf can keep, and which are here (I-103)."""
+    s = services(request)
+    unit = s.conn.execute(
+        "SELECT u.source_unit_key, u.url_hint, t.source_id, t.language FROM reading_units u"
+        " JOIN source_tracks t ON t.id = u.track_id WHERE u.id = ?", (unit_id,)).fetchone()
+    if unit is None:
+        return error(404, "UNIT_NOT_FOUND", "This reading unit is not in your library.")
+    here = {r[0] for r in s.conn.execute(
+        "SELECT format FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'", (unit_id,))}
+    offered: list[dict] = []
+    if unit["source_id"] != "local":
+        try:
+            package = s.plugins.load_active(unit["source_id"])
+            if "downloads" in package.recipes:
+                result = await s.source_service.run(
+                    unit["source_id"], "downloads",
+                    {"unit_key": unit["source_unit_key"], "url": unit["url_hint"], "language": unit["language"]},
+                    priority=Priority.INTERACTIVE)
+                seen = set()
+                for entry in result.entries:
+                    key = (str(entry.format).lower(), entry.variant)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    offered.append({"format": key[0], "variant": entry.variant, "size_bytes": entry.size_bytes,
+                                    "supported": key[0] in KEEPABLE_FORMATS, "downloaded": key[0] in here})
+        except PluginUnavailable as exc:
+            return error(409, "SOURCE_UNAVAILABLE", str(exc))
+        except AuthRequired:
+            return error(409, "SESSION_REQUIRED", "This source needs a connected account.")
+        except RateLimited as exc:
+            return error(429, "RATE_LIMITED", f"The source is rate limited (retry after {exc.retry_after}s).")
+        except CapabilityError as exc:
+            return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
+    for fmt in sorted(here - {o["format"] for o in offered}):   # local copies the source no longer lists
+        offered.append({"format": fmt, "variant": None, "size_bytes": None, "supported": True, "downloaded": True})
+    return {"unit_id": unit_id, "formats": offered}
 
 class AutoDownloadBody(BaseModel):
     enabled: bool | None = None
