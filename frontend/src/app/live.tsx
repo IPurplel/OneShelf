@@ -6,7 +6,7 @@ export type LiveEvent =
   | "hello" | "resync"
   | "download.batch" | "download.job"
   | "notifications.changed" | "reader.progress"
-  | "follow.changed" | "follow.releases" | "shelf.changed" | "source.session";
+  | "follow.changed" | "follow.releases" | "shelf.changed" | "source.session" | "source.health";
 
 type Listener = (data: unknown) => void;
 
@@ -61,7 +61,7 @@ export function LiveProvider({ children, pollMs = POLL_MS }: { children: ReactNo
       source.addEventListener("hello", () => setConnected(true));
       for (const type of ["download.batch", "download.job", "notifications.changed", "reader.progress",
                           "follow.changed", "follow.releases", "shelf.changed",
-                          "source.session"] as LiveEvent[]) {
+                          "source.session", "source.health"] as LiveEvent[]) {
         source.addEventListener(type, (event) => {
           dispatch(type, parse((event as MessageEvent).data));
         });

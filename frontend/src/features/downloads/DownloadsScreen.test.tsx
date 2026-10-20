@@ -19,6 +19,61 @@ const BATCHES = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Downloads", () => {
+  it("loads per-unit detail only when a batch is expanded and can collapse it", async () => {
+    const calls = mockApi([get("/api/downloads", BATCHES), get("/api/downloads/b1", {
+      ...BATCHES.batches[0], jobs: [{ id: "j1", reading_unit_id: "u1", unit_title: "Chapter one",
+        work_id: "w1", work_title: "The Work", state: "COMPLETED", available: true,
+        bytes_done: 100, bytes_total: 100 }],
+    })]);
+    const user = userEvent.setup();
+    renderWithProviders(<DownloadsScreen />);
+    const row = (await screen.findAllByRole("listitem"))[0]!;
+    expect(calls.filter(call => call.url === "/api/downloads/b1")).toHaveLength(0);
+    const toggle = within(row).getByRole("button", { name: /details/i });
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(await within(row).findByText("Chapter one")).toBeInTheDocument();
+    expect(within(row).getByRole("link", { name: /open.*chapter one/i })).toHaveAttribute("href", "/read/u1?work=w1");
+    expect(calls.filter(call => call.url === "/api/downloads/b1")).toHaveLength(1);
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("shows failed and unavailable units without offering a misleading Reader link", async () => {
+    mockApi([get("/api/downloads", BATCHES), get("/api/downloads/b2", {
+      ...BATCHES.batches[1], jobs: [
+        { id: "j2", reading_unit_id: "u2", unit_title: "Chapter two", state: "FAILED",
+          error_category: "transport", last_error: "Source timed out at https://private.invalid/?token=secret", bytes_done: 0 },
+        { id: "j3", reading_unit_id: "u3", unit_title: "Chapter three", state: "COMPLETED",
+          available: false, bytes_done: 0 },
+      ],
+    })]);
+    const user = userEvent.setup();
+    renderWithProviders(<DownloadsScreen />);
+    const row = (await screen.findAllByRole("listitem"))[1]!;
+    await user.click(within(row).getByRole("button", { name: /details/i }));
+    expect(await within(row).findByText("Chapter two")).toBeInTheDocument();
+    expect(row).toHaveTextContent("Failed");
+    expect(row).toHaveTextContent("Source could not be reached");
+    expect(row).not.toHaveTextContent("token=secret");
+    expect(row).toHaveTextContent("Unavailable");
+    expect(within(row).queryByRole("link", { name: /open.*chapter three/i })).not.toBeInTheDocument();
+  });
+  it("exposes measurable per-unit progress for an active download", async () => {
+    mockApi([get("/api/downloads", BATCHES), get("/api/downloads/b1", {
+      ...BATCHES.batches[0], jobs: [{ id: "j4", reading_unit_id: "u4", unit_title: "Chapter four",
+        state: "DOWNLOADING", bytes_done: 50, bytes_total: 100 }],
+    })]);
+    const user = userEvent.setup();
+    renderWithProviders(<DownloadsScreen />);
+    const row = (await screen.findAllByRole("listitem"))[0]!;
+    await user.click(within(row).getByRole("button", { name: /details/i }));
+    const job = (await within(row).findByText("Chapter four")).closest(".batches__job")!;
+    expect(job).toHaveTextContent("Downloading");
+    expect(within(job as HTMLElement).getByRole("progressbar", { name: /chapter four/i })).toHaveAttribute("value", "50");
+    expect(within(job as HTMLElement).getByRole("progressbar")).toHaveAttribute("max", "100");
+    expect(within(job as HTMLElement).queryByRole("link")).not.toBeInTheDocument();
+  });
   it("reports a failed batch action while keeping the batch visible", async () => {
     mockApi([get("/api/downloads", BATCHES),
       post("/api/downloads/b1/pause", { error: { message: "Pause unavailable" } }, 503)]);

@@ -45,7 +45,7 @@ describe("Settings", () => {
       expect(reveal).not.toHaveBeenCalled();
     } finally {
       if (original) Element.prototype.scrollIntoView = original;
-      else delete (Element.prototype as Element & { scrollIntoView?: typeof reveal }).scrollIntoView;
+      else Reflect.deleteProperty(Element.prototype, "scrollIntoView");
     }
   });
   it.each(["en", "ar"] as const)("moves vertical settings tabs by keyboard in %s", async (language) => {

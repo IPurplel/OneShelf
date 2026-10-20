@@ -5,6 +5,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { ApiError, api } from "@/api/client";
 import type { SearchUpdate } from "@/api/types";
 import { ResultCard } from "./ResultCard";
+import { Icon } from "@/components/Icon";
 import { useI18n } from "@/i18n/i18n";
 import { categoryLabel, languageLabel, parseScopes } from "./scopes";
 
@@ -24,6 +25,7 @@ export function SearchScreen() {
   const categoryKey = categories.join("\u0000");
   const languageKey = languages.join("\u0000");
   const [query, setQuery] = useState(submitted);
+  const [layout, setLayout] = useState<"grid" | "list">("grid");
   const [attempt, setAttempt] = useState(0);
   const [streamFailed, setStreamFailed] = useState(false);
   useEffect(() => setQuery(submitted), [submitted]);
@@ -191,9 +193,16 @@ export function SearchScreen() {
 
       {retryProblem && <p className="notice notice--problem" role="alert">{retryProblem}</p>}
 
-      <div className="search__results">
+      {(update?.results.length ?? 0) > 0 && <div className="search__view" role="group" aria-label={t("search.layout")}>
+        <button type="button" className="iconbutton" aria-pressed={layout === "grid"}
+          aria-label={t("shelf.layout.grid")} onClick={() => setLayout("grid")}><Icon name="grid" size={18} /></button>
+        <button type="button" className="iconbutton" aria-pressed={layout === "list"}
+          aria-label={t("shelf.layout.list")} onClick={() => setLayout("list")}><Icon name="list" size={18} /></button>
+      </div>}
+      <div className="search__results" data-layout={layout}>
         {(update?.results ?? []).map((result) => (
-          <ResultCard key={result.work_id ?? `${result.title}:${result.provenance[0]?.listing_key ?? ""}`} result={result} />
+          <ResultCard key={result.work_id ?? `${result.title}:${result.provenance[0]?.listing_key ?? ""}`}
+            result={result} size={layout === "list" ? "detailed" : "standard"} />
         ))}
       </div>
 
