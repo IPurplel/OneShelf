@@ -8,6 +8,7 @@ from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from fastapi import APIRouter, Query, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from oneshelf.services.worker import in_worker, rebound
@@ -24,6 +25,31 @@ from oneshelf.storage.scanner import reconcile
 
 router = APIRouter(prefix="/api")
 MAX_IMPORT_BYTES = 2 * 1024**3
+
+
+def _failure(status: int, code: str, message: str) -> tuple[int, dict]:
+    return status, {"error": {"code": code, "message": message}}
+
+
+async def _answer(request: Request, kind: str, background: bool, job) -> JSONResponse:
+    """Run a long job now, or with `?background=true` start it as a task and answer 202 at once (I-96).
+
+    Both forms run the same job, so the task's outcome is exactly what the synchronous call would have said.
+    """
+    if background:
+        task = request.app.state.tasks.start(kind, job)
+        return JSONResponse({"task_id": task.id, "kind": kind, "state": task.state}, status_code=202)
+    status, body = await job()
+    return JSONResponse(body, status_code=status)
+
+
+@router.get("/tasks/{task_id}")
+async def task_status(request: Request, task_id: str):
+    registry = request.app.state.tasks
+    task = registry.get(task_id)
+    if task is None:
+        return error(404, "TASK_NOT_FOUND", "No such task; it may have finished before the last restart.")
+    return registry.view(task)
 
 
 # -- storage ---------------------------------------------------------------------------------------
@@ -80,15 +106,22 @@ async def remap(request: Request, root_id: str, body: PathBody):
 
 
 @router.post("/storage/roots/{root_id}/migrate")
-async def migrate_root(request: Request, root_id: str, body: PathBody):
+async def migrate_root(request: Request, root_id: str, body: PathBody, background: bool = False):
     s = services(request)
     try:
         plan = s.migrations.plan(root_id, body.path)
-        report = await in_worker(s.conn, lambda conn: rebound(s.migrations, conn).run(plan))
     except MigrationError as exc:
         return error(422, "MIGRATION_REFUSED", str(exc))
-    return {"migration_id": plan.id, "state": report.state, "files": plan.files, "bytes": plan.bytes,
-            "copied": report.copied, "verified": report.verified}
+
+    async def job():
+        try:
+            report = await in_worker(s.conn, lambda conn: rebound(s.migrations, conn).run(plan))
+        except MigrationError as exc:
+            return _failure(422, "MIGRATION_REFUSED", str(exc))
+        return 200, {"migration_id": plan.id, "state": report.state, "files": plan.files, "bytes": plan.bytes,
+                     "copied": report.copied, "verified": report.verified}
+
+    return await _answer(request, "storage_migration", background, job)
 
 
 @router.get("/storage/migrations")
@@ -133,9 +166,13 @@ async def discard_old_copy(request: Request, migration_id: str):
 
 
 @router.post("/storage/scan")
-async def scan(request: Request, verify_checksums: bool = False):
-    report = await in_worker(services(request).conn, lambda conn: reconcile(conn, verify_checksums=verify_checksums))
-    return asdict(report)
+async def scan(request: Request, verify_checksums: bool = False, background: bool = False):
+    async def job():
+        report = await in_worker(services(request).conn,
+                                 lambda conn: reconcile(conn, verify_checksums=verify_checksums))
+        return 200, asdict(report)
+
+    return await _answer(request, "storage_scan", background, job)
 
 
 # -- import ----------------------------------------------------------------------------------------
@@ -246,14 +283,18 @@ async def list_backups(request: Request):
 
 
 @router.post("/backups")
-async def create_backup(request: Request, body: BackupBody):
-    try:
-        backups = services(request).backups
-        record = await in_worker(backups.conn, lambda conn: rebound(backups, conn).create(
-            body.kind, works=body.works, location=body.location))
-    except BackupError as exc:
-        return error(422, "BACKUP_FAILED", str(exc))
-    return asdict(record)
+async def create_backup(request: Request, body: BackupBody, background: bool = False):
+    backups = services(request).backups
+
+    async def job():
+        try:
+            record = await in_worker(backups.conn, lambda conn: rebound(backups, conn).create(
+                body.kind, works=body.works, location=body.location))
+        except BackupError as exc:
+            return _failure(422, "BACKUP_FAILED", str(exc))
+        return 200, asdict(record)
+
+    return await _answer(request, "backup", background, job)
 
 
 @router.post("/backups/verify")
@@ -281,16 +322,20 @@ class RestoreBody(BaseModel):
 
 
 @router.post("/restore")
-async def restore(request: Request, body: RestoreBody):
-    try:
-        restore_service = services(request).restore
-        report = await in_worker(restore_service.conn, lambda conn: rebound(restore_service, conn).restore(
-            body.path, mode=body.mode, approve_new_permissions=body.approve_new_permissions))
-    except RestoreBlocked as exc:
-        return error(409, "PERMISSION_REVIEW_REQUIRED", str(exc))
-    except RestoreError as exc:
-        return error(422, "RESTORE_REFUSED", str(exc))
-    return asdict(report)
+async def restore(request: Request, body: RestoreBody, background: bool = False):
+    restore_service = services(request).restore
+
+    async def job():
+        try:
+            report = await in_worker(restore_service.conn, lambda conn: rebound(restore_service, conn).restore(
+                body.path, mode=body.mode, approve_new_permissions=body.approve_new_permissions))
+        except RestoreBlocked as exc:
+            return _failure(409, "PERMISSION_REVIEW_REQUIRED", str(exc))
+        except RestoreError as exc:
+            return _failure(422, "RESTORE_REFUSED", str(exc))
+        return 200, asdict(report)
+
+    return await _answer(request, "restore", background, job)
 
 
 # -- export ----------------------------------------------------------------------------------------
@@ -346,18 +391,25 @@ async def _run_export(s, job_id: str):
 
 
 @router.post("/export")
-async def start_export(request: Request, body: ExportBody):
+async def start_export(request: Request, body: ExportBody, background: bool = False):
     s = services(request)
     try:
         plan = s.exports.plan_selection(_contracts(body))
         job_id = s.exports.start(plan, missing_policy=body.missing_policy,
                                  acknowledge_permanent_download=body.acknowledge_permanent_download)
-        report = await _run_export(s, job_id)
     except ExportBlocked as exc:
         return error(409, "PERMANENT_DOWNLOAD_NOTICE_REQUIRED", str(exc))
     except ExportError as exc:
         return error(422, "EXPORT_REFUSED", str(exc))
-    return asdict(report)
+
+    async def job():
+        try:
+            report = await _run_export(s, job_id)
+        except ExportError as exc:
+            return _failure(422, "EXPORT_REFUSED", str(exc))
+        return 200, asdict(report)
+
+    return await _answer(request, "export", background, job)
 
 
 @router.get("/export/{job_id}")
@@ -370,11 +422,15 @@ async def export_status(request: Request, job_id: str):
 
 
 @router.post("/export/{job_id}/retry-failed")
-async def export_retry(request: Request, job_id: str):
+async def export_retry(request: Request, job_id: str, background: bool = False):
     s = services(request)
     requeued = s.exports.retry_failed(job_id)
-    report = await _run_export(s, job_id)
-    return {"requeued": requeued, **asdict(report)}
+
+    async def job():
+        report = await _run_export(s, job_id)
+        return 200, {"requeued": requeued, **asdict(report)}
+
+    return await _answer(request, "export", background, job)
 
 
 @router.delete("/export/history")

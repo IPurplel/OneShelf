@@ -112,3 +112,29 @@ def test_i96_the_application_stays_responsive_during_heavy_library_jobs(library)
         "destination": str(tmp_path / "export")}))
     assert exported.status_code == 200, exported.text
     assert_responsive("export", elapsed, latencies)
+
+
+def test_i96_long_jobs_can_run_as_background_tasks(library):
+    """WP-8: `?background=true` answers 202 at once; the task then reports the same outcome."""
+    client, tmp_path, works = library
+    started = client.post("/api/backups?background=true",
+                          json={"kind": "full", "works": [w["work_id"] for w in works]})
+    assert started.status_code == 202 and started.json()["kind"] == "backup"
+    task_id = started.json()["task_id"]
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        task = client.get(f"/api/tasks/{task_id}").json()
+        if task["state"] != "running":
+            break
+        time.sleep(0.1)
+    assert task["state"] == "completed" and task["status"] == 200
+    assert client.post("/api/backups/verify", json={"path": task["result"]["path"]}).json()["ok"] is True
+
+    refused = client.post("/api/restore?background=true", json={"path": str(tmp_path / "nope.osbackup")})
+    assert refused.status_code == 202
+    while client.get(f"/api/tasks/{refused.json()['task_id']}").json()["state"] == "running":
+        time.sleep(0.05)
+    failed = client.get(f"/api/tasks/{refused.json()['task_id']}").json()
+    assert failed["state"] == "failed" and failed["status"] == 422
+    assert failed["result"]["error"]["code"] == "RESTORE_REFUSED"
+    assert client.get("/api/tasks/unknown").status_code == 404

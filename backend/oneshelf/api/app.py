@@ -68,6 +68,7 @@ from oneshelf.db.migrate import current_version, migrate
 from oneshelf.db.schema import MIGRATIONS
 from oneshelf.events.bus import EventBus, sse_stream
 from oneshelf.services.startup import run_startup_recovery
+from oneshelf.services.tasks import TaskRegistry
 
 DEFAULT_DATA_DIR = ".oneshelf-dev"
 
@@ -299,6 +300,7 @@ def create_app(config: AppConfig) -> FastAPI:
         finally:
             for login in list(logins._active.values()):
                 await login.cancel()
+            await app.state.tasks.drain()          # a background backup or export finishes before shutdown
             await runner.stop()
             await follow_runner.stop()
             await backup_runner.stop()
@@ -313,6 +315,7 @@ def create_app(config: AppConfig) -> FastAPI:
     app = FastAPI(title="OneShelf", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.state.config = config
     app.state.bus = EventBus()
+    app.state.tasks = TaskRegistry(app.state.bus)
 
     @app.get("/api/health")
     def health(request: Request) -> dict:
