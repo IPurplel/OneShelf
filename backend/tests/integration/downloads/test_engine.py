@@ -1,4 +1,5 @@
 """Master §16–§17, §14, §39; INV-16, INV-17, INV-23: durable downloads, recovery, contracts."""
+import asyncio
 import json
 import zipfile
 from dataclasses import replace
@@ -772,3 +773,45 @@ def test_i99_a_crash_at_any_step_of_a_replacement_recovers_to_exactly_one_good_c
     assert files == [path] and leftovers == [] and journal <= {"done", "aborted"}
     from oneshelf.storage.hashing import sha256_file
     assert sha256_file(path)[0] == assets[0]["sha256"]
+
+
+# -- I-96 (BE-006): the engine's heavy steps never stall the event loop ------------------------------------
+
+def test_i96_validation_hashing_and_commit_run_off_the_event_loop(environment, monkeypatch):
+    """Each heavy step is made as slow as it is for a several-hundred-MB file; the loop must keep ticking."""
+    import time as _time
+
+    from oneshelf.storage import commit as commit_module
+
+    def slow(function):
+        def wrapper(*args, **kwargs):
+            _time.sleep(0.4)
+            return function(*args, **kwargs)
+        return wrapper
+
+    monkeypatch.setattr(engine_module, "validate", slow(engine_module.validate))
+    monkeypatch.setattr(engine_module, "sha256_file", slow(engine_module.sha256_file))
+    monkeypatch.setattr(commit_module, "sha256_file", slow(commit_module.sha256_file))
+
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("manual", "The Manual", content_type="book")
+            batch = env.engine.enqueue([env.unit_id("manual-1")], one_time_method="direct")
+            lags, running = [], True
+
+            async def heartbeat():
+                loop = asyncio.get_running_loop()
+                while running:
+                    started = loop.time()
+                    await asyncio.sleep(0.02)
+                    lags.append(loop.time() - started - 0.02)
+
+            beat = asyncio.create_task(heartbeat())
+            await env.engine.run_until_idle(max_seconds=60)
+            running = False
+            await beat
+            return env.job_rows(batch)[0]["state"], max(lags)
+
+    state, worst = run(scenario(), timeout=120)
+    assert state == "COMPLETED"
+    assert worst < 0.25, f"the event loop stalled for {worst:.2f}s"

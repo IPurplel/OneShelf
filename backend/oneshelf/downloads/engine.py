@@ -29,6 +29,7 @@ from oneshelf.net.http import FetchFailed, ResponseTooLarge, TooManyRedirects
 from oneshelf.net.policy import BlockedDestination, DisallowedTarget
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
 from oneshelf.plugins.schema import is_text_reader
+from oneshelf.services.worker import in_worker, off_loop
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.storage.commit import CommitEngine, CommitError, CommitRequest
 from oneshelf.storage.hashing import sha256_file
@@ -543,12 +544,12 @@ class DownloadEngine:
             if response.status != 200:
                 part.unlink(missing_ok=True)
                 raise CapabilityError("unexpected_response", f"page {index} returned HTTP {response.status}")
-            problem = _validate_image(part.read_bytes())      # one page: small, and checked before it counts
+            problem = await off_loop(lambda: _validate_image(part.read_bytes()))  # checked before it counts
             if problem:
                 part.unlink(missing_ok=True)
                 raise MediaInvalid(f"page {index}: {problem}")
             part.replace(target)
-            sha, size = sha256_file(target)
+            sha, size = await off_loop(sha256_file, target)
             pages[str(index)] = {"url": resource.url, "sha256": sha, "size": size}
             self._save_manifest(job_id, manifest)
             self.fault("page_downloaded")
@@ -558,13 +559,8 @@ class DownloadEngine:
             raise MediaInvalid("page coverage does not match the source resource list")
         self._set_state(job_id, "PACKAGING")
         artifact = area / "artifact.cbz"
-        with zipfile.ZipFile(artifact, "w", compression=zipfile.ZIP_STORED) as archive:
-            for index in range(1, len(resources) + 1):
-                page = area / f"{index:04d}.img"
-                suffix = detect_image_suffix(page.read_bytes())
-                archive.write(page, f"{index:04d}{suffix}")   # original bytes preserved (§39)
-            archive.writestr("ComicInfo.xml", comic_info(context))
-        result = validate(artifact)
+        await off_loop(_package_cbz, artifact, area, len(resources), comic_info(context))
+        result = await off_loop(validate, artifact)
         if not result.ok:
             raise MediaInvalid(f"packaged archive failed validation: {result.reason}")
         return artifact, result.page_count or len(resources)
@@ -621,7 +617,7 @@ class DownloadEngine:
         self._save_manifest(job_id, manifest)
         self.fault("file_partially_downloaded")
         self._set_state(job_id, "VERIFYING")
-        result = validate(target)
+        result = await off_loop(validate, target)
         if not result.ok:
             # These bytes are known to be bad: the next attempt starts over rather than building on them.
             target.unlink(missing_ok=True)
@@ -637,7 +633,7 @@ class DownloadEngine:
         self._ensure_not_canceled(job_id)
         if self._unit_context(context["unit_id"])["track_availability"] == "unavailable":
             raise CapabilityError("source_unlinked", "this source edition is no longer linked")
-        sha, size = sha256_file(artifact)
+        sha, size = await off_loop(sha256_file, artifact)
         existing = self.conn.execute("SELECT * FROM assets WHERE reading_unit_id = ? AND format = ? AND variant = ''",
                                      (context["unit_id"], asset_format)).fetchone()
         if existing is not None and existing["integrity"] == "ok":
@@ -657,12 +653,14 @@ class DownloadEngine:
                         "fallback_reason": None if len(contract.attempted_methods) == 1 else "method_fallback",
                         "started_at": started_at},
         }
-        engine = CommitEngine(self.conn, registrars=registrars(), fault=self.fault)
         registration = {"kind": REGISTRAR_KIND, "payload": payload}
         if existing is not None and existing["storage_root_id"] == root.id:
             registration["replaces"] = {"relative_path": existing["relative_path"]}
-        engine.commit(CommitRequest(root_id=root.id, staging_relpath=f"{staging_rel}/{artifact.name}",
-                                    final_relpath=relative_path, registration=registration))
+        request = CommitRequest(root_id=root.id, staging_relpath=f"{staging_rel}/{artifact.name}",
+                                final_relpath=relative_path, registration=registration)
+        # Hashing, fsync and the move run on a worker with its own connection (I-96).
+        await in_worker(self.conn, lambda conn: CommitEngine(conn, registrars=registrars(),
+                                                             fault=self.fault).commit(request))
         area = Path(root.path) / staging_rel
         if area.is_dir():
             shutil.rmtree(area, ignore_errors=True)
@@ -761,6 +759,16 @@ def required_output(package, method: str, content_type: str) -> str:
     if "downloads" in package.recipes and family_for(content_type) == "Books":
         return "file"
     return SEQUENTIAL_FORMAT
+
+
+def _package_cbz(artifact: Path, area: Path, pages: int, comic_info_xml: str) -> None:
+    with zipfile.ZipFile(artifact, "w", compression=zipfile.ZIP_STORED) as archive:
+        for index in range(1, pages + 1):
+            page = area / f"{index:04d}.img"
+            with open(page, "rb") as handle:
+                suffix = detect_image_suffix(handle.read(16))
+            archive.write(page, f"{index:04d}{suffix}")   # original bytes preserved (§39)
+        archive.writestr("ComicInfo.xml", comic_info_xml)
 
 
 def detect_image_suffix(data: bytes) -> str:
