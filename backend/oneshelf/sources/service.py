@@ -144,6 +144,22 @@ class SourceService:
             return False
         return is_text_reader(package.recipes.get("reader"))
 
+    def available(self, plugin_id: str) -> bool:
+        """Whether the source's plugin is installed and active right now."""
+        try:
+            self.plugins.load_active(plugin_id)
+        except Exception:
+            return False
+        return True
+
+    def record_outcome(self, plugin_id: str, capability: str, outcome: str, category: str | None) -> None:
+        """A health signal from work done outside `run` (a reader page, for instance; §21)."""
+        try:
+            package = self.plugins.load_active(plugin_id)
+        except Exception:
+            return
+        self._record(package, capability, outcome, category)
+
     def reads_online(self, plugin_id: str) -> bool:
         """Whether this source can be read without its file: a download-only source cannot."""
         try:

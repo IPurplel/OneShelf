@@ -108,6 +108,11 @@ class Scenario:
     valid_sessions: set[str] = field(default_factory=set)
     file_version: int = 1
     markup_version: int = 1     # 2 renames the generator-facing classes (adapter repair testing)
+    # Page URLs that expire like a CDN's signed links: listed with the current token, refused (403) with any other.
+    expiring_pages: bool = False
+    page_token: int = 1
+    # Every page image gone at the source: an HTML 404, as 3asq answers for chapters it lost.
+    missing_pages: bool = False
     cookie_log: dict[str, list[str | None]] = field(default_factory=lambda: defaultdict(list))
     request_log: list[str] = field(default_factory=list)
 
@@ -218,8 +223,9 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
                                                 {"url": f"http://{CDN_HOST}/media/html-as-image.png", "label": "2"}]})
         if unit == "bad-corrupt":
             return web.json_response({"pages": [{"url": f"http://{CDN_HOST}/media/corrupt.png", "label": "1"}]})
+        token = f"?t={scenario.page_token}" if scenario.expiring_pages else ""
         return web.json_response({"pages": [
-            {"url": f"http://{CDN_HOST}/img/{unit}/{i}.png", "label": str(i)} for i in range(1, 4)]})
+            {"url": f"http://{CDN_HOST}/img/{unit}/{i}.png{token}", "label": str(i)} for i in range(1, 4)]})
 
     async def text(request: web.Request) -> web.Response:
         return web.json_response({"chapter": chapter_text(request.match_info["unit"])})
@@ -244,6 +250,10 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
         if request.match_info.get("unit") == "bad-limited" and scenario.rate_limit_remaining > 0:
             scenario.rate_limit_remaining -= 1
             return web.Response(status=429, text="slow down", headers={"Retry-After": str(scenario.retry_after)})
+        if scenario.missing_pages and "unit" in request.match_info:
+            return web.Response(status=404, text="<html><body>Not Found</body></html>", content_type="text/html")
+        if scenario.expiring_pages and request.query.get("t") != str(scenario.page_token):
+            return web.Response(status=403, text="<html><body>Link expired</body></html>", content_type="text/html")
         return web.Response(body=png(), content_type="image/png")
 
     async def html_as_image(request: web.Request) -> web.Response:

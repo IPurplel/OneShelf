@@ -17,7 +17,7 @@ from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.plugins.manager import PluginUnavailable
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
 from oneshelf.reader.alternatives import alternatives
-from oneshelf.reader.service import DownloadRequired, MarkOperationConflict, StaleProgress
+from oneshelf.reader.service import DownloadRequired, MarkOperationConflict, SourceUnavailable, StaleProgress
 
 router = APIRouter(prefix="/api")
 
@@ -241,6 +241,8 @@ async def reader_pages(request: Request, unit_id: str):
         pages = await s.reader.pages(unit_id)
     except DownloadRequired:
         return error(409, "DOWNLOAD_REQUIRED", DOWNLOAD_REQUIRED)
+    except SourceUnavailable as exc:
+        return error(409, "SOURCE_UNAVAILABLE", str(exc))
     except FileNotFoundError as exc:
         return error(404, "PAGES_NOT_AVAILABLE", str(exc))
     except ValueError as exc:
@@ -277,6 +279,8 @@ async def reader_page(request: Request, unit_id: str, index: int, prefetch: bool
             page = await s.reader.page(unit_id, index, prefetch=False)
     except DownloadRequired:
         return error(409, "DOWNLOAD_REQUIRED", DOWNLOAD_REQUIRED)
+    except SourceUnavailable as exc:
+        return error(409, "SOURCE_UNAVAILABLE", str(exc))
     except FileNotFoundError as exc:
         return error(404, "PAGES_NOT_AVAILABLE", str(exc))
     except (ValueError, IndexError) as exc:
@@ -335,6 +339,8 @@ async def reader_text(request: Request, unit_id: str):
     s = services(request)
     try:
         unit, origin = await s.reader.text(unit_id)
+    except SourceUnavailable as exc:
+        return error(409, "SOURCE_UNAVAILABLE", str(exc))
     except FileNotFoundError as exc:
         return error(404, "TEXT_NOT_AVAILABLE", str(exc))
     except ValueError as exc:

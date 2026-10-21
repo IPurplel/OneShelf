@@ -225,3 +225,15 @@ def test_i103_a_unit_lists_the_formats_its_source_offers(api):
                                           "supported": True, "downloaded": False}]
     assert client.post("/api/downloads", json={"unit_ids": [unit], "formats": ["azw3"]}).status_code == 422
     assert client.get("/api/reading-units/nope/formats").status_code == 404
+
+
+def test_i107_a_disabled_source_is_reported_as_unavailable_not_as_download_only(api):
+    """§26.21, §46: say what happened — the source is off — instead of asking for a download."""
+    client, tmp_path = api
+    from .test_open_and_covers import open_listing, result_for, search
+    work_id = open_listing(client, result_for(search(client, "chronicle"), "The Irregular Chronicle")["provenance"][0]).json()["work_id"]
+    unit = client.get(f"/api/works/{work_id}").json()["units"][1]["id"]
+    assert client.post(f"/api/sources/{TS}/disable").status_code == 200
+    pages = client.get(f"/api/reader/units/{unit}/pages")
+    assert pages.status_code == 409 and pages.json()["error"]["code"] == "SOURCE_UNAVAILABLE"
+    assert client.get(f"/api/reader/units/{unit}/pages/1").json()["error"]["code"] == "SOURCE_UNAVAILABLE"
