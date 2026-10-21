@@ -271,13 +271,13 @@ audit-and-plan task, and no fix has been made.
 | I-97 | BE-007 | P2 | Downloads / resume | A complete body then a failure → the retry sends an unsatisfiable `Range` → HTTP 416, permanent failure | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
 | I-98 | BE-008 | P2 | Commit journal | Re-downloading a missing-file unit orphans the new file and wedges the journal at `verified` | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
 | I-99 | BE-009 | P2 | Repair | Repair deletes the existing copy and record before a replacement is verified | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
-| I-100 | BE-010 | P2 | Follow | Following before any trusted catalog stores an empty baseline; the first check floods every unit as new | Open |
+| I-100 | BE-010 | P2 | Follow | Following before any trusted catalog stores an empty baseline; the first check floods every unit as new | Fixed on `repair/be-phase4-functional`; awaiting review and merge |
 | I-101 | BE-011 | P2 | Memory | Resources and local documents are fully buffered in RAM; `/file` ignores `Range` | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
 | I-102 | BE-012 | P2 | Overrides | No write path for user overrides (classification, numbering); traceability M9.2 overstated | Fixed on `repair/be-phase2-classification`; awaiting review and merge |
-| I-103 | BE-013 | P2 | Downloads / formats | No format selection; only the first offered file is ever downloaded | Open |
-| I-104 | BE-014 | P2 | Adapters | Bundled Gutenberg search fails live, Hindawi Latin queries are blocked, MangaDex bundle diverges from the Registry | Open |
+| I-103 | BE-013 | P2 | Downloads / formats | No format selection; only the first offered file is ever downloaded | Fixed on `repair/be-phase4-functional`; awaiting review and merge |
+| I-104 | BE-014 | P2 | Adapters | Bundled Gutenberg search fails live, Hindawi Latin queries are blocked, MangaDex bundle diverges from the Registry | Fixed on `repair/be-phase4-functional`; awaiting review and merge |
 | I-105 | BE-015 | P3 | Backup | Backups include `remote_sessions`, `remote_recovery`, `remote_credentials` (§33.3) | Fixed on `repair/be-phase1-security-jobs`; awaiting review and merge |
 | I-106 | BE-016 | P3 | Notifications / batches | An offline or missing root is reported as "0 bytes remain"; an all-canceled batch reads "Completed" | Fixed on `repair/be-phase1-security-jobs`; awaiting review and merge |
-| I-107 | BE-017 | P3 | Reader | Upstream HTTP status hidden; descriptor cache unbounded; disabled source → wrong `DOWNLOAD_REQUIRED` and cached pages unreachable | Open |
-| I-108 | BE-018 | P3 | Storage guard | Download preflight ignores known sizes | Open |
+| I-107 | BE-017 | P3 | Reader | Upstream HTTP status hidden; descriptor cache unbounded; disabled source → wrong `DOWNLOAD_REQUIRED` and cached pages unreachable | Fixed on `repair/be-phase4-functional`; awaiting review and merge |
+| I-108 | BE-018 | P3 | Storage guard | Download preflight ignores known sizes | Fixed on `repair/be-phase4-functional`; awaiting review and merge |
 | I-109 | BE-019 | P3 | HTTP client | A read timeout leaks the connection (seen in the live suite) | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |

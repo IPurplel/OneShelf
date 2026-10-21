@@ -12,6 +12,9 @@ only these documents and the role sections in `AGENTS.md`/`CLAUDE.md`).
 | [`coverage-matrix.md`](coverage-matrix.md) | Every Master section, the 30 invariants and the C0–C9 gates, with PASS/FAIL/BLOCKED/NOT TESTED/FE and evidence |
 | [`adapter-inventory.md`](adapter-inventory.md) | 112 Registry packages (static and packaged tests), the 8 official adapters live, drift |
 | [`reader-matrix.md`](reader-matrix.md) | Formats × operations and Reader workflows |
+| [`resolution.md`](resolution.md) | **Current state:** how each of the 19 findings was fixed, its regression tests, and its branch/PR |
+| [`implementation-log.md`](implementation-log.md) | Phase-by-phase implementation record, merge order, owner actions after deploying |
+| [`handoffs-codex.md`](handoffs-codex.md) | Frontend handoffs H-1…H-9 with API contracts, states, tests and acceptance |
 | [`repair-plan.md`](repair-plan.md) | Owner actions, 14 work packages in dependency order, regression tests, Codex handoffs, residual risks |
 
 ## 1. Executive summary

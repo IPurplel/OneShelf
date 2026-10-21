@@ -9,7 +9,9 @@ merging into `main` remain the owner's decisions. This log is the durable checkp
 |---|---|---|---|---|
 | 1 | `repair/be-phase1-security-jobs` (PR #4) | `audit/backend-reader-20261019` (= `main` + audit docs) | WP-1, WP-2 | BE-001, BE-005, BE-015, BE-016 |
 | 2 | `repair/be-phase2-classification` (PR #5) | phase 1 | WP-5, WP-6, WP-7 | BE-002, BE-003, BE-004, BE-012 |
-| 3 | `repair/be-phase3-responsiveness` | phase 2 | WP-3, WP-4, WP-8, WP-9 | BE-006, BE-007, BE-008, BE-009, BE-011, BE-019 |
+| 3 | `repair/be-phase3-responsiveness` (PR #7) | phase 2 | WP-3, WP-4, WP-8, WP-9 | BE-006, BE-007, BE-008, BE-009, BE-011, BE-019 |
+| 4 | `repair/be-phase4-functional` | phase 3 | WP-10, WP-11, WP-12, WP-13, WP-14 | BE-010, BE-013, BE-014, BE-017, BE-018 |
+| — | OneShelf-Adapters `fix/core-audit-20261019` (OneShelf-Adapters PR #5) | adapters `main` | WP-14 (adapters) | BE-014 |
 
 Worktree used: `/tmp/oneshelf-repair` (its venv is a symlink to the audit worktree's venv). The primary
 checkout `Oneshelfv1/` and its uncommitted work are untouched.
@@ -76,9 +78,63 @@ Notes:
   (38 failures) and fixed before commit; the saved WIP patch is no longer needed.
 
 Tests: `pytest -m "not browser and not live"` gives **1,560 passed, 1 skipped**.
-Live product journey on this branch: recorded below once the run finishes.
+Live product journey on this branch (2026-10-20): **4 passed** (MangaDex, 3asq, WEBTOON, Tapas; one chapter each through the streaming transport and off-loop commit, each CBZ opened). Recorded on PR #7.
 
-## Next steps
+## Phase 4 — remaining functional defects and adapters
 
-Phase 4: WP-10 (Follow baseline pending), WP-11 (format selection), WP-12 (Reader errors and descriptor cache),
-WP-13 (preflight with known sizes), WP-14 (adapters and Registry reconciliation); handoffs H-4, H-5, H-8.
+| Finding | Ledger | Fix | Regression tests |
+|---|---|---|---|
+| BE-010 | I-100 | `follow/service.py`: a Follow made with no trusted catalog has a *pending* baseline (no baseline row); the first check that finds a trusted catalog sets it silently. Also for source changes and Undo. `FollowStatus.baseline_pending` | `test_shelf_and_follow.py::test_i100_*` (3). `test_audit_regressions.py::test_following_a_second_language_keeps_both_baselines` now gives both tracks a trusted catalog first (intent unchanged) |
+| BE-013 | I-103 | `formats` on `POST /api/downloads` (one job and one asset per chosen format); `choose_file` (the chosen format, else EPUB > PDF > CBZ); `format_unavailable` is terminal; `GET /api/reading-units/{id}/formats`; `ExtractionContract.file_format` | `test_engine.py::test_i103_*` (4), `test_library_api.py::test_i103_*` |
+| BE-018 | I-108 | Once the file is chosen, its declared size (less what is staged) is checked against the reserve before fetching | `test_engine.py::test_i108_*` |
+| BE-017 | I-107 | `reader/service.py`: non-200 pages raise `SOURCE_FAILED` with the status and record health (404 as missing content). A 403/404/410 refreshes the page list once (expiring links). The page-list memory is an LRU of 256 units with a 30-minute TTL, and an empty listing is never remembered. Page lists persist beside the Reader Cache, so cached pages stay readable while the source is disabled; otherwise `SOURCE_UNAVAILABLE` (409) | `test_reading.py::test_i107_*` (5), `test_library_api.py::test_i107_*` |
+| BE-014 | I-104 | Core: `net/http.py::secure_redirect` follows a same-host redirect to plain http over https (Safahat). The bundled snapshot is synced from OneShelf-Adapters `8955ff7` (Gutenberg 2.0.1, MangaDex 1.0.3, 3asq 1.0.2, and the rest at their Registry versions); the MangaDex local hotfix is gone. Adapters: OneShelf-Adapters PR #5 (MangaDex 1.0.3 with the translation-language fields and a health test; 3asq 1.0.2, where lettered units "0A"…"0P" get no number) | `test_http_stream.py::test_i104_*` (6). Adapters: `./tools/check-all` (264 tests, Registry verified), `tests/test_official_3asq_numbering.py`. Live: Hindawi Latin query → genuine empty result |
+
+Test infrastructure:
+- Test Source: an `editions` unit (PDF then EPUB, the EPUB with a declared size), and opt-in `expiring_pages`
+  and `missing_pages` scenarios.
+- `tests/fixtures/official-adapters-frozen/`: the pre-refresh official adapters. Mechanism tests read them, so
+  a snapshot refresh no longer changes what those tests test.
+- Live suite: the Gutenberg test resolves a book by its address (2.0 has no search, per robots.txt). The arXiv
+  test skips when arXiv rate-limits or times out (E-03).
+
+Live checks, 2026-10-20: `tests/live/test_product_journey.py` on this branch gave **4 passed**: MangaDex 1.0.3, 3asq 1.0.2, WEBTOON and Tapas 1.0.1, each a CBZ that opened. `tests/live/test_source_suite.py` gave 7 passed. arXiv was **BLOCKED** at the
+source: 429 Too Many Requests, then a read timeout. The earlier WEBTOON failure (BE-019's leaked socket) no
+longer occurs.
+
+Isolated full-app check (all four phases plus the unchanged frontend, built locally; fresh data on port 8432;
+no production involvement):
+- With no storage location, a download is refused with 409 `NO_STORAGE_LOCATION`. After adding one:
+  - 3asq from an Arabic search opens as **manga · Arabic** (`plugin_default`), and its chapter downloads as a
+    CBZ that the Reader shows locally.
+  - Hindawi opens as **book · Arabic**, and `/formats` lists EPUB and PDF.
+  - A background Library Backup completes with status 200.
+  - With MangaDex disabled, an online unit's context stays `images`, its page list answers, and its cached
+    pages are served (`origin=cache`).
+- `scripts/agent/browser_check.py` over 10 routes at desktop and mobile size (Home, Search, Downloads,
+  Sources, Settings, three Works, two Readers): **0 console errors, 0 page exceptions, 0 failed requests**.
+- The Work page shows "Manga · Arabic" where production shows "unknown · Unknown language".
+- Evidence (screenshots and report) is kept out of the repository in the session scratchpad.
+- Observation for Codex, not a backend matter: in the Long Strip reader at 1440 px the page sits at the left
+  with black space to its right. Production shows the same.
+
+Gutenberg trade-off (owner decision on deploy): on an existing installation the bundled Gutenberg 2.0.1 asks
+for new network permissions, so it waits for review (a Plugin Update notification). Search goes away only
+when the owner approves it. 1.0.0's search used endpoints that gutenberg.org's and Gutendex's robots.txt
+disallow, and it timed out on every query.
+
+Known limit (I-100): Follows created by older builds with an empty baseline cannot be told apart from Follows
+of a genuinely empty catalog, so they are left as they are.
+
+Tests: `pytest -m "not browser and not live"` gives **1,581 passed, 1 skipped**.
+
+## Merge order
+
+1. OneShelf PR #4 (phase 1) → `main`.
+2. OneShelf PR #5 (phase 2), retargeted to `main`.
+3. OneShelf PR #7 (phase 3), retargeted to `main`.
+4. OneShelf-Adapters PR #5, with a merge commit so `8955ff7` stays on its `main`, then publish the Registry.
+5. OneShelf phase 4 PR, retargeted to `main`.
+
+After deploying: add a Storage Location, cancel batch `e2gvnow3lv7r`, run the reclassification preview then
+apply, and review the Gutenberg update. Then run the browser verification on production (AGENTS.md).

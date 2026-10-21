@@ -110,6 +110,72 @@ payloads. Handoff IDs H-1…H-9 match `repair-plan.md`.
 - **Acceptance:** a multi-GB Full Backup never ties up a request; the Reader and the rest of the UI stay
   responsive while it runs (the backend measures a worst `/api/health` delay of 2 ms during a 96 MB backup).
 
-## H-4, H-5, H-8
+## H-4 · Download format choice (WP-11, branch `repair/be-phase4-functional`)
 
-Written when their work packages land (Phase 4); see `implementation-log.md`.
+- **Feature:** the Download action for a book unit (Work page, unit menu) and "Download all" for books.
+- **API contract changes:**
+  - `GET /api/reading-units/{id}/formats` returns `{unit_id, formats: [{format, variant, size_bytes, supported,
+    downloaded}]}`, in the source's order. `supported` is true for `epub`, `pdf` and `cbz`, the formats OneShelf
+    keeps as originals. It also lists local copies the source no longer offers. Errors: 404 `UNIT_NOT_FOUND`,
+    409 `SOURCE_UNAVAILABLE`, 409 `SESSION_REQUIRED`, 429 `RATE_LIMITED`, 502 `SOURCE_FAILED`.
+  - `POST /api/downloads` accepts an optional `formats: ["epub"|"pdf"|"cbz", …]`. Each format is its own job and
+    its own file of the same unit. A format the source does not offer fails as `format_unavailable` (not
+    retried). A format already downloaded is counted in `skipped`. Any other value is refused with 422.
+  - Without `formats`, the backend takes the first keepable format the source offers, in the order EPUB, PDF,
+    CBZ.
+  - Work payload: `units[].formats` already lists every downloaded format.
+- **Expected UI behaviour:** when a unit's source offers more than one supported format, the Download action
+  opens a small chooser (checkboxes, preselected EPUB) showing sizes where known. Already-downloaded formats
+  are shown as such. Unsupported formats are listed but disabled, with "OneShelf cannot keep this format".
+  With one format, keep today's one-click Download.
+- **Frontend tests:** the chooser appears only for multi-format units, and the request carries `formats`. A
+  `format_unavailable` job renders its copy. Arabic and English.
+- **Acceptance:** a Hindawi book offered as EPUB and PDF can be kept in both, under one Work.
+
+## H-5 · Reader: say what happened (WP-12, branch `repair/be-phase4-functional`)
+
+- **Feature:** the Reader's page and text error states, and opening a unit whose source is disabled.
+- **API contract changes:**
+  - `GET /api/reader/units/{id}/pages`, `/pages/{n}` and `/text` can answer **409 `SOURCE_UNAVAILABLE`** (the
+    source is disabled or not installed and the item is not cached). Before, this came back as
+    `DOWNLOAD_REQUIRED`.
+  - A page the source lost answers **502 `SOURCE_FAILED`** with a message such as `not_found: page 3: the
+    source answered HTTP 404`. Before, it was 404 `PAGE_NOT_FOUND` "html returned instead of image".
+  - Already-cached pages of an online unit stay readable while its source is disabled or offline. Their
+    responses carry `X-OneShelf-Origin: cache`.
+  - `GET /api/reader/units/{id}/context` no longer reports `kind: "download"` for a unit whose source is
+    merely disabled. It reports the unit's normal kind.
+- **Expected UI behaviour (§26.21, §46):**
+  - `SOURCE_UNAVAILABLE`: "This source is turned off. Downloaded and already-viewed pages are still readable."
+    Offer **Open Sources**; never show Download.
+  - `SOURCE_FAILED` for one page: the existing Retry / Skip page controls, with "The source no longer has
+    this page". Do not mark the whole unit broken.
+  - No automatic source switch in either case.
+- **Frontend tests:** each error code renders its copy and actions. A cached page renders while the source
+  is disabled. Arabic and English.
+- **Acceptance:** with a source disabled, a previously read chapter still opens on its cached pages. An
+  unread one says the source is off, not "download required".
+
+## H-8 · Following: a baseline that waits for the first trusted catalogue (WP-10, branch `repair/be-phase4-functional`)
+
+- **Feature:** Following list and the Follow button on the Work page.
+- **API contract change:**
+  - `POST /api/follows/{work}` and `.../preferred-source` can return `baseline_kind: "pending"` (the
+    catalogue has never been trusted yet; previously `first_follow` with `baseline_units: 0`).
+  - The Following status has `baseline_pending: true` until the first successful check sets the baseline
+    silently. That check reports `up_to_date` with no new units.
+- **Expected UI behaviour:** while `baseline_pending`, show a quiet note under the Follow state: "Following
+  starts once this source's chapter list loads." Never show "N new" for the catalogue that existed when it
+  was followed.
+- **Frontend tests:** the note renders for a pending Follow and disappears after a check. Arabic and English.
+- **Acceptance:** following a Work whose catalogue failed to load, then checking once it loads, shows no
+  flood of "new" chapters.
+
+All nine handoffs (H-1…H-9) are now written.
+
+## Observation (not a backend contract)
+
+In the Long Strip reader at 1440×900, a page narrower than the viewport sits against the left edge with black
+space to its right. This is seen on production (3asq Berserk, 2026-10-19) and on the repaired build (3asq
+Romance Dawn, 2026-10-20). §26.7 asks for centred single pages; consider centring the strip too. No API is
+involved.
