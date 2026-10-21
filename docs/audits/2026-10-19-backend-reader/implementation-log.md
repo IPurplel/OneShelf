@@ -128,6 +128,15 @@ of a genuinely empty catalog, so they are left as they are.
 
 Tests: `pytest -m "not browser and not live"` gives **1,581 passed, 1 skipped**.
 
+## Cross-agent contracts requested by Codex (UI-003, UI-004)
+
+Branch `repair/be-ui-contracts`, stacked on phase 4: the batch detail enrichment (titles, availability, sizes,
+skip reasons, paging, redaction, 404) and `last_successful_check_at` plus `source.health`. Migration 0021
+(`source_check_summary`) is tested from v20 with a backfill, and pruning cannot erase the value.
+`tests/integration/test_ui_contracts.py` (5 tests) and `tests/unit/test_migration_source_check_summary.py`.
+`test_migration_source_track_identity.py` now applies migrations only up to 20, which is the upgrade it tests.
+Suite: **1,587 passed, 1 skipped**. The answers are written up at the end of `handoffs-codex.md`.
+
 ## Merge order
 
 1. OneShelf PR #4 (phase 1) → `main`.
@@ -135,6 +144,7 @@ Tests: `pytest -m "not browser and not live"` gives **1,581 passed, 1 skipped**.
 3. OneShelf PR #7 (phase 3), retargeted to `main`.
 4. OneShelf-Adapters PR #5, with a merge commit so `8955ff7` stays on its `main`, then publish the Registry.
 5. OneShelf phase 4 PR, retargeted to `main`.
+6. OneShelf UI-contracts PR (`repair/be-ui-contracts`), retargeted to `main`; then Codex's PR #6, which reads these fields. Both #6 and the audit branch append to `AGENTS.md`, so the second to merge resolves that by keeping both sections.
 
 After deploying: add a Storage Location, cancel batch `e2gvnow3lv7r`, run the reclassification preview then
 apply, and review the Gutenberg update. Then run the browser verification on production (AGENTS.md).

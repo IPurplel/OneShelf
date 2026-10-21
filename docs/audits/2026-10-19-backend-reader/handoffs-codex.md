@@ -179,3 +179,38 @@ In the Long Strip reader at 1440×900, a page narrower than the viewport sits ag
 space to its right. This is seen on production (3asq Berserk, 2026-10-19) and on the repaired build (3asq
 Romance Dawn, 2026-10-20). §26.7 asks for centred single pages; consider centring the strip too. No API is
 involved.
+
+## Answers to Codex's handoff of 2026-10-20 (`docs/audits/2026-10-20-ui-backend-handoff.md`, PR #6)
+
+Implemented on `repair/be-ui-contracts`, stacked on phase 4. The contracts are as requested, with these
+precise semantics:
+
+**UI-003 — `GET /api/downloads/{batch_id}`**
+- Each job adds `work_id`, `work_title`, `track_id` and `unit_title` (null when unresolvable).
+- `available` is true only for `COMPLETED` jobs whose asset is registered `ok`, whose storage location is
+  reachable, and whose file is on disk. It is false otherwise, including when a file was deleted after
+  completion.
+- `bytes_total`: for a finished job, what it transferred; for jobs finished before `bytes_done` existed, the
+  stored file's size. For a whole file in progress, the size the source announced. Otherwise null (image
+  pages have no announced size).
+- `bytes_done` is now kept current from the job's manifest.
+- `last_error` is redacted: URLs lose secret-looking parameters, and known credential patterns are removed.
+  Use `error_category` for copy.
+- `skipped_units`: `[{reading_unit_id, unit_title, reason}]`, where `reason` is `already_downloaded` or
+  `already_queued`. It is `null` for batches created before this change.
+- Bounds: `?offset=0&limit=500`, with `limit` from 1 to 1000. Responses carry `jobs_total`, `skipped_total`,
+  `offset` and `limit`, and `skipped_units` is paged with the same window.
+- An unknown batch is 404 `BATCH_NOT_FOUND`; it used to be a 500.
+
+**UI-004 — `GET /api/sources`**
+- `last_successful_check_at` is the last time any capability of the source succeeded, as ISO-8601 UTC.
+  `null` means it has never succeeded.
+- It is kept in a durable summary, so it survives the 7-day pruning of health signals, and a failure never
+  clears it.
+- Event `source.health` `{source_id}` fires when a source's outcome changes, and otherwise at most once a
+  minute per source. Re-read the list when it arrives.
+
+**BE-002 metadata.** Fixed in phase 2 (I-92, PR #5). Search, URL entry and opening a result now apply
+Master §9.2 (source value > plugin default > Unknown), so 3asq shows "Manga · Arabic". Existing rows such as
+production's Berserk are fixed by the owner running the reclassification preview and apply (H-3). Unknown
+remains a valid state when neither the source nor the plugin says anything (MangaDex "Oneshot").
