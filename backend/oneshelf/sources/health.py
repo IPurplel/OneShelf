@@ -25,15 +25,28 @@ class HealthSignal:
 def record_signal(conn: sqlite3.Connection, source_id: str, capability: str, outcome: str, category: str | None,
                   plugin_version: str) -> None:
     cutoff = (datetime.now(UTC) - MAX_AGE).isoformat()
+    now = utcnow_iso()
     with transaction(conn):
         conn.execute(
             "INSERT INTO source_health_signals (source_id, capability, outcome, category, plugin_version, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?)", (source_id, capability, outcome, category, plugin_version, utcnow_iso()))
+            " VALUES (?, ?, ?, ?, ?, ?)", (source_id, capability, outcome, category, plugin_version, now))
+        conn.execute(
+            "INSERT INTO source_check_summary (source_id, last_successful_at, last_attempted_at) VALUES (?, ?, ?)"
+            " ON CONFLICT(source_id) DO UPDATE SET last_attempted_at = excluded.last_attempted_at,"
+            " last_successful_at = coalesce(excluded.last_successful_at, source_check_summary.last_successful_at)",
+            (source_id, now if outcome == "success" else None, now))
         conn.execute("DELETE FROM source_health_signals WHERE created_at < ?", (cutoff,))
         conn.execute(
             "DELETE FROM source_health_signals WHERE source_id = ? AND capability = ? AND id <= ("
             " SELECT id FROM source_health_signals WHERE source_id = ? AND capability = ? ORDER BY id DESC LIMIT 1 OFFSET ?)",
             (source_id, capability, source_id, capability, MAX_SIGNALS_PER_CAPABILITY))
+
+
+def last_successful_check(conn: sqlite3.Connection, source_id: str) -> str | None:
+    """The last time any capability of the source succeeded, or None if it never has (UI-004)."""
+    row = conn.execute("SELECT last_successful_at FROM source_check_summary WHERE source_id = ?",
+                       (source_id,)).fetchone()
+    return row[0] if row else None
 
 
 def recent_signals(conn: sqlite3.Connection, source_id: str, limit: int = 200) -> list[HealthSignal]:

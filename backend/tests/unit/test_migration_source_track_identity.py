@@ -22,7 +22,7 @@ def test_upgrade_preserves_units_and_archives_stale_source_links(tmp_path):
                      " VALUES ('orphan-track', 'new', 'source', 'en', 'source', ?)", (now,))
         conn.execute("INSERT INTO reading_units (id, track_id, source_unit_key, source_order, first_seen_at)"
                      " VALUES ('saved', 'old-track', 'chapter', 1, ?)", (now,))
-    assert migrate(path, MIGRATIONS, snapshot_dir=tmp_path / "snapshots") == [20]
+    assert migrate(path, MIGRATIONS[:20], snapshot_dir=tmp_path / "snapshots") == [20]   # the v20 upgrade itself
     with open_database(path) as conn:
         track = conn.execute("SELECT listing_id, listing_title, listing_key, availability"
                              " FROM source_tracks WHERE id = 'old-track'").fetchone()

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import asdict
 from typing import Literal
 from uuid import UUID
@@ -10,6 +11,9 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
+from oneshelf.diagnostics.redact import redact_text
+from oneshelf.storage.paths import PathSafetyError, resolve_within
+from oneshelf.storage.roots import RootError, check_availability, get_root
 from oneshelf.downloads.engine import KEEPABLE_FORMATS, NoStorageLocation
 from oneshelf.net.governor import Priority
 from oneshelf.api.sources import error, services
@@ -167,13 +171,84 @@ async def list_batches(request: Request, limit: int = Query(default=20, ge=1, le
     return {"batches": [s.downloads.batch(r[0]) for r in rows]}
 
 
+def _job_available(conn, job, roots: dict) -> bool:
+    """Whether a finished job's file can be opened now: registered sound, its location reachable, the file there."""
+    if job["state"] != "COMPLETED" or not job["asset_id"]:
+        return False
+    asset = conn.execute("SELECT storage_root_id, relative_path, integrity FROM assets WHERE id = ?",
+                         (job["asset_id"],)).fetchone()
+    if asset is None or asset["integrity"] != "ok":
+        return False
+    if asset["storage_root_id"] not in roots:
+        try:
+            root = get_root(conn, asset["storage_root_id"])
+            roots[asset["storage_root_id"]] = root if check_availability(root).available else None
+        except (ValueError, RootError):
+            roots[asset["storage_root_id"]] = None
+    root = roots[asset["storage_root_id"]]
+    if root is None:
+        return False
+    try:
+        return resolve_within(root.path, asset["relative_path"]).is_file()
+    except PathSafetyError:
+        return False
+
+
+def _bytes_total(conn, job) -> int | None:
+    """How many bytes the job transfers in all, when that is known (UI-003).
+
+    A finished job transferred what `bytes_done` counts. Jobs finished before it was counted fall back to the
+    stored file's size. A whole file in progress uses the size the source announced; image pages have none.
+    """
+    if job["state"] == "COMPLETED":
+        if job["bytes_done"]:
+            return job["bytes_done"]
+        row = conn.execute("SELECT size_bytes FROM assets WHERE id = ?", (job["asset_id"],)).fetchone() \
+            if job["asset_id"] else None
+        return row[0] if row else None
+    expected = json.loads(job["manifest_json"] or "{}").get("file", {}).get("expected")
+    return expected if isinstance(expected, int) and expected >= 0 else None
+
+
 @router.get("/downloads/{batch_id}")
-async def batch_detail(request: Request, batch_id: str):
+async def batch_detail(request: Request, batch_id: str, offset: int = Query(default=0, ge=0),
+                       limit: int = Query(default=500, ge=1, le=1000)):
+    """One batch, its jobs named by Work and unit, and whether each finished unit can be opened (UI-003)."""
     s = services(request)
-    jobs = s.conn.execute(
-        "SELECT id, reading_unit_id, state, method, attempts, error_category, last_error, queue_position, bytes_done"
-        " FROM download_jobs WHERE batch_id = ? ORDER BY queue_position", (batch_id,)).fetchall()
-    return {**s.downloads.batch(batch_id), "jobs": [dict(j) for j in jobs]}
+    batch = s.conn.execute("SELECT selection_json FROM download_batches WHERE id = ?", (batch_id,)).fetchone()
+    if batch is None:
+        return error(404, "BATCH_NOT_FOUND", "There is no such download batch.")
+    total = s.conn.execute("SELECT count(*) FROM download_jobs WHERE batch_id = ?", (batch_id,)).fetchone()[0]
+    rows = s.conn.execute(
+        "SELECT j.id, j.reading_unit_id, j.state, j.method, j.attempts, j.error_category, j.last_error,"
+        " j.queue_position, j.bytes_done, j.asset_id, j.manifest_json, t.work_id, w.display_title AS work_title,"
+        " u.track_id, coalesce(u.display_title, u.raw_title) AS unit_title"
+        " FROM download_jobs j LEFT JOIN reading_units u ON u.id = j.reading_unit_id"
+        " LEFT JOIN source_tracks t ON t.id = u.track_id LEFT JOIN works w ON w.id = t.work_id"
+        " WHERE j.batch_id = ? ORDER BY j.queue_position, j.id LIMIT ? OFFSET ?",
+        (batch_id, limit, offset)).fetchall()
+    roots: dict = {}
+    jobs = []
+    for row in rows:
+        job = {key: row[key] for key in ("id", "reading_unit_id", "state", "method", "attempts", "error_category",
+                                         "queue_position", "bytes_done", "work_id", "work_title", "track_id",
+                                         "unit_title")}
+        # Errors can quote a URL; whatever it carried (a signed token, a session id) is redacted (§43).
+        job["last_error"] = redact_text(row["last_error"]) if row["last_error"] else None
+        job["available"] = _job_available(s.conn, row, roots)
+        job["bytes_total"] = _bytes_total(s.conn, row)
+        jobs.append(job)
+    selection = json.loads(batch["selection_json"] or "{}")
+    details = selection.get("skipped_details") or [{"reading_unit_id": u, "reason": None}
+                                                   for u in selection.get("skipped", [])]
+    skipped_units = []
+    for detail in details[offset:offset + limit]:
+        title = s.conn.execute("SELECT coalesce(display_title, raw_title) FROM reading_units WHERE id = ?",
+                               (detail["reading_unit_id"],)).fetchone()
+        skipped_units.append({"reading_unit_id": detail["reading_unit_id"], "unit_title": title[0] if title else None,
+                              "reason": detail.get("reason")})
+    return {**s.downloads.batch(batch_id), "jobs": jobs, "jobs_total": total, "offset": offset, "limit": limit,
+            "skipped_units": skipped_units, "skipped_total": len(details)}
 
 
 class ReorderBody(BaseModel):
@@ -184,7 +259,7 @@ class ReorderBody(BaseModel):
 async def reorder(request: Request, batch_id: str, body: ReorderBody):
     s = services(request)
     s.downloads.reorder(batch_id, body.job_ids)
-    return await batch_detail(request, batch_id)
+    return await batch_detail(request, batch_id, offset=0, limit=500)
 
 
 @router.post("/downloads/{batch_id}/{action}")

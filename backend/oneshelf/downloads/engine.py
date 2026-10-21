@@ -163,7 +163,7 @@ class DownloadEngine:
         `downloads` capability (§22 "multiple formats may coexist"; I-103).
         """
         batch_id, now = new_id(), utcnow_iso()
-        skipped, queued = [], []
+        skipped, queued, skipped_details = [], [], []
         with transaction(self.conn):
             self.conn.execute("INSERT INTO download_batches (id, label, selection_json, created_at, updated_at)"
                               " VALUES (?,?,?,?,?)", (batch_id, label, json.dumps({"requested": unit_ids}), now, now))
@@ -177,6 +177,10 @@ class DownloadEngine:
                     # the new copy is verified, at commit (I-99). Nothing is deleted here.
                     if self._already_downloaded(unit_id, file_format) or self._active_job(unit_id, file_format):
                         skipped.append(unit_id)
+                        skipped_details.append({
+                            "reading_unit_id": unit_id, "format": file_format,
+                            "reason": ("already_downloaded" if self._already_downloaded(unit_id, file_format)
+                                       else "already_queued")})
                         continue
                     if context["track_availability"] == "unavailable":
                         raise ValueError("this source edition is no longer linked")
@@ -212,6 +216,7 @@ class DownloadEngine:
                     raise NoStorageLocation("there is no storage location for downloads yet; add one in Settings")
             self.conn.execute("UPDATE download_batches SET selection_json = ? WHERE id = ?",
                               (json.dumps({"requested": unit_ids, "skipped": skipped, "queued": queued,
+                                           "skipped_details": skipped_details,
                                            "reader_read_ahead": [u for u in (reader_read_ahead or []) if u in queued]}), batch_id))
         self._emit("download.batch", {"batch_id": batch_id, "queued": len(queued), "skipped": len(skipped)})
         return batch_id
@@ -460,9 +465,12 @@ class DownloadEngine:
         return json.loads(job["manifest_json"] or "{}")
 
     def _save_manifest(self, job_id: str, manifest: dict) -> None:
+        # bytes_done is what the manifest holds: verified pages plus the file so far (UI-003).
+        done = sum(int(page.get("size") or 0) for page in manifest.get("pages", {}).values())
+        done += int(manifest.get("file", {}).get("bytes") or 0)
         with transaction(self.conn):
-            self.conn.execute("UPDATE download_jobs SET manifest_json = ?, updated_at = ? WHERE id = ?",
-                              (json.dumps(manifest), utcnow_iso(), job_id))
+            self.conn.execute("UPDATE download_jobs SET manifest_json = ?, bytes_done = ?, updated_at = ? WHERE id = ?",
+                              (json.dumps(manifest), done, utcnow_iso(), job_id))
 
     async def _process(self, job: sqlite3.Row, report: RunReport) -> None:
         job_id = job["id"]

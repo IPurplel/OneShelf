@@ -37,7 +37,9 @@ EXCLUDED_TABLES = ("source_session_refs", "commit_journal", "download_jobs", "do
                    "source_health_signals", "source_health_state", "storage_migrations", "storage_migration_files",
                    # Remote Web UI authentication is device access, not library state: active sessions, the
                    # Recovery Code verifier, passkeys and pending ceremonies never travel (§33.3, I-105).
-                   "remote_sessions", "remote_recovery", "remote_credentials", "webauthn_challenges")
+                   "remote_sessions", "remote_recovery", "remote_credentials", "webauthn_challenges",
+                   # Operational health, like the signals it summarises.
+                   "source_check_summary")
 # Everything else in the schema, carried on purpose. A table in neither list fails the inventory test, so a
 # new table cannot ride along in backups without someone deciding that it should.
 KEPT_TABLES = ("app_meta", "assets", "backup_records", "bundled_plugins", "catalog_snapshots", "download_history",

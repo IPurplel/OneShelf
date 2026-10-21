@@ -253,7 +253,8 @@ def create_app(config: AppConfig) -> FastAPI:
         sessions = SessionManager(conn, store, events=app.state.bus)
         governor = TrafficGovernor()
         browser = LazyBrowser()
-        source_service = SourceService(conn, plugins, governor, sessions, dev_test_source=config.dev_test_source,
+        source_service = SourceService(conn, plugins, governor, sessions, events=app.state.bus,
+                                       dev_test_source=config.dev_test_source,
                                        dev_hosts=config.dev_hosts(), browser=browser)
         logins = LoginController(source_service, browser, sessions, governor)
         cache = DiscoveryCache(Path(config.data_dir) / "cache.db")

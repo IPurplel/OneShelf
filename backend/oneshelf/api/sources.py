@@ -9,6 +9,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
+from oneshelf.sources.health import last_successful_check
 from oneshelf.domain.ids import new_id
 from oneshelf.plugins.manager import InstallRejected, PluginUnavailable
 from oneshelf.plugins.package import PackageError, load_package
@@ -60,7 +61,9 @@ def _source_view(s, record) -> dict:
             "trust_label": record.trust_label, "channel": record.channel, "capabilities": capabilities,
             "category": record.category, "languages": list(record.languages),
             "auth_available": auth_available, "session_state": s.sessions.state(record.id),
-            "can_rollback": can_rollback}
+            "can_rollback": can_rollback,
+            # UI-004: the last successful check of any capability; null if it never succeeded.
+            "last_successful_check_at": last_successful_check(s.conn, record.id)}
 
 
 @router.get("/sources")

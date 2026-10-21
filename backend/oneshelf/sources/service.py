@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import logging
-
 import sqlite3
+import time
 from typing import Any
 
 from oneshelf.net.governor import Priority, TrafficGovernor
@@ -37,13 +37,18 @@ class _CandidateSessions:
 
 
 logger = logging.getLogger(__name__)
+HEALTH_EVENT_INTERVAL = 60.0
 
 
 class SourceService:
     def __init__(self, conn: sqlite3.Connection, plugins: PluginManager, governor: TrafficGovernor,
                  sessions: SessionManager | None, *, dev_test_source: bool = False,
-                 dev_hosts: dict[str, tuple[str, int]] | None = None, resolver_backend=None, browser=None) -> None:
+                 dev_hosts: dict[str, tuple[str, int]] | None = None, resolver_backend=None, browser=None,
+                 events=None, clock=time.monotonic) -> None:
         self.conn = conn
+        self.events = events
+        self.clock = clock
+        self._health_published: dict[str, tuple[str, float]] = {}
         self.plugins = plugins
         self.governor = governor
         self.sessions = sessions
@@ -114,9 +119,23 @@ class SourceService:
 
     def _record(self, package: PluginPackage, capability: str, outcome: str, category: str | None) -> None:
         record_signal(self.conn, package.id, capability, outcome, category, package.version)
+        self._publish_health(package.id, outcome)
         if outcome == "failure":
             # §43: what went wrong, as identifiers and a category — never the response that caused it.
             logger.warning("%s %s failed: %s (plugin %s)", package.id, capability, category, package.version)
+
+    def _publish_health(self, source_id: str, outcome: str) -> None:
+        """Tell open clients a source's health may have changed (UI-004): at once when the outcome changes,
+        otherwise at most once a minute per source, so a busy search or reader never floods the event channel.
+        """
+        if self.events is None:
+            return
+        now = self.clock()
+        previous = self._health_published.get(source_id)
+        if previous is not None and previous[0] == outcome and now - previous[1] < HEALTH_EVENT_INTERVAL:
+            return
+        self._health_published[source_id] = (outcome, now)
+        self.events.publish("source.health", {"source_id": source_id})
 
     def _auth_failed(self, plugin_id: str) -> None:
         if self.sessions is not None and self.sessions.state(plugin_id) == "connected":
