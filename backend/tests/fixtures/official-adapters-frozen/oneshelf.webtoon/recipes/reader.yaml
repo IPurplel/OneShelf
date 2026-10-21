@@ -1,0 +1,20 @@
+capability: reader
+inputs: [url]
+# The viewer page carries every image as `data-url` on `img._images`; its JavaScript only moves that
+# into `src` while you scroll. So the images come from the page itself — no browser, and no screenshot.
+request:
+  url: "{url:absolute}"
+  headers: {Accept: text/html}
+response:
+  format: html
+extract:
+  items: {css: "#_imageList img._images"}
+  fields:
+    url: {css: "::attr(data-url)", required: true}
+# The image CDN answers 403 without a Referer from the site the image belongs to. Declared here so the
+# downloader and the Reader both send it, and Core needs to know nothing about WEBTOON (§9, §52).
+resource_headers:
+  Referer: https://www.webtoons.com/
+pagination:
+  mode: none
+  complete_when: single_response

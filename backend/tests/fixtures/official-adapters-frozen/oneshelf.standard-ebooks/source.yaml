@@ -1,0 +1,8 @@
+base_url: https://standardebooks.org
+url_patterns:
+  - pattern: '^https://standardebooks\.org/ebooks/([^/]+/[^/?#]+)'
+    capability: work
+    id_group: 1
+rate_limit:
+  requests_per_minute: 20
+  concurrency: 1

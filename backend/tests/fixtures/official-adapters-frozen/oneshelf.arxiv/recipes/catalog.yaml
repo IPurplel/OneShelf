@@ -1,0 +1,21 @@
+# A paper is one Reading Unit; versions are separate ids on arXiv.
+capability: catalog
+inputs: [listing_key]
+request:
+  url: "{base_url}/api/query?id_list={listing_key}"
+response:
+  format: html
+extract:
+  items: {css: "entry"}
+  order: source_listed
+  fields:
+    unit_key:
+      css: "id::text"
+      transforms: [{regex_extract: {pattern: 'arxiv\.org/abs/(.+)$', group: 1}}]
+      required: true
+    title: {css: "title::text", transforms: [trim]}
+    release_date: {css: "published::text", transforms: [trim]}
+    unit_type: {template: "book"}
+pagination:
+  mode: none
+  complete_when: single_response

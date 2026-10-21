@@ -1,0 +1,24 @@
+capability: catalog
+inputs: [listing_key]
+# The chapter list is not in the series page: the site fetches it from its own endpoint under the same
+# series path, which robots.txt allows. That is the request the site itself makes, so it is the one
+# asked for here — no browser, and no guessing at a list that was never in the HTML.
+request:
+  method: POST
+  url: "{base_url}/manga/{listing_key:path}/ajax/chapters/"
+  headers: {Accept: text/html, X-Requested-With: XMLHttpRequest}
+response:
+  format: html
+extract:
+  items: {css: "li.wp-manga-chapter"}
+  order: reverse            # the site lists newest first; Reading Units are stored in reading order
+  fields:
+    unit_key: {css: "a::attr(href)", required: true,
+               transforms: [{regex_extract: {pattern: "/manga/[^/]+/([^/]+)/?$", group: 1}}]}
+    title: {css: "a::text", transforms: [trim]}
+    number: {css: "a::text", transforms: [trim, extract_number]}
+    url: {css: "a::attr(href)", transforms: [trim, normalize_url]}
+    release_date: {css: "span.chapter-release-date i::text", transforms: [trim]}
+pagination:
+  mode: none
+  complete_when: single_response

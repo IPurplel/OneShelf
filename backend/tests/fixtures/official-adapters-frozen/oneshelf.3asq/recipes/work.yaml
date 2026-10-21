@@ -1,0 +1,12 @@
+capability: work
+inputs: [listing_key]
+request:
+  url: "{base_url}/manga/{listing_key:path}/"
+  headers: {Accept: text/html}
+response:
+  format: html
+extract:
+  fields:
+    title: {css: "meta[property='og:title']::attr(content)", required: true, transforms: [trim]}
+    cover_url: {css: "meta[property='og:image']::attr(content)", transforms: [trim, normalize_url]}
+    description: {css: "meta[property='og:description']::attr(content)", transforms: [trim]}

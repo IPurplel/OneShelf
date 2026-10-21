@@ -15,7 +15,7 @@ from oneshelf.net.governor import Priority, TrafficGovernor
 from oneshelf.net.http import HttpClient
 from oneshelf.net.policy import EgressPolicy
 from oneshelf.plugins.package import load_package
-from oneshelf.plugins.runtime import RecipeRuntime
+from oneshelf.plugins.runtime import RateLimited, RecipeRuntime
 from oneshelf.sources.fetcher import SourceFetcher
 from plugins.build import build_package, official_packages
 
@@ -83,12 +83,15 @@ def test_mangadex_search_catalog_and_reader(tmp_path):
 
 
 @skip_unless_live
-def test_gutenberg_search_and_a_real_epub(tmp_path):
+def test_gutenberg_work_from_its_address_and_a_real_epub(tmp_path):
+    """Gutenberg 2.0 has no search: gutenberg.org's and Gutendex's robots.txt disallow the search and API it
+    would need, so a book is added by its gutenberg.org address (OneShelf-Adapters, 2.0.0)."""
     package = package_for("oneshelf.gutenberg", tmp_path)
-    found = reached(run(call(package, "search", {"query": "frankenstein", "page": 1})))
-    assert any(item.title.lower().startswith("frankenstein") for item in found.items)
-    files = reached(run(call(package, "downloads", {"unit_key": found.items[0].listing_key})))
-    body = run(fetch_bytes(package, files.items[0].url))
+    assert "search" not in package.recipes
+    work = run(call(package, "work", {"listing_key": "84"}))
+    assert work.title.lower().startswith("frankenstein")
+    files = reached(run(call(package, "downloads", {"unit_key": "84"})))
+    body = run(fetch_bytes(package, files.items[0].url, limit=8_000_000))
     with zipfile.ZipFile(io.BytesIO(body)) as archive:       # a real EPUB, opened, not just 200 OK
         assert "META-INF/container.xml" in archive.namelist()
 
@@ -96,7 +99,10 @@ def test_gutenberg_search_and_a_real_epub(tmp_path):
 @skip_unless_live
 def test_arxiv_search_and_a_real_pdf(tmp_path):
     package = package_for("oneshelf.arxiv", tmp_path)
-    found = run(call(package, "search", {"query": "diffusion", "offset": 0}))
+    try:
+        found = reached(run(call(package, "search", {"query": "diffusion", "offset": 0})))
+    except RateLimited as exc:              # arXiv's API rate-limits hard; that is not a OneShelf defect (E-03)
+        pytest.skip(f"arXiv is rate limiting right now (retry after {exc.retry_after}s)")
     assert found.items and found.items[0].listing_key
     files = run(call(package, "downloads", {"unit_key": found.items[0].listing_key}))
     body = run(fetch_bytes(package, files.items[0].url))

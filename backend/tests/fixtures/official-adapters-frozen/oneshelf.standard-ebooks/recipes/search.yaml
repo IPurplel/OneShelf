@@ -1,0 +1,20 @@
+capability: search
+inputs: [query]
+request:
+  url: "{base_url}/feeds/opds/all?query={query}"
+response:
+  format: html
+extract:
+  items: {css: "entry"}
+  fields:
+    listing_key:
+      css: "id::text"
+      transforms: [{regex_extract: {pattern: 'standardebooks\.org/ebooks/(.+)$', group: 1}}]
+      required: true
+    title: {css: "title::text", transforms: [trim], required: true}
+    creator: {css: "author name::text", transforms: [trim]}
+    description: {css: "summary::text", transforms: [trim]}
+    cover_url: {css: "link[rel='http://opds-spec.org/image']::attr(href)"}
+pagination:
+  mode: none
+  complete_when: single_response

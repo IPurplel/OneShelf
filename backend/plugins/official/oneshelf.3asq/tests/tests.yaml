@@ -25,6 +25,15 @@ cases:
     min_items: 3
     fields_present: [unit_key, title, url, number]
     first: {unit_key: '1'}
+- capability: catalog
+  inputs: {listing_key: berserk}
+  fixtures:
+  - url: https://3asq.online/manga/berserk/ajax/chapters/
+    file: fixtures/chapters-lettered.html
+  expect:
+    min_items: 400
+    fields_present: [unit_key, title, url]
+    first: {unit_key: 0a}
 - capability: reader
   inputs: {url: 'https://3asq.online/manga/one-piece/0chapter/'}
   fixtures:

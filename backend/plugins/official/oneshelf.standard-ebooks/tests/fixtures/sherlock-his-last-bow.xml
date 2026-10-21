@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet href="https://standardebooks.org/feeds/opds/style" type="text/xsl"?>
+	<feed xmlns="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:schema="http://schema.org/" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">
+		<id>https://standardebooks.org/feeds/opds/all?query=arthur-conan-doyle%2Fhis-last-bow&amp;page=1&amp;per-page=12</id>
+		<link href="https://standardebooks.org/feeds/opds/all?query=arthur-conan-doyle%2Fhis-last-bow&amp;page=1&amp;per-page=12" rel="self" type="application/atom+xml;profile=opds-catalog; charset=utf-8"/>
+		<link rel="first" href="https://standardebooks.org/feeds/opds/all?query=arthur-conan-doyle%2Fhis-last-bow&amp;page=1&amp;per-page=12" type="application/atom+xml;profile=opds-catalog; charset=utf-8"/>
+						<link rel="last" href="https://standardebooks.org/feeds/opds/all?query=arthur-conan-doyle%2Fhis-last-bow&amp;page=1&amp;per-page=12" type="application/atom+xml;profile=opds-catalog; charset=utf-8"/>
+		<link rel="search" href="https://standardebooks.org/opensearch" type="application/opensearchdescription+xml" title="Standard Ebooks"/>
+		<link href="https://standardebooks.org/ebooks/ebooks?query=arthur-conan-doyle%2Fhis-last-bow&amp;page=1&amp;per-page=12" rel="alternate" type="application/xhtml+xml"/>
+		<opensearch:totalResults>4</opensearch:totalResults>
+		<opensearch:startIndex>1</opensearch:startIndex>
+		<opensearch:itemsPerPage>12</opensearch:itemsPerPage>
+		<link href="https://standardebooks.org/feeds/opds" rel="start" type="application/atom+xml;profile=opds-catalog;kind=navigation; charset=utf-8"/>
+		<link href="https://standardebooks.org/feeds/opds/all" rel="http://opds-spec.org/crawlable" type="application/atom+xml;profile=opds-catalog;kind=acquisition; charset=utf-8"/>
+		<title>Search Results</title>
+		<subtitle>Results for “arthur-conan-doyle/the-adventures-of-sherlock-holmes”</subtitle>
+		<icon>https://standardebooks.org/images/logo.png</icon>
+		<updated>2026-09-29T05:12:07Z</updated>
+		<author>
+			<name>Standard Ebooks</name>
+			<uri>https://standardebooks.org</uri>
+		</author>
+					<entry>
+	<id>https://standardebooks.org/ebooks/arthur-conan-doyle/the-adventures-of-sherlock-holmes</id>
+	<dc:identifier>https://standardebooks.org/ebooks/arthur-conan-doyle/the-adventures-of-sherlock-holmes</dc:identifier>
+	<title>The Adventures of Sherlock Holmes</title>
+			<author>
+			<name>Arthur Conan Doyle</name>
+			<uri>https://standardebooks.org/ebooks/arthur-conan-doyle</uri>
+							<schema:alternateName>Arthur Ignatius Conan Doyle</schema:alternateName>
+					</author>
+		<published>2018-05-08T02:24:50Z</published>
+	<dc:issued>2018-05-08T02:24:50Z</dc:issued>
+	<updated>2026-08-15T17:38:45Z</updated>
+	<dc:language>en-GB</dc:language>
+	<dc:publisher>Standard Ebooks</dc:publisher>
+	<rights>Public domain in the United States. Users located outside of the United States must check their local laws before using this ebook. Original content released to the public domain via the Creative Commons CC0 1.0 Universal Public Domain Dedication.</rights>
+	<summary type="text">The world’s first consulting detective investigates a variety of intriguing cases in the first Holmes short story collection.</summary>
+		<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-adventures-of-sherlock-holmes/downloads/cover.jpg" rel="http://opds-spec.org/image" type="image/jpeg"/>
+	<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-adventures-of-sherlock-holmes/downloads/cover-thumbnail.jpg" rel="http://opds-spec.org/image/thumbnail" type="image/jpeg"/>
+	<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-adventures-of-sherlock-holmes" rel="alternate" title="This ebook’s page at Standard Ebooks" type="application/xhtml+xml"/>
+			<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-adventures-of-sherlock-holmes/downloads/arthur-conan-doyle_the-adventures-of-sherlock-holmes.epub?source=feed" length="742083" rel="http://opds-spec.org/acquisition/open-access" title="Recommended compatible epub" type="application/epub+zip" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-adventures-of-sherlock-holmes/downloads/arthur-conan-doyle_the-adventures-of-sherlock-holmes_advanced.epub?source=feed" length="1512119" rel="http://opds-spec.org/acquisition/open-access" title="Advanced epub" type="application/epub+zip" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-adventures-of-sherlock-holmes/downloads/arthur-conan-doyle_the-adventures-of-sherlock-holmes.kepub.epub?source=feed" length="659905" rel="http://opds-spec.org/acquisition/open-access" title="Kobo Kepub epub" type="application/kepub+zip" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-adventures-of-sherlock-holmes/downloads/arthur-conan-doyle_the-adventures-of-sherlock-holmes.azw3?source=feed" length="843778" rel="http://opds-spec.org/acquisition/open-access" title="Amazon Kindle azw3" type="application/x-mobipocket-ebook" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-adventures-of-sherlock-holmes/text/single-page" length="707964" rel="http://opds-spec.org/acquisition/open-access" title="XHTML" type="application/xhtml+xml" />
+	</entry>
+					<entry>
+	<id>https://standardebooks.org/ebooks/arthur-conan-doyle/the-casebook-of-sherlock-holmes</id>
+	<dc:identifier>https://standardebooks.org/ebooks/arthur-conan-doyle/the-casebook-of-sherlock-holmes</dc:identifier>
+	<title>The Casebook of Sherlock Holmes</title>
+			<author>
+			<name>Arthur Conan Doyle</name>
+			<uri>https://standardebooks.org/ebooks/arthur-conan-doyle</uri>
+							<schema:alternateName>Sir Arthur Ignatius Conan Doyle</schema:alternateName>
+					</author>
+		<published>2023-03-16T05:12:57Z</published>
+	<dc:issued>2023-03-16T05:12:57Z</dc:issued>
+	<updated>2026-08-15T17:38:45Z</updated>
+	<dc:language>en-GB</dc:language>
+	<dc:publisher>Standard Ebooks</dc:publisher>
+	<rights>Public domain in the United States. Users located outside of the United States must check their local laws before using this ebook. Original content released to the public domain via the Creative Commons CC0 1.0 Universal Public Domain Dedication.</rights>
+	<summary type="text">The world’s first consulting detective and his companion investigate further crimes and mysteries.</summary>
+		<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-casebook-of-sherlock-holmes/downloads/cover.jpg" rel="http://opds-spec.org/image" type="image/jpeg"/>
+	<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-casebook-of-sherlock-holmes/downloads/cover-thumbnail.jpg" rel="http://opds-spec.org/image/thumbnail" type="image/jpeg"/>
+	<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-casebook-of-sherlock-holmes" rel="alternate" title="This ebook’s page at Standard Ebooks" type="application/xhtml+xml"/>
+			<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-casebook-of-sherlock-holmes/downloads/arthur-conan-doyle_the-casebook-of-sherlock-holmes.epub?source=feed" length="793095" rel="http://opds-spec.org/acquisition/open-access" title="Recommended compatible epub" type="application/epub+zip" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-casebook-of-sherlock-holmes/downloads/arthur-conan-doyle_the-casebook-of-sherlock-holmes_advanced.epub?source=feed" length="1128503" rel="http://opds-spec.org/acquisition/open-access" title="Advanced epub" type="application/epub+zip" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-casebook-of-sherlock-holmes/downloads/arthur-conan-doyle_the-casebook-of-sherlock-holmes.kepub.epub?source=feed" length="701682" rel="http://opds-spec.org/acquisition/open-access" title="Kobo Kepub epub" type="application/kepub+zip" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-casebook-of-sherlock-holmes/downloads/arthur-conan-doyle_the-casebook-of-sherlock-holmes.azw3?source=feed" length="850383" rel="http://opds-spec.org/acquisition/open-access" title="Amazon Kindle azw3" type="application/x-mobipocket-ebook" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-casebook-of-sherlock-holmes/text/single-page" length="589975" rel="http://opds-spec.org/acquisition/open-access" title="XHTML" type="application/xhtml+xml" />
+	</entry>
+					<entry>
+	<id>https://standardebooks.org/ebooks/arthur-conan-doyle/the-return-of-sherlock-holmes</id>
+	<dc:identifier>https://standardebooks.org/ebooks/arthur-conan-doyle/the-return-of-sherlock-holmes</dc:identifier>
+	<title>The Return of Sherlock Holmes</title>
+			<author>
+			<name>Arthur Conan Doyle</name>
+			<uri>https://standardebooks.org/ebooks/arthur-conan-doyle</uri>
+							<schema:alternateName>Sir Arthur Ignatius Conan Doyle</schema:alternateName>
+					</author>
+		<published>2018-07-27T21:25:04Z</published>
+	<dc:issued>2018-07-27T21:25:04Z</dc:issued>
+	<updated>2026-09-07T16:44:57Z</updated>
+	<dc:language>en-GB</dc:language>
+	<dc:publisher>Standard Ebooks</dc:publisher>
+	<rights>Public domain in the United States. Users located outside of the United States must check their local laws before using this ebook. Original content released to the public domain via the Creative Commons CC0 1.0 Universal Public Domain Dedication.</rights>
+	<summary type="text">The world’s first consulting detective returns to London after having faked his death some years before, and investigates a series of baffling mysteries.</summary>
+		<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-return-of-sherlock-holmes/downloads/cover.jpg" rel="http://opds-spec.org/image" type="image/jpeg"/>
+	<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-return-of-sherlock-holmes/downloads/cover-thumbnail.jpg" rel="http://opds-spec.org/image/thumbnail" type="image/jpeg"/>
+	<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-return-of-sherlock-holmes" rel="alternate" title="This ebook’s page at Standard Ebooks" type="application/xhtml+xml"/>
+			<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-return-of-sherlock-holmes/downloads/arthur-conan-doyle_the-return-of-sherlock-holmes.epub?source=feed" length="1339078" rel="http://opds-spec.org/acquisition/open-access" title="Recommended compatible epub" type="application/epub+zip" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-return-of-sherlock-holmes/downloads/arthur-conan-doyle_the-return-of-sherlock-holmes_advanced.epub?source=feed" length="1878373" rel="http://opds-spec.org/acquisition/open-access" title="Advanced epub" type="application/epub+zip" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-return-of-sherlock-holmes/downloads/arthur-conan-doyle_the-return-of-sherlock-holmes.kepub.epub?source=feed" length="1436305" rel="http://opds-spec.org/acquisition/open-access" title="Kobo Kepub epub" type="application/kepub+zip" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-return-of-sherlock-holmes/downloads/arthur-conan-doyle_the-return-of-sherlock-holmes.azw3?source=feed" length="1039767" rel="http://opds-spec.org/acquisition/open-access" title="Amazon Kindle azw3" type="application/x-mobipocket-ebook" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/the-return-of-sherlock-holmes/text/single-page" length="4387725" rel="http://opds-spec.org/acquisition/open-access" title="XHTML" type="application/xhtml+xml" />
+	</entry>
+					<entry>
+	<id>https://standardebooks.org/ebooks/arthur-conan-doyle/his-last-bow</id>
+	<dc:identifier>https://standardebooks.org/ebooks/arthur-conan-doyle/his-last-bow</dc:identifier>
+	<title>His Last Bow</title>
+			<author>
+			<name>Arthur Conan Doyle</name>
+			<uri>https://standardebooks.org/ebooks/arthur-conan-doyle</uri>
+							<schema:alternateName>Sir Arthur Ignatius Conan Doyle</schema:alternateName>
+					</author>
+		<published>2018-09-15T17:31:37Z</published>
+	<dc:issued>2018-09-15T17:31:37Z</dc:issued>
+	<updated>2026-09-07T16:44:56Z</updated>
+	<dc:language>en-GB</dc:language>
+	<dc:publisher>Standard Ebooks</dc:publisher>
+	<rights>Public domain in the United States. Users located outside of the United States must check their local laws before using this ebook. Original content released to the public domain via the Creative Commons CC0 1.0 Universal Public Domain Dedication.</rights>
+	<summary type="text">The world’s first consulting detective and his faithful biographer tackle more mysterious cases.</summary>
+		<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/his-last-bow/downloads/cover.jpg" rel="http://opds-spec.org/image" type="image/jpeg"/>
+	<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/his-last-bow/downloads/cover-thumbnail.jpg" rel="http://opds-spec.org/image/thumbnail" type="image/jpeg"/>
+	<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/his-last-bow" rel="alternate" title="This ebook’s page at Standard Ebooks" type="application/xhtml+xml"/>
+			<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/his-last-bow/downloads/arthur-conan-doyle_his-last-bow.epub?source=feed" length="711300" rel="http://opds-spec.org/acquisition/open-access" title="Recommended compatible epub" type="application/epub+zip" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/his-last-bow/downloads/arthur-conan-doyle_his-last-bow_advanced.epub?source=feed" length="716211" rel="http://opds-spec.org/acquisition/open-access" title="Advanced epub" type="application/epub+zip" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/his-last-bow/downloads/arthur-conan-doyle_his-last-bow.kepub.epub?source=feed" length="650872" rel="http://opds-spec.org/acquisition/open-access" title="Kobo Kepub epub" type="application/kepub+zip" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/his-last-bow/downloads/arthur-conan-doyle_his-last-bow.azw3?source=feed" length="762488" rel="http://opds-spec.org/acquisition/open-access" title="Amazon Kindle azw3" type="application/x-mobipocket-ebook" />
+				<link href="https://standardebooks.org/ebooks/arthur-conan-doyle/his-last-bow/text/single-page" length="439957" rel="http://opds-spec.org/acquisition/open-access" title="XHTML" type="application/xhtml+xml" />
+	</entry>
+			</feed>

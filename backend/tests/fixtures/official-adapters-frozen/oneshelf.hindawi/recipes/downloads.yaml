@@ -1,0 +1,14 @@
+capability: downloads
+inputs: [unit_key]
+# The book page links its own files directly; there is nothing to render and nothing to unlock.
+request:
+  url: "{base_url}/books/{unit_key:path}/"
+  headers: {Accept: text/html}
+response:
+  format: html
+extract:
+  items: {css: "a[href$='.epub'], a[href$='.pdf']"}
+  fields:
+    url: {css: "::attr(href)", required: true, transforms: [normalize_url]}
+    format: {css: "::attr(href)", required: true,
+             transforms: [{regex_extract: {pattern: "\\.([a-z]+)$", group: 1}}]}

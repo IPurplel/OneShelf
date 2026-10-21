@@ -1,16 +1,16 @@
+# The EPUB 3 with images — the edition this adapter has always offered — from the book's OPDS entry.
 capability: downloads
 inputs: [unit_key]
 request:
-  url: "{base_url}/books/{unit_key:path}"
-  headers: {Accept: application/json}
+  url: "{base_url}/ebooks/{unit_key:path}.opds"
+  headers: {Accept: application/atom+xml}
 response:
-  format: json
+  format: html
 extract:
-  items: {json: "$.formats['application/epub+zip']"}
+  items: {xpath: "(//entry/link[@type='application/epub+zip'][contains(@href, '.epub3.images')])[1]"}
   fields:
-    url: {json: "$", required: true}
+    url: {xpath: "@href", required: true, transforms: [normalize_url]}
     format: {template: "epub", required: true}
-    language: {json: "$"}
 pagination:
   mode: none
   complete_when: single_response

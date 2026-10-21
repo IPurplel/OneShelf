@@ -30,3 +30,12 @@ cases:
   expect:
     min_items: 1
     fields_present: [url]
+- capability: health
+  inputs: {}
+  fixtures:
+  - url: https://api.mangadex.org/ping
+    file: fixtures/ping.txt
+    content_type: text/plain
+  expect:
+    fields_present: [ok]
+    first: {ok: 'True'}

@@ -1,18 +1,17 @@
-# A Gutenberg book is one Reading Unit: the book itself (Master §4.4).
+# A Gutenberg book is one Reading Unit: the book itself, the Master's one_shot (§4.4).
 capability: catalog
 inputs: [listing_key]
 request:
-  url: "{base_url}/books/{listing_key:path}"
-  headers: {Accept: application/json}
+  url: "{base_url}/ebooks/{listing_key:path}.opds"
+  headers: {Accept: application/atom+xml}
 response:
-  format: json
+  format: html
 extract:
-  items: {json: "$.id"}
-  order: source_listed
+  items: {xpath: "(//entry)[1]"}
   fields:
-    unit_key: {json: "$", required: true}
-    title: {json: "$"}
-    unit_type: {template: "book"}
+    unit_key: {template: "{listing_key}", required: true}
+    title: {xpath: "title/text()", transforms: [trim]}
+    unit_type: {template: "one_shot"}
 pagination:
   mode: none
   complete_when: single_response

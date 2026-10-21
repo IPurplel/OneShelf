@@ -1,15 +1,18 @@
+# gutenberg.org's OPDS entry for one book. Its first entry is the edition with images; its content holds
+# labelled paragraphs ("Summary:", "Language: English"), read by label rather than by position.
 capability: work
 inputs: [listing_key]
 request:
-  url: "{base_url}/books/{listing_key:path}"
-  headers: {Accept: application/json}
+  url: "{base_url}/ebooks/{listing_key:path}.opds"
+  headers: {Accept: application/atom+xml}
 response:
-  format: json
+  format: html
 extract:
   fields:
-    title: {json: "$.title", transforms: [trim], required: true}
-    creator: {json: "$.authors[0].name"}
-    description: {json: "$.summaries[0]"}
-    language: {json: "$.languages[0]"}
-    cover_url: {json: "$.formats['image/jpeg']"}
+    title: {xpath: "(//entry)[1]/title/text()", required: true, transforms: [trim]}
+    creator: {xpath: "(//entry)[1]/author/name/text()", transforms: [trim]}
+    description: {xpath: "(//entry)[1]/content//*[local-name()='p'][starts-with(normalize-space(.), 'Summary:')]/text()",
+                  transforms: [{regex_replace: {pattern: '^\s*Summary:\s*', replacement: ''}}, trim]}
+    language: {xpath: "(//entry)[1]/content//*[local-name()='p'][starts-with(normalize-space(.), 'Language:')]/text()", transforms: [{regex_extract: {pattern: "Language:\\s*([A-Za-z]+)", group: 1}}, {replace: {old: English, new: en}}, {replace: {old: French, new: fr}}, {replace: {old: German, new: de}}, {replace: {old: Finnish, new: fi}}, {replace: {old: Dutch, new: nl}}, {replace: {old: Italian, new: it}}, {replace: {old: Spanish, new: es}}, {replace: {old: Portuguese, new: pt}}, {replace: {old: Chinese, new: zh}}, {replace: {old: Arabic, new: ar}}, {replace: {old: Latin, new: la}}, {replace: {old: Swedish, new: sv}}, {replace: {old: Hungarian, new: hu}}, {regex_extract: {pattern: "^([a-z]{2})$", group: 1}}]}
+    cover_url: {xpath: "(//entry)[1]/link[@rel='http://opds-spec.org/image']/@href", transforms: [normalize_url]}
     content_type: {template: "book"}

@@ -1,0 +1,53 @@
+{
+ "result": {
+  "episodeList": [
+   {
+    "episodeNo": 1,
+    "thumbnail": "/20140617_248/1403004901360ABk5x_JPEG/tower_000.jpg",
+    "episodeTitle": "[Season 1] Ep. 0",
+    "viewerLink": "/en/fantasy/tower-of-god/season-1-ep-0/viewer?title_no=95&episode_no=1",
+    "exposureDateMillis": 1404176400000,
+    "displayUp": false,
+    "hasBgm": false
+   },
+   {
+    "episodeNo": 2,
+    "thumbnail": "/20140617_295/14030049099507m9Vb_JPEG/tower_001.jpg",
+    "episodeTitle": "[Season 1] Ep. 1 - 1F.Headon's Floor",
+    "viewerLink": "/en/fantasy/tower-of-god/season-1-ep-1-1fheadons-floor/viewer?title_no=95&episode_no=2",
+    "exposureDateMillis": 1404176400000,
+    "displayUp": false,
+    "hasBgm": false
+   },
+   {
+    "episodeNo": 3,
+    "thumbnail": "/20140617_195/1403005037123dyxtJ_JPEG/tower_002.jpg",
+    "episodeTitle": "[Season 1] Ep. 2",
+    "viewerLink": "/en/fantasy/tower-of-god/season-1-ep-2/viewer?title_no=95&episode_no=3",
+    "exposureDateMillis": 1404176400000,
+    "displayUp": false,
+    "hasBgm": false
+   },
+   {
+    "episodeNo": 4,
+    "thumbnail": "/20140617_88/14030050556140gStl_JPEG/tower_003.jpg",
+    "episodeTitle": "[Season 1] Ep. 3",
+    "viewerLink": "/en/fantasy/tower-of-god/season-1-ep-3/viewer?title_no=95&episode_no=4",
+    "exposureDateMillis": 1404176400000,
+    "displayUp": false,
+    "hasBgm": false
+   },
+   {
+    "episodeNo": 645,
+    "thumbnail": "/x.jpg",
+    "episodeTitle": "[Season 3] Ep. 227",
+    "viewerLink": "/en/fantasy/tower-of-god/season-3-ep-227/viewer?title_no=95&episode_no=645",
+    "exposureDateMillis": 1738454400000,
+    "displayUp": false,
+    "hasBgm": false
+   }
+  ],
+  "nextCursor": 30
+ },
+ "success": true
+}

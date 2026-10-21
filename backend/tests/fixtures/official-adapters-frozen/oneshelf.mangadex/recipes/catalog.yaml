@@ -1,0 +1,23 @@
+capability: catalog
+inputs: [listing_key, language, offset]
+request:
+  url: "{base_url}/manga/{listing_key:path}/feed?limit=100&offset={offset}&translatedLanguage[]={language}&order[chapter]=asc&order[volume]=asc&includeExternalUrl=0"
+  headers: {Accept: application/json}
+response:
+  format: json
+extract:
+  items: {json: "$.data[*]"}
+  order: source_listed
+  fields:
+    unit_key: {json: "$.id", required: true}
+    title: {json: "$.attributes.title"}
+    number: {json: "$.attributes.chapter"}
+    volume: {json: "$.attributes.volume"}
+    release_date: {json: "$.attributes.publishAt"}
+pagination:
+  mode: offset
+  start: 0
+  step: 100
+  max_pages: 40
+  stop_when: total_count
+  total: {json: "$.total"}

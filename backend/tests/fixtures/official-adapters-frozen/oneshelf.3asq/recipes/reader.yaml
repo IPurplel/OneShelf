@@ -1,0 +1,18 @@
+capability: reader
+inputs: [url]
+request:
+  url: "{url:absolute}"
+  headers: {Accept: text/html}
+response:
+  format: html
+extract:
+  items: {css: "div.reading-content img.wp-manga-chapter-img"}
+  fields:
+    # Madara emits `src=" https://…"`, with a leading space. The runtime strips string values and
+    # `normalize_url` tolerates it, so this `trim` changes nothing today — it is here to say the quirk
+    # was seen and handled deliberately, not to fix a break. Checked: removing it extracts the same
+    # five URLs from the same fixture.
+    url: {css: "::attr(src)", required: true, transforms: [trim, normalize_url]}
+pagination:
+  mode: none
+  complete_when: single_response

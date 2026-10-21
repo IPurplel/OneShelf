@@ -22,7 +22,9 @@ from oneshelf.plugins.manager import InstallRejected, PluginManager
 from oneshelf.plugins.registry import (CachedRegistry, DirectoryRegistry, RegistryError, parse_index,
                                        resolve_package_url)
 
-OFFICIAL = Path(__file__).resolve().parents[3] / "plugins" / "official"
+# Mechanism tests derive their inputs from frozen copies of the official adapters, so a release snapshot
+# refresh never changes what they test (tests/fixtures/official-adapters-frozen/README.md).
+OFFICIAL = Path(__file__).resolve().parents[2] / "fixtures" / "official-adapters-frozen"
 
 
 def run(coro):

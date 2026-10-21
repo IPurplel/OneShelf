@@ -1,0 +1,86 @@
+{
+ "result": "ok",
+ "response": "entity",
+ "data": {
+  "id": "0b531d71-f321-462d-b7ca-d056564bf8b3",
+  "type": "manga",
+  "attributes": {
+   "title": {
+    "en": "DUNGEON"
+   },
+   "altTitles": [],
+   "description": {
+    "en": "5 friends gather to play a tabletop RPG."
+   },
+   "isLocked": false,
+   "links": {},
+   "officialLinks": null,
+   "originalLanguage": "en",
+   "lastVolume": "",
+   "lastChapter": "",
+   "publicationDemographic": null,
+   "status": "completed",
+   "year": 2023,
+   "contentRating": "safe",
+   "tags": [],
+   "state": "published",
+   "chapterNumbersResetOnNewVolume": false,
+   "createdAt": "2023-10-28T18:06:46+00:00",
+   "updatedAt": "2023-10-28T18:06:54+00:00",
+   "version": 2,
+   "availableTranslatedLanguages": [
+    "en"
+   ],
+   "latestUploadedChapter": "dc3cbd95-c448-4996-b056-0c22752a89ae"
+  },
+  "relationships": [
+   {
+    "id": "bd6af85d-b5a4-4b76-a30a-879b99643ff2",
+    "type": "author",
+    "attributes": {
+     "name": "Blu Manga",
+     "imageUrl": null,
+     "biography": {},
+     "twitter": null,
+     "pixiv": null,
+     "melonBook": null,
+     "fanBox": null,
+     "booth": null,
+     "namicomi": null,
+     "nicoVideo": null,
+     "skeb": null,
+     "fantia": null,
+     "tumblr": null,
+     "youtube": null,
+     "weibo": null,
+     "naver": null,
+     "website": null,
+     "createdAt": "2022-02-18T03:59:57+00:00",
+     "updatedAt": "2022-02-18T03:59:57+00:00",
+     "version": 1
+    }
+   },
+   {
+    "id": "bd6af85d-b5a4-4b76-a30a-879b99643ff2",
+    "type": "artist"
+   },
+   {
+    "id": "5bfe87f2-23d9-43c1-a848-e8d22eab66cd",
+    "type": "cover_art",
+    "attributes": {
+     "description": "",
+     "volume": "1",
+     "fileName": "26dcf98a-8837-49b5-a911-702e964a5a54.png",
+     "locale": "en",
+     "createdAt": "2023-10-28T18:06:49+00:00",
+     "updatedAt": "2023-10-28T18:06:49+00:00",
+     "version": 1
+    }
+   },
+   {
+    "id": "fccf68f7-6008-4f78-9c87-b1bb87bf7a9a",
+    "type": "creator"
+   }
+  ]
+ }
+}
