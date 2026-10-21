@@ -12,7 +12,7 @@ from collections.abc import Callable
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import aiohttp
 from aiohttp.abc import AbstractResolver
@@ -136,7 +136,7 @@ class HttpClient:
                 if resp.status in REDIRECT_STATUSES and location:
                     resp.release()
                     redirects.append(current)
-                    current = urljoin(current, location)
+                    current = secure_redirect(self.policy, current, urljoin(current, location))
                     if resp.status == 303 or (resp.status in (301, 302) and current_method == "POST"):
                         current_method, current_data = "GET", None
                     continue
@@ -221,6 +221,27 @@ class HttpClient:
                                         redirects=redirects, bytes_written=written, resumed=appending,
                                         total=_total_length(resp.headers, resume_from if appending else 0))
         raise AssertionError("unreachable")  # pragma: no cover
+
+
+def secure_redirect(policy: EgressPolicy, previous: str, target: str) -> str:
+    """Follow a same-host redirect to plain http over https instead (I-104).
+
+    Some sites canonicalise to an http:// address on the very host just reached over https (Safahat does it
+    for upper-case queries). Where the policy forbids http, that hop would be refused; asking the same host
+    over https is what a browser's HTTPS-only mode does, and every policy check still runs on the result.
+    Another host, an explicit port, or a policy that allows http are left exactly as the source sent them.
+    """
+    if policy.allow_http:
+        return target
+    before, after = urlsplit(previous), urlsplit(target)
+    try:
+        explicit_port = after.port is not None
+    except ValueError:
+        return target
+    if (before.scheme == "https" and after.scheme == "http" and not explicit_port
+            and (after.hostname or "").lower() == (before.hostname or "").lower()):
+        return urlunsplit(("https", after.netloc, after.path, after.query, after.fragment))
+    return target
 
 
 def _range_start(content_range: str | None) -> int | None:

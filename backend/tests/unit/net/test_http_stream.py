@@ -147,3 +147,26 @@ def test_i109_a_read_timeout_releases_its_connection(server_factory, tmp_path):
         gc.collect()
     leaks = [w for w in caught if issubclass(w.category, ResourceWarning)]
     assert leaks == [], [str(w.message) for w in leaks]
+
+
+# -- I-104 (BE-014): a same-host redirect to plain http is followed over https, never over http -------------
+
+from oneshelf.net.http import secure_redirect  # noqa: E402
+
+
+@pytest.mark.parametrize("previous, target, allow_http, expected", [
+    # Safahat: an uppercase Latin query is canonicalised to an http:// address on the same host.
+    ("https://www.safahat.org/search/keyword/Frankenstein/", "http://www.safahat.org/search/keyword/frankenstein/",
+     False, "https://www.safahat.org/search/keyword/frankenstein/"),
+    ("https://www.safahat.org/a", "http://WWW.Safahat.org/b?q=1", False, "https://WWW.Safahat.org/b?q=1"),
+    # Another host keeps its http:// address, which the policy then refuses.
+    ("https://www.safahat.org/a", "http://evil.example/b", False, "http://evil.example/b"),
+    # An explicit port is never guessed into https.
+    ("https://www.safahat.org/a", "http://www.safahat.org:8080/b", False, "http://www.safahat.org:8080/b"),
+    # A downgrade from an http page, or a policy that allows http, is left as the source sent it.
+    ("http://www.safahat.org/a", "http://www.safahat.org/b", False, "http://www.safahat.org/b"),
+    ("https://www.safahat.org/a", "http://www.safahat.org/b", True, "http://www.safahat.org/b"),
+])
+def test_i104_secure_redirect(previous, target, allow_http, expected):
+    policy = EgressPolicy(domains=("www.safahat.org",), allow_http=allow_http)
+    assert secure_redirect(policy, previous, target) == expected
