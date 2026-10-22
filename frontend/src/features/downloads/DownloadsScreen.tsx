@@ -151,11 +151,14 @@ export function DownloadsScreen() {
   );
 }
 
-/** Detail requests exist only while their batch is open; live job events refresh an open panel. */
+/**
+ * Detail requests exist only while their batch is open; live job events refresh an open panel, and so does a
+ * Work's files being deleted, since that changes which finished units can still be opened.
+ */
 function BatchDetails({ batch }: { batch: Batch }) {
   const { t, language } = useI18n();
   const { data, error, loading, reload } = useResource<BatchDetail>(`/api/downloads/${batch.batch_id}`);
-  useLive(["download.batch", "download.job"], reload);
+  useLive(["download.batch", "download.job", "shelf.changed"], reload);
   const bytes = (value: number) => new Intl.NumberFormat(language, { style: "unit", unit: "byte", unitDisplay: "narrow" }).format(value);
   return <div className="batches__detail" id={`batch-details-${batch.batch_id}`}>
     {loading && data === null && <LoadingState />}
@@ -167,7 +170,8 @@ function BatchDetails({ batch }: { batch: Batch }) {
       const known = ["QUEUED", "PREPARING", "DOWNLOADING", "VERIFYING", "PACKAGING", "COMMITTING", "COMPLETED",
         "PAUSED", "WAITING_FOR_SESSION", "WAITING_FOR_RATE_LIMIT", "RETRY_WAIT", "FAILED", "CANCELED", "RECOVERING"];
       const label = job.unit_title || t("downloads.unitFallback", { number: index + 1 });
-      const openable = state === "COMPLETED" && job.available !== false;
+      // Only the API's word that the file is there now makes a unit openable; an older API says nothing (UI-003).
+      const openable = state === "COMPLETED" && job.available === true;
       return <div key={job.id} className="batches__job">
         <span className="batches__jobTitle" dir="auto">{label}</span>
         {job.work_title && <span className="cards__meta" dir="auto">{job.work_title}</span>}

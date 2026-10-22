@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { DownloadsScreen } from "./DownloadsScreen";
 import { renderWithProviders, renderLive } from "@/test/render";
-import { del, get, mockApi, post } from "@/test/http";
+import { del, get, mockApi, post, type Route } from "@/test/http";
 
 const BATCHES = {
   batches: [
@@ -59,6 +59,43 @@ describe("Downloads", () => {
     expect(row).toHaveTextContent("Unavailable");
     expect(within(row).queryByRole("link", { name: /open.*chapter three/i })).not.toBeInTheDocument();
   });
+  it.each([["omits", {}], ["nulls", { available: null }]] as const)(
+    "never offers a completed unit as openable when the API %s its availability", async (_how, availability) => {
+    // An older backend cannot say whether the file is still there, so the unit is not offered; nor is it called
+    // unavailable, which the payload does not say either. The Reader stays the final authority.
+    mockApi([get("/api/downloads", BATCHES), get("/api/downloads/b1", {
+      ...BATCHES.batches[0], jobs: [{ id: "j5", reading_unit_id: "u5", unit_title: "Chapter five", work_id: "w1",
+        work_title: "The Work", state: "COMPLETED", bytes_done: 100, ...availability }],
+    })]);
+    const user = userEvent.setup();
+    renderWithProviders(<DownloadsScreen />);
+    const row = (await screen.findAllByRole("listitem"))[0]!;
+    await user.click(within(row).getByRole("button", { name: /details/i }));
+    const job = (await within(row).findByText("Chapter five")).closest(".batches__job") as HTMLElement;
+    expect(job).toHaveTextContent("Completed");
+    expect(within(job).queryByRole("link")).not.toBeInTheDocument();
+    expect(job).not.toHaveTextContent("Unavailable");
+  });
+
+  it("re-reads an open batch when a Work's files are deleted, and stops offering them", async () => {
+    const answers = [true, false].map((available) => ({ ...BATCHES.batches[0], jobs: [{ id: "j1",
+      reading_unit_id: "u1", unit_title: "Chapter one", work_id: "w1", state: "COMPLETED", available, bytes_done: 100 }] }));
+    const detail: Route = { match: (url) => url.split("?")[0] === "/api/downloads/b1",
+      get payload() { return answers.length > 1 ? answers.shift() : answers[0]; } };
+    const calls = mockApi([get("/api/downloads", BATCHES), detail]);
+    const user = userEvent.setup();
+    const { emit } = renderLive(<DownloadsScreen />);
+    const row = (await screen.findAllByRole("listitem"))[0]!;
+    await user.click(within(row).getByRole("button", { name: /details/i }));
+    expect(await within(row).findByRole("link", { name: /open.*chapter one/i })).toBeInTheDocument();
+    const lists = calls.filter((call) => call.url === "/api/downloads").length;
+
+    act(() => { emit("shelf.changed", { work_id: "w1", action: "files_deleted", files: 1 }); });
+    await waitFor(() => expect(within(row).queryByRole("link", { name: /open.*chapter one/i })).not.toBeInTheDocument());
+    expect(row).toHaveTextContent("Unavailable");
+    expect(calls.filter((call) => call.url === "/api/downloads").length).toBe(lists);   // the list is not re-read
+  });
+
   it("exposes measurable per-unit progress for an active download", async () => {
     mockApi([get("/api/downloads", BATCHES), get("/api/downloads/b1", {
       ...BATCHES.batches[0], jobs: [{ id: "j4", reading_unit_id: "u4", unit_title: "Chapter four",

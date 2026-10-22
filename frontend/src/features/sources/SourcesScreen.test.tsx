@@ -41,6 +41,25 @@ describe("Sources", () => {
     const rows = await screen.findAllByRole("listitem");
     expect(rows[0]).toHaveTextContent("Unknown");
   });
+  it.each(["en", "ar"] as const)("shows Unknown per source when its time is left out or unreadable in %s", async language => {
+    // The backend leaves the field out for one source when it cannot know (its checks predate the record), so
+    // one list mixes a known time, an unknown one and an unreadable one; none of them is shown as "never".
+    const [first, second] = SOURCES.sources;
+    mockApi([get("/api/sources", { sources: [first!,                           // the field left out
+      { ...second!, last_successful_check_at: "not a time" },
+      { ...first!, id: "oneshelf.third", name: "Third", last_successful_check_at: "2026-10-18T12:30:00Z" },
+    ] })]);
+    renderWithProviders(<SourcesScreen />, { language });
+    const rows = await screen.findAllByRole("listitem");
+    const unknown = language === "ar" ? "غير معروف" : "Unknown";
+    const never = language === "ar" ? "لم يُفحص بعد" : "Never checked";
+    for (const row of rows.slice(0, 2)) {
+      expect(row.querySelector(".sources__lastCheck")).toHaveTextContent(unknown);
+      expect(row).not.toHaveTextContent(never);
+      expect(row.querySelector("time")).toBeNull();
+    }
+    expect(rows[2]!.querySelector("time")).toHaveAttribute("datetime", "2026-10-18T12:30:00Z");
+  });
   it("refreshes the aggregate check time after a source health event", async () => {
     const calls = mockApi([get("/api/sources", SOURCES)]);
     const { emit } = renderLive(<SourcesScreen />);
