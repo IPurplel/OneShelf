@@ -187,9 +187,22 @@ precise semantics:
 
 **UI-003 — `GET /api/downloads/{batch_id}`**
 - Each job adds `work_id`, `work_title`, `track_id` and `unit_title` (null when unresolvable).
-- `available` is true only for `COMPLETED` jobs whose asset is registered `ok`, whose storage location is
-  reachable, and whose file is on disk. It is false otherwise, including when a file was deleted after
-  completion.
+- `available` is true only for a `COMPLETED` job whose unit the Reader would open from this device right now.
+  That is the copy the Reader opens (the unit's oldest `ok` record, in the format the job produced), with its
+  storage location connected and marked as OneShelf's, and the file in it. A read-only location still opens.
+  It is false for a deleted, missing, corrupt or unverified copy, a disconnected location, or a path OneShelf
+  will not follow. A job whose file was deleted, or that finished before jobs were linked to their files,
+  reports what the unit has now, because the Reader opens the unit, not the job. The Reader and this field use
+  one shared function (`oneshelf/library/copies.py`), so they cannot disagree.
+- Deleting a Work's files (`DELETE /api/works/{id}/files`) failed with a 500 for any downloaded or imported
+  file, after the file was already gone, and left a record that still said `ok` (I-110). It now succeeds:
+  the jobs stay in history with `available: false`, and the unit can be downloaded again.
+- A copy whose file disappeared from a connected location is no longer skipped as `already_downloaded`. The
+  new download replaces it (I-98). A copy on a disconnected location is still skipped, so a unit is never
+  downloaded twice.
+- The frontend should treat a missing `available` (an older backend) as "not known", which means not
+  openable. It should also re-read an open batch on `shelf.changed`, which carries `action: "files_deleted"`
+  when files are deleted. Both are done on `repair/ui-download-availability`, a PR into PR #6's branch.
 - `bytes_total`: for a finished job, what it transferred; for jobs finished before `bytes_done` existed, the
   stored file's size. For a whole file in progress, the size the source announced. Otherwise null (image
   pages have no announced size).
@@ -204,7 +217,10 @@ precise semantics:
 
 **UI-004 — `GET /api/sources`**
 - `last_successful_check_at` is the last time any capability of the source succeeded, as ISO-8601 UTC.
-  `null` means it has never succeeded.
+  `null` means it has never succeeded. That is said only when every check of the source is on record, which
+  holds for sources installed after migration 0021. For a source installed earlier with no success on record,
+  the field is **omitted**, and the UI already shows that as Unknown. Its earlier successes may have been
+  pruned before the record began, so "Never checked" would be a guess. The first success fills it in.
 - It is kept in a durable summary, so it survives the 7-day pruning of health signals, and a failure never
   clears it.
 - Event `source.health` `{source_id}` fires when a source's outcome changes, and otherwise at most once a

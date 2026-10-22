@@ -137,6 +137,43 @@ skip reasons, paging, redaction, 404) and `last_successful_check_at` plus `sourc
 `test_migration_source_track_identity.py` now applies migrations only up to 20, which is the upgrade it tests.
 Suite: **1,587 passed, 1 skipped**. The answers are written up at the end of `handoffs-codex.md`.
 
+## Completing UI-003 for PR #6: download availability (Codex's "BE-003")
+
+Requested on 2026-10-21: the batch detail's `available` must be accurate now, a deleted or missing copy must
+never be offered as openable, PR #6 must stay compatible, and the Sources timestamp must degrade safely.
+
+| Problem (reproduced first) | Fix | Regression evidence |
+|---|---|---|
+| `DELETE /api/works/{id}/files` returned 500 for any downloaded or imported file (`FOREIGN KEY constraint failed`): the job or import still pointed at the asset. The file was already gone, but the record still said `ok`. Reproduced on `main` too (I-110). | The jobs and imports that made the file stop pointing at it, in the same transaction as the record's deletion (`library/shelf.py`) | `test_download_availability.py::test_ui003_deleting_a_downloaded_works_files_*`, `test_storage_api.py::test_i110_*` |
+| A file gone from a connected location was still skipped as `already_downloaded`, so "download it again" (the Reader's own advice) did nothing | The record is marked `missing_local_file`, as a scan would, and the new download replaces it (I-98). A copy on a disconnected location is still not downloaded twice | `test_ui003_a_file_gone_*`, `test_ui003_a_copy_on_a_disconnected_location_*` |
+| `available` judged the job's own record: a read-only location counted as unopenable, and legacy jobs (no file link) always counted as unopenable even when the unit was there | One shared answer for the Reader and Downloads: the copy the Reader opens, present on a connected location (`library/copies.py`) | `test_ui003_a_read_only_location_still_opens`, `test_ui003_legacy_completed_jobs_*`, `test_ui003_unsound_records_*` |
+| `last_successful_check_at: null` ("Never checked") for a source installed before migration 0021 whose successes were pruned before the record began | The field is omitted (shown as Unknown) unless every check is on record, or a success is | `test_ui_contracts.py::test_ui004_a_source_older_*`, `test_migration_source_check_summary.py::test_never_is_claimed_*` |
+| PR #6 offered "Open" for a completed job whose payload had no `available` (an older backend), and did not refresh an open batch when files were deleted | `available === true` is required, and an open batch re-reads on `shelf.changed`. Branch `repair/ui-download-availability`, a PR into PR #6's branch | `DownloadsScreen.test.tsx` (legacy omitted/null; live deletion), `SourcesScreen.test.tsx` (Unknown per source, en/ar) |
+
+**End-to-end run, no fixtures (2026-10-22).** This branch's backend served the
+`repair/ui-download-availability` build of PR #6 on an isolated instance (port 8442, fresh data, Test Source
+plus the bundled sources). The browser was Chrome at 1440 px in English and 390 px in Arabic. The results:
+
+- After a real download, the batch offered "Open" with `?work=…&track=…`, and the Reader served page 1 from the
+  local copy.
+- The Work's files were deleted while Downloads was open: `200 {deleted_files: 2}`. Within the same view, the
+  `shelf.changed` event removed both links and showed "Unavailable".
+- Downloading again was not skipped (`skipped: 0`), and the unit opened again from either batch.
+- A file was removed behind OneShelf's back: shown Unavailable, then downloaded again, not skipped, with one
+  asset record.
+- A legacy payload (the `available` field stripped in flight) showed no link and no "Unavailable".
+- On Sources:
+  - the Test Source showed its real time;
+  - bundled sources installed after migration 0021 showed "Never checked";
+  - a source dated before it showed "Unknown" in both languages;
+  - a successful search refreshed an open page through `source.health`.
+- No console errors, no HTTP ≥ 400, and no horizontal overflow at 390 px.
+- Codex's fixture regression `frontend/tests/ui_repair_browser.py` passed on the same build: 8 runs at 4
+  widths, English and Arabic, plus dark and forced colours.
+
+Backend suite: **1,596 passed, 1 skipped**. Frontend: **476 tests in 40 files passed**, `tsc` is clean, and
+the build succeeded.
+
 ## Merge order
 
 1. OneShelf PR #4 (phase 1) → `main`.

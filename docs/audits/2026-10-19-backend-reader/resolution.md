@@ -26,6 +26,12 @@ Every finding of the audit, the fix, the test that holds it, and where the fix i
 | BE-018 | I-108 | P3 | Preflight with the declared size before fetching | `test_engine.py::test_i108_*` | phase 4 |
 | BE-019 | I-109 | P3 | Connections closed on error; no leak after read timeouts | `test_http_stream.py::test_i109_*`; live suite no longer fails on it | phase 3, #7 |
 
+## Found after the audit
+
+| Ledger | P | Resolution | Regression evidence | Branch / PR |
+|---|---|---|---|---|
+| I-110 | P2 | Deleting a downloaded or imported Work's files no longer fails on the job's or import's reference to the asset. The file used to go while its record stayed `ok`. A copy that went missing can be downloaded again, and Downloads offers "Open" only for a copy the Reader can open now | `test_download_availability.py`, `test_storage_api.py::test_i110_*` | UI contracts, #9 |
+
 ## What is still open, and why
 
 | Item | State |
