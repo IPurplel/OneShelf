@@ -24,6 +24,7 @@ from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.downloads.contract import ExtractionContract, Settings, next_method, resolve_method
 from oneshelf.integrity.validators import _validate_image, detect_format, validate
+from oneshelf.library.copies import MISSING, copy_state
 from oneshelf.net.governor import Priority, TrafficGovernor
 from oneshelf.net.http import FetchFailed, ResponseTooLarge, TooManyRedirects
 from oneshelf.net.policy import BlockedDestination, DisallowedTarget
@@ -139,8 +140,19 @@ class DownloadEngine:
         return row
 
     def _already_downloaded(self, unit_id: str, file_format: str | None = None) -> bool:
-        return self.conn.execute("SELECT 1 FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'"
-                                 " AND (? IS NULL OR format = ?)", (unit_id, file_format, file_format)).fetchone() is not None
+        """A sound copy is on record, unless its file has gone from a connected location (UI-003).
+
+        That record is marked missing, as a storage scan would mark it, so the new download replaces it at
+        commit (I-98). A copy on a location that is not connected is still the library's: not downloaded twice.
+        """
+        roots: dict = {}
+        for asset in self.conn.execute("SELECT * FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'"
+                                       " AND (? IS NULL OR format = ?)", (unit_id, file_format, file_format)).fetchall():
+            if copy_state(self.conn, asset, roots) != MISSING:
+                return True
+            self.conn.execute("UPDATE assets SET integrity = 'missing_local_file', updated_at = ? WHERE id = ?",
+                              (utcnow_iso(), asset["id"]))
+        return False
 
     def _active_job(self, unit_id: str, file_format: str | None = None) -> bool:
         placeholders = ",".join("?" * (len(ACTIVE_STATES) + len(RUNNABLE_STATES)))
@@ -175,12 +187,12 @@ class DownloadEngine:
                 for file_format in dict.fromkeys(formats or [None]):
                     # A sound copy is never re-downloaded, repair or not; a broken one is replaced only once
                     # the new copy is verified, at commit (I-99). Nothing is deleted here.
-                    if self._already_downloaded(unit_id, file_format) or self._active_job(unit_id, file_format):
+                    downloaded = self._already_downloaded(unit_id, file_format)
+                    if downloaded or self._active_job(unit_id, file_format):
                         skipped.append(unit_id)
                         skipped_details.append({
                             "reading_unit_id": unit_id, "format": file_format,
-                            "reason": ("already_downloaded" if self._already_downloaded(unit_id, file_format)
-                                       else "already_queued")})
+                            "reason": "already_downloaded" if downloaded else "already_queued"})
                         continue
                     if context["track_availability"] == "unavailable":
                         raise ValueError("this source edition is no longer linked")

@@ -12,8 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from oneshelf.diagnostics.redact import redact_text
-from oneshelf.storage.paths import PathSafetyError, resolve_within
-from oneshelf.storage.roots import RootError, check_availability, get_root
+from oneshelf.library.copies import PRESENT, copy_state, local_copy
 from oneshelf.downloads.engine import KEEPABLE_FORMATS, NoStorageLocation
 from oneshelf.net.governor import Priority
 from oneshelf.api.sources import error, services
@@ -172,26 +171,17 @@ async def list_batches(request: Request, limit: int = Query(default=20, ge=1, le
 
 
 def _job_available(conn, job, roots: dict) -> bool:
-    """Whether a finished job's file can be opened now: registered sound, its location reachable, the file there."""
-    if job["state"] != "COMPLETED" or not job["asset_id"]:
+    """Whether a finished job's unit opens from this device now: the copy the Reader opens is there (UI-003).
+
+    The job's own file decides the format. A job whose file was deleted, or that finished before jobs were
+    linked to their files, says what the unit has now: the Reader opens the unit, not the job.
+    """
+    if job["state"] != "COMPLETED":
         return False
-    asset = conn.execute("SELECT storage_root_id, relative_path, integrity FROM assets WHERE id = ?",
-                         (job["asset_id"],)).fetchone()
-    if asset is None or asset["integrity"] != "ok":
-        return False
-    if asset["storage_root_id"] not in roots:
-        try:
-            root = get_root(conn, asset["storage_root_id"])
-            roots[asset["storage_root_id"]] = root if check_availability(root).available else None
-        except (ValueError, RootError):
-            roots[asset["storage_root_id"]] = None
-    root = roots[asset["storage_root_id"]]
-    if root is None:
-        return False
-    try:
-        return resolve_within(root.path, asset["relative_path"]).is_file()
-    except PathSafetyError:
-        return False
+    own = conn.execute("SELECT format FROM assets WHERE id = ?", (job["asset_id"],)).fetchone() \
+        if job["asset_id"] else None
+    copy = local_copy(conn, job["reading_unit_id"], own["format"] if own else None)
+    return copy is not None and copy_state(conn, copy, roots) == PRESENT
 
 
 def _bytes_total(conn, job) -> int | None:

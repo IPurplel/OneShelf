@@ -2,7 +2,7 @@
 from oneshelf.db.connection import open_database
 from oneshelf.db.migrate import migrate
 from oneshelf.db.schema import MIGRATIONS
-from oneshelf.sources.health import last_successful_check, record_signal
+from oneshelf.sources.health import checks_recorded_since_install, last_successful_check, record_signal
 
 
 def test_upgrade_backfills_last_success_from_the_signals_still_held(tmp_path):
@@ -22,3 +22,20 @@ def test_upgrade_backfills_last_success_from_the_signals_still_held(tmp_path):
         assert last_successful_check(conn, "b") is not None
         conn.execute("DELETE FROM source_health_signals")                         # pruning cannot take it away
         assert last_successful_check(conn, "b") is not None
+
+
+def test_never_is_claimed_only_for_sources_installed_once_checks_were_kept(tmp_path):
+    path = tmp_path / "library.db"
+    migrate(path, MIGRATIONS[:20], snapshot_dir=tmp_path / "snapshots")
+    with open_database(path) as conn:
+        conn.execute("INSERT INTO plugins (id, name, state, active_version, trust_label, channel, installed_at,"
+                     " updated_at) VALUES ('old', 'Old', 'disabled', NULL, 'official', 'bundled', ?, ?)",
+                     ("2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00"))
+    migrate(path, MIGRATIONS, snapshot_dir=tmp_path / "snapshots")
+    with open_database(path) as conn:
+        conn.execute("INSERT INTO plugins (id, name, state, active_version, trust_label, channel, installed_at,"
+                     " updated_at) VALUES ('new', 'New', 'disabled', NULL, 'official', 'bundled', ?, ?)",
+                     ("2999-01-01T00:00:00+00:00", "2999-01-01T00:00:00+00:00"))
+        assert checks_recorded_since_install(conn, "new") is True       # no success on record means never
+        assert checks_recorded_since_install(conn, "old") is False      # its successes may have been pruned
+        assert checks_recorded_since_install(conn, "absent") is False

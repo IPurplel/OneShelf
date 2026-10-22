@@ -86,6 +86,30 @@ def test_ui004_sources_report_their_last_successful_check(api):
     assert after == succeeded                                                         # a failure never erases it
 
 
+def test_ui004_a_source_older_than_its_check_record_is_unknown_until_it_succeeds(api):
+    """`null` says "never succeeded", which is known only for a source installed once the record was kept.
+
+    Health signals are pruned after seven days, so a source installed before the upgrade may have succeeded
+    long ago. Its field is omitted, which the frontend shows as Unknown, until a success is on record.
+    """
+    client, tmp_path = api
+    with db(tmp_path) as conn:
+        conn.execute("UPDATE plugins SET installed_at = '2026-01-01T00:00:00+00:00' WHERE id = ?", (TS,))
+        conn.commit()
+
+    def source():
+        return {s["id"]: s for s in client.get("/api/sources").json()["sources"]}[TS]
+
+    assert "last_successful_check_at" not in source()
+    from oneshelf.db.connection import open_database
+    from oneshelf.sources.health import record_signal
+    with open_database(tmp_path / "data" / "oneshelf.db") as conn:
+        record_signal(conn, TS, "search", "failure", "transport", "1.0.0")
+    assert "last_successful_check_at" not in source()                                # a failure tells no more
+    client.get("/api/search", params={"q": "chronicle"})
+    assert source()["last_successful_check_at"].endswith("+00:00")
+
+
 def test_ui004_source_health_events_follow_changes_and_are_throttled():
     """`source.health` tells clients to re-read the list: at once on a change, at most once a minute otherwise."""
     from types import SimpleNamespace

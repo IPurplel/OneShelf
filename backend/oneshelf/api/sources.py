@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
-from oneshelf.sources.health import last_successful_check
+from oneshelf.sources.health import checks_recorded_since_install, last_successful_check
 from oneshelf.domain.ids import new_id
 from oneshelf.plugins.manager import InstallRejected, PluginUnavailable
 from oneshelf.plugins.package import PackageError, load_package
@@ -57,13 +57,17 @@ def _source_view(s, record) -> dict:
             package = None
         if package is not None:
             capabilities, auth_available = list(package.manifest.capabilities), package.manifest.auth is not None
-    return {"id": record.id, "name": record.name, "state": record.state, "version": record.active_version,
+    view = {"id": record.id, "name": record.name, "state": record.state, "version": record.active_version,
             "trust_label": record.trust_label, "channel": record.channel, "capabilities": capabilities,
             "category": record.category, "languages": list(record.languages),
             "auth_available": auth_available, "session_state": s.sessions.state(record.id),
-            "can_rollback": can_rollback,
-            # UI-004: the last successful check of any capability; null if it never succeeded.
-            "last_successful_check_at": last_successful_check(s.conn, record.id)}
+            "can_rollback": can_rollback}
+    # UI-004: the last successful check of any capability; null if it never succeeded. Left out when that
+    # cannot be known (its earlier checks were pruned before the record began), which the UI shows as Unknown.
+    last_success = last_successful_check(s.conn, record.id)
+    if last_success is not None or checks_recorded_since_install(s.conn, record.id):
+        view["last_successful_check_at"] = last_success
+    return view
 
 
 @router.get("/sources")

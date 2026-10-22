@@ -21,6 +21,7 @@ from oneshelf.domain.ids import new_id
 from oneshelf.downloads.contract import Settings
 from oneshelf.downloads.engine import NoStorageLocation
 from oneshelf.integrity.validators import _is_image_entry, _natural_key, _validate_image
+from oneshelf.library.copies import local_copy
 from oneshelf.net.governor import Priority
 from oneshelf.plugins.results import ResourceDescriptor
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError
@@ -178,10 +179,7 @@ class ReaderService:
             record(source_id, "reader", outcome, category)
 
     def _local_asset(self, unit_id: str, format: str | None = None) -> sqlite3.Row | None:
-        return self.conn.execute(
-            "SELECT * FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'"
-            " AND (? IS NULL OR format = ?) ORDER BY created_at, id LIMIT 1",
-            (unit_id, format, format)).fetchone()
+        return local_copy(self.conn, unit_id, format)        # the copy Downloads calls openable (UI-003)
 
     def _local_path(self, asset: sqlite3.Row) -> Path:
         root = get_root(self.conn, asset["storage_root_id"])

@@ -89,6 +89,18 @@ def test_import_upload_review_and_commit(api):
     assert again["suggestions"][0]["confident"] is True
 
 
+def test_i110_deleting_an_imported_works_files_works(api):
+    """The import keeps its record of what was imported; the file and its asset go (I-110)."""
+    client, tmp_path, _root = api
+    _review, outcome = import_cbz(client, tmp_path)
+    stored = tmp_path / "library" / outcome["path"]
+    assert stored.is_file()
+    response = client.delete(f"/api/works/{outcome['work_id']}/files")
+    assert response.status_code == 200 and response.json()["deleted_files"] == 1
+    assert not stored.exists()
+    assert client.get(f"/api/reader/units/{outcome['reading_unit_id']}/context").json()["formats"] == []
+
+
 def test_unsupported_import_is_rejected(api):
     client, tmp_path, _ = api
     response = client.post("/api/import/uploads", content=b"<html>not a book</html>",
