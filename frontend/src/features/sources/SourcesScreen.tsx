@@ -1,5 +1,7 @@
 import { useId, useState } from "react";
 
+import { motion } from "motion/react";
+
 import { api } from "@/api/client";
 import { apiErrorText } from "@/i18n/apiErrors";
 import { useResource } from "@/api/useApi";
@@ -13,6 +15,7 @@ import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
 import { capabilityLabel, channelLabel, trustLabel } from "@/i18n/sourceLabels";
 import { useLive } from "@/app/live";
+import { TRANSITION_EASE, useReducedMotion } from "@/lib/motion";
 import { CATEGORIES, categoryLabel, languageLabel } from "@/features/search/scopes";
 
 type Source = {
@@ -65,6 +68,7 @@ export function SourcesScreen() {
   // Anything that changes what is installed changes what the Registry section should say.
   const [revision, setRevision] = useState(0);
   const changed = () => { reload(); setRevision((n) => n + 1); };
+  const reduced = useReducedMotion();
 
   // A removed source keeps its record (provenance), but it is not installed: the Registry section offers it.
   const sources = (data?.sources ?? []).filter((source) => source.state !== "uninstalled");
@@ -137,8 +141,12 @@ export function SourcesScreen() {
       </>}
 
       <ul className="cards">
-        {filtered.map((source) => (
-          <li key={source.id} className="cards__row">
+        {filtered.map((source, i) => (
+          <motion.li key={source.id} className="cards__row"
+            initial={reduced ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...TRANSITION_EASE, delay: Math.min(i * 0.04, 0.3) }}
+          >
             <span className="cards__name display" dir="auto">{source.name}</span>
             <span className="cards__meta">{source.capabilities.map(value => capabilityLabel(value, t)).join(" · ")}</span>
             {/* Where it came from: bundled with OneShelf, the Registry, or a file the person chose. */}
@@ -160,7 +168,7 @@ export function SourcesScreen() {
             {source.session_state === "connected" && <span className="cards__ok">{t("sources.connected")}</span>}
             <button type="button" className="chip" aria-label={t("sources.moreFor", { name: source.name })}
               disabled={loading} onClick={() => setOpen(source)}>{t("sources.more")}</button>
-          </li>
+          </motion.li>
         ))}
       </ul>
       </section>

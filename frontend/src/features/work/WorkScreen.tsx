@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { motion } from "motion/react";
 
 import { ApiError, api } from "@/api/client";
 import { CoverPlaceholder } from "@/components/CoverPlaceholder";
@@ -10,6 +11,7 @@ import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
 import { handleTabKeys } from "@/components/tabKeyboard";
 import { languageName } from "@/i18n/language";
+import { TRANSITION_EASE, useReducedMotion } from "@/lib/motion";
 import { ExportWizard } from "@/features/export/ExportWizard";
 import { ModalSurface } from "@/components/ModalSurface";
 import { RemoveFromShelf } from "@/features/shelf/RemoveFromShelf";
@@ -62,6 +64,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${id}`,
     trackId ? { track_id: trackId } : undefined);
   const [problem, setProblem] = useState<string | null>(null);
+  const reduced = useReducedMotion();
   const location = useLocation();
   const alreadyChecked = useRef(new Set<string>());
   const openedAttempt = (location.state as { catalogAttempt?: CatalogAttempt } | null)?.catalogAttempt ?? null;
@@ -213,7 +216,11 @@ export function WorkScreen({ workId }: { workId?: string }) {
 
   return (
     <article className="screen work">
-      <header className="work__header">
+      <motion.header className="work__header"
+        initial={reduced ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={TRANSITION_EASE}
+      >
         <WorkCover url={data.cover_url ?? null} title={work.title} />
         <div className="work__intro">
           <h1 className="work__title display" dir="auto">{work.title}</h1>
@@ -274,7 +281,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
           </div>
           {work.description && <p className="work__description" dir="auto">{work.description}</p>}
         </div>
-      </header>
+      </motion.header>
 
       <div className="toolbar__tabs" role="tablist" aria-label={t("work.tab.details")} onKeyDown={handleTabKeys}>
         {(["read", "details", "sources"] as Tab[]).map((candidate) => (

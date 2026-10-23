@@ -524,7 +524,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   color: var(--ink-700);
   font: inherit;
   cursor: pointer;
+  transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease), box-shadow var(--motion-fast) var(--ease);
 }
+.chip:hover:not(:disabled):not([aria-selected="true"]):not([aria-pressed="true"]) { background: var(--ivory-200); border-color: var(--wood-300); }
 .chip[aria-selected="true"] { background: var(--primary-bg); border-color: var(--primary-bg); color: var(--ivory-50); }
 .button[aria-pressed="true"], .chip[aria-pressed="true"], .iconbutton[aria-pressed="true"] {
   background: var(--ivory-200);
@@ -692,7 +694,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   background: var(--paper-raised);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
+  transition: border-color var(--motion-fast) var(--ease), box-shadow var(--motion-fast) var(--ease);
 }
+.journal__row:hover { border-color: var(--wood-300); box-shadow: var(--shadow-raised); }
 .journal__work { font-family: var(--font-display); color: inherit; }
 .journal__source, .journal__when, .journal__state { color: var(--ink-500); font-size: 14px; }
 .journal__badge { color: var(--positive-text); font-weight: 600; }
@@ -710,7 +714,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   background: var(--paper-raised);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
+  transition: border-color var(--motion-fast) var(--ease), box-shadow var(--motion-fast) var(--ease);
 }
+.batches__row:hover { border-color: var(--wood-300); box-shadow: var(--shadow-raised); }
 .batches__state { text-transform: capitalize; color: var(--ink-700); }
 .batches__state--failed { color: var(--danger-text); }
 .batches__state--completed_with_issues { color: var(--warning-text); }
@@ -752,7 +758,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   background: var(--paper-raised);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
+  transition: border-color var(--motion-fast) var(--ease), box-shadow var(--motion-fast) var(--ease);
 }
+.cards__row:hover { border-color: var(--wood-300); box-shadow: var(--shadow-raised); }
 .cards__name { font-size: 17px; }
 .cards__meta { color: var(--ink-500); font-size: 14px; }
 .literal-path { unicode-bidi: isolate; direction: ltr; overflow-wrap: anywhere; min-inline-size: 0; text-align: start; }

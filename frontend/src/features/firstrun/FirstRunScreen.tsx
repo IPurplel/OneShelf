@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { motion } from "motion/react";
 
 import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
+import { TRANSITION_SLOW, useReducedMotion } from "@/lib/motion";
 
 type Step = "welcome" | "storage" | "access_mode" | "sources" | "finish";
 type Mode = "local" | "lan" | "remote";
@@ -52,9 +54,14 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
     }
   };
 
+  const reduced = useReducedMotion();
   return (
     <section className="firstrun">
-      <div className="firstrun__panel paper">
+      <motion.div className="firstrun__panel paper"
+        initial={reduced ? false : { opacity: 0, scale: 0.97 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={TRANSITION_SLOW}
+      >
         {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
 
         {step === "welcome" && (
@@ -170,7 +177,7 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
             </div>
           </>
         )}
-      </div>
+      </motion.div>
     </section>
   );
 }
