@@ -1,7 +1,7 @@
 schema: oneshelf.osp/1
 id: oneshelf.hindawi
-name: Safahat (Hindawi)
-version: 1.0.0
+name: "Safahat (Hindawi) · Books · AR"
+version: 1.0.1
 api: '1.0'
 description: >-
   Arabic books from the Hindawi Foundation, published at safahat.org — hindawi.org itself now redirects

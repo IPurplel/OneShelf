@@ -1,0 +1,29 @@
+capability: catalog
+inputs: [listing_key, offset]
+# WEBTOON's own episode API, which is what the site's mobile client reads. The HTML list page was used
+# before and could not be paginated: `episodeList?titleNo=..&page=N` 301s to the canonical URL and
+# drops the page, so every page came back identical and the catalog stopped at nine episodes of six
+# hundred (I-21). The API returns them in reading order with a plain numeric cursor.
+request:
+  url: "https://m.webtoons.com/api/v1/webtoon/{listing_key}/episodes?pageSize=30&cursor={offset}"
+  headers: {Accept: application/json}
+response:
+  format: json
+extract:
+  items: {json: "$.result.episodeList[*]"}
+  fields:
+    unit_key: {json: "$.episodeNo", required: true}
+    title: {json: "$.episodeTitle", transforms: [trim]}
+    # "[Season 3] Ep. 227" is episode 227 of season 3. Taking the first number in the string made it
+    # chapter 3, which renumbered six hundred episodes into three (I-22). The source's own numbering is
+    # what OneShelf keeps (INV-24), so the episode number is read where the source puts it.
+    number: {json: "$.episodeTitle", transforms: [{regex_extract: {pattern: "Ep\\.?\\s*([0-9]+(?:\\.[0-9]+)?)", group: 1}}]}
+    volume: {json: "$.episodeTitle", transforms: [{regex_extract: {pattern: "Season\\s*([0-9]+)", group: 1}}]}
+    url: {json: "$.viewerLink", transforms: [normalize_url]}
+    release_date: {json: "$.exposureDateMillis"}
+pagination:
+  mode: offset
+  start: 0
+  step: 30
+  max_pages: 60
+  stop_when: empty_items

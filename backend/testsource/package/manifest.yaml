@@ -30,3 +30,4 @@ auth:
   - reader
 defaults:
   language: en
+  content_type: manga

@@ -62,6 +62,29 @@ class SourceFetcher:
             self.sessions.refresh_cookies(plugin_id, auth, url=response.url, set_cookie_headers=set_cookies)
         return response
 
+    async def stream(self, url: str, path, *, capability: str, auth_mode: str, headers: dict[str, str] | None = None,
+                     resume_from: int = 0, validator: str | None = None, max_bytes: int | None = None):
+        """Like `request`, but the body goes straight to `path` (Master §16; I-101)."""
+        plugin_id = self.package.id
+        auth = self.package.manifest.auth
+
+        def cookies(target):
+            if self.sessions is None:
+                return None
+            return self.sessions.cookie_header(plugin_id, auth, capability=capability, recipe_auth=auth_mode, url=target.url)
+
+        kwargs = {"max_bytes": max_bytes} if max_bytes else {}
+        async with self.governor.acquire(plugin_id, self.priority, kind="http"):
+            response = await self.client.stream_to(url, path, resume_from=resume_from, validator=validator,
+                                                   headers=headers, cookie_provider=cookies, **kwargs)
+        if response.status == 429:
+            retry_after = parse_retry_after(response.headers.get("Retry-After"))
+            self.governor.set_retry_after(plugin_id, retry_after if retry_after is not None else DEFAULT_RETRY_AFTER)
+        set_cookies = response.headers.getall("Set-Cookie", [])
+        if self.sessions is not None and set_cookies and auth_mode != "none":
+            self.sessions.refresh_cookies(plugin_id, auth, url=response.url, set_cookie_headers=set_cookies)
+        return response
+
     async def fetch(self, request: RecipeRequest) -> FetchedResponse:
         if request.fetch == "browser":
             if self.browser is None:

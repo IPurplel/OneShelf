@@ -1,0 +1,28 @@
+{
+ "result": "ok",
+ "response": "collection",
+ "data": [
+  {
+   "id": "dc3cbd95-c448-4996-b056-0c22752a89ae",
+   "type": "chapter",
+   "attributes": {
+    "volume": null,
+    "chapter": null,
+    "title": null,
+    "translatedLanguage": "en",
+    "externalUrl": null,
+    "isUnavailable": false,
+    "publishAt": "2023-10-28T18:13:12+00:00",
+    "readableAt": "2023-10-28T18:13:12+00:00",
+    "createdAt": "2023-10-28T18:13:11+00:00",
+    "updatedAt": "2023-10-28T18:14:38+00:00",
+    "version": 3,
+    "pages": 50
+   },
+   "relationships": []
+  }
+ ],
+ "limit": 3,
+ "offset": 0,
+ "total": 1
+}

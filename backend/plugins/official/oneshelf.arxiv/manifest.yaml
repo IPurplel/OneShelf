@@ -1,7 +1,7 @@
 schema: oneshelf.osp/1
 id: oneshelf.arxiv
-name: arXiv
-version: 1.0.0
+name: "arXiv · Papers · EN"
+version: 1.0.1
 api: '1.0'
 description: >-
   arXiv through its public Atom API. Papers are single-unit works whose PDF is fetched from arxiv.org.

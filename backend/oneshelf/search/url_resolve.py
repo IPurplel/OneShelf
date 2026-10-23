@@ -10,6 +10,7 @@ import sqlite3
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
+from oneshelf.plugins.classification import classify_listing
 from oneshelf.net.domains import host_allowed, to_ascii_host
 from oneshelf.net.governor import Priority
 from oneshelf.plugins.manager import PluginManager, PluginUnavailable
@@ -82,13 +83,13 @@ class UrlResolver:
         if "work" in resolved.package.recipes:
             details = await self.sources.run(resolved.plugin_id, "work", {"listing_key": resolved.identifier},
                                              priority=Priority.INTERACTIVE)
-        listing = LiveListing(
+        listing = classify_listing(LiveListing(
             source_id=resolved.plugin_id, listing_key=resolved.identifier,
             title=details.title if details else resolved.identifier, url=url,
             content_type=details.content_type if details else None,
-            language=(details.language if details else None) or resolved.package.manifest.defaults.language,
+            language=details.language if details else None,
             cover_url=details.cover_url if details else None, creator=details.creator if details else None,
             original_title=details.original_title if details else None,
             available_languages=getattr(details, "available_languages", None),
-        )
+        ), resolved.package.manifest.defaults)
         return UrlPreview(resolved, group_results(self.conn, [listing])[0], details)

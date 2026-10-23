@@ -1,7 +1,7 @@
 schema: oneshelf.osp/1
 id: oneshelf.webtoon
-name: WEBTOON
-version: 1.0.0
+name: "WEBTOON · Webtoons · EN"
+version: 1.0.1
 api: '1.0'
 description: >-
   WEBTOON series by direct URL: the work page, its episode list, and the episode's own images. Search

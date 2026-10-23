@@ -93,7 +93,7 @@ def test_commit_rejects_staging_outside_staging_dir(db, root):
         engine(db).commit(request(root, "Books/x.pdf"))
 
 
-@pytest.mark.parametrize("point", FAULT_POINTS)
+@pytest.mark.parametrize("point", [p for p in FAULT_POINTS if p != "after_retire"])  # nothing to retire here
 def test_crash_at_every_boundary_recovers_idempotently(db, root, point):
     rel = stage(root)
     req = request(root, rel)
@@ -237,3 +237,59 @@ def test_persistently_failing_registration_does_not_abort_recovery_of_others(db,
     assert registered(db) == [("asset-1", good.final_relpath)]
     states = dict(db.execute("SELECT final_relpath, state FROM commit_journal").fetchall())
     assert states == {good.final_relpath: "done", bad_req.final_relpath: "verified"}
+
+
+# -- I-98 / I-99: a commit that replaces a broken copy ---------------------------------------------------
+
+FINAL = "Books/Book [aaaaaaaaaaaa]/und/local/Book [bbbbbbbbbbbb].pdf"
+
+
+def replacing(root, staging_rel, old_rel=FINAL):
+    return CommitRequest(root_id=root.id, staging_relpath=staging_rel, final_relpath=FINAL,
+                         registration={"kind": "test", "payload": {"id": "asset-1", "relpath": FINAL},
+                                       "replaces": {"relative_path": old_rel}})
+
+
+def broken_copy(root, rel=FINAL):
+    path = Path(root.path) / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"%PDF-1.7 the old, damaged copy")
+    return path
+
+
+@pytest.mark.parametrize("old_rel", [FINAL, "Books/Old Title [aaaaaaaaaaaa]/und/local/Old [bbbbbbbbbbbb].pdf"])
+@pytest.mark.parametrize("point", FAULT_POINTS)
+def test_a_replacing_commit_survives_a_crash_at_every_boundary(db, root, point, old_rel):
+    old = broken_copy(root, old_rel)
+    req = replacing(root, stage(root), old_rel)
+
+    def fault(name):
+        if name == point:
+            raise Crash(name)
+
+    with pytest.raises(Crash):
+        engine(db, fault).commit(req)
+    engine(db).recover()
+    assert engine(db).recover().changed == 0
+    assert (Path(root.path) / FINAL).read_bytes() == b"%PDF-1.7 fake but staged"
+    assert journal_states(db) == ["done"] and registered(db) == [("asset-1", FINAL)]
+    if old_rel != FINAL:
+        assert not old.exists()                                   # the old copy is gone once the new one is in
+    assert [p.name for p in Path(root.path).rglob("replaced-*")] == []
+
+
+def test_an_aborted_replacement_puts_the_old_copy_back(db, root):
+    old = broken_copy(root)
+    staged_rel = stage(root)
+    req = replacing(root, staged_rel)
+
+    def fault(name):
+        if name == "after_retire":
+            (Path(root.path) / staged_rel).unlink()               # the new artifact is lost in the crash
+            raise Crash(name)
+
+    with pytest.raises(Crash):
+        engine(db, fault).commit(req)
+    engine(db).recover()
+    assert journal_states(db) == ["aborted"] and registered(db) == []
+    assert old.read_bytes() == b"%PDF-1.7 the old, damaged copy"  # never left with nothing

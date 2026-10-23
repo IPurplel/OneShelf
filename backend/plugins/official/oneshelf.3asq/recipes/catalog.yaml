@@ -16,7 +16,9 @@ extract:
     unit_key: {css: "a::attr(href)", required: true,
                transforms: [{regex_extract: {pattern: "/manga/[^/]+/([^/]+)/?$", group: 1}}]}
     title: {css: "a::text", transforms: [trim]}
-    number: {css: "a::text", transforms: [trim, extract_number]}
+    # Only a title that starts with a number standing on its own is numbered. Lettered units ("0A", "0B" — the
+    # prologue arcs) and "0chapter" are not chapter 0: they keep no number rather than a misleading one.
+    number: {css: "a::text", transforms: [trim, {regex_extract: {pattern: "^([0-9]+(?:[.][0-9]+)?)(?:$|[ :\\-])", group: 1}}]}
     url: {css: "a::attr(href)", transforms: [trim, normalize_url]}
     release_date: {css: "span.chapter-release-date i::text", transforms: [trim]}
 pagination:

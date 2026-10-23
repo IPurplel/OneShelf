@@ -499,3 +499,101 @@ def test_reader_stays_responsive_while_downloads_saturate_the_governor(reading):
 
     page, latency = run(scenario(), timeout=90)
     assert page.origin == "online" and latency < 3.0   # INV-26
+
+
+# -- I-107 (BE-017): honest page failures, a bounded page-list cache, and offline cached pages ---------------
+
+from oneshelf.plugins.results import Evidence, ListResult
+from oneshelf.plugins.runtime import CapabilityError
+from oneshelf.reader import service as reader_module
+from oneshelf.reader.service import SourceUnavailable
+
+
+def page_list_requests(env, unit_key):
+    return [r for r in env.server.scenario.request_log if f"/api/units/{unit_key}/pages" in r]
+
+
+def test_i107_a_page_the_source_lost_is_reported_with_its_status(reading):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await env.control(missing_pages=True)
+            with pytest.raises(CapabilityError) as raised:
+                await reader.page(unit, 1)
+            signals = env.db.execute("SELECT capability, outcome, category FROM source_health_signals"
+                                     " WHERE capability = 'reader' ORDER BY rowid").fetchall()
+            return raised.value, [tuple(s) for s in signals]
+
+    error, signals = run(scenario())
+    assert error.category == "not_found" and "404" in str(error)
+    assert ("reader", "content_missing", "not_found") in signals          # one lost page is not a broken source
+    assert not any(outcome == "failure" for _, outcome, _ in signals)
+
+
+def test_i107_an_expired_page_link_is_refreshed_once_and_read(reading):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await env.control(expiring_pages=True)
+            await reader.pages(unit)                                        # links carry token 1
+            await env.control(page_token=2)                                 # ... which then expires
+            page = await reader.page(unit, 1)
+            return page.origin, len(page_list_requests(env, "irr-1"))
+
+    origin, listings = run(scenario())
+    assert origin == "online" and listings == 2                             # one refresh, then the page
+
+
+def test_i107_a_failed_page_list_is_not_remembered(reading, monkeypatch):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            real_run, calls = env.service.run, []
+
+            async def flaky(source_id, capability, inputs, **kwargs):
+                calls.append(capability)
+                if capability == "reader" and len(calls) == 1:
+                    return ListResult("reader", [], False, Evidence(stop_reason="page_failed"))
+                return await real_run(source_id, capability, inputs, **kwargs)
+
+            monkeypatch.setattr(env.service, "run", flaky)
+            with pytest.raises(CapabilityError):
+                await reader.pages(unit)
+            return len(await reader.pages(unit))
+
+    assert run(scenario()) == 3
+
+
+def test_i107_the_page_list_cache_is_bounded(reading, monkeypatch):
+    monkeypatch.setattr(reader_module, "DESCRIPTOR_CACHE_UNITS", 2)
+
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            for key in ("irr-1", "irr-2", "irr-3"):
+                await reader.pages(env.unit_id(key))
+            return len(reader._descriptors)
+
+    assert run(scenario()) == 2
+
+
+def test_i107_a_disabled_source_says_so_and_its_cached_pages_stay_readable(reading):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await reader.page(unit, 1)                                     # read once, so page 1 is cached
+            env.service.plugins.disable(TS)
+            fresh = ReaderService(env.db, env.service, cache, env.engine, settings=Settings(env.db))  # a restart
+            listed = await fresh.pages(unit)
+            cached = await fresh.page(unit, 1)
+            with pytest.raises(SourceUnavailable):
+                await fresh.page(unit, 2)                                  # never fetched: needs the source
+            context = fresh.context(unit)
+            return len(listed), cached.origin, context["kind"]
+
+    listed, origin, kind = run(scenario())
+    assert listed == 3 and origin == "cache" and kind == "images"

@@ -1,33 +1,28 @@
 cases:
-- capability: search
-  inputs: {query: frankenstein, page: 1}
-  fixtures:
-  - url: https://gutendex.com/books?search=frankenstein&page=1
-    file: fixtures/search.json
-  expect:
-    min_items: 1
-    fields_present: [listing_key, title, creator]
-    first: {listing_key: '84', title: 'Frankenstein; or, the modern prometheus'}
 - capability: work
   inputs: {listing_key: 84}
   fixtures:
-  - url: https://gutendex.com/books/84
-    file: fixtures/work.json
+  - url: https://www.gutenberg.org/ebooks/84.opds
+    file: fixtures/ebook-84.opds.xml
   expect:
-    fields_present: [title, creator, cover_url]
-- capability: downloads
-  inputs: {unit_key: 84}
-  fixtures:
-  - url: https://gutendex.com/books/84
-    file: fixtures/work.json
-  expect:
-    min_items: 1
-    fields_present: [url, format]
+    fields_present: [title, creator, description, language, cover_url]
+    first: {title: 'Frankenstein; or, the modern prometheus', creator: 'Shelley, Mary Wollstonecraft', language: en,
+            cover_url: 'https://www.gutenberg.org/cache/epub/84/pg84.cover.medium.jpg'}
 - capability: catalog
   inputs: {listing_key: 84}
   fixtures:
-  - url: https://gutendex.com/books/84
-    file: fixtures/work.json
+  - url: https://www.gutenberg.org/ebooks/84.opds
+    file: fixtures/ebook-84.opds.xml
   expect:
     min_items: 1
-    fields_present: [unit_key, unit_type]
+    complete: true
+    first: {unit_key: '84', title: 'Frankenstein; or, the modern prometheus', unit_type: one_shot}
+- capability: downloads
+  inputs: {unit_key: 84}
+  fixtures:
+  - url: https://www.gutenberg.org/ebooks/84.opds
+    file: fixtures/ebook-84.opds.xml
+  expect:
+    min_items: 1
+    complete: true
+    first: {url: 'https://www.gutenberg.org/ebooks/84.epub3.images', format: epub}

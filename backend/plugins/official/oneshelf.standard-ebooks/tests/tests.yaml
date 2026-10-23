@@ -8,26 +8,44 @@ cases:
     min_items: 1
     fields_present: [listing_key, title, creator]
     first: {listing_key: mary-shelley/frankenstein, title: Frankenstein}
+# The key's book comes first in the feed.
 - capability: work
-  inputs: {listing_key: mary-shelley/frankenstein}
+  inputs: {listing_key: arthur-conan-doyle/the-adventures-of-sherlock-holmes}
   fixtures:
-  - url: https://standardebooks.org/feeds/opds/all?query=mary-shelley%2Ffrankenstein
-    file: fixtures/search.xml
+  - url: https://standardebooks.org/feeds/opds/all?query=arthur-conan-doyle%2Fthe-adventures-of-sherlock-holmes
+    file: fixtures/sherlock.xml
+  expect:
+    fields_present: [title, creator, description, cover_url]
+    first: {title: The Adventures of Sherlock Holmes, creator: Arthur Conan Doyle,
+            cover_url: 'https://standardebooks.org/ebooks/arthur-conan-doyle/the-adventures-of-sherlock-holmes/downloads/cover.jpg'}
+# The key's book comes last, after three other books the query also matched: still only that book.
+- capability: work
+  inputs: {listing_key: arthur-conan-doyle/his-last-bow}
+  fixtures:
+  - url: https://standardebooks.org/feeds/opds/all?query=arthur-conan-doyle%2Fhis-last-bow
+    file: fixtures/sherlock-his-last-bow.xml
   expect:
     fields_present: [title, creator]
-- capability: downloads
-  inputs: {unit_key: mary-shelley/frankenstein}
-  fixtures:
-  - url: https://standardebooks.org/feeds/opds/all?query=mary-shelley%2Ffrankenstein
-    file: fixtures/search.xml
-  expect:
-    min_items: 1
-    fields_present: [url, format]
+    first: {title: His Last Bow}
 - capability: catalog
-  inputs: {listing_key: mary-shelley/frankenstein}
+  inputs: {listing_key: arthur-conan-doyle/his-last-bow}
   fixtures:
-  - url: https://standardebooks.org/feeds/opds/all?query=mary-shelley%2Ffrankenstein
-    file: fixtures/search.xml
+  - url: https://standardebooks.org/feeds/opds/all?query=arthur-conan-doyle%2Fhis-last-bow
+    file: fixtures/sherlock-his-last-bow.xml
   expect:
     min_items: 1
-    fields_present: [unit_key]
+    complete: true
+    fields_present: [unit_key, title, url, release_date]
+    first: {unit_key: arthur-conan-doyle/his-last-bow, title: His Last Bow, unit_type: one_shot,
+            url: 'https://standardebooks.org/ebooks/arthur-conan-doyle/his-last-bow'}
+- capability: downloads
+  inputs: {unit_key: arthur-conan-doyle/his-last-bow}
+  fixtures:
+  - url: https://standardebooks.org/feeds/opds/all?query=arthur-conan-doyle%2Fhis-last-bow
+    file: fixtures/sherlock-his-last-bow.xml
+  expect:
+    min_items: 2
+    complete: true
+    fields_present: [url, format]
+    first: {format: epub, variant: null,
+            url: 'https://standardebooks.org/ebooks/arthur-conan-doyle/his-last-bow/downloads/arthur-conan-doyle_his-last-bow.epub?source=feed'}

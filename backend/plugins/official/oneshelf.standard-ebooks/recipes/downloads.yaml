@@ -1,3 +1,6 @@
+# The EPUBs of the one entry whose id is the key (see work.yaml): the compatible EPUB first, which is the
+# file a download takes, then the advanced EPUB 3 as a variant. The feed's own links are used as given;
+# the website's link to the same file answers with a thank-you page instead of the book.
 capability: downloads
 inputs: [unit_key]
 request:
@@ -5,10 +8,11 @@ request:
 response:
   format: html
 extract:
-  items: {css: "entry link[type='application/epub+zip']"}
+  items: {xpath: "//entry[translate(substring-after(id,'/ebooks/'),'/','2')=translate(substring-before(substring-after(//feed/id,'query='),'&'),'%F','')]/link[@type='application/epub+zip']"}
   fields:
-    url: {css: "::attr(href)", required: true}
+    url: {xpath: "@href", required: true}
     format: {template: "epub", required: true}
+    variant: {xpath: "@href", transforms: [{regex_extract: {pattern: '_(advanced)\.epub', group: 1}}]}
 pagination:
   mode: none
   complete_when: single_response

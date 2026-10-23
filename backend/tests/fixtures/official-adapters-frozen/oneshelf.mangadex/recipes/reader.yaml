@@ -1,0 +1,17 @@
+capability: reader
+inputs: [unit_key]
+request:
+  url: "{base_url}/at-home/server/{unit_key:path}"
+  headers: {Accept: application/json}
+response:
+  format: json
+extract:
+  values:
+    base: {json: "$.baseUrl"}
+    hash: {json: "$.chapter.hash"}
+  items: {json: "$.chapter.data[*]"}
+  fields:
+    url: {template: "{base}/data/{hash}/{item}", required: true}
+pagination:
+  mode: none
+  complete_when: single_response

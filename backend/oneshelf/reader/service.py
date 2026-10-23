@@ -9,16 +9,22 @@ from __future__ import annotations
 import asyncio
 import json
 import sqlite3
+import time
 import zipfile
-from dataclasses import dataclass
+from collections import OrderedDict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from oneshelf.db.connection import transaction
 from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.downloads.contract import Settings
+from oneshelf.downloads.engine import NoStorageLocation
 from oneshelf.integrity.validators import _is_image_entry, _natural_key, _validate_image
+from oneshelf.library.copies import local_copy
 from oneshelf.net.governor import Priority
+from oneshelf.plugins.results import ResourceDescriptor
+from oneshelf.plugins.runtime import AuthRequired, CapabilityError
 from oneshelf.reader.cache import ReaderCache
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.storage.paths import resolve_within
@@ -28,6 +34,10 @@ from oneshelf.text.direction import content_direction
 from oneshelf.text.sanitise import unit_sections
 
 READ_AHEAD_STATES = ("QUEUED",)
+# Page lists of units read online (I-107): a bounded, expiring memory, because the links a source hands out can
+# expire (signed CDN links), and a long-running server must not keep every unit it has ever shown.
+DESCRIPTOR_CACHE_UNITS = 256
+DESCRIPTOR_TTL_SECONDS = 30 * 60
 
 
 class StaleProgress(RuntimeError):
@@ -36,6 +46,10 @@ class StaleProgress(RuntimeError):
 
 class DownloadRequired(RuntimeError):
     """The source has no reader: this unit is read from its downloaded file, which is not here yet."""
+
+
+class SourceUnavailable(RuntimeError):
+    """The unit's source is disabled or not installed, and what was asked for is not cached (§26.21)."""
 
 
 class MarkOperationConflict(RuntimeError):
@@ -67,7 +81,7 @@ class _PageFlight:
 @dataclass(frozen=True)
 class LocalArtefact:
     format: str
-    data: bytes
+    path: Path
 
 
 @dataclass(frozen=True)
@@ -111,7 +125,7 @@ class ReaderService:
         self.settings = settings or Settings(conn)
         self.events = events
         self._reading: dict[str, str] = {}   # work_id -> unit currently being read
-        self._descriptors: dict[str, list] = {}
+        self._descriptors: OrderedDict[str, tuple[float, list]] = OrderedDict()
         self._page_fetches: dict[tuple[str, str, str], _PageFlight] = {}
 
     # -- unit context ------------------------------------------------------------------------------
@@ -146,15 +160,26 @@ class ReaderService:
         return bool(reads_text and source_id != "local" and reads_text(source_id))
 
     def _file_only(self, source_id: str) -> bool:
-        """A download-only source: its units are read from their file, never through a `reader` recipe."""
+        """A download-only source: its units are read from their file, never through a `reader` recipe.
+
+        A source that is disabled or not installed is not "download only": it is unavailable, and says so.
+        """
         reads_online = getattr(self.sources, "reads_online", None)
-        return bool(reads_online and source_id != "local" and not reads_online(source_id))
+        if source_id == "local" or not self._source_available(source_id):
+            return False
+        return bool(reads_online and not reads_online(source_id))
+
+    def _source_available(self, source_id: str) -> bool:
+        available = getattr(self.sources, "available", None)
+        return available is None or source_id == "local" or available(source_id)
+
+    def _record(self, source_id: str, outcome: str, category: str | None) -> None:
+        record = getattr(self.sources, "record_outcome", None)
+        if record is not None:
+            record(source_id, "reader", outcome, category)
 
     def _local_asset(self, unit_id: str, format: str | None = None) -> sqlite3.Row | None:
-        return self.conn.execute(
-            "SELECT * FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'"
-            " AND (? IS NULL OR format = ?) ORDER BY created_at, id LIMIT 1",
-            (unit_id, format, format)).fetchone()
+        return local_copy(self.conn, unit_id, format)        # the copy Downloads calls openable (UI-003)
 
     def _local_path(self, asset: sqlite3.Row) -> Path:
         root = get_root(self.conn, asset["storage_root_id"])
@@ -182,7 +207,7 @@ class ReaderService:
             if path.is_file():
                 return open_text_container(path), "local"
         unit = self._unit(unit_id)
-        if not self._reads_text(unit["source_id"]):
+        if self._source_available(unit["source_id"]) and not self._reads_text(unit["source_id"]):
             raise FileNotFoundError("this reading unit has no text")
         descriptors = await self._online_descriptors(unit_id)
         sections = unit_sections([(d.html, d.title) for d in descriptors])
@@ -205,20 +230,41 @@ class ReaderService:
             raise ValueError("this reading unit is text, not pages; open it in the Book Reader")
         return [PageInfo(index=i, label=d.page_label, url=d.url) for i, d in enumerate(descriptors, start=1)]
 
-    async def _online_descriptors(self, unit_id: str) -> list:
+    async def _online_descriptors(self, unit_id: str, *, refresh: bool = False) -> list:
         unit = self._unit(unit_id)
         if unit["track_availability"] == "unavailable":
             raise FileNotFoundError("this source edition is no longer linked")
+        if not self._source_available(unit["source_id"]):
+            # §26.21: cached online pages stay usable while the source cannot be asked.
+            stored = (self.cache.get_descriptors(unit["source_id"], unit["source_unit_key"])
+                      if self.cache is not None else None)
+            if stored is not None:
+                return [ResourceDescriptor(**d) for d in stored]
+            raise SourceUnavailable("this unit's source is disabled or not installed; enable it to read online")
         if self._file_only(unit["source_id"]):
             # Asking anyway fails as "unsupported" and is recorded against the source's health.
             raise DownloadRequired("this book has to be downloaded before it can be read")
-        if unit_id not in self._descriptors:
-            result = await self.sources.run(unit["source_id"], "reader",
-                                            {"unit_key": unit["source_unit_key"], "url": unit["url_hint"],
-                                             "language": unit["language"]},
-                                            priority=Priority.READER)
-            self._descriptors[unit_id] = list(result.entries)
-        return self._descriptors[unit_id]
+        held = self._descriptors.get(unit_id)
+        if held is not None and not refresh and time.monotonic() - held[0] < DESCRIPTOR_TTL_SECONDS:
+            self._descriptors.move_to_end(unit_id)
+            return held[1]
+        result = await self.sources.run(unit["source_id"], "reader",
+                                        {"unit_key": unit["source_unit_key"], "url": unit["url_hint"],
+                                         "language": unit["language"]},
+                                        priority=Priority.READER)
+        entries = list(result.entries)
+        if not entries:
+            # Never remembered: the next request asks again rather than showing an empty unit until restart.
+            issue = result.evidence.issues[0] if result.evidence.issues else None
+            raise CapabilityError(issue.category if issue else "resource_missing",
+                                  f"the source listed nothing for this unit ({issue.detail if issue else result.evidence.stop_reason})")
+        self._descriptors[unit_id] = (time.monotonic(), entries)
+        self._descriptors.move_to_end(unit_id)
+        while len(self._descriptors) > DESCRIPTOR_CACHE_UNITS:
+            self._descriptors.popitem(last=False)
+        if self.cache is not None:
+            self.cache.put_descriptors(unit["source_id"], unit["source_unit_key"], [asdict(e) for e in entries])
+        return entries
 
     async def page(self, unit_id: str, index: int, *, timeout: float | None = None,
                    prefetch: bool = False) -> PageData:
@@ -244,6 +290,8 @@ class ReaderService:
         cached = self.cache.get(unit["source_id"], unit["source_unit_key"], descriptor.url)
         if cached is not None:
             return PageData(index, cached, "cache")
+        if not self._source_available(unit["source_id"]):
+            raise SourceUnavailable("this page was never cached, and its source is disabled or not installed")
         key = (unit["source_id"], unit["source_unit_key"], descriptor.url)
         flight = self._page_fetches.get(key)
         if flight is None:
@@ -287,15 +335,39 @@ class ReaderService:
             flight.task.cancel()
 
     async def _fetch_online_page(self, unit: sqlite3.Row, url: str, index: int, priority: Priority) -> bytes:
-        response = await self.sources.fetch_resource(unit["source_id"], url, capability="reader", priority=priority)
+        source = unit["source_id"]
+        try:
+            response = await self.sources.fetch_resource(source, url, capability="reader", priority=priority)
+            status = response.status
+        except AuthRequired:
+            response, status = None, 403
+        if status in (403, 404, 410):
+            # A refused or vanished link may simply have expired (signed CDN links): ask the source once for
+            # its current page list, and try the page's new link if it changed (Meta Prompt G4; I-107).
+            fresh = await self._online_descriptors(unit["unit_id"], refresh=True)
+            if index <= len(fresh) and fresh[index - 1].url and fresh[index - 1].url != url:
+                url = fresh[index - 1].url
+                response = await self.sources.fetch_resource(source, url, capability="reader", priority=priority)
+                status = response.status
+            elif response is None:
+                raise AuthRequired()
+        if status != 200:
+            # One missing page is not a broken source (§21): a 404 counts as content missing, not a failure.
+            category = ("not_found" if status in (404, 410) else "server_error" if status >= 500
+                        else "unexpected_response")
+            self._record(source, "content_missing" if category == "not_found" else "failure", category)
+            raise CapabilityError(category, f"page {index}: the source answered HTTP {status}")
         problem = _validate_image(response.body)
         if problem:
             raise ValueError(f"page {index}: {problem}")
-        self.cache.put(unit["source_id"], unit["source_unit_key"], url, response.body)
+        self.cache.put(source, unit["source_unit_key"], url, response.body)
         return response.body
 
     def local_file(self, unit_id: str, *, format: str | None = None) -> LocalArtefact:
-        """The downloaded artefact itself, for readers that render a whole document (§26.22)."""
+        """Where the downloaded artefact is, for readers that render a whole document (§26.22).
+
+        A path, not the bytes: the API streams it in ranges, so a large PDF is never read into memory (I-101).
+        """
         self._unit(unit_id)
         asset = self._local_asset(unit_id, format)
         if asset is None:
@@ -303,7 +375,7 @@ class ReaderService:
         path = self._local_path(asset)
         if not path.is_file():
             raise FileNotFoundError("the local file is missing; run a storage scan or download it again")
-        return LocalArtefact(asset["format"], path.read_bytes())
+        return LocalArtefact(asset["format"], path)
 
     def set_open_units(self, unit_ids: list[str]) -> None:
         keys = [self._unit(u)["source_unit_key"] for u in unit_ids]
@@ -458,8 +530,11 @@ class ReaderService:
             units += [r[0] for r in following if self._needs_download(r[0])]
         if not units:
             return []
-        self.downloads.enqueue(units, label="auto-download while reading",
-                               reader_read_ahead=[u for u in units if u != unit_id])
+        try:
+            self.downloads.enqueue(units, label="auto-download while reading",
+                                   reader_read_ahead=[u for u in units if u != unit_id])
+        except NoStorageLocation:
+            return []          # reading goes on; the Downloads screen says what is missing (I-95)
         return units
 
     async def leaving_work(self, work_id: str) -> int:

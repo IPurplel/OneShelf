@@ -1,7 +1,7 @@
 schema: oneshelf.osp/1
 id: oneshelf.tapas
-name: Tapas
-version: 1.0.0
+name: "Tapas · Webtoons · EN"
+version: 1.0.1
 api: '1.0'
 description: >-
   Tapas comics by direct URL: the series page, its episode list, and the episode's own images. Search

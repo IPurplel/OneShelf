@@ -340,3 +340,22 @@ def test_restore_failed_write_keeps_missing_asset_unhealthy(library, clock, monk
     report = restore_service(library, clock).restore(backup.path)
     assert library.conn.execute('SELECT integrity FROM assets').fetchone()[0] != 'ok'
     assert report.repaired_files == 0 and report.issues
+
+
+def test_i102_merge_restores_corrections_and_current_corrections_still_win(library, clock):
+    """INV-04: a correction carried in a backup is applied; a correction made since then is kept."""
+    from oneshelf.library.overrides import set_unit, set_work
+    made = library.add_work("Berserk")
+    set_work(library.conn, made["work_id"], content_type="manhwa")
+    set_unit(library.conn, made["unit_id"], number="0", unit_type="prologue")
+    record = make_backup(library, clock)
+    # Since the backup: the type correction was changed and the unit corrections were cleared and lost.
+    set_work(library.conn, made["work_id"], content_type="comic")
+    library.conn.execute("DELETE FROM user_overrides WHERE target_kind = 'reading_unit'")
+    library.conn.execute("UPDATE reading_units SET user_number = NULL, unit_type = 'chapter'")
+
+    restore_service(library, clock).restore(record.path, mode="merge")
+    work = library.conn.execute("SELECT content_type, content_type_source FROM works").fetchone()
+    unit = library.conn.execute("SELECT user_number, unit_type FROM reading_units").fetchone()
+    assert tuple(work) == ("comic", "user")                     # the current correction wins
+    assert tuple(unit) == ("0", "prologue")                     # the backup's correction is restored and applied

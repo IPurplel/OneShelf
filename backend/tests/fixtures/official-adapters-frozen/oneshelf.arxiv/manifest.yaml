@@ -1,0 +1,16 @@
+schema: oneshelf.osp/1
+id: oneshelf.arxiv
+name: arXiv
+version: 1.0.0
+api: '1.0'
+description: >-
+  arXiv through its public Atom API. Papers are single-unit works whose PDF is fetched from arxiv.org.
+  Open access; no account is needed.
+publisher: OneShelf
+capabilities: [search, work, catalog, downloads]
+network:
+  domains: [export.arxiv.org]
+  cdn_domains: [arxiv.org]
+  allow_http: true
+defaults:
+  language: en

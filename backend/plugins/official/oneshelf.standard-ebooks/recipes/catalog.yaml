@@ -1,4 +1,5 @@
-# One ebook is one Reading Unit; its formats are handled by the downloads capability (Master §41.3).
+# One ebook is one Reading Unit — a whole book is the Master's one_shot (§4.4); its formats are the
+# downloads capability's (§41.3). Only the entry whose id is the key counts: see work.yaml.
 capability: catalog
 inputs: [listing_key]
 request:
@@ -6,16 +7,17 @@ request:
 response:
   format: html
 extract:
-  items: {css: "entry"}
+  items: {xpath: "//entry[translate(substring-after(id,'/ebooks/'),'/','2')=translate(substring-before(substring-after(//feed/id,'query='),'&'),'%F','')]"}
   order: source_listed
   fields:
     unit_key:
-      css: "id::text"
+      xpath: "id/text()"
       transforms: [{regex_extract: {pattern: 'standardebooks\.org/ebooks/(.+)$', group: 1}}]
       required: true
-    title: {css: "title::text", transforms: [trim]}
-    release_date: {css: "updated::text", transforms: [trim]}
-    unit_type: {template: "book"}
+    title: {xpath: "title/text()", transforms: [trim]}
+    url: {xpath: "id/text()"}
+    release_date: {xpath: "published/text()", transforms: [parse_date]}
+    unit_type: {template: "one_shot"}
 pagination:
   mode: none
   complete_when: single_response

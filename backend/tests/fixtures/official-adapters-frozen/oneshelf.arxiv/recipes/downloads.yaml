@@ -1,0 +1,14 @@
+capability: downloads
+inputs: [unit_key]
+request:
+  url: "{base_url}/api/query?id_list={unit_key}"
+response:
+  format: html
+extract:
+  items: {css: "entry link[title='pdf']"}
+  fields:
+    url: {css: "::attr(href)", required: true}
+    format: {template: "pdf", required: true}
+pagination:
+  mode: none
+  complete_when: single_response

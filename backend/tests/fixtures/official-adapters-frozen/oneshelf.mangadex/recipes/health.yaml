@@ -1,0 +1,10 @@
+capability: health
+inputs: []
+request:
+  url: "{base_url}/ping"
+response:
+  format: html
+  expect_status: [200]
+extract:
+  fields:
+    ok: {css: "html", exists: true}

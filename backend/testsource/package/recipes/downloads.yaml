@@ -9,6 +9,7 @@ extract:
   fields:
     url: {json: "$.url", transforms: [normalize_url], required: true}
     format: {json: "$.format", required: true}
+    size_bytes: {json: "$.size"}
 pagination:
   mode: none
   complete_when: single_response

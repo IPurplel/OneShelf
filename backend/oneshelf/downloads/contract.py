@@ -23,6 +23,8 @@ SCOPES = ("global", "source", "work", "content_type")
 METHOD_SPECIFIC = {"parser_failure", "selector_missing", "media_invalid", "not_found", "unexpected_response",
                    "resource_missing"}
 WAITING = {"auth_failure": "wait_for_session", "rate_limit": "wait_for_rate_limit"}
+# Failures that the same request cannot fix: retrying only repeats them (§16.3).
+TERMINAL = {"source_unlinked", "too_large", "format_unavailable"}
 
 
 @dataclass(frozen=True)
@@ -35,6 +37,9 @@ class ExtractionContract:
     mode: str = DEFAULTS.downloads.fallback_mode
     fallback_order: tuple[str, ...] = ()
     attempted_methods: tuple[str, ...] = ()
+    # The file format the person chose, for a source offering several (§22, §34.1; I-103). None: the
+    # preferred one the source offers.
+    file_format: str | None = None
 
     def __post_init__(self) -> None:
         if self.method not in METHODS:
@@ -136,7 +141,7 @@ def may_fall_back(category: str | None) -> bool:
 
 def next_method(contract: ExtractionContract, *, attempts: int, retry_budget: int, category: str | None) -> FallbackDecision:
     """Smart Retry stays within the current method; only then is a method change considered."""
-    if category == "source_unlinked":
+    if category in TERMINAL:
         return FallbackDecision("fail", None, category)
     if category in WAITING:
         return FallbackDecision(WAITING[category])

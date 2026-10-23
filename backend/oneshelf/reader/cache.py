@@ -7,6 +7,7 @@ the units the Reader is currently showing.
 from __future__ import annotations
 
 import hashlib
+import json
 import sqlite3
 import threading
 import time
@@ -33,11 +34,35 @@ class ReaderCache:
             "CREATE TABLE IF NOT EXISTS reader_cache (key TEXT PRIMARY KEY, source_id TEXT NOT NULL,"
             " unit_key TEXT NOT NULL, path TEXT NOT NULL, size INTEGER NOT NULL, created_at REAL NOT NULL,"
             " last_used_at REAL NOT NULL)")
+        # The page list of a unit read online, so its cached pages stay readable when the source is offline,
+        # disabled or uninstalled (§26.21). Rebuildable; never library state.
+        self._conn.execute(
+            "CREATE TABLE IF NOT EXISTS reader_descriptors (source_id TEXT NOT NULL, unit_key TEXT NOT NULL,"
+            " descriptors_json TEXT NOT NULL, saved_at REAL NOT NULL, PRIMARY KEY (source_id, unit_key))")
 
     @staticmethod
     def key(source_id: str, unit_key: str, url: str, validator: str | None) -> str:
         digest = hashlib.sha256(url.encode("utf-8")).hexdigest()[:16]
         return f"{source_id}|{unit_key}|{digest}|{validator or ''}"
+
+    def put_descriptors(self, source_id: str, unit_key: str, descriptors: list[dict]) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO reader_descriptors (source_id, unit_key, descriptors_json, saved_at) VALUES (?,?,?,?)"
+                " ON CONFLICT(source_id, unit_key) DO UPDATE SET descriptors_json = excluded.descriptors_json,"
+                " saved_at = excluded.saved_at", (source_id, unit_key, json.dumps(descriptors), self.clock()))
+
+    def get_descriptors(self, source_id: str, unit_key: str) -> list[dict] | None:
+        with self._lock:
+            row = self._conn.execute("SELECT descriptors_json, saved_at FROM reader_descriptors"
+                                     " WHERE source_id = ? AND unit_key = ?", (source_id, unit_key)).fetchone()
+            if row is None:
+                return None
+            if self.clock() - row[1] > self.ttl:
+                self._conn.execute("DELETE FROM reader_descriptors WHERE source_id = ? AND unit_key = ?",
+                                   (source_id, unit_key))
+                return None
+            return json.loads(row[0])
 
     def protect(self, unit_keys: list[str] | set[str]) -> None:
         """Units currently open in the Reader are never evicted (§42 Reader Cache)."""

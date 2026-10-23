@@ -398,3 +398,44 @@ def test_a_check_that_fails_leaves_a_diagnostic_saying_why(library, follow, db, 
     entry = entries[-1]
     assert entry["category"] == "health"
     assert work_id in entry["message"] and "no_listing" in entry["message"]
+
+
+# -- I-100 (BE-010): a Follow made before any trusted catalog does not flood ------------------------------
+
+def test_i100_following_before_a_trusted_catalog_sets_the_baseline_silently_later(library, follow, db):
+    work_id, track_id = library()
+    record = follow.follow(work_id, language="en", source_id="mangadex", track_id=track_id)
+    assert record.baseline_kind == "pending" and follow.status(work_id).baseline_pending is True
+    assert follow.check(work_id).state == "degraded"               # still nothing trusted to compare
+
+    trust = CatalogTrust(db)
+    trust.refresh(track_id, units(*[f"u{i}" for i in range(1, 10)]), plugin_version="1.0.0")
+    first = follow.check(work_id)
+    assert first.state == "up_to_date" and first.new_units == []   # the nine existing units are not "new"
+    assert follow.status(work_id).baseline_pending is False
+
+    trust.refresh(track_id, units(*[f"u{i}" for i in range(1, 11)]), plugin_version="1.0.0")
+    assert [u["unit_key"] for u in follow.check(work_id).new_units] == ["u10"]
+
+
+def test_i100_a_source_change_without_a_trusted_catalog_is_pending_too(library, follow, db):
+    work_id, track_id = library()
+    trust = CatalogTrust(db)
+    trust.refresh(track_id, units("u1"), plugin_version="1.0.0")
+    follow.follow(work_id, language="en", source_id="mangadex", track_id=track_id)
+    other = new_id()
+    db.execute("INSERT INTO source_tracks (id, work_id, source_id, language, kind, created_at)"
+               " VALUES (?,?, 'webtoon', 'en', 'source', ?)", (other, work_id, NOW))
+    changed = follow.change_preferred_source(work_id, source_id="webtoon", track_id=other)
+    assert changed.baseline_kind == "pending"
+    trust.refresh(other, units("w1", "w2", "w3"), plugin_version="1.0.0")
+    assert follow.check(work_id).new_units == []
+
+
+def test_i100_undo_of_a_pending_follow_stays_pending(library, follow, db):
+    work_id, track_id = library()
+    follow.follow(work_id, language="en", source_id="mangadex", track_id=track_id)
+    restored = follow.undo_unfollow(follow.unfollow(work_id))
+    assert restored.baseline_kind == "pending"
+    CatalogTrust(db).refresh(track_id, units("u1", "u2"), plugin_version="1.0.0")
+    assert follow.check(work_id).new_units == []

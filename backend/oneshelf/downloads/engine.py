@@ -24,16 +24,17 @@ from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.downloads.contract import ExtractionContract, Settings, next_method, resolve_method
 from oneshelf.integrity.validators import _validate_image, detect_format, validate
+from oneshelf.library.copies import MISSING, copy_state
 from oneshelf.net.governor import Priority, TrafficGovernor
-from oneshelf.net.http import FetchFailed
+from oneshelf.net.http import FetchFailed, ResponseTooLarge, TooManyRedirects
 from oneshelf.net.policy import BlockedDestination, DisallowedTarget
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
 from oneshelf.plugins.schema import is_text_reader
+from oneshelf.services.worker import in_worker, off_loop
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.storage.commit import CommitEngine, CommitError, CommitRequest
 from oneshelf.storage.hashing import sha256_file
 from oneshelf.storage.layout import asset_relative_path, family_for
-from oneshelf.storage.paths import PathSafetyError, delete_managed_file
 from oneshelf.storage.roots import StorageRoot, check_availability, get_root, list_roots, preflight
 from oneshelf.storage.staging import new_staging_area
 from oneshelf.text.container import TEXT_EXTENSION, TextUnit, write_text_container
@@ -49,11 +50,18 @@ SEQUENTIAL_FORMAT = "cbz"
 TEXT_FORMAT = "text"
 EXTENSIONS = {TEXT_FORMAT: TEXT_EXTENSION}
 MAX_RESOURCE_BYTES = 256 * 1024 * 1024
+# Formats OneShelf can validate and keep as originals (§16.5, §34.4), in the order taken when the person did
+# not choose (I-103).
+KEEPABLE_FORMATS = ("epub", "pdf", "cbz")
 BACKOFF_BASE_SECONDS = 2
 
 
 class MediaInvalid(RuntimeError):
     pass
+
+
+class NoStorageLocation(ValueError):
+    """Nothing can be downloaded until the library has a Storage Location (§24.1, I-95)."""
 
 
 @dataclass
@@ -68,6 +76,12 @@ class RunReport:
 def register_download(conn: sqlite3.Connection, payload: dict) -> None:
     """Idempotent registration replayed by the commit journal."""
     asset, job_id, now = payload["asset"], payload["job_id"], payload["now"]
+    if asset.get("replaces"):
+        # The broken or missing copy's record becomes the new copy's (I-98): one unit, one record per format.
+        conn.execute("UPDATE assets SET storage_root_id = ?, relative_path = ?, size_bytes = ?, sha256 = ?,"
+                     " page_count = ?, integrity = 'ok', updated_at = ? WHERE id = ?",
+                     (asset["storage_root_id"], asset["relative_path"], asset["size_bytes"], asset["sha256"],
+                      asset.get("page_count"), now, asset["id"]))
     conn.execute(
         "INSERT OR IGNORE INTO assets (id, reading_unit_id, format, variant, storage_root_id, relative_path, size_bytes,"
         " sha256, page_count, integrity, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?, 'ok', ?, ?)",
@@ -125,83 +139,96 @@ class DownloadEngine:
             raise ValueError(f"unknown reading unit {unit_id}")
         return row
 
-    def _clear_broken_copy(self, unit_id: str) -> int:
-        """Make room for a repair (§16.5, §26.21).
+    def _already_downloaded(self, unit_id: str, file_format: str | None = None) -> bool:
+        """A sound copy is on record, unless its file has gone from a connected location (UI-003).
 
-        A copy that is not sound is being replaced, so its record goes and, if the file is still there,
-        it goes too — otherwise the commit would refuse to overwrite its own final path and the repair
-        would fail on every attempt. A sound copy is never touched: it is not what repair is for.
+        That record is marked missing, as a storage scan would mark it, so the new download replaces it at
+        commit (I-98). A copy on a location that is not connected is still the library's: not downloaded twice.
         """
-        removed = 0
-        rows = self.conn.execute(
-            "SELECT * FROM assets WHERE reading_unit_id = ? AND integrity != 'ok'", (unit_id,)).fetchall()
-        for asset in rows:
-            try:
-                root = get_root(self.conn, asset["storage_root_id"])
-                delete_managed_file(root.path, asset["relative_path"])
-            except (PathSafetyError, FileNotFoundError, ValueError):
-                pass                    # already gone, or never ours to delete
-            # A finished job and its journal entry point at the asset they produced; the copy is going,
-            # so those pointers go with it rather than dangling.
-            self.conn.execute("UPDATE download_jobs SET asset_id = NULL WHERE asset_id = ?", (asset["id"],))
-            self.conn.execute("UPDATE imports SET asset_id = NULL WHERE asset_id = ?", (asset["id"],))
-            self.conn.execute("DELETE FROM assets WHERE id = ?", (asset["id"],))
-            removed += 1
-        return removed
+        roots: dict = {}
+        for asset in self.conn.execute("SELECT * FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'"
+                                       " AND (? IS NULL OR format = ?)", (unit_id, file_format, file_format)).fetchall():
+            if copy_state(self.conn, asset, roots) != MISSING:
+                return True
+            self.conn.execute("UPDATE assets SET integrity = 'missing_local_file', updated_at = ? WHERE id = ?",
+                              (utcnow_iso(), asset["id"]))
+        return False
 
-    def _already_downloaded(self, unit_id: str) -> bool:
-        return self.conn.execute("SELECT 1 FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'",
-                                 (unit_id,)).fetchone() is not None
-
-    def _active_job(self, unit_id: str) -> bool:
+    def _active_job(self, unit_id: str, file_format: str | None = None) -> bool:
         placeholders = ",".join("?" * (len(ACTIVE_STATES) + len(RUNNABLE_STATES)))
-        return self.conn.execute(
-            f"SELECT 1 FROM download_jobs WHERE reading_unit_id = ? AND state IN ({placeholders})",
-            (unit_id, *ACTIVE_STATES, *RUNNABLE_STATES)).fetchone() is not None
+        rows = self.conn.execute(
+            f"SELECT extraction_contract_json FROM download_jobs WHERE reading_unit_id = ? AND state IN ({placeholders})",
+            (unit_id, *ACTIVE_STATES, *RUNNABLE_STATES)).fetchall()
+        if file_format is None:
+            return bool(rows)
+        return any(ExtractionContract.from_json(r[0]).file_format in (None, file_format) for r in rows)
 
     def enqueue(self, unit_ids: list[str], *, root_id: str | None = None, one_time_method: str | None = None,
                 label: str | None = None, repair: bool = False,
-                reader_read_ahead: list[str] | None = None) -> str:
+                reader_read_ahead: list[str] | None = None, formats: list[str] | None = None) -> str:
         """`repair` re-downloads a unit whose local copy is broken (§16.5, §26.21).
 
         It is the same contract, the same method and the same validated commit as any other download —
         never a side path — so a repaired unit is sound in exactly the way a fresh one is (INV-02).
+
+        `formats` asks for those file formats of each unit, one job and one file each, from the source's
+        `downloads` capability (§22 "multiple formats may coexist"; I-103).
         """
         batch_id, now = new_id(), utcnow_iso()
-        skipped, queued = [], []
+        skipped, queued, skipped_details = [], [], []
         with transaction(self.conn):
             self.conn.execute("INSERT INTO download_batches (id, label, selection_json, created_at, updated_at)"
                               " VALUES (?,?,?,?,?)", (batch_id, label, json.dumps({"requested": unit_ids}), now, now))
             position = self.conn.execute("SELECT coalesce(max(queue_position), 0) FROM download_jobs").fetchone()[0]
+            if formats is not None and (not formats or any(f not in KEEPABLE_FORMATS for f in formats)):
+                raise ValueError(f"formats must be chosen from {', '.join(KEEPABLE_FORMATS)}")
             for unit_id in unit_ids:
                 context = self._unit_context(unit_id)
-                if repair:
-                    self._clear_broken_copy(unit_id)
-                if (self._already_downloaded(unit_id) and not repair) or self._active_job(unit_id):
-                    skipped.append(unit_id)
-                    continue
-                if context["track_availability"] == "unavailable":
-                    raise ValueError("this source edition is no longer linked")
-                package = self.plugins.load_active(context["source_id"])
-                recommendation = "direct" if "downloads" in package.recipes and "reader" not in package.recipes else "html_api"
-                resolved = resolve_method(self.settings, context["source_id"], plugin_recommendation=recommendation,
-                                          one_time=one_time_method)
-                if is_text_reader(package.recipes.get("reader")):
-                    output = TEXT_FORMAT
-                else:
-                    output = SEQUENTIAL_FORMAT if family_for(context["content_type"]) == "Sequential Art" else "file"
-                contract = ExtractionContract(source_id=context["source_id"], language=context["language"],
-                                              reading_unit_id=unit_id, output_format=output, method=resolved.method,
-                                              mode=resolved.mode, fallback_order=resolved.fallback_order)
-                position += 1
-                queued.append(unit_id)
-                self.conn.execute(
-                    "INSERT INTO download_jobs (id, batch_id, reading_unit_id, state, queue_position, attempts,"
-                    " extraction_contract_json, method, storage_root_id, created_at, updated_at)"
-                    " VALUES (?,?,?, 'QUEUED', ?, 0, ?, ?, ?, ?, ?)",
-                    (new_id(), batch_id, unit_id, position, contract.to_json(), contract.method, root_id, now, now))
+                for file_format in dict.fromkeys(formats or [None]):
+                    # A sound copy is never re-downloaded, repair or not; a broken one is replaced only once
+                    # the new copy is verified, at commit (I-99). Nothing is deleted here.
+                    downloaded = self._already_downloaded(unit_id, file_format)
+                    if downloaded or self._active_job(unit_id, file_format):
+                        skipped.append(unit_id)
+                        skipped_details.append({
+                            "reading_unit_id": unit_id, "format": file_format,
+                            "reason": "already_downloaded" if downloaded else "already_queued"})
+                        continue
+                    if context["track_availability"] == "unavailable":
+                        raise ValueError("this source edition is no longer linked")
+                    package = self.plugins.load_active(context["source_id"])
+                    if file_format is not None:
+                        if "downloads" not in package.recipes:
+                            raise ValueError("this source offers no files to choose a format from")
+                        method, mode, order = "direct", "strict", ()     # a chosen file comes only as that file
+                        output = "file"
+                    else:
+                        recommendation = ("direct" if "downloads" in package.recipes and "reader" not in package.recipes
+                                          else "html_api")
+                        resolved = resolve_method(self.settings, context["source_id"],
+                                                  plugin_recommendation=recommendation, one_time=one_time_method)
+                        method, mode, order = resolved.method, resolved.mode, resolved.fallback_order
+                        output = required_output(package, method, context["content_type"])
+                    contract = ExtractionContract(source_id=context["source_id"], language=context["language"],
+                                                  reading_unit_id=unit_id, output_format=output, method=method,
+                                                  mode=mode, fallback_order=order, file_format=file_format)
+                    position += 1
+                    queued.append(unit_id)
+                    self.conn.execute(
+                        "INSERT INTO download_jobs (id, batch_id, reading_unit_id, state, queue_position, attempts,"
+                        " extraction_contract_json, method, storage_root_id, created_at, updated_at)"
+                        " VALUES (?,?,?, 'QUEUED', ?, 0, ?, ?, ?, ?, ?)",
+                        (new_id(), batch_id, unit_id, position, contract.to_json(), contract.method, root_id, now, now))
+            # Checked after each unit's own reasons, so the more specific refusal is the one reported. A job
+            # without anywhere to go would otherwise wait forever (I-95).
+            if queued:
+                if root_id is not None:
+                    get_root(self.conn, root_id)
+                elif not any(root.is_default for root in list_roots(self.conn)):
+                    raise NoStorageLocation("there is no storage location for downloads yet; add one in Settings")
             self.conn.execute("UPDATE download_batches SET selection_json = ? WHERE id = ?",
                               (json.dumps({"requested": unit_ids, "skipped": skipped, "queued": queued,
+                                           "skipped_details": skipped_details,
                                            "reader_read_ahead": [u for u in (reader_read_ahead or []) if u in queued]}), batch_id))
         self._emit("download.batch", {"batch_id": batch_id, "queued": len(queued), "skipped": len(skipped)})
         return batch_id
@@ -289,6 +316,13 @@ class DownloadEngine:
     async def recover(self) -> int:
         """Startup/restart recovery: interrupted jobs are re-queued, open commits are replayed (§17)."""
         placeholders = ",".join("?" * len(ACTIVE_STATES))
+        # A job whose worker keeps dying (the process killed mid-download, say) has used its retries: it is
+        # failed rather than restarted forever (I-95).
+        exhausted = self.conn.execute(
+            f"SELECT * FROM download_jobs WHERE state IN ({placeholders}) AND attempts > ?",
+            (*ACTIVE_STATES, self.retry_budget)).fetchall()
+        for job in exhausted:
+            self._fail(job["id"], "interrupted", "the download was interrupted too many times")
         with transaction(self.conn):
             cursor = self.conn.execute(
                 f"UPDATE download_jobs SET state = 'RECOVERING', updated_at = ? WHERE state IN ({placeholders})",
@@ -366,8 +400,13 @@ class DownloadEngine:
         contract = ExtractionContract.from_json(job["extraction_contract_json"])
         if method is not None:
             contract = contract.with_method(method)
+        # A retry of a whole-file download starts the file over (I-97): whatever was kept is what failed.
+        # Validated image pages stay, since each was checked on its own and resume skips only matching ones.
+        manifest = json.loads(job["manifest_json"] or "{}")
+        manifest.pop("file", None)
         self._set_state(job_id, "QUEUED", allow_canceled=True, attempts=0, next_attempt_at=None, last_error=None, error_category=None,
-                        pending_decision_json=None, extraction_contract_json=contract.to_json(), method=contract.method)
+                        pending_decision_json=None, extraction_contract_json=contract.to_json(), method=contract.method,
+                        manifest_json=json.dumps(manifest))
 
     def retry_all_failed(self, batch_id: str) -> int:
         jobs = self.conn.execute("SELECT id FROM download_jobs WHERE batch_id = ? AND state = 'FAILED'",
@@ -403,6 +442,8 @@ class DownloadEngine:
             state = "completed_with_issues"
         elif failed:
             state = "failed"
+        elif counts.get("CANCELED", 0) and not completed:
+            state = "canceled"
         else:
             state = "completed"
         return {"batch_id": batch_id, "state": state, "completed": completed, "failed": failed, "pending": pending,
@@ -436,9 +477,12 @@ class DownloadEngine:
         return json.loads(job["manifest_json"] or "{}")
 
     def _save_manifest(self, job_id: str, manifest: dict) -> None:
+        # bytes_done is what the manifest holds: verified pages plus the file so far (UI-003).
+        done = sum(int(page.get("size") or 0) for page in manifest.get("pages", {}).values())
+        done += int(manifest.get("file", {}).get("bytes") or 0)
         with transaction(self.conn):
-            self.conn.execute("UPDATE download_jobs SET manifest_json = ?, updated_at = ? WHERE id = ?",
-                              (json.dumps(manifest), utcnow_iso(), job_id))
+            self.conn.execute("UPDATE download_jobs SET manifest_json = ?, bytes_done = ?, updated_at = ? WHERE id = ?",
+                              (json.dumps(manifest), done, utcnow_iso(), job_id))
 
     async def _process(self, job: sqlite3.Row, report: RunReport) -> None:
         job_id = job["id"]
@@ -477,16 +521,32 @@ class DownloadEngine:
                 artifact, page_count = self._download_text(job_id, contract, resources, area, manifest, context)
                 asset_format = TEXT_FORMAT
             else:
-                artifact, asset_format = await self._download_file(job_id, contract, resources[0], area, manifest)
+                chosen = choose_file(resources, contract)
+                # §24.5: a large operation checks its expected size first. What is already staged counts
+                # as done, so a resumed file asks only for room for the rest (I-108).
+                declared = getattr(chosen, "size_bytes", None) or 0
+                staged = (area / "artifact.bin").stat().st_size if (area / "artifact.bin").is_file() else 0
+                if declared > staged:
+                    usage = shutil.disk_usage(root.path)
+                    if not preflight(total=usage.total, free=usage.free, expected_bytes=declared - staged,
+                                     override=root.reserve_override_bytes).allowed:
+                        raise CapabilityError("storage_full", "the file would not fit above the storage reserve")
+                artifact, asset_format = await self._download_file(job_id, contract, chosen, area, manifest)
                 page_count = None
             self._set_state(job_id, "COMMITTING")
             await self._commit(job_id, contract, context, root, staging_rel, artifact, asset_format, page_count,
                                started_at)
             report.completed += 1
         except (AuthRequired, RateLimited, CapabilityError, MediaInvalid, FetchFailed, DisallowedTarget,
-                BlockedDestination, OSError, CommitError) as exc:
+                BlockedDestination, OSError, CommitError, ResponseTooLarge, TooManyRedirects) as exc:
             category = self._category(exc)
             self._handle_failure(job_id, contract, context, attempts, category, str(exc), report, started_at)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 — anything unforeseen still ends the job, never strands it (I-95)
+            logger.exception("download job %s hit an unexpected error", job_id)
+            self._handle_failure(job_id, contract, context, attempts, "internal_error",
+                                 f"{type(exc).__name__}: {exc}", report, started_at)
 
     @staticmethod
     def _category(exc: BaseException) -> str:
@@ -496,6 +556,10 @@ class DownloadEngine:
             return "rate_limit"
         if isinstance(exc, MediaInvalid):
             return "media_invalid"
+        if isinstance(exc, ResponseTooLarge):
+            return "too_large"
+        if isinstance(exc, TooManyRedirects):
+            return "transport"
         if isinstance(exc, CapabilityError):
             return exc.category
         if isinstance(exc, (DisallowedTarget, BlockedDestination)):
@@ -522,16 +586,21 @@ class DownloadEngine:
                     and sha256_file(target)[0] == entry["sha256"]):
                 self.fault("page_skipped")
                 continue
-            response = await self.sources.fetch_resource(contract.source_id, resource.url, capability="reader",
-                                                         priority=Priority.MANUAL, max_bytes=MAX_RESOURCE_BYTES)
+            part = area / f"{name}.part"
+            response = await self.sources.fetch_resource_to(contract.source_id, resource.url, part,
+                                                            capability="reader", priority=Priority.MANUAL,
+                                                            max_bytes=MAX_RESOURCE_BYTES)
             self._ensure_not_canceled(job_id)
             if response.status != 200:
+                part.unlink(missing_ok=True)
                 raise CapabilityError("unexpected_response", f"page {index} returned HTTP {response.status}")
-            problem = _validate_image(response.body)
+            problem = await off_loop(lambda: _validate_image(part.read_bytes()))  # checked before it counts
             if problem:
+                part.unlink(missing_ok=True)
                 raise MediaInvalid(f"page {index}: {problem}")
-            target.write_bytes(response.body)
-            pages[str(index)] = {"url": resource.url, "sha256": sha256_file(target)[0], "size": len(response.body)}
+            part.replace(target)
+            sha, size = await off_loop(sha256_file, target)
+            pages[str(index)] = {"url": resource.url, "sha256": sha, "size": size}
             self._save_manifest(job_id, manifest)
             self.fault("page_downloaded")
         self.fault("after_pages_downloaded")
@@ -540,13 +609,8 @@ class DownloadEngine:
             raise MediaInvalid("page coverage does not match the source resource list")
         self._set_state(job_id, "PACKAGING")
         artifact = area / "artifact.cbz"
-        with zipfile.ZipFile(artifact, "w", compression=zipfile.ZIP_STORED) as archive:
-            for index in range(1, len(resources) + 1):
-                page = area / f"{index:04d}.img"
-                suffix = detect_image_suffix(page.read_bytes())
-                archive.write(page, f"{index:04d}{suffix}")   # original bytes preserved (§39)
-            archive.writestr("ComicInfo.xml", comic_info(context))
-        result = validate(artifact)
+        await off_loop(_package_cbz, artifact, area, len(resources), comic_info(context))
+        result = await off_loop(validate, artifact)
         if not result.ok:
             raise MediaInvalid(f"packaged archive failed validation: {result.reason}")
         return artifact, result.page_count or len(resources)
@@ -587,28 +651,28 @@ class DownloadEngine:
                              manifest: dict) -> tuple[Path, str]:
         target = area / "artifact.bin"
         state = manifest.setdefault("file", {})
-        headers = {}
-        if state.get("validator") and target.is_file():
-            headers = {"Range": f"bytes={target.stat().st_size}-", "If-Range": state["validator"]}
-        response = await self.sources.fetch_resource(contract.source_id, resource.url, capability="downloads",
-                                                     priority=Priority.MANUAL, max_bytes=MAX_RESOURCE_BYTES,
-                                                     headers=headers or None)
+        size = target.stat().st_size if target.is_file() else 0
+        # Resume only a file that is known to be short of its known total (§16.4, I-97): a complete body
+        # that failed later never asks for bytes past its end.
+        resumable = bool(state.get("validator") and state.get("expected") and 0 < size < state["expected"])
+        response = await self.sources.fetch_resource_to(
+            contract.source_id, resource.url, target, capability="downloads", priority=Priority.MANUAL,
+            max_bytes=MAX_RESOURCE_BYTES, resume_from=size if resumable else 0,
+            validator=state.get("validator") if resumable else None)
         self._ensure_not_canceled(job_id)
-        validator = response.headers.get("ETag") or response.headers.get("Last-Modified")
-        if response.status == 206 and state.get("validator") == validator:
-            with open(target, "ab") as handle:
-                handle.write(response.body)
-        elif response.status in (200, 206):
-            target.write_bytes(response.body)  # changed validator or fresh start: never splice versions
-        else:
+        if response.status not in (200, 206):
             raise CapabilityError("unexpected_response", f"file returned HTTP {response.status}")
-        state["validator"] = validator
-        state["bytes"] = target.stat().st_size
+        state.update(validator=response.headers.get("ETag") or response.headers.get("Last-Modified"),
+                     expected=response.total, bytes=target.stat().st_size)
         self._save_manifest(job_id, manifest)
         self.fault("file_partially_downloaded")
         self._set_state(job_id, "VERIFYING")
-        result = validate(target)
+        result = await off_loop(validate, target)
         if not result.ok:
+            # These bytes are known to be bad: the next attempt starts over rather than building on them.
+            target.unlink(missing_ok=True)
+            manifest["file"] = {}
+            self._save_manifest(job_id, manifest)
             raise MediaInvalid(f"downloaded file failed validation: {result.reason}")
         self._set_state(job_id, "PACKAGING")
         return target, result.format
@@ -619,14 +683,19 @@ class DownloadEngine:
         self._ensure_not_canceled(job_id)
         if self._unit_context(context["unit_id"])["track_availability"] == "unavailable":
             raise CapabilityError("source_unlinked", "this source edition is no longer linked")
-        sha, size = sha256_file(artifact)
+        sha, size = await off_loop(sha256_file, artifact)
+        existing = self.conn.execute("SELECT * FROM assets WHERE reading_unit_id = ? AND format = ? AND variant = ''",
+                                     (context["unit_id"], asset_format)).fetchone()
+        if existing is not None and existing["integrity"] == "ok":
+            raise CommitError("this reading unit already has a sound copy in that format")
         label = context["display_title"] or context["raw_title"] or context["source_unit_key"]
         relative_path = asset_relative_path(context["content_type"], context["work_title"], context["work_id"],
                                             contract.language, contract.source_id, label, context["unit_id"],
                                             EXTENSIONS.get(asset_format, asset_format))
         payload = {
             "job_id": job_id, "now": utcnow_iso(),
-            "asset": {"id": new_id(), "reading_unit_id": context["unit_id"], "format": asset_format, "variant": "",
+            "asset": {"id": existing["id"] if existing is not None else new_id(), "replaces": existing is not None,
+                      "reading_unit_id": context["unit_id"], "format": asset_format, "variant": "",
                       "storage_root_id": root.id, "relative_path": relative_path, "size_bytes": size, "sha256": sha,
                       "page_count": page_count},
             "history": {"work_id": context["work_id"], "source_id": contract.source_id, "language": contract.language,
@@ -634,10 +703,14 @@ class DownloadEngine:
                         "fallback_reason": None if len(contract.attempted_methods) == 1 else "method_fallback",
                         "started_at": started_at},
         }
-        engine = CommitEngine(self.conn, registrars=registrars(), fault=self.fault)
-        engine.commit(CommitRequest(root_id=root.id, staging_relpath=f"{staging_rel}/{artifact.name}",
-                                    final_relpath=relative_path,
-                                    registration={"kind": REGISTRAR_KIND, "payload": payload}))
+        registration = {"kind": REGISTRAR_KIND, "payload": payload}
+        if existing is not None and existing["storage_root_id"] == root.id:
+            registration["replaces"] = {"relative_path": existing["relative_path"]}
+        request = CommitRequest(root_id=root.id, staging_relpath=f"{staging_rel}/{artifact.name}",
+                                final_relpath=relative_path, registration=registration)
+        # Hashing, fsync and the move run on a worker with its own connection (I-96).
+        await in_worker(self.conn, lambda conn: CommitEngine(conn, registrars=registrars(),
+                                                             fault=self.fault).commit(request))
         area = Path(root.path) / staging_rel
         if area.is_dir():
             shutil.rmtree(area, ignore_errors=True)
@@ -653,7 +726,15 @@ class DownloadEngine:
         if category == "auth_failure":
             self.notifications.reconnect_required(context["source_id"])
         elif category in ("storage_full", "storage_unavailable"):
-            self.notifications.low_storage(self.job(job_id)["storage_root_id"] or "default", free_bytes=0)
+            try:
+                root = self._choose_root(self.job(job_id))
+            except (RuntimeError, ValueError):
+                root = None
+            root_id = root.id if root is not None else "none"
+            if category == "storage_unavailable" or root is None:
+                self.notifications.storage_unavailable(root_id, name=root.name if root else None)
+            else:
+                self.notifications.low_storage(root_id, free_bytes=shutil.disk_usage(root.path).free)
         else:
             self.notifications.download_failed(context["unit_id"], title, category=category)
 
@@ -668,6 +749,14 @@ class DownloadEngine:
                 (job["id"], job["reading_unit_id"], context["work_id"], contract.source_id, contract.language, outcome,
                  contract.attempted_methods[0], contract.method, category, job["bytes_done"], job["started_at"],
                  utcnow_iso()))
+
+    def _fail(self, job_id: str, category: str, message: str) -> None:
+        """End a job that is not running now: FAILED, recorded and notified like any final failure."""
+        self._set_state(job_id, "FAILED", allow_canceled=True, last_error=message, error_category=category,
+                        finished_at=utcnow_iso())
+        job = self.job(job_id)
+        self._record_history(job, "failed", category)
+        self._notify_failure(job_id, self._unit_context(job["reading_unit_id"]), category)
 
     def _handle_failure(self, job_id: str, contract: ExtractionContract, context: sqlite3.Row, attempts: int,
                         category: str, message: str, report: RunReport, started_at: str) -> None:
@@ -703,6 +792,50 @@ class DownloadEngine:
             self._notify_failure(job_id, context, category)
             report.failed += 1
             report.errors.append(f"{job_id}: {category}: {message}")
+
+
+def choose_file(resources: list, contract: ExtractionContract):
+    """The file a whole-file download takes: the chosen format, else the first keepable one (I-103)."""
+    def fmt(resource) -> str:
+        return str(getattr(resource, "format", "") or "").lower()
+
+    if contract.file_format is not None:
+        match = next((r for r in resources if fmt(r) == contract.file_format), None)
+        if match is None:
+            raise CapabilityError("format_unavailable", f"the source does not offer this unit as {contract.file_format}")
+        return match
+    for wanted in KEEPABLE_FORMATS:
+        match = next((r for r in resources if fmt(r) == wanted), None)
+        if match is not None:
+            return match
+    return resources[0]
+
+
+def required_output(package, method: str, content_type: str) -> str:
+    """The Extraction Contract's required output, from what the source delivers (Master §14, I-93).
+
+    A text reader gives the text container; the direct method, or a source without a reader, gives the
+    original file; a reader that yields image pages gives a CBZ. The Work's label decides only when a source
+    offers both a reader and files and the label says book — never because the label is unknown.
+    """
+    reader = package.recipes.get("reader")
+    if is_text_reader(reader):
+        return TEXT_FORMAT
+    if method == "direct" or reader is None:
+        return "file"
+    if "downloads" in package.recipes and family_for(content_type) == "Books":
+        return "file"
+    return SEQUENTIAL_FORMAT
+
+
+def _package_cbz(artifact: Path, area: Path, pages: int, comic_info_xml: str) -> None:
+    with zipfile.ZipFile(artifact, "w", compression=zipfile.ZIP_STORED) as archive:
+        for index in range(1, pages + 1):
+            page = area / f"{index:04d}.img"
+            with open(page, "rb") as handle:
+                suffix = detect_image_suffix(handle.read(16))
+            archive.write(page, f"{index:04d}{suffix}")   # original bytes preserved (§39)
+        archive.writestr("ComicInfo.xml", comic_info_xml)
 
 
 def detect_image_suffix(data: bytes) -> str:

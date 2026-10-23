@@ -152,6 +152,9 @@ class ShelfService:
             except FileNotFoundError:
                 pass                        # already gone: the record should follow it
             with transaction(self.conn):
+                # The download or import that made the file stays in history, no longer pointing at it (I-110).
+                self.conn.execute("UPDATE download_jobs SET asset_id = NULL WHERE asset_id = ?", (asset["id"],))
+                self.conn.execute("UPDATE imports SET asset_id = NULL WHERE asset_id = ?", (asset["id"],))
                 self.conn.execute("DELETE FROM assets WHERE id = ?", (asset["id"],))
             removed += 1
         if removed:

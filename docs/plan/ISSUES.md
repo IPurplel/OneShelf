@@ -252,3 +252,33 @@ These canonical IDs continue after I-80. Every reproduction below failed before 
 | I-88 | Require exactly one `library.db` inventory entry before accepting backup verification. | `tests/integration/backup/test_backup.py::test_i88_backup_verification_requires_a_database_inventory_checksum` reproduces the missing-checksum false positive; existing I-68 missing-content and archive-tampering tests pass. | 2026-10-08 / 2026-10-08 |
 | I-89 | Stream database and asset archive writes, archive reads, full-backup checksum, and restore copies; verify content hashes and sizes after streaming. | `test_i89_full_backup_streams_large_selected_content_without_loading_it_all_into_memory` and `test_i89_full_restore_streams_large_content_repair_without_loading_it_into_memory` bound traced working memory below 8 MiB for a 22 MiB asset; measured pre-fix peaks were about 78/54 MiB. Existing I-68 and restore failure-injection tests pass. | 2026-10-08 / 2026-10-08 |
 | I-90 | Reuse the validator's image-entry predicate when the Reader lists and opens local CBZ pages. | `tests/integration/reader/test_reading.py::test_i90_reader_ignores_archive_entries_excluded_by_cbz_validation` verifies the one visible image, the one-page count, and rejection of a second page; Reader and full non-live suites pass. | 2026-10-08 / 2026-10-08 |
+
+## Backend, adapter and Reader audit (2026-10-19)
+
+Canonical IDs continue after I-90. Full reproductions, evidence and fixes are in
+[`docs/audits/2026-10-19-backend-reader/findings.md`](../audits/2026-10-19-backend-reader/findings.md), and the
+approved-before-implementation repair order is in its `repair-plan.md`. All are **Open**: this was an
+audit-and-plan task, and no fix has been made.
+
+| ID | Audit ID | Priority | Component | Defect | State |
+|---|---|---|---|---|---|
+| I-91 | BE-001 | P1 | Remote auth / trust boundary | A signed-in remote session can change the inbound trust configuration and keep LAN-level access after LAN Recovery (details withheld until fixed) | Fixed on `repair/be-phase1-security-jobs`; awaiting review and merge |
+| I-92 | BE-002 | P1 | Classification | Plugin `defaults` (language, content type) are never applied on search or bind; Arabic sources are stored `und`/`unknown` (also on production) | Fixed on `repair/be-phase2-classification`; awaiting review and merge |
+| I-93 | BE-003 | P1 | Downloads | Image-reader units on `unknown` Works are downloaded as a single file and fail (MangaDex, 3asq, Tapas, WEBTOON) | Fixed on `repair/be-phase2-classification`; awaiting review and merge |
+| I-94 | BE-004 | P2 | Identity | One source listing becomes two Source Tracks (`und` via search, `en` via URL) | Fixed on `repair/be-phase2-classification`; awaiting review and merge |
+| I-95 | BE-005 | P1 | Downloads | Unexpected exceptions (e.g. no storage root, oversized resource) leave jobs in active states forever (also on production) | Fixed on `repair/be-phase1-security-jobs`; awaiting review and merge |
+| I-96 | BE-006 | P1 | Responsiveness | Backup, restore, export, scan and file serving run on the event loop; an 82 MB backup stalled every request for 1.06 s | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
+| I-97 | BE-007 | P2 | Downloads / resume | A complete body then a failure → the retry sends an unsatisfiable `Range` → HTTP 416, permanent failure | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
+| I-98 | BE-008 | P2 | Commit journal | Re-downloading a missing-file unit orphans the new file and wedges the journal at `verified` | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
+| I-99 | BE-009 | P2 | Repair | Repair deletes the existing copy and record before a replacement is verified | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
+| I-100 | BE-010 | P2 | Follow | Following before any trusted catalog stores an empty baseline; the first check floods every unit as new | Fixed on `repair/be-phase4-functional`; awaiting review and merge |
+| I-101 | BE-011 | P2 | Memory | Resources and local documents are fully buffered in RAM; `/file` ignores `Range` | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
+| I-102 | BE-012 | P2 | Overrides | No write path for user overrides (classification, numbering); traceability M9.2 overstated | Fixed on `repair/be-phase2-classification`; awaiting review and merge |
+| I-103 | BE-013 | P2 | Downloads / formats | No format selection; only the first offered file is ever downloaded | Fixed on `repair/be-phase4-functional`; awaiting review and merge |
+| I-104 | BE-014 | P2 | Adapters | Bundled Gutenberg search fails live, Hindawi Latin queries are blocked, MangaDex bundle diverges from the Registry | Fixed on `repair/be-phase4-functional`; awaiting review and merge |
+| I-105 | BE-015 | P3 | Backup | Backups include `remote_sessions`, `remote_recovery`, `remote_credentials` (§33.3) | Fixed on `repair/be-phase1-security-jobs`; awaiting review and merge |
+| I-106 | BE-016 | P3 | Notifications / batches | An offline or missing root is reported as "0 bytes remain"; an all-canceled batch reads "Completed" | Fixed on `repair/be-phase1-security-jobs`; awaiting review and merge |
+| I-107 | BE-017 | P3 | Reader | Upstream HTTP status hidden; descriptor cache unbounded; disabled source → wrong `DOWNLOAD_REQUIRED` and cached pages unreachable | Fixed on `repair/be-phase4-functional`; awaiting review and merge |
+| I-108 | BE-018 | P3 | Storage guard | Download preflight ignores known sizes | Fixed on `repair/be-phase4-functional`; awaiting review and merge |
+| I-109 | BE-019 | P3 | HTTP client | A read timeout leaks the connection (seen in the live suite) | Fixed on `repair/be-phase3-responsiveness`; awaiting review and merge |
+| I-110 | — (found integrating UI-003) | P2 | Library / files | Deleting a downloaded or imported Work's files fails with HTTP 500: the download job or import still references the asset. The file is already deleted, but the record still says `ok`, so the unit cannot be downloaded again until a storage scan. Present on `main` | Fixed on `repair/be-ui-contracts` (PR #9); awaiting review and merge |

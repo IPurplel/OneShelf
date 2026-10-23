@@ -232,3 +232,35 @@ def test_same_physical_disk_warning(library, clock, tmp_path):
     same = service(library, clock)
     assert same.location_warning(library.path / "backups")["same_device_as_library"] is True
     assert "same physical disk" in same.location_warning(library.path / "backups")["message"]
+
+
+# -- I-105 (BE-015): remote Web UI authentication never travels in a backup (Master §33.3) ---------------
+
+REMOTE_AUTH_TABLES = ("remote_sessions", "remote_recovery", "remote_credentials", "webauthn_challenges")
+
+
+def test_i105_backup_excludes_remote_web_ui_authentication(library, clock, tmp_path):
+    now = "2026-10-19T00:00:00+00:00"
+    library.conn.execute("INSERT INTO remote_sessions (id, token_hash, label, created_at, last_active_at)"
+                         " VALUES ('s1', 'hash-of-a-live-token', 'Phone', ?, ?)", (now, now))
+    library.conn.execute("INSERT INTO remote_recovery (id, verifier, salt, created_at) VALUES (1, 'v', 's', ?)",
+                         (now,))
+    library.conn.execute("INSERT INTO remote_credentials (credential_id, public_key, label, created_at)"
+                         " VALUES ('c1', x'00', 'Phone', ?)", (now,))
+    record = service(library, clock).create("library")
+    with zipfile.ZipFile(record.path) as z:
+        z.extract("library.db", tmp_path / "check")
+    with closing(sqlite3.connect(tmp_path / "check" / "library.db")) as conn:
+        for table in REMOTE_AUTH_TABLES:
+            assert conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0] == 0, table
+    assert b"hash-of-a-live-token" not in Path(record.path).read_bytes()
+
+
+def test_i105_every_table_is_either_carried_or_excluded_on_purpose(library):
+    """A new table must be classified before it can ride along in backups unreviewed."""
+    from oneshelf.backup.service import EXCLUDED_TABLES as excluded, KEPT_TABLES as kept
+    tables = {r[0] for r in library.conn.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        " AND name NOT LIKE 'search_index_%'")}
+    assert not set(excluded) & set(kept)
+    assert tables - set(excluded) - set(kept) == set(), "classify these tables for backups"

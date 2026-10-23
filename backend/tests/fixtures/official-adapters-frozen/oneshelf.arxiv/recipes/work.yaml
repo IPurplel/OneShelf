@@ -1,0 +1,12 @@
+capability: work
+inputs: [listing_key]
+request:
+  url: "{base_url}/api/query?id_list={listing_key}"
+response:
+  format: html
+extract:
+  fields:
+    title: {css: "entry title::text", transforms: [trim], required: true}
+    creator: {css: "entry author name::text", transforms: [trim]}
+    description: {css: "entry summary::text", transforms: [trim]}
+    content_type: {template: "book"}

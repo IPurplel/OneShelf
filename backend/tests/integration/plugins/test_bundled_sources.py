@@ -14,7 +14,9 @@ import pytest
 from oneshelf.plugins.bundled import BOOTSTRAP_VERSION, bootstrap_version, sync_bundled
 from oneshelf.plugins.manager import PluginManager
 
-OFFICIAL = Path(__file__).resolve().parents[3] / "plugins" / "official"
+# Mechanism tests derive their inputs from frozen copies of the official adapters, so a release snapshot
+# refresh never changes what they test (tests/fixtures/official-adapters-frozen/README.md).
+OFFICIAL = Path(__file__).resolve().parents[2] / "fixtures" / "official-adapters-frozen"
 EIGHT = ["oneshelf.3asq", "oneshelf.arxiv", "oneshelf.gutenberg", "oneshelf.hindawi", "oneshelf.mangadex",
          "oneshelf.standard-ebooks", "oneshelf.tapas", "oneshelf.webtoon"]
 

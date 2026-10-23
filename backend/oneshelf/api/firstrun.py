@@ -12,6 +12,7 @@ from typing import Literal
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, Field
 
+from oneshelf.api.auth import lan_only
 from oneshelf.auth.policy import PolicyError
 from oneshelf.auth.service import RemoteAuthError
 from oneshelf.db.connection import transaction
@@ -106,6 +107,8 @@ async def choose_storage(request: Request, body: StorageBody):
 
 @router.post("/access-mode")
 async def choose_access_mode(request: Request, body: AccessModeBody):
+    if (refused := lan_only(request)) is not None:
+        return refused
     s = services(request)
     try:
         if body.mode == "local":

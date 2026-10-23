@@ -2,20 +2,25 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from dataclasses import asdict
 from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 
+from oneshelf.diagnostics.redact import redact_text
+from oneshelf.library.copies import PRESENT, copy_state, local_copy
+from oneshelf.downloads.engine import KEEPABLE_FORMATS, NoStorageLocation
+from oneshelf.net.governor import Priority
 from oneshelf.api.sources import error, services
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.plugins.manager import PluginUnavailable
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
 from oneshelf.reader.alternatives import alternatives
-from oneshelf.reader.service import DownloadRequired, MarkOperationConflict, StaleProgress
+from oneshelf.reader.service import DownloadRequired, MarkOperationConflict, SourceUnavailable, StaleProgress
 
 router = APIRouter(prefix="/api")
 
@@ -35,6 +40,8 @@ class EnqueueBody(BaseModel):
     label: str | None = Field(default=None, max_length=120)
     # §26.21: a unit whose local copy is broken is downloaded again rather than left unreadable.
     repair: bool = False
+    # §22, §41.3: the file formats wanted, for a source offering several (I-103). Omitted: the preferred one.
+    formats: list[Literal["epub", "pdf", "cbz"]] | None = Field(default=None, min_length=1, max_length=3)
 
 
 @router.post("/downloads")
@@ -42,11 +49,54 @@ async def enqueue(request: Request, body: EnqueueBody):
     s = services(request)
     try:
         batch_id = s.downloads.enqueue(body.unit_ids, root_id=body.root_id, one_time_method=body.method,
-                                       label=body.label, repair=body.repair)
+                                       label=body.label, repair=body.repair, formats=body.formats)
+    except NoStorageLocation as exc:
+        return error(409, "NO_STORAGE_LOCATION", str(exc))
     except (ValueError, PluginUnavailable) as exc:
         return error(422, "CANNOT_ENQUEUE", str(exc))
     return s.downloads.batch(batch_id)
 
+
+
+@router.get("/reading-units/{unit_id}/formats")
+async def unit_formats(request: Request, unit_id: str):
+    """The files a source offers for one unit, which of them OneShelf can keep, and which are here (I-103)."""
+    s = services(request)
+    unit = s.conn.execute(
+        "SELECT u.source_unit_key, u.url_hint, t.source_id, t.language FROM reading_units u"
+        " JOIN source_tracks t ON t.id = u.track_id WHERE u.id = ?", (unit_id,)).fetchone()
+    if unit is None:
+        return error(404, "UNIT_NOT_FOUND", "This reading unit is not in your library.")
+    here = {r[0] for r in s.conn.execute(
+        "SELECT format FROM assets WHERE reading_unit_id = ? AND integrity = 'ok'", (unit_id,))}
+    offered: list[dict] = []
+    if unit["source_id"] != "local":
+        try:
+            package = s.plugins.load_active(unit["source_id"])
+            if "downloads" in package.recipes:
+                result = await s.source_service.run(
+                    unit["source_id"], "downloads",
+                    {"unit_key": unit["source_unit_key"], "url": unit["url_hint"], "language": unit["language"]},
+                    priority=Priority.INTERACTIVE)
+                seen = set()
+                for entry in result.entries:
+                    key = (str(entry.format).lower(), entry.variant)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    offered.append({"format": key[0], "variant": entry.variant, "size_bytes": entry.size_bytes,
+                                    "supported": key[0] in KEEPABLE_FORMATS, "downloaded": key[0] in here})
+        except PluginUnavailable as exc:
+            return error(409, "SOURCE_UNAVAILABLE", str(exc))
+        except AuthRequired:
+            return error(409, "SESSION_REQUIRED", "This source needs a connected account.")
+        except RateLimited as exc:
+            return error(429, "RATE_LIMITED", f"The source is rate limited (retry after {exc.retry_after}s).")
+        except CapabilityError as exc:
+            return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
+    for fmt in sorted(here - {o["format"] for o in offered}):   # local copies the source no longer lists
+        offered.append({"format": fmt, "variant": None, "size_bytes": None, "supported": True, "downloaded": True})
+    return {"unit_id": unit_id, "formats": offered}
 
 class AutoDownloadBody(BaseModel):
     enabled: bool | None = None
@@ -120,13 +170,75 @@ async def list_batches(request: Request, limit: int = Query(default=20, ge=1, le
     return {"batches": [s.downloads.batch(r[0]) for r in rows]}
 
 
+def _job_available(conn, job, roots: dict) -> bool:
+    """Whether a finished job's unit opens from this device now: the copy the Reader opens is there (UI-003).
+
+    The job's own file decides the format. A job whose file was deleted, or that finished before jobs were
+    linked to their files, says what the unit has now: the Reader opens the unit, not the job.
+    """
+    if job["state"] != "COMPLETED":
+        return False
+    own = conn.execute("SELECT format FROM assets WHERE id = ?", (job["asset_id"],)).fetchone() \
+        if job["asset_id"] else None
+    copy = local_copy(conn, job["reading_unit_id"], own["format"] if own else None)
+    return copy is not None and copy_state(conn, copy, roots) == PRESENT
+
+
+def _bytes_total(conn, job) -> int | None:
+    """How many bytes the job transfers in all, when that is known (UI-003).
+
+    A finished job transferred what `bytes_done` counts. Jobs finished before it was counted fall back to the
+    stored file's size. A whole file in progress uses the size the source announced; image pages have none.
+    """
+    if job["state"] == "COMPLETED":
+        if job["bytes_done"]:
+            return job["bytes_done"]
+        row = conn.execute("SELECT size_bytes FROM assets WHERE id = ?", (job["asset_id"],)).fetchone() \
+            if job["asset_id"] else None
+        return row[0] if row else None
+    expected = json.loads(job["manifest_json"] or "{}").get("file", {}).get("expected")
+    return expected if isinstance(expected, int) and expected >= 0 else None
+
+
 @router.get("/downloads/{batch_id}")
-async def batch_detail(request: Request, batch_id: str):
+async def batch_detail(request: Request, batch_id: str, offset: int = Query(default=0, ge=0),
+                       limit: int = Query(default=500, ge=1, le=1000)):
+    """One batch, its jobs named by Work and unit, and whether each finished unit can be opened (UI-003)."""
     s = services(request)
-    jobs = s.conn.execute(
-        "SELECT id, reading_unit_id, state, method, attempts, error_category, last_error, queue_position, bytes_done"
-        " FROM download_jobs WHERE batch_id = ? ORDER BY queue_position", (batch_id,)).fetchall()
-    return {**s.downloads.batch(batch_id), "jobs": [dict(j) for j in jobs]}
+    batch = s.conn.execute("SELECT selection_json FROM download_batches WHERE id = ?", (batch_id,)).fetchone()
+    if batch is None:
+        return error(404, "BATCH_NOT_FOUND", "There is no such download batch.")
+    total = s.conn.execute("SELECT count(*) FROM download_jobs WHERE batch_id = ?", (batch_id,)).fetchone()[0]
+    rows = s.conn.execute(
+        "SELECT j.id, j.reading_unit_id, j.state, j.method, j.attempts, j.error_category, j.last_error,"
+        " j.queue_position, j.bytes_done, j.asset_id, j.manifest_json, t.work_id, w.display_title AS work_title,"
+        " u.track_id, coalesce(u.display_title, u.raw_title) AS unit_title"
+        " FROM download_jobs j LEFT JOIN reading_units u ON u.id = j.reading_unit_id"
+        " LEFT JOIN source_tracks t ON t.id = u.track_id LEFT JOIN works w ON w.id = t.work_id"
+        " WHERE j.batch_id = ? ORDER BY j.queue_position, j.id LIMIT ? OFFSET ?",
+        (batch_id, limit, offset)).fetchall()
+    roots: dict = {}
+    jobs = []
+    for row in rows:
+        job = {key: row[key] for key in ("id", "reading_unit_id", "state", "method", "attempts", "error_category",
+                                         "queue_position", "bytes_done", "work_id", "work_title", "track_id",
+                                         "unit_title")}
+        # Errors can quote a URL; whatever it carried (a signed token, a session id) is redacted (§43).
+        job["last_error"] = redact_text(row["last_error"]) if row["last_error"] else None
+        job["available"] = _job_available(s.conn, row, roots)
+        job["bytes_total"] = _bytes_total(s.conn, row)
+        jobs.append(job)
+    selection = json.loads(batch["selection_json"] or "{}")
+    details = selection.get("skipped_details") or [{"reading_unit_id": u, "reason": None}
+                                                   for u in selection.get("skipped", [])]
+    skipped_units = []
+    for detail in details[offset:offset + limit]:
+        title = s.conn.execute("SELECT coalesce(display_title, raw_title) FROM reading_units WHERE id = ?",
+                               (detail["reading_unit_id"],)).fetchone()
+        skipped_units.append({"reading_unit_id": detail["reading_unit_id"], "unit_title": title[0] if title else None,
+                              "reason": detail.get("reason")})
+    return {**s.downloads.batch(batch_id), "jobs": jobs, "jobs_total": total, "offset": offset, "limit": limit,
+            "skipped_units": skipped_units, "skipped_total": len(details)}
 
 
 class ReorderBody(BaseModel):
@@ -137,7 +249,7 @@ class ReorderBody(BaseModel):
 async def reorder(request: Request, batch_id: str, body: ReorderBody):
     s = services(request)
     s.downloads.reorder(batch_id, body.job_ids)
-    return await batch_detail(request, batch_id)
+    return await batch_detail(request, batch_id, offset=0, limit=500)
 
 
 @router.post("/downloads/{batch_id}/{action}")
@@ -194,6 +306,8 @@ async def reader_pages(request: Request, unit_id: str):
         pages = await s.reader.pages(unit_id)
     except DownloadRequired:
         return error(409, "DOWNLOAD_REQUIRED", DOWNLOAD_REQUIRED)
+    except SourceUnavailable as exc:
+        return error(409, "SOURCE_UNAVAILABLE", str(exc))
     except FileNotFoundError as exc:
         return error(404, "PAGES_NOT_AVAILABLE", str(exc))
     except ValueError as exc:
@@ -230,6 +344,8 @@ async def reader_page(request: Request, unit_id: str, index: int, prefetch: bool
             page = await s.reader.page(unit_id, index, prefetch=False)
     except DownloadRequired:
         return error(409, "DOWNLOAD_REQUIRED", DOWNLOAD_REQUIRED)
+    except SourceUnavailable as exc:
+        return error(409, "SOURCE_UNAVAILABLE", str(exc))
     except FileNotFoundError as exc:
         return error(404, "PAGES_NOT_AVAILABLE", str(exc))
     except (ValueError, IndexError) as exc:
@@ -272,11 +388,10 @@ async def reader_file(request: Request, unit_id: str, format: Literal["epub", "p
     except ValueError as exc:
         return error(404, "UNIT_NOT_FOUND", str(exc))
     media_type = MEDIA_TYPES.get(artefact.format, "application/octet-stream")
-    return Response(artefact.data, media_type=media_type, headers={
-        **CONTENT_HEADERS,
-        "Content-Security-Policy": "sandbox; default-src 'none'",
-        "Content-Disposition": f'inline; filename="{unit_id}.{EXTENSIONS.get(artefact.format, artefact.format)}"',
-    })
+    # Streamed from disk with Range support, so pdf.js can fetch what it shows (§56, I-101).
+    return FileResponse(artefact.path, media_type=media_type, content_disposition_type="inline",
+                        filename=f"{unit_id}.{EXTENSIONS.get(artefact.format, artefact.format)}",
+                        headers={**CONTENT_HEADERS, "Content-Security-Policy": "sandbox; default-src 'none'"})
 
 
 @router.get("/reader/units/{unit_id}/text")
@@ -289,6 +404,8 @@ async def reader_text(request: Request, unit_id: str):
     s = services(request)
     try:
         unit, origin = await s.reader.text(unit_id)
+    except SourceUnavailable as exc:
+        return error(409, "SOURCE_UNAVAILABLE", str(exc))
     except FileNotFoundError as exc:
         return error(404, "TEXT_NOT_AVAILABLE", str(exc))
     except ValueError as exc:

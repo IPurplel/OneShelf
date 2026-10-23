@@ -1,0 +1,22 @@
+capability: latest
+inputs: [page]
+request:
+  url: "{base_url}/manga/page/{page}/?m_orderby=latest"
+  headers: {Accept: text/html}
+response:
+  format: html
+extract:
+  items: {css: "div.page-item-detail"}
+  fields:
+    # A series with no cover image has an empty `item-thumb`, so the identity is read from the title
+    # link, which is always there. Reading it from the thumbnail dropped those series entirely (I-26).
+    listing_key: {css: "div.post-title a[href*='/manga/']::attr(href)", required: true,
+                  transforms: [{regex_extract: {pattern: "/manga/([^/]+)/", group: 1}}]}
+    title: {css: "div.post-title a[href*='/manga/']::text", required: true, transforms: [trim]}
+    url: {css: "div.post-title a[href*='/manga/']::attr(href)", transforms: [normalize_url]}
+    cover_url: {css: "div.item-thumb img::attr(src)", transforms: [trim, normalize_url]}
+pagination:
+  mode: page_number
+  start: 1
+  max_pages: 5
+  stop_when: not_found

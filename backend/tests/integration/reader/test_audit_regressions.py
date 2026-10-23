@@ -1,5 +1,6 @@
 """Regression coverage for cancellation, read-ahead, and bilingual follows."""
 import asyncio
+from pathlib import Path
 import pytest
 from tests.fixtures.builders import make_cbz, png_bytes
 from tests.fixtures.library import library
@@ -28,7 +29,7 @@ def test_cancel_active_download_stays_canceled(reading, delete_partial, phase):
             unit=env.unit_id('irr-1'); batch=env.engine.enqueue([unit])
             job=env.job_rows(batch)[0]['id']
             entered=asyncio.Event(); release=asyncio.Event()
-            method = "run" if phase == "catalog" else "fetch_resource"
+            method = "run" if phase == "catalog" else "fetch_resource_to"
             original=getattr(env.service, method)
             async def delayed(*args,**kwargs):
                 result=await original(*args,**kwargs)
@@ -69,10 +70,17 @@ def test_following_a_second_language_keeps_both_baselines(library,tmp_path):
     en=library.add_work('Bilingual',source='example',language='en',content=None)
     ja=library.add_work('Bilingual Japanese',source='example',language='ja',content=None)
     library.conn.execute('UPDATE source_tracks SET work_id=? WHERE id=?',(en['work_id'],ja['track_id']))
+    from oneshelf.plugins.results import Evidence, ListResult, UnitDescriptor
     service=FollowService(library.conn,CatalogTrust(library.conn))
+    pending=service.follow(en['work_id'],language='en',source_id='example',track_id=en['track_id'])
+    assert pending.baseline_kind=='pending'     # no trusted catalog yet: nothing to set a baseline from (I-100)
+    service.unfollow(en['work_id'],language='en')
+    for track in (en['track_id'],ja['track_id']):
+        CatalogTrust(library.conn).refresh(track,ListResult('catalog',[UnitDescriptor(unit_key='k1',order_index=0)],True,Evidence()),plugin_version='1')
     first=service.follow(en['work_id'],language='en',source_id='example',track_id=en['track_id'])
     second=service.follow(en['work_id'],language='ja',source_id='example',track_id=ja['track_id'])
     rows=[dict(r) for r in library.conn.execute('SELECT f.id,f.language,f.track_id,b.track_id AS baseline_track FROM follows f LEFT JOIN follow_baselines b ON b.follow_id=f.id ORDER BY f.language')]
+    assert len(rows)==2
     print({'returned_same_follow_id':first.id==second.id,'rows':rows})
     assert all(row['track_id']==row['baseline_track'] for row in rows)
 
@@ -94,10 +102,10 @@ def test_explicit_reader_format_and_context(library, tmp_path):
     context = asyncio.run(reader_context(request, work['unit_id']))
     assert context == {'work_id': work['work_id'], 'track_id': work['track_id'], 'formats': ['epub', 'pdf'], 'kind': 'images'}
     assert asyncio.run(reader_context(request, 'missing')).status_code == 404
-    assert asyncio.run(reader_file(request, work['unit_id'], format='epub')).body == epub
-    assert asyncio.run(reader_file(request, work['unit_id'], format='pdf')).body == pdf
+    assert Path(asyncio.run(reader_file(request, work['unit_id'], format='epub')).path).read_bytes() == epub
+    assert Path(asyncio.run(reader_file(request, work['unit_id'], format='pdf')).path).read_bytes() == pdf
     assert asyncio.run(reader_file(request, work['unit_id'], format='cbz')).status_code == 404
-    assert asyncio.run(reader_file(request, work['unit_id'])).body == pdf
+    assert Path(asyncio.run(reader_file(request, work['unit_id'])).path).read_bytes() == pdf
 
 
 def test_page_reader_selects_cbz_when_an_older_pdf_exists(library, tmp_path):

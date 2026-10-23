@@ -1,3 +1,9 @@
+# The feed answers a query with every book it matches, most relevant first — a key such as
+# arthur-conan-doyle/the-adventures-of-sherlock-holmes also finds three other Holmes books, and the one
+# asked for is not guaranteed to come first. So every field reads only the entry whose id is the key: the
+# feed echoes the query in its own <id>, percent-encoded ("/" as %2F). Ebook ids use only [a-z0-9_-/],
+# so mapping "/" to "2" on one side and dropping "%" and "F" on the other compares them exactly. No match
+# means no title, which fails the request instead of describing another book.
 capability: work
 inputs: [listing_key]
 request:
@@ -6,8 +12,8 @@ response:
   format: html
 extract:
   fields:
-    title: {css: "entry title::text", transforms: [trim], required: true}
-    creator: {css: "entry author name::text", transforms: [trim]}
-    description: {css: "entry summary::text", transforms: [trim]}
-    cover_url: {css: "entry link[rel='http://opds-spec.org/image']::attr(href)"}
+    title: {xpath: "//entry[translate(substring-after(id,'/ebooks/'),'/','2')=translate(substring-before(substring-after(//feed/id,'query='),'&'),'%F','')]/title/text()", transforms: [trim], required: true}
+    creator: {xpath: "//entry[translate(substring-after(id,'/ebooks/'),'/','2')=translate(substring-before(substring-after(//feed/id,'query='),'&'),'%F','')]/author/name/text()", transforms: [trim]}
+    description: {xpath: "//entry[translate(substring-after(id,'/ebooks/'),'/','2')=translate(substring-before(substring-after(//feed/id,'query='),'&'),'%F','')]/summary/text()", transforms: [trim]}
+    cover_url: {xpath: "//entry[translate(substring-after(id,'/ebooks/'),'/','2')=translate(substring-before(substring-after(//feed/id,'query='),'&'),'%F','')]/link[@rel='http://opds-spec.org/image']/@href"}
     content_type: {template: "book"}

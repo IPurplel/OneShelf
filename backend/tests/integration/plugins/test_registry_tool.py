@@ -20,7 +20,9 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from oneshelf.plugins.bundled import build_package
 from plugins import registry_tool
 
-OFFICIAL = Path(__file__).resolve().parents[3] / "plugins" / "official"
+# Mechanism tests derive their inputs from frozen copies of the official adapters, so a release snapshot
+# refresh never changes what they test (tests/fixtures/official-adapters-frozen/README.md).
+OFFICIAL = Path(__file__).resolve().parents[2] / "fixtures" / "official-adapters-frozen"
 EIGHT = ["oneshelf.3asq", "oneshelf.arxiv", "oneshelf.gutenberg", "oneshelf.hindawi", "oneshelf.mangadex",
          "oneshelf.standard-ebooks", "oneshelf.tapas", "oneshelf.webtoon"]
 REPO = Path(__file__).resolve().parents[4]

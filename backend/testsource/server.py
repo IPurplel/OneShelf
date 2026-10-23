@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import asyncio
-import threading
 import io
 import json
+import threading
+import zipfile
 from collections import defaultdict
 from dataclasses import dataclass, field
 
@@ -26,7 +27,29 @@ WORKS = {
     "malformed": {"title": "  Weird   Metadata ", "type": "not-a-type", "language": "Klingon!!"},
     "novel": {"title": "A Quiet Novel", "type": "novel", "language": "en"},
     "riwaya": {"title": "رواية هادئة", "type": "novel", "language": "ar"},
+    # Like many real sources (3asq, Safahat): results say nothing of type or language, so the plugin's own
+    # declared defaults are the only classification there is (Master §9.2, I-92).
+    "unlabelled": {"title": "Unlabelled Scans", "type": "", "language": ""},
+    # One book offered as more than one file (§22 "multiple formats may coexist", §41.3 Standard Ebooks).
+    "editions": {"title": "A Book in Two Editions", "type": "book", "language": "en"},
 }
+
+
+def epub(title: str = "A Book in Two Editions") -> bytes:
+    """A small, valid EPUB 3: mimetype first and stored, container, package, one spine document."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as z:
+        z.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip", compress_type=zipfile.ZIP_STORED)
+        z.writestr("META-INF/container.xml", '<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:'
+                   'tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type='
+                   '"application/oebps-package+xml"/></rootfiles></container>')
+        z.writestr("OEBPS/content.opf", '<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" version='
+                   '"3.0" unique-identifier="uid"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier'
+                   f' id="uid">urn:uuid:editions</dc:identifier><dc:title>{title}</dc:title><dc:language>en'
+                   '</dc:language></metadata><manifest><item id="ch1" href="ch1.xhtml" media-type="application/'
+                   'xhtml+xml"/></manifest><spine><itemref idref="ch1"/></spine></package>')
+        z.writestr("OEBPS/ch1.xhtml", "<html xmlns='http://www.w3.org/1999/xhtml'><body><p>Once.</p></body></html>")
+    return buffer.getvalue()
 
 
 def chapter_text(unit: str) -> dict:
@@ -85,6 +108,11 @@ class Scenario:
     valid_sessions: set[str] = field(default_factory=set)
     file_version: int = 1
     markup_version: int = 1     # 2 renames the generator-facing classes (adapter repair testing)
+    # Page URLs that expire like a CDN's signed links: listed with the current token, refused (403) with any other.
+    expiring_pages: bool = False
+    page_token: int = 1
+    # Every page image gone at the source: an HTML 404, as 3asq answers for chapters it lost.
+    missing_pages: bool = False
     cookie_log: dict[str, list[str | None]] = field(default_factory=lambda: defaultdict(list))
     request_log: list[str] = field(default_factory=list)
 
@@ -113,6 +141,10 @@ def units_for(work: str, scenario: Scenario) -> list[dict]:
                 for i in range(1, 4)] + [{"id": "nov-empty", "title": "Empty", "label": "Chapter 4", "type": "chapter"}]
     if work == "riwaya":
         return [{"id": "rw-1", "title": "الفصل الأول", "label": "الفصل ١", "type": "chapter"}]
+    if work == "editions":
+        return [{"id": "ed-1", "title": "A Book in Two Editions", "label": "Book", "type": "one_shot"}]
+    if work == "unlabelled":
+        return [{"id": f"un-{i}", "title": f"Chapter {i}", "label": f"Chapter {i}", "type": "chapter"} for i in (1, 2)]
     if work == "malformed":
         return [{"id": "mal-1", "title": None, "label": "???", "type": "Chapter-ish"}, {"title": "no id at all"}]
     raise web.HTTPNotFound()
@@ -191,8 +223,9 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
                                                 {"url": f"http://{CDN_HOST}/media/html-as-image.png", "label": "2"}]})
         if unit == "bad-corrupt":
             return web.json_response({"pages": [{"url": f"http://{CDN_HOST}/media/corrupt.png", "label": "1"}]})
+        token = f"?t={scenario.page_token}" if scenario.expiring_pages else ""
         return web.json_response({"pages": [
-            {"url": f"http://{CDN_HOST}/img/{unit}/{i}.png", "label": str(i)} for i in range(1, 4)]})
+            {"url": f"http://{CDN_HOST}/img/{unit}/{i}.png{token}", "label": str(i)} for i in range(1, 4)]})
 
     async def text(request: web.Request) -> web.Response:
         return web.json_response({"chapter": chapter_text(request.match_info["unit"])})
@@ -204,12 +237,23 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
                                   "files": [f"{i}.png" for i in range(1, 4)]})
 
     async def files(request: web.Request) -> web.Response:
-        return web.json_response({"files": [{"url": f"http://{HOST}/files/versioned.pdf", "format": "pdf"}]})
+        offered = [{"url": f"http://{HOST}/files/versioned.pdf", "format": "pdf"}]
+        if request.match_info.get("unit") == "ed-1":
+            # Declared, as real sources declare it, so a download can be refused before a byte arrives.
+            offered.append({"url": f"http://{HOST}/files/edition.epub", "format": "epub", "size": 50_000_000})
+        return web.json_response({"files": offered})
+
+    async def edition_epub(request: web.Request) -> web.Response:
+        return web.Response(body=epub(), content_type="application/epub+zip")
 
     async def image(request: web.Request) -> web.Response:
         if request.match_info.get("unit") == "bad-limited" and scenario.rate_limit_remaining > 0:
             scenario.rate_limit_remaining -= 1
             return web.Response(status=429, text="slow down", headers={"Retry-After": str(scenario.retry_after)})
+        if scenario.missing_pages and "unit" in request.match_info:
+            return web.Response(status=404, text="<html><body>Not Found</body></html>", content_type="text/html")
+        if scenario.expiring_pages and request.query.get("t") != str(scenario.page_token):
+            return web.Response(status=403, text="<html><body>Link expired</body></html>", content_type="text/html")
         return web.Response(body=png(), content_type="image/png")
 
     async def html_as_image(request: web.Request) -> web.Response:
@@ -348,6 +392,7 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
         web.get("/api/units/{unit}/text", text), web.get("/api/units/{unit}/files", files), web.get("/img/{unit}/{page}.png", image),
         web.get("/covers/{work}.png", image), web.get("/media/html-as-image.png", html_as_image),
         web.get("/media/corrupt.png", corrupt_image), web.get("/files/versioned.pdf", versioned_file),
+        web.get("/files/edition.epub", edition_epub),
         web.get("/files/interrupted.pdf", interrupted), web.get("/limited", limited), web.get("/flaky", flaky),
         web.get("/redirect-out", redirect_out), web.get("/login", login_form), web.post("/login", login_submit),
         web.get("/account", account), web.get("/health", health), web.post("/__control", control),

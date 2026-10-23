@@ -1,0 +1,13 @@
+capability: work
+inputs: [listing_key]
+request:
+  url: "{base_url}/feeds/opds/all?query={listing_key}"
+response:
+  format: html
+extract:
+  fields:
+    title: {css: "entry title::text", transforms: [trim], required: true}
+    creator: {css: "entry author name::text", transforms: [trim]}
+    description: {css: "entry summary::text", transforms: [trim]}
+    cover_url: {css: "entry link[rel='http://opds-spec.org/image']::attr(href)"}
+    content_type: {template: "book"}

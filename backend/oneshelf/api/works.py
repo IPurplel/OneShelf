@@ -10,7 +10,9 @@ import json
 import sqlite3
 
 from fastapi import APIRouter, Request, Response
+from pydantic import BaseModel, ConfigDict
 
+from oneshelf.library import overrides
 from oneshelf.search.presentation import work_cover
 
 router = APIRouter(prefix="/api")
@@ -142,3 +144,69 @@ async def work_details(request: Request, work_id: str, track_id: str | None = No
         "units": units,
         "continue_unit_id": _continue_unit(units),
     }
+
+
+class WorkPatch(BaseModel):
+    """Only the fields sent are changed; `null` clears the user's correction (I-102)."""
+    model_config = ConfigDict(extra="forbid")
+    content_type: str | None = None
+    title: str | None = None
+
+
+class UnitPatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    number: str | None = None
+    title: str | None = None
+    unit_type: str | None = None
+
+
+def _given(body: BaseModel, name: str):
+    return getattr(body, name) if name in body.model_fields_set else overrides.UNSET
+
+
+@router.patch("/works/{work_id}")
+async def correct_work(request: Request, work_id: str, body: WorkPatch):
+    """Master §9.2: the user's classification and title win over source and plugin values."""
+    try:
+        overrides.set_work(services(request).conn, work_id, content_type=_given(body, "content_type"),
+                           display_title=_given(body, "title"))
+    except overrides.NotFound as exc:
+        return error(404, "WORK_NOT_FOUND", str(exc))
+    except overrides.OverrideError as exc:
+        return error(422, "INVALID_CORRECTION", str(exc))
+    return await work_details(request, work_id)
+
+
+@router.patch("/reading-units/{unit_id}")
+async def correct_unit(request: Request, unit_id: str, body: UnitPatch):
+    """Master §4.4: a user correction overrides source and derived numbering, title and type."""
+    conn = services(request).conn
+    try:
+        overrides.set_unit(conn, unit_id, number=_given(body, "number"), display_title=_given(body, "title"),
+                           unit_type=_given(body, "unit_type"))
+    except overrides.NotFound as exc:
+        return error(404, "UNIT_NOT_FOUND", str(exc))
+    except overrides.OverrideError as exc:
+        return error(422, "INVALID_CORRECTION", str(exc))
+    work_id = conn.execute("SELECT t.work_id FROM reading_units u JOIN source_tracks t ON t.id = u.track_id"
+                           " WHERE u.id = ?", (unit_id,)).fetchone()[0]
+    return await work_details(request, work_id)
+
+
+@router.get("/maintenance/reclassification")
+async def reclassification_preview(request: Request):
+    """Dry run: what the classification repair would change (I-92, I-94). Nothing is written."""
+    from oneshelf.library import reclassify
+    s = services(request)
+    return reclassify.preview(s.conn, s.plugins).as_dict()
+
+
+@router.post("/maintenance/reclassification")
+async def reclassification_apply(request: Request):
+    """Apply the repair the preview showed, after a consistent snapshot of the library database."""
+    from pathlib import Path
+
+    from oneshelf.library import reclassify
+    s = services(request)
+    snapshots = Path(request.app.state.config.data_dir) / "snapshots"
+    return reclassify.apply(s.conn, s.plugins, snapshot_dir=snapshots).as_dict()

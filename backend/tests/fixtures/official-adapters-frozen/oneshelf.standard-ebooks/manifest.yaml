@@ -1,0 +1,14 @@
+schema: oneshelf.osp/1
+id: oneshelf.standard-ebooks
+name: Standard Ebooks
+version: 1.0.0
+api: '1.0'
+description: >-
+  Standard Ebooks through its public OPDS feeds. One work offers several formats; OneShelf keeps them
+  as formats of the same Work rather than separate Works. Public domain; no account is needed.
+publisher: OneShelf
+capabilities: [search, work, catalog, downloads]
+network:
+  domains: [standardebooks.org]
+defaults:
+  language: en

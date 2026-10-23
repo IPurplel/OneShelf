@@ -1,0 +1,16 @@
+capability: reader
+inputs: [url]
+# An episode carries its images as `data-src` on `img.content__img`; the page's script only moves them
+# into `src` as you scroll. No browser, and no screenshot.
+request:
+  url: "{url:absolute}"
+  headers: {Accept: text/html}
+response:
+  format: html
+extract:
+  items: {css: "img.content__img"}
+  fields:
+    url: {css: "::attr(data-src)", required: true}
+pagination:
+  mode: none
+  complete_when: single_response

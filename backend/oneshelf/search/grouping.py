@@ -190,6 +190,21 @@ def persist_listing(conn: sqlite3.Connection, listing: LiveListing, *, work_id: 
         track = conn.execute("SELECT * FROM source_tracks WHERE listing_id = ? AND language = ?",
                              (listing_id, language)).fetchone()
         if track is None:
+            # One listing, one language, one track (§6.9, I-94). An `und` track is that same track before its
+            # language was known: it is upgraded in place, never twinned; and a listing seen without a
+            # language reuses its one known track.
+            siblings = conn.execute("SELECT * FROM source_tracks WHERE listing_id = ? AND work_id = ?",
+                                    (listing_id, target)).fetchall()
+            unknown = [t for t in siblings if t["language"] == "und"]
+            if language != "und" and len(unknown) == 1:
+                conn.execute("UPDATE source_tracks SET language = ? WHERE id = ?", (language, unknown[0]["id"]))
+                conn.execute("UPDATE follows SET language = ? WHERE track_id = ? AND NOT EXISTS (SELECT 1 FROM follows"
+                             " f WHERE f.work_id = follows.work_id AND f.language = ?)",
+                             (language, unknown[0]["id"], language))
+                track = conn.execute("SELECT * FROM source_tracks WHERE id = ?", (unknown[0]["id"],)).fetchone()
+            elif language == "und" and len(siblings) == 1:
+                track = siblings[0]
+        if track is None:
             track_id = new_id()
             conn.execute("INSERT INTO source_tracks (id, work_id, source_id, language, kind, listing_id,"
                          " listing_title, listing_key, availability, created_at)"
