@@ -67,8 +67,15 @@
   transition: background var(--motion-fast) var(--ease), color var(--motion-fast) var(--ease);
 }
 .sidebar__link:hover { background: rgba(255, 255, 255, 0.065); color: var(--ivory-50); }
-.sidebar__link.is-active { background: rgba(168, 191, 142, 0.2); border-color: rgba(168, 191, 142, 0.12); color: var(--ivory-50); }
-.sidebar__link { position: relative; }
+.sidebar__link.is-active { color: var(--ivory-50); }
+.sidebar__indicator {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-md);
+  background: rgba(168, 191, 142, 0.2);
+  border: 1px solid rgba(168, 191, 142, 0.12);
+  pointer-events: none;
+}
 
 /* Header: controls only. No profile, no avatar (§32.2). */
 .header {

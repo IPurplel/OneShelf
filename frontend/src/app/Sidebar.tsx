@@ -1,7 +1,9 @@
 import { NavLink } from "react-router-dom";
+import { motion } from "motion/react";
 
 import { Icon } from "@/components/Icon";
 import { useI18n } from "@/i18n/i18n";
+import { TRANSITION_SPRING } from "@/lib/motion";
 import { DESTINATIONS } from "./navigation";
 
 /** The fixed forest-green sidebar with the logo at the top (Master §32.1). */
@@ -23,8 +25,20 @@ export function Sidebar() {
             <li key={destination.path}>
               <NavLink to={destination.path} end={destination.path === "/"}
                        className={({ isActive }) => (isActive ? "sidebar__link is-active" : "sidebar__link")}>
-                <Icon name={destination.icon} />
-                <span>{t(destination.labelKey)}</span>
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <motion.span
+                        className="sidebar__indicator"
+                        layoutId="sidebar-active"
+                        transition={TRANSITION_SPRING}
+                        aria-hidden="true"
+                      />
+                    )}
+                    <Icon name={destination.icon} />
+                    <span>{t(destination.labelKey)}</span>
+                  </>
+                )}
               </NavLink>
             </li>
           ))}

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { motion } from "motion/react";
 
 import { useI18n } from "@/i18n/i18n";
+import { TRANSITION_EASE } from "@/lib/motion";
 import { MOBILE_QUERY, useMediaQuery } from "./useMediaQuery";
 import { BottomNav } from "./BottomNav";
 import { Header } from "./Header";
@@ -32,7 +34,14 @@ function Layout() {
       <div className="layout__body">
         <Header onOpenNotifications={() => setPanel("notifications")} onOpenAttention={() => setPanel("attention")} />
         <main id="main" className="layout__main" tabIndex={-1}>
-          <Outlet />
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={TRANSITION_EASE}
+          >
+            <Outlet />
+          </motion.div>
         </main>
       </div>
       {mobile && <BottomNav moreOpen={panel === "more"} onOpenMore={() => setPanel("more")} />}

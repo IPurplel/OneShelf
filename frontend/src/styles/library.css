@@ -161,12 +161,18 @@
   scrollbar-width: thin;
   align-items: end;
   padding-bottom: var(--space-2);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 32px), transparent);
+  mask-image: linear-gradient(to right, black calc(100% - 32px), transparent);
+}
+[dir="rtl"] .shelf__row {
+  -webkit-mask-image: linear-gradient(to left, black calc(100% - 32px), transparent);
+  mask-image: linear-gradient(to left, black calc(100% - 32px), transparent);
 }
 .shelf__row:focus-within { z-index: 4; }
 .shelf--compactRow { --shelf-card-width: 118px; --shelf-cover-height: 168px; }
 /* On My Shelf the rows do not scroll: they fill the width and wrap into further shelves. */
 .shelfview { --shelf-card-width: 190px; --shelf-cover-height: 270px; }
-.shelf__row--wrap { grid-auto-flow: column; overflow: visible; }
+.shelf__row--wrap { grid-auto-flow: column; overflow: visible; -webkit-mask-image: none; mask-image: none; }
 .shelfview .shelf__case { inline-size: fit-content; max-inline-size: 100%; }
 .shelfview .workcard__title { display: -webkit-box; -webkit-box-orient: vertical;
                                -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
