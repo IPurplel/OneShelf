@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "motion/react";
 
 import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 import { useLive } from "@/app/live";
+import { TRANSITION_EASE, useReducedMotion } from "@/lib/motion";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LoadingState } from "@/components/LoadingState";
 
@@ -41,6 +43,7 @@ export function DownloadsScreen() {
   };
 
   const batches = data?.batches ?? [];
+  const reduced = useReducedMotion();
 
   return (
     <section className="screen">
@@ -62,11 +65,15 @@ export function DownloadsScreen() {
       </div>}
 
       <ul className="batches">
-        {batches.map((batch) => {
+        {batches.map((batch, index) => {
           const processed = batch.completed + batch.failed + batch.canceled + batch.skipped;
           const total = processed + batch.pending;
           return (
-          <li key={batch.batch_id} className="batches__row">
+          <motion.li key={batch.batch_id} className="batches__row"
+            initial={reduced ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...TRANSITION_EASE, delay: Math.min(index * 0.05, 0.2) }}
+          >
             <span className={`batches__state batches__state--${batch.state}`}>{t(`downloads.state.${batch.state}`)}</span>
             <span className="batches__counts">
               <span>{t("downloads.done", { count: batch.completed })}</span>
@@ -103,7 +110,7 @@ export function DownloadsScreen() {
                 </button>
               )}
             </span>
-          </li>
+          </motion.li>
           );
         })}
       </ul>

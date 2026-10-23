@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Link, useSearchParams } from "react-router-dom";
+import { motion } from "motion/react";
 
 import { ApiError, api } from "@/api/client";
 import type { SearchUpdate } from "@/api/types";
 import { ResultCard } from "./ResultCard";
 import { useI18n } from "@/i18n/i18n";
+import { TRANSITION_EASE, useReducedMotion } from "@/lib/motion";
 import { categoryLabel, languageLabel, parseScopes } from "./scopes";
 
 /**
@@ -191,15 +193,29 @@ export function SearchScreen() {
 
       {retryProblem && <p className="notice notice--problem" role="alert">{retryProblem}</p>}
 
-      <div className="search__results">
-        {(update?.results ?? []).map((result) => (
-          <ResultCard key={result.work_id ?? `${result.title}:${result.provenance[0]?.listing_key ?? ""}`} result={result} />
-        ))}
-      </div>
+      <SearchResults results={update?.results ?? []} />
 
       {update !== null && update.results.length === 0 && update.stage === "complete" && update.sources_total > 0 && (
         <p className="shelf__empty">{t("search.none")}</p>
       )}
     </section>
+  );
+}
+
+function SearchResults({ results }: { results: SearchUpdate["results"] }) {
+  const reduced = useReducedMotion();
+  return (
+    <div className="search__results">
+      {results.map((result, i) => (
+        <motion.div
+          key={result.work_id ?? `${result.title}:${result.provenance[0]?.listing_key ?? ""}`}
+          initial={reduced ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...TRANSITION_EASE, delay: Math.min(i * 0.04, 0.3) }}
+        >
+          <ResultCard result={result} />
+        </motion.div>
+      ))}
+    </div>
   );
 }

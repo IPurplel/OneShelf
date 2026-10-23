@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { motion } from "motion/react";
 
 import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
@@ -7,6 +8,7 @@ import { useI18n } from "@/i18n/i18n";
 import { languageName } from "@/i18n/language";
 import { useLive } from "@/app/live";
 import { workLink } from "@/features/reader/links";
+import { TRANSITION_EASE, useReducedMotion } from "@/lib/motion";
 import { LoadingState } from "@/components/LoadingState";
 
 type Follow = {
@@ -88,10 +90,15 @@ function Section({ id, title, follows, onCheck, language, disabled }: {
   disabled: boolean;
 }) {
   const { t } = useI18n();
+  const reduced = useReducedMotion();
   if (follows.length === 0) return null;
 
   return (
-    <section className="journal" role="region" aria-label={title}>
+    <motion.section className="journal" role="region" aria-label={title}
+      initial={reduced ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={TRANSITION_EASE}
+    >
       <h2 className="journal__title display" id={`${id}-title`}>{title}</h2>
       <ul className="journal__rows">
         {follows.map((follow) => (
@@ -115,7 +122,7 @@ function Section({ id, title, follows, onCheck, language, disabled }: {
           </li>
         ))}
       </ul>
-    </section>
+    </motion.section>
   );
 }
 
