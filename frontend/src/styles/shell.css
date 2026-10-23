@@ -15,6 +15,12 @@
     radial-gradient(ellipse 120% 80% at 50% 100%, rgba(168, 191, 142, 0.04), transparent 60%),
     var(--ivory-100);
 }
+:root[data-resolved-theme="dark"] .layout__main {
+  background:
+    radial-gradient(950px 430px at 72% -170px, rgba(45, 67, 51, 0.3), transparent 78%),
+    radial-gradient(ellipse 120% 80% at 50% 100%, rgba(168, 191, 142, 0.03), transparent 60%),
+    var(--ivory-100);
+}
 .layout__main:focus { outline: none; }
 
 /* Sidebar: deep forest green, the logo at the top, a leaf used sparingly (§32.1). */
