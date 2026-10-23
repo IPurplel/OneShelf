@@ -668,8 +668,12 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .field--large { min-inline-size: min(560px, 100%); min-height: 52px; font-size: 17px; }
 .search__status { color: var(--ink-500); margin: 0 0 var(--space-3); }
 .search__retries { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); }
+.search__view { display: flex; justify-content: flex-end; gap: var(--space-2); margin-block: var(--space-3); }
 .search__results { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-5); }
 .search__results .workcard { max-inline-size: 220px; }
+.search__results[data-layout="list"] { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+.search__results[data-layout="list"] .workcard { max-inline-size: none; inline-size: 100%; padding: var(--space-3); border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--paper-raised); }
+.search__results[data-layout="list"] .workcard__caption { min-inline-size: 0; }
 
 .screen__head { display: flex; align-items: baseline; gap: var(--space-4); }
 .screen__head .button { margin-inline-start: auto; }
@@ -713,6 +717,12 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .batches__counts { display: flex; flex-wrap: wrap; gap: var(--space-3); color: var(--ink-500); font-size: 14px; }
 .batches__progress { flex: 1 1 100%; inline-size: 100%; block-size: 8px; accent-color: var(--olive-600); }
 .batches__actions { margin-inline-start: auto; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.batches__detail { flex: 1 1 100%; min-inline-size: 0; border-block-start: 1px solid var(--surface-border); padding-block-start: var(--space-3); display: grid; gap: var(--space-2); }
+.batches__job { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-3); background: var(--paper); border-radius: var(--radius-sm); min-inline-size: 0; }
+.batches__jobTitle { font-weight: 600; overflow-wrap: anywhere; }
+.batches__job .chip { margin-inline-start: auto; }
+.batches__jobProgress { flex: 1 1 100%; inline-size: 100%; block-size: 6px; accent-color: var(--olive-600); }
+.batches__error { color: var(--danger-text); overflow-wrap: anywhere; }
 
 .confirm {
   position: fixed;
@@ -747,7 +757,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .cards__meta { color: var(--ink-500); font-size: 14px; }
 .literal-path { unicode-bidi: isolate; direction: ltr; overflow-wrap: anywhere; min-inline-size: 0; text-align: start; }
 .cards__state { color: var(--ink-700); font-size: 14px; }
-.cards__state--disabled, .cards__state--failed { color: var(--ink-300); }
+.cards__state--disabled, .cards__state--failed { color: var(--ink-500); }
 .cards__warn { color: var(--warning-text); font-size: 14px; }
 .cards__ok { color: var(--positive-text); font-size: 14px; }
 .cards__row .chip { margin-inline-start: auto; }

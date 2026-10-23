@@ -33,6 +33,21 @@ const STORAGE = { roots: [{ id: "r1", name: "Library", path: "/library", availab
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Settings", () => {
+  it("keeps initial document focus order while revealing the selected category", async () => {
+    const reveal = vi.fn();
+    vi.stubGlobal("ResizeObserver", undefined);
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = reveal;
+    try {
+      mockApi([get("/api/reader/settings", READER)]);
+      renderWithProviders(<SettingsScreen />, { route: "/settings/reader" });
+      expect(await screen.findByRole("tab", { name: "Reader" })).toHaveAttribute("aria-selected", "true");
+      expect(reveal).not.toHaveBeenCalled();
+    } finally {
+      if (original) Element.prototype.scrollIntoView = original;
+      else Reflect.deleteProperty(Element.prototype, "scrollIntoView");
+    }
+  });
   it.each(["en", "ar"] as const)("moves vertical settings tabs by keyboard in %s", async (language) => {
     mockApi([get("/api/auth/state", AUTH), get("/api/reader/settings", READER)]);
     const user = userEvent.setup();

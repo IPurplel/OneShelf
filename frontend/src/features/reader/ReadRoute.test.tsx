@@ -10,6 +10,11 @@ vi.mock('./ReaderScreen', () => ({ ReaderScreen: () => <p>page reader</p> }));
 afterEach(() => vi.unstubAllGlobals());
 const context = { work_id: 'w', track_id: 'second', formats: ['pdf', 'epub'] };
 const details = { work: { id: 'w' }, units: [{ id: 'u', formats: ['pdf', 'epub'] }] };
+it('opens the downloaded PDF requested by its link even when EPUB is listed first', async () => {
+  mockApi([get('/api/reader/units/u/context', context), get('/api/works/w', details)]);
+  open('/read/u?work=w&track=second&format=pdf');
+  expect(await screen.findByText('pdf reader u')).toBeInTheDocument();
+});
 function open(route: string) { return renderWithProviders(<Routes><Route path="/read/:unitId" element={<ReadRoute />} /></Routes>, { route }); }
 it('resolves legacy unit-only links and loads the unit own track before selecting its reader', async () => {
   const calls = mockApi([get('/api/reader/units/u/context', context), get('/api/works/w', details)]);

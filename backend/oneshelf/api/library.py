@@ -170,18 +170,18 @@ async def list_batches(request: Request, limit: int = Query(default=20, ge=1, le
     return {"batches": [s.downloads.batch(r[0]) for r in rows]}
 
 
-def _job_available(conn, job, roots: dict) -> bool:
+def _job_available_format(conn, job, roots: dict) -> str | None:
     """Whether a finished job's unit opens from this device now: the copy the Reader opens is there (UI-003).
 
     The job's own file decides the format. A job whose file was deleted, or that finished before jobs were
     linked to their files, says what the unit has now: the Reader opens the unit, not the job.
     """
     if job["state"] != "COMPLETED":
-        return False
+        return None
     own = conn.execute("SELECT format FROM assets WHERE id = ?", (job["asset_id"],)).fetchone() \
         if job["asset_id"] else None
     copy = local_copy(conn, job["reading_unit_id"], own["format"] if own else None)
-    return copy is not None and copy_state(conn, copy, roots) == PRESENT
+    return copy["format"] if copy is not None and copy_state(conn, copy, roots) == PRESENT else None
 
 
 def _bytes_total(conn, job) -> int | None:
@@ -225,7 +225,8 @@ async def batch_detail(request: Request, batch_id: str, offset: int = Query(defa
                                          "unit_title")}
         # Errors can quote a URL; whatever it carried (a signed token, a session id) is redacted (§43).
         job["last_error"] = redact_text(row["last_error"]) if row["last_error"] else None
-        job["available"] = _job_available(s.conn, row, roots)
+        job["available_format"] = _job_available_format(s.conn, row, roots)
+        job["available"] = job["available_format"] is not None
         job["bytes_total"] = _bytes_total(s.conn, row)
         jobs.append(job)
     selection = json.loads(batch["selection_json"] or "{}")

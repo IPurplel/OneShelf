@@ -42,3 +42,12 @@ user-managed deployment handoff, or the concurrency rules above.
 - Cross-boundary work (an API change that a screen depends on, or a screen that needs new backend data) is
   agreed through a written handoff in `docs/` or the relevant audit, naming the contract both sides
   implement. Audits and repair plans are owner-approved before code changes begin.
+## Frontend ownership and audit boundary
+
+Codex is the lead frontend engineer and UI/UX auditor. Codex owns frontend architecture and components; visual identity, typography, layout, responsiveness, and browser performance; navigation, forms, menus, dialogs, and feedback states; keyboard, touch, and rendered accessibility; the Home, Search, My Shelf, Following, Downloads, Sources, Settings, first-run, notifications, and Needs Attention interfaces; and Reader presentation and controls. Preserve the approved OneShelf visual reference and authoritative specification rather than applying a generic redesign.
+
+Use UI/UX Pro Max for product UI direction, frontend-design-codex for frontend implementation and browser polish, and frontend-a11y for rendered accessibility. Superpowers remains the sole general software-development process.
+
+Claude Code owns backend APIs and services, adapters, download and database internals, and the core Reader engine. Codex may inspect those files to diagnose a UI symptom, but must coordinate any proposed backend or Reader-engine change with Claude Code and must not edit Claude-owned implementation files without that coordination. Record cross-boundary findings with a reproducible UI symptom, relevant API or Reader evidence, and the required contract or behavior.
+
+For an audit-only request, report confirmed defects, limitations, and a repair plan without changing application behavior. Use real browser interactions and isolated fixtures for state-changing scenarios; never alter the owner's real library to create an audit state. Keep screenshots and browser artifacts in ignored directories, and distinguish the live deployment's observed behavior from any unverified source or running-image revision.

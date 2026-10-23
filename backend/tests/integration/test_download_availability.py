@@ -42,6 +42,7 @@ def test_ui003_deleting_a_downloaded_works_files_works_and_the_unit_is_no_longer
     first = download(client, [unit])
     path = stored_file(tmp_path, unit)
     assert jobs(client, first["batch_id"])[0]["available"] is True
+    assert jobs(client, first["batch_id"])[0]["available_format"] == "cbz"
 
     response = client.delete(f"/api/works/{bound['work_id']}/files")
     assert response.status_code == 200 and response.json()["deleted_files"] == 1

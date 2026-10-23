@@ -1,10 +1,10 @@
 /** Master §21, §32.12: an administrative list like library catalogue cards; technical detail hidden. */
-import { screen, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SourcesScreen } from "./SourcesScreen";
-import { renderWithProviders } from "@/test/render";
+import { renderLive, renderWithProviders } from "@/test/render";
 import { del, get, mockApi, post } from "@/test/http";
 
 const SOURCES = {
@@ -23,6 +23,51 @@ const HEALTH = { source_id: "oneshelf.mangadex", state: "healthy", last_successf
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Sources", () => {
+  it.each(["en", "ar"] as const)("shows aggregate last successful check and honest unknown state in %s", async language => {
+    const calls = mockApi([get("/api/sources", { sources: [
+      { ...SOURCES.sources[0], last_successful_check_at: "2026-10-18T12:30:00Z" },
+      { ...SOURCES.sources[1], last_successful_check_at: null },
+    ] })]);
+    renderWithProviders(<SourcesScreen />, { language });
+    const rows = await screen.findAllByRole("listitem");
+    expect(rows[0]!.querySelector("time")).toHaveAttribute("datetime", "2026-10-18T12:30:00Z");
+    expect(rows[1]).toHaveTextContent(language === "ar" ? "لم يُفحص بعد" : "Never checked");
+    expect(rows[0]).toHaveTextContent(language === "ar" ? "آخر فحص ناجح" : "Last successful check");
+    expect(calls.filter(call => call.url.startsWith("/api/sources/")).length).toBe(0);
+  });
+  it("does not invent a check time when the older source API omits the field", async () => {
+    mockApi([get("/api/sources", SOURCES)]);
+    renderWithProviders(<SourcesScreen />);
+    const rows = await screen.findAllByRole("listitem");
+    expect(rows[0]).toHaveTextContent("Unknown");
+  });
+  it.each(["en", "ar"] as const)("shows Unknown per source when its time is left out or unreadable in %s", async language => {
+    // The backend leaves the field out for one source when it cannot know (its checks predate the record), so
+    // one list mixes a known time, an unknown one and an unreadable one; none of them is shown as "never".
+    const [first, second] = SOURCES.sources;
+    mockApi([get("/api/sources", { sources: [first!,                           // the field left out
+      { ...second!, last_successful_check_at: "not a time" },
+      { ...first!, id: "oneshelf.third", name: "Third", last_successful_check_at: "2026-10-18T12:30:00Z" },
+    ] })]);
+    renderWithProviders(<SourcesScreen />, { language });
+    const rows = await screen.findAllByRole("listitem");
+    const unknown = language === "ar" ? "غير معروف" : "Unknown";
+    const never = language === "ar" ? "لم يُفحص بعد" : "Never checked";
+    for (const row of rows.slice(0, 2)) {
+      expect(row.querySelector(".sources__lastCheck")).toHaveTextContent(unknown);
+      expect(row).not.toHaveTextContent(never);
+      expect(row.querySelector("time")).toBeNull();
+    }
+    expect(rows[2]!.querySelector("time")).toHaveAttribute("datetime", "2026-10-18T12:30:00Z");
+  });
+  it("refreshes the aggregate check time after a source health event", async () => {
+    const calls = mockApi([get("/api/sources", SOURCES)]);
+    const { emit } = renderLive(<SourcesScreen />);
+    await screen.findAllByRole("listitem");
+    const before = calls.filter(call => call.url === "/api/sources").length;
+    act(() => emit("source.health", { source_id: "oneshelf.mangadex" }));
+    await waitFor(() => expect(calls.filter(call => call.url === "/api/sources")).toHaveLength(before + 1));
+  });
   it.each([
     ["en", "More about MangaDex", "More about WEBTOON"],
     ["ar", "المزيد عن MangaDex", "المزيد عن WEBTOON"],

@@ -92,6 +92,12 @@ def import_current_file(page, url, out):
 
 def search_history_and_failure(page, url, out):
     state = {'mode': 'complete', 'requests': 0}
+    opened = []
+    def open_listing(route):
+        body = route.request.post_data_json
+        opened.append(body)
+        route.fulfill(json=dict(listing_id='l0', work_id='w0', track_id='t0', details='ready', catalog='ready'))
+    page.route(url + '/api/listings/open', open_listing)
     def search(route):
         state['requests'] += 1
         if state['mode'] == 'fail':
@@ -107,6 +113,12 @@ def search_history_and_failure(page, url, out):
     expect(page.locator('.workcard')).to_have_count(7)
     assert '?q=book' in page.url
     page.locator('.workcard').first.click()
+    choice = page.get_by_role('dialog', name='Open “كتاب 0 في المكتبة العربية” from which source?')
+    expect(choice).to_be_visible()
+    expect(choice.locator('.choice__option')).to_have_count(2)
+    expect(choice.locator('.choice__option').first).to_contain_text('Reading Room Library')
+    choice.locator('.choice__option').first.click()
+    assert len(opened) == 1 and opened[0]['source_id'] == 'alpha' and opened[0]['listing_key'] == 'k0'
     expect(page.locator('.work__header')).to_be_visible()
     page.go_back()
     expect(box).to_have_value('book')

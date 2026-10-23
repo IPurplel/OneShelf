@@ -47,6 +47,21 @@ beforeEach(() => vi.stubGlobal("EventSource", FakeEventSource));
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("Search", () => {
+  it.each(["en", "ar"] as const)("switches streamed results between grid and list without changing the search in %s", async language => {
+    renderWithProviders(<SearchScreen />, { route: "/search?q=irregular&language=AR", language });
+    const source = FakeEventSource.last!;
+    act(() => source.emit("local", LOCAL));
+    const user = userEvent.setup();
+    const list = screen.getByRole("button", { name: language === "ar" ? /عرض قائمة/ : /list view/i });
+    await user.click(list);
+    expect(list).toHaveAttribute("aria-pressed", "true");
+    expect(document.querySelector(".search__results")).toHaveAttribute("data-layout", "list");
+    expect(screen.getByText("The Irregular Chronicle")).toBeInTheDocument();
+    act(() => source.emit("partial", { ...LOCAL, stage: "partial" }));
+    expect(document.querySelector(".search__results")).toHaveAttribute("data-layout", "list");
+    expect(source.closed).toBe(false);
+    expect(source.url).toContain("language=AR");
+  });
   it("applies a quick scope without losing text being typed", async () => {
     const user = userEvent.setup();
     renderWithProviders(<SearchScreen />);

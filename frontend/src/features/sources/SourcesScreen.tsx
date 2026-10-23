@@ -28,6 +28,8 @@ type Source = {
   can_rollback: boolean;
   category?: string | null;
   languages?: string[];
+  /** Aggregate overall health-check success; null means checked never, omitted means legacy/unknown API. */
+  last_successful_check_at?: string | null;
 };
 
 /** Where an installed source came from, and whether a trusted signature stands behind it. */
@@ -53,7 +55,7 @@ export function SourcesScreen() {
   const { data, error, loading, reload } = useResource<{ sources: Source[] }>("/api/sources");
 
   // §21, §36: a session that connects or expires elsewhere shows here without a refresh.
-  useLive(["source.session"], reload);
+  useLive(["source.session", "source.health"], reload);
   const [open, setOpen] = useState<Source | null>(null);
   const [signingIn, setSigningIn] = useState<Source | null>(null);
   const [removing, setRemoving] = useState<Source | null>(null);
@@ -143,6 +145,16 @@ export function SourcesScreen() {
             {originKey(source) !== null && <span className="chip chip--static">{t(originKey(source)!)}</span>}
             <span className={`cards__state cards__state--${source.state}`}>
               {t(`sources.state.${source.state}` as const)}
+            </span>
+            <span className="cards__meta sources__lastCheck">
+              {t("sources.lastSuccess")}: {source.last_successful_check_at === undefined
+                ? t("sources.checkUnknown")
+                : source.last_successful_check_at === null
+                  ? t("sources.neverChecked")
+                  : !Number.isFinite(Date.parse(source.last_successful_check_at)) ? t("sources.checkUnknown")
+                  : <time dateTime={source.last_successful_check_at}>{new Intl.DateTimeFormat(language, {
+                    dateStyle: "medium", timeStyle: "short",
+                  }).format(new Date(source.last_successful_check_at))}</time>}
             </span>
             {source.session_state === "expired" && <span className="cards__warn">{t("sources.reconnect")}</span>}
             {source.session_state === "connected" && <span className="cards__ok">{t("sources.connected")}</span>}

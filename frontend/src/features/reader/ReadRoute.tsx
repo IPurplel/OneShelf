@@ -34,6 +34,8 @@ function OpenUnit({ unitId, workId, trackId, formats, text, download, onChange }
   download: DownloadState | null; onChange: () => void;
 }) {
   const { t } = useI18n();
+  const [search] = useSearchParams();
+  const requestedFormat = search.get("format");
   const { data, error, loading, reload } = useResource<WorkDetails>(`/api/works/${workId}`, { track_id: trackId });
   if (error !== null) return <Unavailable message={error} back={workLink(workId, trackId)} retry={reload} />;
   if (loading || data === null) return <p className="screen__subtitle">{t("state.loading")}</p>;
@@ -46,6 +48,11 @@ function OpenUnit({ unitId, workId, trackId, formats, text, download, onChange }
       <p className="notice notice--problem" role="alert">{t("work.track.archived")}</p>
       <Link className="button" to={workLink(workId, trackId)}>{t("reader.backToWork")}</Link>
     </section>;
+  }
+  if (requestedFormat && formats.includes(requestedFormat)) {
+    if (requestedFormat === "epub" || requestedFormat === "pdf" || requestedFormat === "text")
+      return <BookReader unitId={unitId} format={requestedFormat} workId={workId} trackId={trackId} />;
+    if (requestedFormat === "cbz") return <ReaderScreen unitId={unitId} workId={workId} trackId={trackId} />;
   }
   if (formats.includes("epub")) return <BookReader unitId={unitId} format="epub" workId={workId} trackId={trackId} />;
   if (formats.includes("pdf")) return <BookReader unitId={unitId} format="pdf" workId={workId} trackId={trackId} />;

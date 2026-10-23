@@ -9,6 +9,8 @@ import { useLive } from "@/app/live";
 import { TRANSITION_EASE, useReducedMotion } from "@/lib/motion";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LoadingState } from "@/components/LoadingState";
+import { readerLink } from "@/features/reader/links";
+import type { StringKey } from "@/i18n/strings";
 
 type Batch = {
   batch_id: string;
@@ -21,6 +23,32 @@ type Batch = {
   counts: Record<string, number>;
 };
 
+type DownloadJob = {
+  id: string;
+  reading_unit_id: string;
+  state: string;
+  bytes_done?: number | null;
+  bytes_total?: number | null;
+  error_category?: string | null;
+  last_error?: string | null;
+  work_id?: string | null;
+  work_title?: string | null;
+  track_id?: string | null;
+  unit_title?: string | null;
+  available?: boolean | null;
+  available_format?: string | null;
+};
+type BatchDetail = Batch & { jobs: DownloadJob[]; jobs_total?: number; limit?: number };
+const JOB_ERROR_KEYS: Record<string, StringKey> = {
+  auth_failure: "downloads.error.auth", rate_limit: "downloads.error.rate",
+  transport: "downloads.error.transport", storage_error: "downloads.error.storage",
+  storage_full: "downloads.error.storage", storage_unavailable: "downloads.error.storage",
+  blocked: "downloads.error.blocked", media_invalid: "downloads.error.media",
+  parser_failure: "downloads.error.source", selector_missing: "downloads.error.source",
+  not_found: "downloads.error.source", unexpected_response: "downloads.error.source",
+  resource_missing: "downloads.error.source", source_unlinked: "downloads.error.source",
+};
+
 /** Downloads (Master §16, §32.11): warm paper panels, real states, no shelves and no analytics. */
 export function DownloadsScreen() {
   const { t } = useI18n();
@@ -30,6 +58,7 @@ export function DownloadsScreen() {
   useLive(["download.batch", "download.job"], reload);
   const [confirming, setConfirming] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const act = async (call: Promise<unknown>) => {
     setProblem(null);
@@ -85,6 +114,11 @@ export function DownloadsScreen() {
             <progress className="batches__progress" value={processed} max={Math.max(1, total)}
                       aria-label={t("downloads.progress", { done: processed, total })} />
             <span className="batches__actions">
+              <button type="button" className="chip" aria-expanded={expanded === batch.batch_id}
+                      aria-controls={expanded === batch.batch_id ? `batch-details-${batch.batch_id}` : undefined}
+                      onClick={() => setExpanded(expanded === batch.batch_id ? null : batch.batch_id)}>
+                {t("downloads.details")}
+              </button>
               {batch.state === "active" && (
                 <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.pause")} · ${batch.batch_id}`}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/pause`))}>
@@ -110,6 +144,7 @@ export function DownloadsScreen() {
                 </button>
               )}
             </span>
+            {expanded === batch.batch_id && <BatchDetails batch={batch} />}
           </motion.li>
           );
         })}
@@ -122,4 +157,54 @@ export function DownloadsScreen() {
       )}
     </section>
   );
+}
+
+/**
+ * Detail requests exist only while their batch is open; live job events refresh an open panel, and so does a
+ * Work's files being deleted, since that changes which finished units can still be opened.
+ */
+function BatchDetails({ batch }: { batch: Batch }) {
+  const { t, language } = useI18n();
+  const [offset, setOffset] = useState(0);
+  const { data, error, loading, reload } = useResource<BatchDetail>(`/api/downloads/${batch.batch_id}`, offset ? { offset } : undefined);
+  useLive(["download.batch", "download.job", "shelf.changed"], reload);
+  const bytes = (value: number) => new Intl.NumberFormat(language, { style: "unit", unit: "byte", unitDisplay: "narrow" }).format(value);
+  return <div className="batches__detail" id={`batch-details-${batch.batch_id}`}>
+    {loading && data === null && <LoadingState />}
+    {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
+      <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
+    {data?.jobs.length === 0 && <p className="cards__meta">{t("downloads.noJobs")}</p>}
+    {data?.jobs.map((job, index) => {
+      const state = job.state.toUpperCase();
+      const known = ["QUEUED", "PREPARING", "DOWNLOADING", "VERIFYING", "PACKAGING", "COMMITTING", "COMPLETED",
+        "PAUSED", "WAITING_FOR_SESSION", "WAITING_FOR_RATE_LIMIT", "RETRY_WAIT", "FAILED", "CANCELED", "RECOVERING"];
+      const label = job.unit_title || t("downloads.unitFallback", { number: offset + index + 1 });
+      // Only the API's word that the file is there now makes a unit openable; an older API says nothing (UI-003).
+      const openable = state === "COMPLETED" && job.available === true;
+      return <div key={job.id} className="batches__job">
+        <span className="batches__jobTitle" dir="auto">{label}</span>
+        {job.work_title && <span className="cards__meta" dir="auto">{job.work_title}</span>}
+        <span className="cards__meta">{known.includes(state)
+          ? t(`downloads.job.${state}` as StringKey) : t("downloads.job.unknown")}</span>
+        {job.bytes_done != null && job.bytes_done > 0 && <span className="cards__meta">
+          {job.bytes_total && job.bytes_total > 0 ? t("downloads.bytesProgress", { done: bytes(job.bytes_done), total: bytes(job.bytes_total) })
+            : t("downloads.bytesDone", { done: bytes(job.bytes_done) })}
+        </span>}
+        {job.bytes_total != null && job.bytes_total > 0 && state !== "COMPLETED" &&
+          <progress className="batches__jobProgress" value={Math.min(job.bytes_total, Math.max(0, job.bytes_done ?? 0))}
+            max={job.bytes_total} aria-label={t("downloads.unitProgress", { title: label })} />}
+        {state === "FAILED" && <span className="batches__error">{t(JOB_ERROR_KEYS[job.error_category ?? ""] ?? "downloads.error.other")}</span>}
+        {state === "COMPLETED" && job.available === false && <span className="batches__error">{t("downloads.unavailable")}</span>}
+        {openable && <Link className="chip" to={readerLink(job.reading_unit_id, job.work_id ?? "", job.track_id, job.available_format)}
+          aria-label={t("downloads.openUnit", { title: label })}>{t("downloads.open")}</Link>}
+      </div>;
+    })}
+    {(offset > 0 || (data?.jobs_total ?? 0) > (data?.limit ?? 500)) && <div className="batches__actions">
+      <button type="button" className="chip" disabled={loading || offset === 0}
+        onClick={() => setOffset(Math.max(0, offset - (data?.limit ?? 500)))}>{t("downloads.previousPage")}</button>
+      <button type="button" className="chip" disabled={loading || offset + (data?.limit ?? 500) >= (data?.jobs_total ?? 0)}
+        onClick={() => setOffset(offset + (data?.limit ?? 500))}>{t("downloads.nextPage")}</button>
+    </div>}
+    {batch.skipped > 0 && <p className="cards__meta">{t("downloads.skippedExplanation", { count: batch.skipped })}</p>}
+  </div>;
 }

@@ -23,6 +23,19 @@ const ITEMS = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Notifications", () => {
+  it.each([
+    ["empty", [], false, false],
+    ["unseen", [ITEMS.notifications[0]], true, false],
+    ["seen", [ITEMS.notifications[1]], false, true],
+    ["mixed", ITEMS.notifications, true, true],
+  ] as const)("offers only effective bulk actions for %s inbox", async (_name, notifications, mark, clear) => {
+    mockApi([get("/api/notifications", { notifications, needs_attention: 0 })]);
+    renderWithProviders(<NotificationsDrawer onClose={() => {}} />);
+    await screen.findByRole("dialog", { name: /notifications/i });
+    if (notifications.length === 0) await screen.findByText(/nothing new/i);
+    expect(screen.queryByRole("button", { name: /mark all as seen/i }) !== null).toBe(mark);
+    expect(screen.queryByRole("button", { name: /clear seen/i }) !== null).toBe(clear);
+  });
   it("shows a failed inbox action without closing the drawer", async () => {
     mockApi([get("/api/notifications", ITEMS),
       post("/api/notifications/mark-all-seen", { error: { message: "Could not mark seen" } }, 503)]);
@@ -68,6 +81,14 @@ describe("Notifications", () => {
     const drawer = await screen.findByRole("dialog", { name: /needs attention/i });
     expect(within(drawer).getByText(/reconnect required/i)).toBeInTheDocument();
     expect(within(drawer).queryByText(/new releases/i)).not.toBeInTheDocument();
+    expect(within(drawer).queryByRole("button", { name: /mark all as seen|clear seen/i })).not.toBeInTheDocument();
+  });
+
+  it("keeps the filtered empty state free of bulk actions", async () => {
+    mockApi([get("/api/notifications", { notifications: [], needs_attention: 0 })]);
+    renderWithProviders(<NotificationsDrawer attentionOnly onClose={() => {}} />);
+    expect(await screen.findByText(/nothing needs your attention/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /mark all as seen|clear seen/i })).not.toBeInTheDocument();
   });
 
   it("says plainly when there is nothing to report", async () => {

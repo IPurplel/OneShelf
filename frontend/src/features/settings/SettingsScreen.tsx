@@ -39,8 +39,16 @@ export function SettingsScreen() {
     let live = true;
     const reveal = () => {
       if (!live) return;
-      setNavOverflow(nav.scrollWidth > nav.clientWidth + 1);
-      nav.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView?.({ block: "nearest", inline: "center" });
+      const overflow = nav.scrollWidth > nav.clientWidth + 1;
+      setNavOverflow(overflow);
+      const selected = nav.querySelector<HTMLElement>('[aria-selected="true"]');
+      if (overflow && selected) {
+        const rail = nav.getBoundingClientRect();
+        const tab = selected.getBoundingClientRect();
+        if (tab.left < rail.left || tab.right > rail.right) {
+          nav.scrollLeft += tab.left - rail.left - (rail.width - tab.width) / 2;
+        }
+      }
     };
     reveal();
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(reveal);

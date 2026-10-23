@@ -1,8 +1,9 @@
 /** Keep the selected track when entering reading, changing units, or returning to Work Details. */
-export function readerLink(unitId: string, workId: string, trackId?: string | null): string {
+export function readerLink(unitId: string, workId: string, trackId?: string | null, format?: string | null): string {
   const query = new URLSearchParams();
   if (workId) query.set("work", workId);
   if (trackId) query.set("track", trackId);
+  if (format) query.set("format", format);
   return `/read/${unitId}${query.size ? `?${query}` : ""}`;
 }
 export function workLink(workId: string, trackId?: string | null): string {
