@@ -57,6 +57,58 @@
 .hero__description { margin: 0; color: rgba(250, 246, 236, 0.9); max-inline-size: 44ch; }
 .hero__progress { margin: 0; color: rgba(250, 246, 236, 0.85); font-variant-numeric: tabular-nums; }
 
+/* Hero carousel: Embla-powered slide deck for the hero section. */
+.hero-carousel {
+  position: relative;
+  margin-bottom: var(--space-7);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-raised);
+}
+.hero-carousel__viewport { overflow: hidden; }
+.hero-carousel__container { display: flex; backface-visibility: hidden; }
+.hero-carousel .hero {
+  flex: 0 0 100%;
+  min-width: 0;
+  margin-bottom: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.hero-carousel__controls {
+  position: absolute;
+  top: var(--space-4);
+  inset-inline-end: var(--space-4);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: rgba(20, 35, 26, 0.55);
+  border-radius: var(--radius-pill);
+  color: var(--ivory-50);
+  backdrop-filter: blur(8px);
+}
+.hero-carousel__counter {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  padding: 0 var(--space-2);
+}
+.hero-carousel__arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease);
+}
+.hero-carousel__arrow:hover { background: rgba(255, 255, 255, 0.25); }
+.hero-carousel__arrow:focus-visible { outline: 2px solid var(--ivory-50); outline-offset: 2px; }
+
 .shelf, .shelfview {
   --shelf-card-width: 150px;
   --shelf-card-gap: 24px;
@@ -146,8 +198,8 @@
 }
 .shelf__deck {
   z-index: 1;
-  top: calc(var(--shelf-cover-height) + var(--shelf-base-offset, 0px) - 14px);
-  block-size: 15px;
+  top: calc(var(--shelf-cover-height) + var(--shelf-base-offset, 0px) - 16px);
+  block-size: 18px;
   transform: perspective(180px) rotateX(52deg);
   transform-origin: bottom;
   border: 1px solid rgba(91, 60, 35, 0.38);
@@ -279,10 +331,10 @@
 }
 .shelf__row .workcard:focus-visible { position: relative; z-index: 4; outline-offset: -2px; }
 .workcard__cover { transition: transform var(--motion-fast) var(--ease); }
-a.workcard:hover .workcard__cover { transform: translateY(-3px); }   /* a 2–4px lift, nothing more (§32.20) */
+a.workcard:hover .workcard__cover { transform: translateY(-4px) rotate(-0.5deg); }   /* a 2–4px lift, nothing more (§32.20) */
 /* A result with no Work yet opens as a button: it must look and lift exactly like a linked card. */
 button.workcard { background: none; border: 0; padding: 0; font: inherit; text-align: start; cursor: pointer; inline-size: 100%; }
-button.workcard:hover:not(:disabled) .workcard__cover { transform: translateY(-3px); }
+button.workcard:hover:not(:disabled) .workcard__cover { transform: translateY(-4px) rotate(-0.5deg); }
 button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .workcard:focus-visible { outline: 2px solid var(--press-accent); outline-offset: 4px; border-radius: 4px; }
 .resultcard__problem { margin-top: var(--space-2); font-size: 14px; }
@@ -391,7 +443,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .workcard--compact .workcard__title { font-size: 14px; }
 .workcard--detailed { display: grid; grid-template-columns: 96px 1fr; gap: var(--space-4); align-items: start; }
 
-.home__sections { display: grid; }
+.home__sections { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
 .empty.home__empty {
   max-inline-size: none;
   min-block-size: min(420px, 55dvh);
@@ -756,6 +808,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   .hero { min-height: 0; padding: var(--space-4); }
   .hero__cover { inline-size: 104px; }
   .hero__title { font-size: 24px; }
+  .home__sections { grid-template-columns: 1fr; }
   .shelf, .shelfview { --shelf-card-width: 124px; --shelf-cover-height: 178px; }
   .shelfview { --shelf-card-width: 150px; --shelf-card-gap: 16px; --shelf-cover-height: 214px; }
   .shelf--compactRow { --shelf-card-width: 104px; --shelf-cover-height: 150px; }

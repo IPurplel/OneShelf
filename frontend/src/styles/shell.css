@@ -12,6 +12,7 @@
   padding: var(--space-6) var(--space-7) var(--space-7);
   background:
     radial-gradient(950px 430px at 72% -170px, var(--canvas-spot), transparent 78%),
+    radial-gradient(ellipse 120% 80% at 50% 100%, rgba(168, 191, 142, 0.04), transparent 60%),
     var(--ivory-100);
 }
 .layout__main:focus { outline: none; }
@@ -66,8 +67,7 @@
   transition: background var(--motion-fast) var(--ease), color var(--motion-fast) var(--ease);
 }
 .sidebar__link:hover { background: rgba(255, 255, 255, 0.065); color: var(--ivory-50); }
-.sidebar__link.is-active { background: rgba(168, 191, 142, 0.17); border-color: rgba(168, 191, 142, 0.17); color: var(--ivory-50); box-shadow: inset 3px 0 var(--olive-300); }
-[dir="rtl"] .sidebar__link.is-active { box-shadow: inset -3px 0 var(--olive-300); }
+.sidebar__link.is-active { background: rgba(168, 191, 142, 0.2); border-color: rgba(168, 191, 142, 0.12); color: var(--ivory-50); }
 .sidebar__link { position: relative; }
 
 /* Header: controls only. No profile, no avatar (§32.2). */
@@ -78,8 +78,7 @@
   justify-content: space-between;
   padding-inline: var(--space-6);
   gap: var(--space-4);
-  border-block-end: 1px solid var(--surface-border);
-  background: var(--paper);
+  background: var(--ivory-100);
 }
 .header__mobileBrand { display: none; }
 .header__mobileSection { display: none; }

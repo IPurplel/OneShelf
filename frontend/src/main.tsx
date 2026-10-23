@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { Toaster } from "sonner";
 
 import { App } from "@/app/App";
 import { LiveProvider } from "@/app/live";
@@ -14,6 +15,7 @@ import "@fontsource/noto-serif/latin-400-italic.css";
 import "@fontsource/noto-naskh-arabic/arabic-400.css";
 import "@fontsource/noto-naskh-arabic/arabic-600.css";
 
+import "@/styles/tailwind.css";
 import "@/styles/base.css";
 import "@/styles/shell.css";
 import "@/styles/library.css";
@@ -30,6 +32,17 @@ createRoot(container).render(
           <NotificationProvider>
             <BrowserRouter>
               <App />
+              <Toaster
+                position="bottom-right"
+                toastOptions={{
+                  style: {
+                    background: "var(--paper)",
+                    border: "1px solid var(--surface-border)",
+                    color: "var(--ink-900)",
+                    fontFamily: "var(--font-ui)",
+                  },
+                }}
+              />
             </BrowserRouter>
           </NotificationProvider>
         </LiveProvider>

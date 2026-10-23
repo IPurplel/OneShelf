@@ -1,12 +1,13 @@
 /// <reference types="vitest/config" />
 import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
 // The SPA is served from the same origin as the API in production; in development Vite proxies to the
 // backend so cookies, the Origin check and the Host allowlist behave exactly as they will in the container.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   server: {
     port: 5173,

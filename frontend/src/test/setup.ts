@@ -25,6 +25,31 @@ beforeEach(() => {
   }
 });
 
+// jsdom has no IntersectionObserver or ResizeObserver; Embla carousel needs both.
+if (typeof IntersectionObserver === "undefined") {
+  globalThis.IntersectionObserver = class {
+    readonly root: Element | null = null;
+    readonly rootMargin = "";
+    readonly thresholds: ReadonlyArray<number> = [];
+    private cb: IntersectionObserverCallback;
+    constructor(cb: IntersectionObserverCallback) { this.cb = cb; }
+    observe(target: Element) {
+      this.cb([{ isIntersecting: true, target } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+    }
+    unobserve() {}
+    disconnect() {}
+    takeRecords(): IntersectionObserverEntry[] { return []; }
+  } as unknown as typeof IntersectionObserver;
+}
+if (typeof ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = class {
+    constructor(_cb: ResizeObserverCallback) {}
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+}
+
 // jsdom has no top layer. Browser tests verify real focus trapping and inertness.
 HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
 HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };

@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+/*
+ * Cozy Forest theme: maps existing CSS custom properties from tokens.css into
+ * Tailwind's namespace so utility classes (bg-forest-600, text-ivory-50, etc.)
+ * use the same values as the hand-written CSS. tokens.css remains the single
+ * source of truth; this file only references it.
+ */
+@theme {
+  /* Forest greens */
+  --color-forest-900: #14231a;
+  --color-forest-800: #1b2c20;
+  --color-forest-700: #223528;
+  --color-forest-600: #24402c;
+  --color-forest-500: #2f5238;
+
+  /* Olive accents */
+  --color-olive-700: #4c6b3c;
+  --color-olive-600: #6f8f5e;
+  --color-olive-500: #7d9c62;
+  --color-olive-300: #a8bf8e;
+
+  /* Ivory canvas */
+  --color-ivory-50: #faf6ec;
+  --color-ivory-100: #f3eee5;
+  --color-ivory-200: #e7dfce;
+
+  /* Paper surfaces */
+  --color-paper: #fffcf5;
+  --color-paper-raised: #fffefa;
+
+  /* Wood */
+  --color-wood-700: #6f5335;
+  --color-wood-600: #6f5336;
+  --color-wood-500: #8a6a45;
+  --color-wood-300: #ab875c;
+
+  /* Ink (text) */
+  --color-ink-900: #1c1b18;
+  --color-ink-700: #3a372f;
+  --color-ink-500: #6b665a;
+  --color-ink-300: #9c968a;
+
+  /* Semantic */
+  --color-danger-600: #8c3b2e;
+  --color-warning-600: #856219;
+
+  /* Typography */
+  --font-display: "Noto Serif", "Noto Naskh Arabic", "Iowan Old Style", Palatino, Georgia, ui-serif, serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", "Noto Sans", "Noto Naskh Arabic", sans-serif;
+
+  /* Spacing scale (matches --space-N tokens) */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 24px;
+  --spacing-6: 32px;
+  --spacing-7: 48px;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+}
