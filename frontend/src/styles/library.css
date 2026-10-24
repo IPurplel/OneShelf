@@ -960,3 +960,47 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .panel__advanced { margin-block-start: var(--space-5); border-block-start: 1px solid var(--ivory-200);
                    padding-block-start: var(--space-4); }
 .panel__advancedBody { display: grid; gap: var(--space-4); margin-block-start: var(--space-4); }
+
+/* Reading Statistics (§stats): warm card grid, simple bars and activity chart. */
+.stats { display: grid; gap: var(--space-6); }
+.stats__cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--space-3); }
+.stats__cards--compact { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.stats__card {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
+  padding: var(--space-5) var(--space-4); background: var(--paper); border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-card); text-align: center;
+}
+.stats__cardValue { font-family: var(--font-display); font-size: 28px; font-weight: 600; color: var(--ink-900); letter-spacing: -0.02em; }
+.stats__cardLabel { font-size: 14px; color: var(--ink-500); }
+
+.stats__section { display: grid; gap: var(--space-3); }
+.stats__heading { margin: 0; font-family: var(--font-display); font-size: 20px; color: var(--ink-700); }
+
+.stats__bar-group { display: grid; gap: var(--space-2); }
+.stats__barRow { display: grid; grid-template-columns: 100px 1fr auto; align-items: center; gap: var(--space-3); }
+.stats__barLabel { font-size: 14px; color: var(--ink-700); text-align: end; }
+.stats__barTrack { block-size: 18px; background: var(--progress-track); border-radius: var(--radius-pill); overflow: hidden; }
+.stats__barFill { block-size: 100%; border-radius: var(--radius-pill); transition: inline-size var(--motion-slow) var(--ease); }
+.stats__barCount { font-size: 14px; color: var(--ink-500); min-inline-size: 40px; }
+.stats__caption { margin: 0; font-size: 14px; color: var(--ink-500); }
+
+.stats__types { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--space-2); }
+.stats__type {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4); background: var(--ivory-100); border-radius: var(--radius-sm);
+}
+.stats__typeLabel { font-size: 14px; color: var(--ink-700); text-transform: capitalize; }
+.stats__typeCount { font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--ink-900); }
+
+.stats__chart {
+  display: flex; align-items: flex-end; gap: 2px; block-size: 140px;
+  padding: var(--space-3) 0; border-block-end: 1px solid var(--surface-border);
+}
+.stats__chartCol { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); min-inline-size: 0; block-size: 100%; justify-content: flex-end; }
+.stats__chartBar { inline-size: 100%; max-inline-size: 24px; min-block-size: 2px; background: var(--olive-600); border-radius: var(--radius-sm) var(--radius-sm) 0 0; transition: block-size var(--motion-slow) var(--ease); }
+.stats__chartDay { font-size: 10px; color: var(--ink-300); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-inline-size: 100%; }
+
+@media (max-width: 540px) {
+  .stats__barRow { grid-template-columns: 80px 1fr auto; gap: var(--space-2); }
+  .stats__chart { block-size: 100px; }
+}

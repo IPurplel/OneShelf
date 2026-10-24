@@ -10,6 +10,7 @@ import { SourcesScreen } from "@/features/sources/SourcesScreen";
 import { ShelfScreen } from "@/features/shelf/ShelfScreen";
 import { WorkScreen } from "@/features/work/WorkScreen";
 import { ReadRoute } from "@/features/reader/ReadRoute";
+import { StatsScreen } from "@/features/stats/StatsScreen";
 
 export type AppRoute = { path: string; element: ReactElement };
 
@@ -23,6 +24,7 @@ export const routes: AppRoute[] = [
   { path: "/settings", element: <SettingsScreen /> },
   { path: "/settings/:section", element: <SettingsScreen /> },
   { path: "/first-run", element: <FirstRunScreen /> },
+  { path: "/stats", element: <StatsScreen /> },
   { path: "/works/:workId", element: <WorkScreen /> },
   { path: "/read/:unitId", element: <ReadRoute /> },
 ];
