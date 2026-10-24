@@ -916,6 +916,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .field__label { display: grid; gap: var(--space-2); color: var(--ink-700);
                 margin-block-start: var(--space-4); }
 .field__label:first-child { margin-block-start: 0; }
+.field__row { display: flex; gap: var(--space-2); align-items: center; }
+.field__row > .field { flex: 1; min-inline-size: 0; }
 /* A panel reads as a document: its own headings keep air above them. */
 .paper > h3 { margin-block: var(--space-5) var(--space-2); font-family: var(--font-display);
               font-size: 17px; }
@@ -1037,3 +1039,12 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .history__workTitle { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history__unitTitle { font-size: var(--text-sm); color: var(--ink-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history__time { font-size: var(--text-xs); color: var(--ink-300); }
+
+/* Folder Picker */
+.folderpicker { max-inline-size: 480px; }
+.folderpicker__current { font-size: var(--text-sm); color: var(--ink-500); padding: var(--space-2) var(--space-3); background: var(--surface-sunken, var(--ivory-200)); border-radius: var(--radius-sm); margin-block: var(--space-2); word-break: break-all; }
+.folderpicker__toolbar { display: flex; gap: var(--space-2); margin-block-end: var(--space-2); }
+.folderpicker__list { list-style: none; padding: 0; margin: 0; max-block-size: 320px; overflow-y: auto; border: 1px solid var(--surface-border); border-radius: var(--radius-md); }
+.folderpicker__entry { display: flex; align-items: center; gap: var(--space-2); inline-size: 100%; padding: var(--space-2) var(--space-3); border: 0; background: transparent; cursor: pointer; text-align: start; font: inherit; color: inherit; }
+.folderpicker__entry:hover { background: var(--surface-hover); }
+.folderpicker__icon { flex-shrink: 0; font-size: 16px; }

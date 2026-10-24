@@ -8,6 +8,7 @@ import { ModalSurface } from "@/components/ModalSurface";
 import { LoadingState } from "@/components/LoadingState";
 import { useI18n } from "@/i18n/i18n";
 import { bytes } from "@/lib/format";
+import { FolderPicker } from "@/components/FolderPicker";
 
 type Root = {
   id: string; name: string; path: string; is_default: boolean; available: boolean; reason: string | null;
@@ -32,6 +33,7 @@ export function StoragePanel() {
   const [problem, setProblem] = useState<string | null>(null);
   const addLocked = useRef(false);
   const [addBusy, setAddBusy] = useState(false);
+  const [browsing, setBrowsing] = useState<"add" | "move" | null>(null);
 
   const addRoot = async () => {
     if (addLocked.current) return;
@@ -124,7 +126,10 @@ export function StoragePanel() {
           <h2 className="display">{t("storage.addTitle")}</h2>
           <label className="field__label">
             {t("storage.folder")}
-            <input type="text" className="field" dir="ltr" value={path} onChange={(event) => setPath(event.target.value)} />
+            <div className="field__row">
+              <input type="text" className="field" dir="ltr" value={path} onChange={(event) => setPath(event.target.value)} />
+              <button type="button" className="button" onClick={() => setBrowsing("add")}>{t("storage.browse")}</button>
+            </div>
           </label>
           <label className="field__label">
             {t("storage.name")}
@@ -153,10 +158,23 @@ export function StoragePanel() {
         >
           <label className="field__label">
             {t("storage.moveField")}
-            <input type="text" className="field" dir="ltr" value={destination}
-                   onChange={(event) => setDestination(event.target.value)} />
+            <div className="field__row">
+              <input type="text" className="field" dir="ltr" value={destination}
+                     onChange={(event) => setDestination(event.target.value)} />
+              <button type="button" className="button" onClick={() => setBrowsing("move")}>{t("storage.browse")}</button>
+            </div>
           </label>
         </ConfirmDialog>
+      )}
+
+      {browsing !== null && (
+        <FolderPicker
+          onSelect={(selected) => {
+            if (browsing === "add") setPath(selected);
+            else setDestination(selected);
+          }}
+          onClose={() => setBrowsing(null)}
+        />
       )}
     </section>
   );

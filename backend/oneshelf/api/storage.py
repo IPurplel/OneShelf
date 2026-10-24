@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import shutil
 from dataclasses import asdict
 from pathlib import Path, PurePosixPath
@@ -67,6 +68,41 @@ async def storage_overview(request: Request):
             entry |= {"total": space.total, "free": space.free, "reserve": space.reserve, "state": space.state.value}
         roots.append(entry)
     return {"roots": roots}
+
+
+@router.get("/storage/browse")
+async def browse_directories(path: str = Query(default="", max_length=4096)):
+    """List subdirectories of a path on the server for the folder picker."""
+    if not path:
+        if os.name == "nt":
+            import string
+            drives = []
+            for letter in string.ascii_uppercase:
+                drive = f"{letter}:\\"
+                if os.path.isdir(drive):
+                    drives.append({"name": f"{letter}:", "path": drive})
+            return {"parent": None, "entries": drives}
+        else:
+            path = "/"
+
+    target = Path(path).resolve()
+    if not target.is_dir():
+        return error(404, "NOT_A_DIRECTORY", f"{path} is not a directory.")
+
+    parent = str(target.parent) if target != target.parent else None
+    entries = []
+    try:
+        for item in sorted(target.iterdir()):
+            if not item.is_dir():
+                continue
+            name = item.name
+            if name.startswith("."):
+                continue
+            entries.append({"name": name, "path": str(item)})
+    except PermissionError:
+        pass
+
+    return {"parent": parent, "current": str(target), "entries": entries}
 
 
 class RootBody(BaseModel):
