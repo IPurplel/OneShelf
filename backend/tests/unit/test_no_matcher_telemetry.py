@@ -58,10 +58,15 @@ def test_a_default_install_has_nowhere_to_report_to(tmp_path):
 
 def test_no_module_carries_a_hardcoded_endpoint():
     """A literal host in the code would be the one place a report could be sent from."""
+    # These exact XML namespace identifiers qualify names; they are never fetched.
+    namespaces = frozenset({"http://www.w3.org/2000/svg", "http://www.w3.org/1999/xlink",
+                            "http://www.w3.org/XML/1998/namespace"})
     offenders = []
     for path in SOURCE_ROOT.rglob("*.py"):
         text = path.read_text(encoding="utf-8")
-        for match in re.finditer(r"https?://([A-Za-z0-9.\-]+)", text):
+        for match in re.finditer(r'''https?://([A-Za-z0-9.\-]+)[^\s"'<>]*''', text):
+            if match.group(0) in namespaces:
+                continue
             host = match.group(1)
             if host in ("127.0.0.1", "localhost") or host.endswith(".example") or "example." in host:
                 continue
