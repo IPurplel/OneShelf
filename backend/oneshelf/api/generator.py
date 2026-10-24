@@ -167,7 +167,7 @@ async def test_source_markup(request: Request, body: MarkupBody):
     config = request.app.state.config
     if not (config.dev_test_source and config.dev_test_source_address):
         return error(404, "NOT_AVAILABLE", "the OneShelf Test Source is not enabled on this instance")
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
         url = f"http://{config.dev_test_source_address}/__control"
         async with session.post(url, json={"markup_version": body.version}) as response:
             if response.status != 200:

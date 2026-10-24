@@ -341,7 +341,7 @@ def create_app(config: AppConfig) -> FastAPI:
             "ready": services is not None and pending == 0,
             "schema_version": version,
             "migrations_pending": pending,
-            "database": str(config.db_path),
+            "database_ok": config.db_path.exists(),
             "recovery": {"order": list(getattr(report, "order", [])),
                          "commits": asdict(report.commits) if report is not None else None,
                          "scan": asdict(report.scan) if report is not None else None,
@@ -355,8 +355,11 @@ def create_app(config: AppConfig) -> FastAPI:
 
     @app.get("/api/events")
     async def events(request: Request) -> StreamingResponse:
+        bus: EventBus = app.state.bus
+        if bus.subscriber_count >= EventBus.MAX_SUBSCRIBERS:
+            return Response(status_code=503, content="Too many concurrent connections")
         return StreamingResponse(
-            sse_stream(app.state.bus, request.is_disconnected),
+            sse_stream(bus, request.is_disconnected),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
         )

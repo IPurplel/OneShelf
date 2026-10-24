@@ -256,6 +256,7 @@ def _backup_view(record) -> dict:
     stat = path.stat() if path.is_file() else None
     view["size_bytes"] = stat.st_size if stat else 0
     view["present"] = stat is not None
+    view["path"] = path.name
     return view
 
 

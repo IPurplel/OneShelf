@@ -13,6 +13,7 @@ from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, Field
 
 from oneshelf.api.access import AccessClass
+from oneshelf.api.rate_limit import require_auth_rate_limit, require_recovery_rate_limit
 from oneshelf.auth.passkeys import PasskeyError
 from oneshelf.auth.policy import PolicyError
 from oneshelf.auth.service import RemoteAuthError
@@ -126,6 +127,8 @@ async def set_networks(request: Request, body: NetworksBody):
 
 @router.post("/passkeys/register/options")
 async def register_options(request: Request, body: RegisterOptionsBody):
+    if (refused := require_auth_rate_limit(request)) is not None:
+        return refused
     s = services(request)
     try:
         ceremony = s.remote_auth.begin_registration(access=access(request).kind, label=body.label,
@@ -163,6 +166,8 @@ async def remove_passkey(request: Request, credential_id: str):
 
 @router.post("/sign-in/options")
 async def sign_in_options(request: Request):
+    if (refused := require_auth_rate_limit(request)) is not None:
+        return refused
     try:
         ceremony = services(request).remote_auth.begin_authentication()
     except (PasskeyError, RemoteAuthError) as exc:
@@ -172,6 +177,8 @@ async def sign_in_options(request: Request):
 
 @router.post("/sign-in")
 async def sign_in(request: Request, body: SignInBody):
+    if (refused := require_auth_rate_limit(request)) is not None:
+        return refused
     s = services(request)
     try:
         issued = s.remote_auth.complete_authentication(body.ceremony_id, body.response, label=body.label,
@@ -225,6 +232,8 @@ async def regenerate_recovery(request: Request):
 @router.post("/lan-recovery")
 async def lan_recovery(request: Request):
     """§28.5: available to genuine LAN devices; affects remote Web UI authentication only."""
+    if (refused := require_recovery_rate_limit(request)) is not None:
+        return refused
     try:
         report = services(request).remote_auth.lan_recovery_reset(access=access(request).kind)
     except RemoteAuthError as exc:

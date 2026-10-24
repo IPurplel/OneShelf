@@ -78,8 +78,9 @@ class DiscoveryCache:
             total -= row[3]
 
     def clear_source(self, source_id: str) -> None:
+        safe_id = source_id.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         with self._lock:
-            self._conn.execute("DELETE FROM entries WHERE namespace LIKE ?", (f"{source_id}@%",))
+            self._conn.execute("DELETE FROM entries WHERE namespace LIKE ? ESCAPE '\\'", (f"{safe_id}@%",))
 
     def clear(self) -> None:
         with self._lock:

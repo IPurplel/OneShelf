@@ -69,6 +69,10 @@ def _fts_query(tokens: tuple[str, ...]) -> str:
     return " OR ".join(f'"{token.replace(chr(34), chr(34) * 2)}"*' for token in tokens)
 
 
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def _candidate_work_ids(conn: sqlite3.Connection, query: str) -> list[str]:
     keys = search_keys(query)
     found: dict[str, None] = {}
@@ -78,8 +82,11 @@ def _candidate_work_ids(conn: sqlite3.Connection, query: str) -> list[str]:
             found[row[0]] = None
     except sqlite3.OperationalError:  # unusual query syntax; substring pass still applies
         pass
-    for row in conn.execute("SELECT DISTINCT work_id FROM search_index WHERE normalized LIKE ? OR loose LIKE ? LIMIT ?",
-                            (f"%{keys.normalized}%", f"%{keys.loose}%", LIKE_CANDIDATE_LIMIT)):
+    for row in conn.execute(
+        "SELECT DISTINCT work_id FROM search_index"
+        " WHERE normalized LIKE ? ESCAPE '\\' OR loose LIKE ? ESCAPE '\\' LIMIT ?",
+        (f"%{_escape_like(keys.normalized)}%", f"%{_escape_like(keys.loose)}%", LIKE_CANDIDATE_LIMIT),
+    ):
         found[row[0]] = None
     return list(found)
 

@@ -763,7 +763,7 @@ class DownloadEngine:
         decision = next_method(contract, attempts=attempts, retry_budget=self.retry_budget, category=category)
         job = self.job(job_id)
         if decision.action == "retry":
-            delay = self.backoff_base_seconds ** attempts
+            delay = min(self.backoff_base_seconds ** attempts, 3600)
             self._set_state(job_id, "RETRY_WAIT", last_error=message, error_category=category,
                             next_attempt_at=(datetime.now(UTC) + timedelta(seconds=delay)).isoformat())
             report.waiting += 1

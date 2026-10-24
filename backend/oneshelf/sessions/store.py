@@ -30,7 +30,8 @@ class SessionUnreadable(RuntimeError):
 def load_or_create_key(path: str | Path) -> bytes:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    os.chmod(path.parent, 0o700)
+    if os.name != "nt":
+        os.chmod(path.parent, 0o700)
     if path.exists():
         key = path.read_bytes()
         if len(key) != KEY_BYTES:

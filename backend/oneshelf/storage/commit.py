@@ -79,9 +79,12 @@ def _move_no_replace(src: str, dst: str) -> None:
     except OSError as exc:
         if exc.errno not in {errno.EPERM, errno.EOPNOTSUPP, errno.ENOTSUP, errno.EMLINK}:
             raise
-        if os.path.lexists(dst):
-            raise FileExistsError(dst) from exc
-        os.rename(src, dst)
+        try:
+            os.rename(src, dst)
+        except OSError:
+            if os.path.lexists(dst):
+                raise FileExistsError(dst) from exc
+            raise
         return
     os.unlink(src)
 

@@ -82,6 +82,9 @@ class SourceService:
     async def _client(self, package: PluginPackage) -> HttpClient:
         key = (package.id, package.sha256)
         if key not in self._clients:
+            stale = [k for k in self._clients if k[0] == package.id and k[1] != package.sha256]
+            for k in stale:
+                await self._clients.pop(k).__aexit__(None, None, None)
             policy = self.policy_for(package)
             timeouts = package.source.timeouts
             client = HttpClient(policy, resolver_backend=self.resolver_for(package, policy),

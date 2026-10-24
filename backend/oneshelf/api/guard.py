@@ -66,6 +66,8 @@ class RequestGuardMiddleware:
             origin = headers.get("origin")
             if origin is not None:
                 origin_netloc = origin.split("://", 1)[-1].rstrip("/").lower() if "://" in origin else None
-                if origin_netloc != host_header.strip().lower():
+                origin_host, origin_port = _split_host(origin_netloc) if origin_netloc else (None, None)
+                host_host, host_port = _split_host(host_header)
+                if origin_host != host_host or (origin_port is not None and host_port is not None and origin_port != host_port):
                     return await self._deny(send, 403, "CROSS_ORIGIN_REQUEST", "Cross-site requests are not allowed.")
         return await self.app(scope, receive, send)
