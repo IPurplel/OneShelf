@@ -26,6 +26,7 @@ from oneshelf.net.governor import Priority
 from oneshelf.plugins.results import ResourceDescriptor
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError
 from oneshelf.reader.cache import ReaderCache
+from oneshelf.reader.page_image import normalize_page_image
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.storage.paths import resolve_within
 from oneshelf.storage.roots import get_root
@@ -258,6 +259,10 @@ class ReaderService:
             issue = result.evidence.issues[0] if result.evidence.issues else None
             raise CapabilityError(issue.category if issue else "resource_missing",
                                   f"the source listed nothing for this unit ({issue.detail if issue else result.evidence.stop_reason})")
+        if not result.complete:
+            raise CapabilityError("incomplete_result",
+                                  f"the source returned {len(entries)} entries but could not confirm completeness "
+                                  f"({result.evidence.stop_reason})")
         self._descriptors[unit_id] = (time.monotonic(), entries)
         self._descriptors.move_to_end(unit_id)
         while len(self._descriptors) > DESCRIPTOR_CACHE_UNITS:
@@ -357,11 +362,12 @@ class ReaderService:
                         else "unexpected_response")
             self._record(source, "content_missing" if category == "not_found" else "failure", category)
             raise CapabilityError(category, f"page {index}: the source answered HTTP {status}")
-        problem = _validate_image(response.body)
+        data = await normalize_page_image(response.body)
+        problem = _validate_image(data)
         if problem:
             raise ValueError(f"page {index}: {problem}")
-        self.cache.put(source, unit["source_unit_key"], url, response.body)
-        return response.body
+        self.cache.put(source, unit["source_unit_key"], url, data)
+        return data
 
     def local_file(self, unit_id: str, *, format: str | None = None) -> LocalArtefact:
         """Where the downloaded artefact is, for readers that render a whole document (§26.22).

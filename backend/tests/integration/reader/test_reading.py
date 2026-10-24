@@ -1,10 +1,13 @@
 """Master §19, §26.11–26.23, §42; INV-07, INV-08, INV-16: online reading, cache, progress, auto-download."""
 import asyncio
 import io
+import json
+import sys
 import time
 import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from multidict import CIMultiDict
@@ -15,6 +18,8 @@ from oneshelf.net.governor import Priority, TrafficGovernor
 from oneshelf.net.http import HttpResponse
 from oneshelf.plugins.manager import PluginManager
 from oneshelf.plugins.package import load_package
+from oneshelf.plugins.results import Evidence, ListResult, ResourceDescriptor
+from oneshelf.plugins.runtime import CapabilityError
 from oneshelf.reader.cache import ReaderCache
 from oneshelf.reader.service import ReaderService, StaleProgress
 from oneshelf.sessions.manager import SessionManager
@@ -72,6 +77,82 @@ def test_reading_online_never_downloads_permanently(reading):
     assert len(pages) == 3 and first.origin == "online" and first.data[:8] == b"\x89PNG\r\n\x1a\n"
     assert env.assets() == [] and env.files() == []   # INV-07: reading is not downloading
     assert cached == 1
+
+
+def test_incomplete_reader_group_is_never_served_or_cached(reading, monkeypatch):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            original_run = env.service.run
+
+            async def failed_second_group(*args, **kwargs):
+                return ListResult("reader", [
+                    ResourceDescriptor(f"https://test.invalid/page/{i}.png", i)
+                    for i in range(1, 101)
+                ], False, Evidence(pages=1, stop_reason="page_failed", total_expected=111))
+
+            monkeypatch.setattr(env.service, "run", failed_second_group)
+            with pytest.raises(CapabilityError) as error:
+                await reader.pages(unit)
+            assert error.value.category == "incomplete_result"
+            assert cache.get_descriptors(TS, "irr-1") is None
+            assert cache.count() == 0
+            from oneshelf.api import library as library_api
+            monkeypatch.setattr(library_api, "services", lambda request: SimpleNamespace(reader=reader))
+            response = await library_api.reader_pages(None, unit)
+            assert response.status_code == 502
+            body = json.loads(response.body)
+            assert "incomplete_result" in str(body) and "pages" not in body
+
+            # A recovered source is asked again, rather than serving the earlier 100-page fragment.
+            monkeypatch.setattr(env.service, "run", original_run)
+            assert len(await reader.pages(unit)) == 3
+            assert env.assets() == [] and env.files() == []
+
+    run(scenario())
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="SVG worker requires Linux OS limits")
+def test_svg_reader_page_is_cached_as_png_without_creating_downloads(reading, monkeypatch):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            payload = b'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="blue"/></svg>'
+
+            async def image_resource(source_id, url, *, capability, priority):
+                return HttpResponse(url, 200, CIMultiDict({"Content-Type": "image/svg+xml"}), payload)
+
+            monkeypatch.setattr(env.service, "fetch_resource", image_resource)
+            page = await reader.page(unit, 1)
+            cached = await reader.page(unit, 1)
+            assert page.data.startswith(b"\x89PNG")
+            assert cached.data == page.data and cached.origin == "cache"
+            assert cache.count() == 1
+            assert env.assets() == [] and env.files() == []
+            assert env.db.execute("SELECT count(*) FROM download_jobs").fetchone()[0] == 0
+
+    run(scenario())
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="SVG worker requires Linux OS limits")
+def test_rejected_svg_does_not_enter_reader_cache(reading, monkeypatch):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+
+            async def image_resource(source_id, url, *, capability, priority):
+                return HttpResponse(url, 200, CIMultiDict(), b'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><script/></svg>')
+
+            monkeypatch.setattr(env.service, "fetch_resource", image_resource)
+            with pytest.raises(ValueError, match="unsupported SVG element"):
+                await reader.page(unit, 1)
+            assert cache.count() == 0
+            assert env.assets() == [] and env.files() == []
+
+    run(scenario())
 
 
 @pytest.mark.parametrize("count", [1, 2])

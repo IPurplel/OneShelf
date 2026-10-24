@@ -9,6 +9,8 @@ dependencies = [
     "Pillow>=12.3",
     "pypdf>=6.19",
     "defusedxml>=0.7.1",
+    # Static SVG reader pages are normalized in a bounded, offline Linux worker.
+    "resvg_py==0.5.0",
     "PyYAML>=6.0.3",
     "google-re2>=1.1.20251105",
     "cryptography>=50.0.1",
