@@ -142,7 +142,11 @@ async def approve(request: Request, plugin_id: str, body: ApproveBody):
         return error(409, "NO_PENDING_REVIEW", str(exc))
 
 
+_LIFECYCLE_ACTIONS = {"disable", "enable", "rollback", "uninstall"}
+
+
 async def _lifecycle(request: Request, plugin_id: str, action: str):
+    assert action in _LIFECYCLE_ACTIONS
     s = services(request)
     if not _exists(s, plugin_id):
         return error(404, "SOURCE_NOT_FOUND", "This source is not installed.")

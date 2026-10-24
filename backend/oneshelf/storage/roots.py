@@ -108,9 +108,6 @@ def register_root(conn: sqlite3.Connection, name: str, path: str | Path) -> Stor
     root_id = new_id()
     now = utcnow_iso()
     staging_dir(path).mkdir(parents=True, exist_ok=True)
-    marker_tmp = path / META_DIR / f".{MARKER}.tmp"
-    marker_tmp.write_text(json.dumps({"root_id": root_id, "created_at": now}), encoding="utf-8")
-    os.replace(marker_tmp, path / META_DIR / MARKER)
     with transaction(conn):
         is_default = conn.execute("SELECT count(*) FROM storage_roots WHERE is_default = 1").fetchone()[0] == 0
         conn.execute(
@@ -118,6 +115,9 @@ def register_root(conn: sqlite3.Connection, name: str, path: str | Path) -> Stor
             " VALUES (?, ?, ?, ?, 'available', ?, ?)",
             (root_id, name, str(path), int(is_default), now, now),
         )
+    marker_tmp = path / META_DIR / f".{MARKER}.tmp"
+    marker_tmp.write_text(json.dumps({"root_id": root_id, "created_at": now}), encoding="utf-8")
+    os.replace(marker_tmp, path / META_DIR / MARKER)
     return get_root(conn, root_id)
 
 

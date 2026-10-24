@@ -149,11 +149,12 @@ class SearchService:
         return selected
 
     def _local_results(self, query: str, categories: frozenset[str] = frozenset(),
-                       languages: frozenset[str] = frozenset()) -> list[ResultWork]:
+                       languages: frozenset[str] = frozenset(), *, limit: int | None = None) -> list[ResultWork]:
+        effective_limit = limit or self.limit
         content_types = set().union(*(CATEGORY_CONTENT_TYPES[c] for c in categories if c in CATEGORY_CONTENT_TYPES))
         filter_type = bool(categories) and all(c in CATEGORY_CONTENT_TYPES for c in categories)
         results = []
-        candidate_limit = FTS_CANDIDATE_LIMIT + LIKE_CANDIDATE_LIMIT if categories or languages else self.limit
+        candidate_limit = FTS_CANDIDATE_LIMIT + LIKE_CANDIDATE_LIMIT if categories or languages else effective_limit
         for local in search_local(self.conn, query, limit=candidate_limit):
             if filter_type and local.candidate.content_type not in content_types:
                 continue
@@ -165,12 +166,13 @@ class SearchService:
             results.append(ResultWork(work_id=local.work_id, title=local.title,
                                       content_type=local.candidate.content_type,
                                       soft=False, cover_url=work_cover(self.conn, local.work_id)))
-            if len(results) >= self.limit:
+            if len(results) >= effective_limit:
                 break
         return results
 
     def _combine(self, query: str, state: _QueryState, categories: frozenset[str],
-                 languages: frozenset[str]) -> list[ResultWork]:
+                 languages: frozenset[str], *, limit: int | None = None) -> list[ResultWork]:
+        effective_limit = limit or self.limit
         listings = []
         for listing in state.listings.values():
             if not languages:
@@ -187,7 +189,7 @@ class SearchService:
         by_work = {g.work_id: g for g in live_groups if g.work_id}
         combined: list[ResultWork] = []
         used: set[int] = set()
-        for local in self._local_results(query, categories, languages):
+        for local in self._local_results(query, categories, languages, limit=limit):
             group = by_work.get(local.work_id)
             if group is not None:
                 combined.append(group)
@@ -197,11 +199,11 @@ class SearchService:
         for group in live_groups:
             if id(group) not in used:
                 combined.append(group)
-        return combined[: self.limit]
+        return combined[:effective_limit]
 
     def _update(self, stage: str, query: str, state: _QueryState, total: int,
-                categories: frozenset[str], languages: frozenset[str]) -> SearchUpdate:
-        return SearchUpdate(stage, self._combine(query, state, categories, languages), dict(state.status),
+                categories: frozenset[str], languages: frozenset[str], *, limit: int | None = None) -> SearchUpdate:
+        return SearchUpdate(stage, self._combine(query, state, categories, languages, limit=limit), dict(state.status),
                             total, state.sources_available)
 
     # -- source execution --------------------------------------------------------------------------
@@ -245,8 +247,7 @@ class SearchService:
 
     async def search(self, query: str, *, refresh: bool = False, limit: int | None = None,
                      categories: set[str] | None = None, languages: set[str] | None = None) -> AsyncIterator[SearchUpdate]:
-        if limit:
-            self.limit = limit
+        effective_limit = limit or self.limit
         category_scope = frozenset(categories or ())
         language_scope = frozenset(language_code(language) for language in (languages or ()))
         key = self._state_key(query, category_scope, language_scope)
@@ -257,10 +258,10 @@ class SearchService:
                             sources_available=len(all_sources))
         self._remember(key, state)
         total = len(sources)
-        yield SearchUpdate("local", self._local_results(query, category_scope, language_scope),
+        yield SearchUpdate("local", self._local_results(query, category_scope, language_scope, limit=effective_limit),
                            dict(state.status), total, state.sources_available)
         if not sources:
-            yield self._update("complete", query, state, total, category_scope, language_scope)
+            yield self._update("complete", query, state, total, category_scope, language_scope, limit=effective_limit)
             return
         pending = {asyncio.create_task(self._run_source(state, source_id, version, query, cache_key, refresh))
                    for source_id, version in sources}
@@ -272,9 +273,8 @@ class SearchService:
                     task.result()
                 state.last_used = self.clock()
                 yield self._update("partial" if pending else "complete", query, state, total,
-                                   category_scope, language_scope)
+                                   category_scope, language_scope, limit=effective_limit)
         finally:
-            # Closing an SSE response owns cancellation of every source it launched.
             for task in tasks:
                 if not task.done():
                     task.cancel()

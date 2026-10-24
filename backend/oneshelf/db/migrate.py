@@ -77,9 +77,11 @@ def _validate(migrations: Sequence[Migration]) -> None:
 
 def snapshot(conn: sqlite3.Connection, destination: Path) -> Path:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(str(destination)) as target:
+    target = sqlite3.connect(str(destination))
+    try:
         conn.backup(target)
-    target.close()
+    finally:
+        target.close()
     return destination
 
 

@@ -45,9 +45,13 @@ class EventBus:
         with self._lock:
             return len(self._subscribers)
 
+    MAX_SUBSCRIBERS = 100
+
     def subscribe(self) -> Subscription:
         sub = Subscription(asyncio.get_running_loop(), self.queue_size)
         with self._lock:
+            if len(self._subscribers) >= self.MAX_SUBSCRIBERS:
+                raise RuntimeError("too many concurrent SSE subscribers")
             self._subscribers.add(sub)
         return sub
 
@@ -75,10 +79,20 @@ class EventBus:
         if sub.closed:
             return
         if sub.queue.qsize() >= self.queue_size - 1:
-            sub.queue.put_nowait(Event(event.id, "resync", {}))
+            try:
+                sub.queue.put_nowait(Event(event.id, "resync", {}))
+            except asyncio.QueueFull:
+                pass
             self.unsubscribe(sub)
             return
-        sub.queue.put_nowait(event)
+        try:
+            sub.queue.put_nowait(event)
+        except asyncio.QueueFull:
+            try:
+                sub.queue.put_nowait(Event(event.id, "resync", {}))
+            except asyncio.QueueFull:
+                pass
+            self.unsubscribe(sub)
 
 
 def encode_sse(event_id: int, event_type: str, data: dict[str, Any]) -> str:

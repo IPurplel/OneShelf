@@ -94,7 +94,8 @@ def test_readiness_reports_what_startup_actually_did(config):
     assert body["ready"] is True
     assert body["schema_version"] >= 12 and body["migrations_pending"] == 0
     assert body["recovery"]["order"] and body["recovery"]["commits"] is not None   # recovery ran first
-    assert "storage_roots" in body and "database" in body
+    assert "storage_roots" in body and body["database_ok"] is True
+    assert "database" not in body  # Readiness must not expose the database path.
 
 
 def test_diagnostics_are_local_bounded_and_clearable(config):

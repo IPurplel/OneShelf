@@ -37,3 +37,9 @@ Evidence directory (ignored): `G:/work/OneShelf/qa-artifacts/noorbook-2026-10-24
 - Source-site observations and saved-page rendering above are not production QA.
 
 No server deployment, rebuild or restart was performed. This milestone is intended for review on its feature branch; merging Core changes without an adapter is a separate integration decision. Production PASS is not claimed.
+
+## Merge verification — 2026-10-24
+
+The user explicitly approved merging PR #11. Integrating main at `8415d81613300d5d504aff6d6b228b2bb0c7b0fa` exposed seven existing readiness/auth test failures, reproduced unchanged on main (7 failed, 32 passed in those modules). The backend owner approved test-only repairs: assert the redacted `database_ok` readiness contract and reset module-level rate-limiter state per independent test application while preserving production budgets. A new HTTP regression verifies that the eleventh sign-in-options request returns 429 with Retry-After. No production authentication behavior was changed.
+
+Final merged-candidate backend result: **1645 passed, 1 shellcheck-dependent skip, 12 live tests deselected**, in 183.60 seconds. Evidence: `main-baseline-auth-tests.log`, `merge-candidate-tests.log`, `merge-fixed-tests.log`, and the owner decision in `../coordination/2026-10-24-merge-test-repairs.md`. Deployment confirmation, deployment checkout/image revision, and production browser QA remain pending. The source transport blocker remains unresolved; this merge does not establish Noor Book source support.

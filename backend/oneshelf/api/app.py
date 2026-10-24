@@ -25,6 +25,7 @@ from oneshelf.api.library import router as library_router
 from oneshelf.api.shelf import router as shelf_router
 from oneshelf.api.storage import router as storage_router
 from oneshelf.api.covers import router as covers_router
+from oneshelf.api.stats import router as stats_router
 from oneshelf.api.works import router as works_router
 from oneshelf.auth.policy import AccessPolicy
 from oneshelf.auth.service import RemoteAuth
@@ -341,7 +342,7 @@ def create_app(config: AppConfig) -> FastAPI:
             "ready": services is not None and pending == 0,
             "schema_version": version,
             "migrations_pending": pending,
-            "database": str(config.db_path),
+            "database_ok": config.db_path.exists(),
             "recovery": {"order": list(getattr(report, "order", [])),
                          "commits": asdict(report.commits) if report is not None else None,
                          "scan": asdict(report.scan) if report is not None else None,
@@ -355,8 +356,11 @@ def create_app(config: AppConfig) -> FastAPI:
 
     @app.get("/api/events")
     async def events(request: Request) -> StreamingResponse:
+        bus: EventBus = app.state.bus
+        if bus.subscriber_count >= EventBus.MAX_SUBSCRIBERS:
+            return Response(status_code=503, content="Too many concurrent connections")
         return StreamingResponse(
-            sse_stream(app.state.bus, request.is_disconnected),
+            sse_stream(bus, request.is_disconnected),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
         )
@@ -371,6 +375,7 @@ def create_app(config: AppConfig) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(firstrun_router)
     app.include_router(generator_router)
+    app.include_router(stats_router)
     _mount_web_interface(app, config.web_root)
     app.add_middleware(AccessBoundaryMiddleware, config=config.access,
                        remote_authenticator=_remote_session_authenticator,

@@ -11,6 +11,8 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from collections import OrderedDict
+
 from oneshelf.catalog.trust import CatalogTrust
 from oneshelf.db.connection import transaction
 from oneshelf.domain.clock import utcnow_iso
@@ -61,7 +63,7 @@ class FollowService:
         self.catalog = catalog
         self.events = events
         self.rng = rng or random.Random()
-        self._undo: dict[str, dict] = {}
+        self._undo: OrderedDict[str, dict] = OrderedDict()
 
     # -- helpers ----------------------------------------------------------------------------------
 
@@ -142,6 +144,8 @@ class FollowService:
         token = new_id()
         self._undo[token] = {"row": dict(row), "baseline": sorted(self._baseline_keys(row["id"])),
                              "kind": self._baseline_kind(row["id"])}
+        while len(self._undo) > 100:
+            self._undo.popitem(last=False)
         with transaction(self.conn):
             self.conn.execute("DELETE FROM release_events WHERE follow_id = ?", (row["id"],))
             self.conn.execute("DELETE FROM follow_baseline_units WHERE baseline_id IN"

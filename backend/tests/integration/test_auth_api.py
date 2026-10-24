@@ -5,6 +5,7 @@ import pytest
 from starlette.testclient import TestClient
 
 from oneshelf.api.app import AppConfig, create_app
+from oneshelf.api.rate_limit import RateLimiter
 from oneshelf.auth.sessions import COOKIE_NAME
 from tests.fixtures.authenticator import SoftAuthenticator
 
@@ -18,7 +19,13 @@ def unb64(value: str) -> bytes:
 
 
 @pytest.fixture
-def app(tmp_path):
+def app(tmp_path, monkeypatch):
+    # Each test creates an independent application; keep production budgets active
+    # without sharing request history with other tests that use the same peer IPs.
+    monkeypatch.setattr("oneshelf.api.rate_limit._auth_limiter",
+                        RateLimiter(window_seconds=60, max_requests=10))
+    monkeypatch.setattr("oneshelf.api.rate_limit._recovery_limiter",
+                        RateLimiter(window_seconds=60, max_requests=3))
     return create_app(AppConfig.from_env({
         "ONESHELF_DATA_DIR": str(tmp_path / "data"),
         "ONESHELF_ALLOWED_HOSTS": f"testserver,{HOSTNAME}",
@@ -62,6 +69,15 @@ def test_remote_access_is_refused_until_a_passkey_session_exists(remote):
     denied = remote.get("/api/health")
     assert denied.status_code == 401 and denied.json()["error"]["code"] == "REMOTE_AUTH_REQUIRED"
     assert remote.get("/api/auth/state").status_code == 401
+
+
+def test_sign_in_options_retains_the_per_peer_request_limit(lan, remote, authenticator):
+    enrol(lan, authenticator)
+    for _ in range(10):
+        assert remote.post("/api/auth/sign-in/options").status_code == 200
+    refused = remote.post("/api/auth/sign-in/options")
+    assert refused.status_code == 429
+    assert int(refused.headers["Retry-After"]) > 0
 
 
 def test_i70_network_update_is_atomic_when_one_field_is_invalid(lan, app):

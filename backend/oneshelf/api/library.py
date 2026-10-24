@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import asdict
+from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
@@ -228,6 +229,14 @@ async def batch_detail(request: Request, batch_id: str, offset: int = Query(defa
         job["available_format"] = _job_available_format(s.conn, row, roots)
         job["available"] = job["available_format"] is not None
         job["bytes_total"] = _bytes_total(s.conn, row)
+        if row["asset_id"] and job["available"]:
+            asset = s.conn.execute("SELECT storage_root_id FROM assets WHERE id = ?", (row["asset_id"],)).fetchone()
+            if asset:
+                rid = asset["storage_root_id"]
+                if rid not in roots:
+                    r = s.conn.execute("SELECT name FROM storage_roots WHERE id = ?", (rid,)).fetchone()
+                    roots[rid] = r["name"] if r else None
+                job["storage_root_name"] = roots[rid]
         jobs.append(job)
     selection = json.loads(batch["selection_json"] or "{}")
     details = selection.get("skipped_details") or [{"reading_unit_id": u, "reason": None}
@@ -295,6 +304,35 @@ async def job_action(request: Request, job_id: str, action: str, body: JobAction
 async def clear_history(request: Request, before: str | None = None):
     """Clearing history never deletes downloaded content or reading progress (INV-23)."""
     return {"removed": services(request).downloads.clear_history(before=before)}
+
+
+@router.get("/downloads/jobs/{job_id}/file")
+async def download_job_file(request: Request, job_id: str):
+    """Download the finished job's file to the user's device."""
+    s = services(request)
+    job = s.downloads.job(job_id)
+    if job is None or job["state"] != "COMPLETED" or not job["asset_id"]:
+        return error(404, "FILE_NOT_AVAILABLE", "This job has no downloadable file.")
+    asset = s.conn.execute("SELECT * FROM assets WHERE id = ?", (job["asset_id"],)).fetchone()
+    if asset is None:
+        return error(404, "FILE_NOT_AVAILABLE", "The asset record is missing.")
+    from oneshelf.storage.roots import get_root
+    try:
+        root = get_root(s.conn, asset["storage_root_id"])
+    except Exception:
+        return error(404, "FILE_NOT_AVAILABLE", "The storage location is not available.")
+    path = Path(root.path) / asset["relative_path"]
+    if not path.is_file():
+        return error(404, "FILE_NOT_AVAILABLE", "The file is no longer on disk.")
+    fmt = asset["format"]
+    media_type = MEDIA_TYPES.get(fmt, "application/octet-stream")
+    ext = EXTENSIONS.get(fmt, fmt)
+    unit = s.conn.execute(
+        "SELECT coalesce(u.display_title, u.raw_title) AS title FROM reading_units u WHERE u.id = ?",
+        (asset["reading_unit_id"],)).fetchone()
+    filename = f"{unit['title']}.{ext}" if unit and unit["title"] else f"{job_id}.{ext}"
+    safe_filename = "".join(c if c.isalnum() or c in " ._-()[]" else "_" for c in filename)
+    return FileResponse(path, media_type=media_type, content_disposition_type="attachment", filename=safe_filename)
 
 
 DOWNLOAD_REQUIRED = "This book has to be downloaded before it can be read."

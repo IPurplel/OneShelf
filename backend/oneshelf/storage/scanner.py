@@ -31,7 +31,7 @@ class ScanReport:
 def _untracked_files(root: StorageRoot, tracked: set[str]) -> dict[str, list[str]]:
     by_name: dict[str, list[str]] = {}
     for dirpath, dirnames, filenames in os.walk(root.path, followlinks=False):
-        rel_dir = os.path.relpath(dirpath, root.path)
+        rel_dir = os.path.relpath(dirpath, root.path).replace("\\", "/")
         if rel_dir == ".":
             dirnames[:] = [d for d in dirnames if d != META_DIR]
             rel_dir = ""
