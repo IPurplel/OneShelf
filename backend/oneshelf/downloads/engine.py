@@ -91,6 +91,12 @@ def register_download(conn: sqlite3.Connection, payload: dict) -> None:
         raise CommitError("asset registration conflicted with an existing record")
     conn.execute("UPDATE download_jobs SET state = 'COMPLETED', asset_id = ?, finished_at = ?, updated_at = ?,"
                  " last_error = NULL, error_category = NULL WHERE id = ?", (asset["id"], now, now, job_id))
+    work_id = conn.execute(
+        "SELECT t.work_id FROM reading_units u JOIN source_tracks t ON t.id = u.track_id"
+        " WHERE u.id = ?", (asset["reading_unit_id"],)).fetchone()
+    if work_id:
+        conn.execute("INSERT OR IGNORE INTO shelf_entries (work_id, added_at) VALUES (?, ?)",
+                     (work_id[0], now))
     history = payload["history"]
     conn.execute(
         "INSERT OR IGNORE INTO download_history (id, reading_unit_id, work_id, source_id, language, outcome,"

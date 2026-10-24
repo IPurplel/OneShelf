@@ -37,6 +37,7 @@ type DownloadJob = {
   unit_title?: string | null;
   available?: boolean | null;
   available_format?: string | null;
+  storage_root_name?: string | null;
 };
 type BatchDetail = Batch & { jobs: DownloadJob[]; jobs_total?: number; limit?: number };
 const JOB_ERROR_KEYS: Record<string, StringKey> = {
@@ -195,8 +196,13 @@ function BatchDetails({ batch }: { batch: Batch }) {
             max={job.bytes_total} aria-label={t("downloads.unitProgress", { title: label })} />}
         {state === "FAILED" && <span className="batches__error">{t(JOB_ERROR_KEYS[job.error_category ?? ""] ?? "downloads.error.other")}</span>}
         {state === "COMPLETED" && job.available === false && <span className="batches__error">{t("downloads.unavailable")}</span>}
-        {openable && <Link className="chip" to={readerLink(job.reading_unit_id, job.work_id ?? "", job.track_id, job.available_format)}
-          aria-label={t("downloads.openUnit", { title: label })}>{t("downloads.open")}</Link>}
+        {openable && job.storage_root_name && <span className="cards__meta">{t("downloads.storedIn", { location: job.storage_root_name })}</span>}
+        {openable && <span className="batches__actions">
+          <Link className="chip" to={readerLink(job.reading_unit_id, job.work_id ?? "", job.track_id, job.available_format)}
+            aria-label={t("downloads.openUnit", { title: label })}>{t("downloads.open")}</Link>
+          <a className="chip" href={`/api/downloads/jobs/${job.id}/file`} download
+            aria-label={t("downloads.saveFile", { title: label })}>{t("downloads.save")}</a>
+        </span>}
       </div>;
     })}
     {(offset > 0 || (data?.jobs_total ?? 0) > (data?.limit ?? 500)) && <div className="batches__actions">
