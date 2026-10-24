@@ -7,11 +7,11 @@ import { renderApp } from "@/test/render";
 import { setViewport } from "@/test/viewport";
 
 describe("application shell", () => {
-  it("offers exactly the eight primary destinations", async () => {
+  it("offers exactly the nine primary destinations", async () => {
     renderApp();
     const nav = await screen.findByRole("navigation", { name: /primary/i });
     const names = within(nav).getAllByRole("link").map((link) => link.textContent?.trim());
-    expect(names).toEqual(["Home", "Search", "My Shelf", "Following", "Downloads", "Sources", "Settings", "Statistics"]);
+    expect(names).toEqual(["Home", "Search", "My Shelf", "Following", "Downloads", "Sources", "Settings", "History", "Statistics"]);
   });
 
   it("keeps notifications and needs attention in the header, not in the navigation", async () => {
@@ -111,7 +111,7 @@ describe("mobile More drawer", () => {
     await user.click(screen.getByRole("button", { name: "More" }));
     const drawer = screen.getByRole("dialog", { name: "More" });
     expect(within(drawer).getAllByRole("link").map(link => link.textContent?.trim()))
-      .toEqual(["Downloads", "Sources", "Statistics"]);
+      .toEqual(["Downloads", "Sources", "History", "Statistics"]);
     const current = within(drawer).getByText("Settings").closest("[aria-current]");
     expect(current).toHaveAttribute("aria-current", "page");
     expect(current).toHaveTextContent("Current");
@@ -124,7 +124,7 @@ describe("mobile More drawer", () => {
     await user.click(screen.getByRole("button", { name: "More" }));
     const drawer = screen.getByRole("dialog", { name: "More" });
     expect(within(drawer).getAllByRole("link").map(link => link.textContent?.trim()))
-      .toEqual(["Downloads", "Sources", "Settings", "Statistics"]);
+      .toEqual(["Downloads", "Sources", "Settings", "History", "Statistics"]);
     expect(within(drawer).getByRole("button", { name: "Notifications" })).toBeInTheDocument();
     await user.click(within(drawer).getByRole("link", { name }));
     expect(screen.queryByRole("dialog", { name: "More" })).not.toBeInTheDocument();

@@ -1,11 +1,12 @@
 import { useI18n } from "@/i18n/i18n";
 import { Drawer } from "@/components/Drawer";
-import type { ReaderControls, ReaderDirection, ReaderFit, ReaderMode, ReaderSettings } from "./settings";
+import type { ReaderControls, ReaderDirection, ReaderFit, ReaderMode, ReaderSettings, ReaderTransition } from "./settings";
 
 const MODES: ReaderMode[] = ["long_strip", "single", "double"];
 const DIRECTIONS: ReaderDirection[] = ["ltr", "rtl", "vertical"];
 const FITS: ReaderFit[] = ["smart", "width", "height", "original"];
 const CONTROLS: ReaderControls[] = ["smart", "minimal"];
+const TRANSITIONS: ReaderTransition[] = ["instant", "slide", "fade"];
 
 /** Reader settings (Master §26.17): the normal ones here, advanced ones behind progressive disclosure. */
 export function SettingsPanel({ settings, onChange, onClose }: {
@@ -95,6 +96,31 @@ export function SettingsPanel({ settings, onChange, onClose }: {
           </label>
         ))}
       </fieldset>
+
+      {settings.mode !== "long_strip" && (
+        <fieldset className="panel__group" role="radiogroup" aria-label={t("reader.transition")}>
+          <legend>{t("reader.transition")}</legend>
+          {TRANSITIONS.map((transition) => (
+            <label key={transition} className="panel__choice">
+              <input type="radio" name="transition" value={transition} checked={settings.transition === transition}
+                     onChange={() => onChange({ transition })} />
+              <span>{t(`reader.transition.${transition}` as const)}</span>
+            </label>
+          ))}
+        </fieldset>
+      )}
+
+      {settings.mode === "long_strip" && (
+        <fieldset className="panel__group" aria-label={t("reader.gap")}>
+          <legend>{t("reader.gap")}</legend>
+          <label className="panel__choice panel__choice--range">
+            <input type="range" min={0} max={20} step={1} value={settings.gap}
+                   aria-label={t("reader.gap")} aria-valuemin={0} aria-valuemax={20} aria-valuenow={settings.gap}
+                   onChange={(event) => onChange({ gap: Number(event.target.value) })} />
+            <span className="panel__rangeValue">{settings.gap}px</span>
+          </label>
+        </fieldset>
+      )}
     </Drawer>
   );
 }

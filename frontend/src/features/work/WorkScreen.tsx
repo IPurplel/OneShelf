@@ -18,6 +18,7 @@ import { RemoveFromShelf } from "@/features/shelf/RemoveFromShelf";
 import type { RemovalSummary } from "@/features/shelf/RemoveFromShelf";
 import { readerLink } from "@/features/reader/links";
 import { bytes } from "@/lib/format";
+import { WorkNotes } from "./WorkNotes";
 
 type Tab = "read" | "details" | "sources";
 type CatalogAttempt = { trackId: string; status: string; reason: string | null };
@@ -345,7 +346,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
             attempt={selectedAttempt} onRetry={() => { if (current) void refreshCatalog(current); }}
             onLanguages={() => setTab("sources")} />
         </div>
-        {tab === "details" && <Details data={data} />}
+        {tab === "details" && <><Details data={data} /><WorkNotes workId={id} /></>}
         {tab === "sources" && (
           <Sources tracks={tracks} selected={data.selected_track_id} onChoose={(track) => {
             const next = new URLSearchParams(search);

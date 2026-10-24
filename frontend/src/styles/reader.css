@@ -265,6 +265,50 @@ body:has(.reader) .bottomnav { display: none; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Reading progress indicator: visible even when controls are hidden. */
+.reader__scrollProgress {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: 4;
+  block-size: 3px;
+  background: var(--olive-600, #7a9e5a);
+  transition: inline-size var(--motion-fast, 120ms) ease-out;
+  pointer-events: none;
+}
+
+/* Page turn animations for single/double mode. */
+@keyframes reader-slide-forward {
+  from { transform: translateX(6%); opacity: 0.5; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes reader-slide-backward {
+  from { transform: translateX(-6%); opacity: 0.5; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes reader-fade-forward {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes reader-fade-backward {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.reader__stage--slide-forward  { animation: reader-slide-forward 200ms ease-out; }
+.reader__stage--slide-backward { animation: reader-slide-backward 200ms ease-out; }
+.reader__stage--fade-forward   { animation: reader-fade-forward 250ms ease-out; }
+.reader__stage--fade-backward  { animation: reader-fade-backward 250ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .reader__stage--slide-forward,
+  .reader__stage--slide-backward,
+  .reader__stage--fade-forward,
+  .reader__stage--fade-backward { animation: none; }
+}
+
+/* Range input in settings panel. */
+.panel__choice--range { gap: var(--space-4); }
+.panel__rangeValue { font-variant-numeric: tabular-nums; min-inline-size: 3ch; text-align: end; }
+
 /* The preload band and the spacers are structure, not content: no space, no sound, no interaction. */
 .reader__preload { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
 .reader__spacer { inline-size: 100%; flex: none; pointer-events: none; }

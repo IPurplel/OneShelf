@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import {
   Home, Search, BookOpen, Bookmark, Download, Globe, Settings,
   Bell, AlertTriangle, MoreHorizontal, X, LayoutGrid, List,
-  BarChart3,
+  BarChart3, Tag, Star, History,
 } from "lucide-react";
 
 const ICONS: Record<string, ComponentType<{ size?: number; strokeWidth?: number }>> = {
@@ -20,6 +20,9 @@ const ICONS: Record<string, ComponentType<{ size?: number; strokeWidth?: number 
   grid: LayoutGrid,
   list: List,
   stats: BarChart3,
+  tag: Tag,
+  star: Star,
+  history: History,
 };
 
 export function Icon({ name, size = 22 }: { name: string; size?: number }) {

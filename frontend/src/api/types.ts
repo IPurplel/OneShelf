@@ -47,6 +47,9 @@ export type ShelfEntry = {
   completed_at: string | null;
   releases_since_completion: number;
   cover_url?: string | null;
+  last_read_at: string | null;
+  read_fraction: number;
+  total_bytes: number;
 };
 
 export type ShelfResponse = { view: string; entries: ShelfEntry[] };

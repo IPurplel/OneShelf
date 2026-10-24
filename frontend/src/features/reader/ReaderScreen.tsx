@@ -376,6 +376,30 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
     navigate(`${readerLink(alternative.unit_id, work, alternative.track_id)}${fraction}`);
   }, [flush, navigate, stored?.fraction, work]);
 
+  const prevIndex = useRef(index);
+  useEffect(() => {
+    if (settings.mode === "long_strip" || settings.transition === "instant") {
+      prevIndex.current = index;
+      return;
+    }
+    const delta = index - prevIndex.current;
+    prevIndex.current = index;
+    if (delta === 0) return;
+    const el = stage.current;
+    if (!el) return;
+    const cls = `reader__stage--${settings.transition}-${delta > 0 ? "forward" : "backward"}`;
+    el.classList.remove("reader__stage--slide-forward", "reader__stage--slide-backward",
+                         "reader__stage--fade-forward", "reader__stage--fade-backward");
+    void el.offsetWidth;
+    el.classList.add(cls);
+    const cleanup = () => el.classList.remove(cls);
+    el.addEventListener("animationend", cleanup, { once: true });
+    const timer = setTimeout(cleanup, 300);
+    return () => { clearTimeout(timer); el.removeEventListener("animationend", cleanup); };
+  }, [index, settings.mode, settings.transition]);
+
+  const progressPct = pages.length > 0 ? ((index + 1) / pages.length) * 100 : 0;
+
   const preload = readerDefaults ?? PRELOAD;
   const window_ = stripWindow(pages.length, index, preload);
   const visible = settings.mode === "long_strip"
@@ -412,6 +436,10 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
 
   return (
     <div className={`reader reader--${settings.background}`} onMouseMove={show}>
+      {pages.length > 0 && (
+        <div className="reader__scrollProgress" aria-hidden="true"
+             style={{ inlineSize: `${progressPct}%` }} />
+      )}
       <div role="toolbar" aria-label={t("reader.controls")} className="reader__bar reader__bar--top"
            data-hidden={controlsVisible ? "false" : "true"}>
         <Link className="reader__button" to={workLink(work, track)} onClick={leave}>
@@ -489,7 +517,8 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
            onWheel={onWheel} onScroll={onScroll} onDoubleClick={() => (zoom > 1 ? resetZoom() : changeZoom(ZOOM_STEP * 1.6))}
            onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
            style={{ "--reader-zoom": zoom, "--reader-pan-x": `${pan.x}px`,
-                    "--reader-pan-y": `${pan.y}px` } as React.CSSProperties}>
+                    "--reader-pan-y": `${pan.y}px`,
+                    ...(settings.mode === "long_strip" ? { gap: `${settings.gap}px` } : {}) } as React.CSSProperties}>
         {pageError !== null && <>
           <p className="notice notice--problem" role="alert">{pageError === "offline" ? t("state.offline") : pageError}</p>
           <button type="button" className="button" onClick={reloadPages}>{t("reader.retry")}</button>

@@ -590,6 +590,27 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .shelfview__manage { flex: none; max-inline-size: 100%; overflow-wrap: anywhere; }
 .shelf__empty { color: var(--ink-500); }
 
+/* Batch selection mode. */
+.toolbar--batch { flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4);
+  background: var(--ivory-100); border-radius: var(--radius-md); margin-block-end: var(--space-4); }
+.toolbar__count { font-variant-numeric: tabular-nums; color: var(--ink-500); margin-inline-end: auto; }
+.chip--danger { color: var(--text-danger, #b91c1c); border-color: currentColor; }
+.shelfview__check { accent-color: var(--olive-600); cursor: pointer; }
+.shelfview__check--grid { position: absolute; inset-block-start: var(--space-2); inset-inline-start: var(--space-2); z-index: 2; }
+.shelfview__selectable { position: relative; cursor: pointer; }
+.shelfview__selectable.is-selected { outline: 2px solid var(--olive-600); outline-offset: 2px; border-radius: var(--radius-sm); }
+.shelfview__row.is-selected { background: var(--ivory-100); border-radius: var(--radius-sm); }
+
+/* Tags and notes. */
+.tags__dot { display: inline-block; inline-size: 10px; block-size: 10px; border-radius: 50%; margin-inline-end: var(--space-2); vertical-align: -1px; }
+.tags__create { display: flex; align-items: center; gap: var(--space-2); margin-block-start: var(--space-3); }
+.tags__create .field { flex: 1; }
+.notes__section { margin-block-start: var(--space-5); }
+.notes__textarea { inline-size: 100%; min-block-size: 80px; resize: vertical; font: inherit; }
+.rating__stars { display: flex; gap: 2px; margin-block: var(--space-2); }
+.rating__star { border: 0; background: transparent; cursor: pointer; padding: 2px; color: var(--ink-300); font-size: 20px; }
+.rating__star[aria-pressed="true"] { color: var(--wood-500, #c4943d); }
+
 /* Work Details: a smaller hero-like header and an index, not a table (§32.8). */
 .work__header {
   display: grid;
@@ -1004,3 +1025,15 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   .stats__barRow { grid-template-columns: 80px 1fr auto; gap: var(--space-2); }
   .stats__chart { block-size: 100px; }
 }
+
+/* Reading History (§32 addition) */
+.history__day { margin-block-end: var(--space-6); }
+.history__dayLabel { font-size: var(--text-lg); margin-block-end: var(--space-3); }
+.history__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.history__item { border-radius: var(--radius-md); background: var(--paper-raised); border: 1px solid var(--surface-border); }
+.history__link { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); text-decoration: none; color: inherit; }
+.history__link:hover { background: var(--surface-hover); border-radius: var(--radius-md); }
+.history__info { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
+.history__workTitle { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history__unitTitle { font-size: var(--text-sm); color: var(--ink-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history__time { font-size: var(--text-xs); color: var(--ink-300); }

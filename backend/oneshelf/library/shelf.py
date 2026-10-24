@@ -29,6 +29,9 @@ class ShelfEntry:
     completed_at: str | None
     releases_since_completion: int = 0
     cover_url: str | None = None          # presentation only (INV-28)
+    last_read_at: str | None = None
+    read_fraction: float = 0.0
+    total_bytes: int = 0
 
 
 class ShelfService:
@@ -39,13 +42,32 @@ class ShelfService:
     # -- queries ----------------------------------------------------------------------------------
 
     def _entry(self, row: sqlite3.Row) -> ShelfEntry:
+        wid = row["work_id"]
         releases = 0
         if row["completed_at"]:
             releases = self.conn.execute(
                 "SELECT count(*) FROM release_events WHERE work_id = ? AND detected_at > ?",
-                (row["work_id"], row["completed_at"])).fetchone()[0]
-        return ShelfEntry(row["work_id"], row["display_title"], row["added_at"], bool(row["is_favorite"]),
-                          bool(row["is_pinned"]), row["completed_at"], releases, work_cover(self.conn, row["work_id"]))
+                (wid, row["completed_at"])).fetchone()[0]
+        last_read = self.conn.execute(
+            "SELECT max(rs.updated_at) FROM reading_state rs"
+            " JOIN reading_units u ON u.id = rs.reading_unit_id"
+            " JOIN source_tracks t ON t.id = u.track_id"
+            " WHERE t.work_id = ? AND rs.read_state != 'unread'", (wid,)).fetchone()[0]
+        progress = self.conn.execute(
+            "SELECT count(CASE WHEN rs.read_state = 'read' THEN 1 END),"
+            " count(*) FROM reading_units u"
+            " JOIN source_tracks t ON t.id = u.track_id"
+            " LEFT JOIN reading_state rs ON rs.reading_unit_id = u.id"
+            " WHERE t.work_id = ?", (wid,)).fetchone()
+        read_fraction = (progress[0] / progress[1]) if progress[1] > 0 else 0.0
+        total_bytes = self.conn.execute(
+            "SELECT coalesce(sum(a.size_bytes), 0) FROM assets a"
+            " JOIN reading_units u ON u.id = a.reading_unit_id"
+            " JOIN source_tracks t ON t.id = u.track_id"
+            " WHERE t.work_id = ?", (wid,)).fetchone()[0]
+        return ShelfEntry(wid, row["display_title"], row["added_at"], bool(row["is_favorite"]),
+                          bool(row["is_pinned"]), row["completed_at"], releases, work_cover(self.conn, wid),
+                          last_read, read_fraction, total_bytes)
 
     def _row(self, work_id: str) -> sqlite3.Row | None:
         return self.conn.execute(
