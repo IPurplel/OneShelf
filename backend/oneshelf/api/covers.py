@@ -36,8 +36,9 @@ CAPABILITY_ORDER = ("work", "search", "reader", "catalog")
 
 
 def _error(status: int, code: str, message: str) -> Response:
+    cache = "private, max-age=3600" if status in (413, 415) else "no-store"
     return Response(json.dumps({"error": {"code": code, "message": message}}), status_code=status,
-                    media_type="application/json", headers={"Cache-Control": "no-store"})
+                    media_type="application/json", headers={"Cache-Control": cache})
 
 
 async def _image_response(s, source: str, package, url: str) -> Response:

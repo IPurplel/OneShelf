@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "sonner";
 
 import { App } from "@/app/App";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LiveProvider } from "@/app/live";
 import { NotificationProvider } from "@/app/notifications";
 import { ThemeProvider } from "@/app/theme";
@@ -26,6 +27,7 @@ if (container === null) throw new Error("missing #root");
 
 createRoot(container).render(
   <StrictMode>
+    <ErrorBoundary>
     <ThemeProvider>
       <I18nProvider>
         <LiveProvider>
@@ -48,5 +50,6 @@ createRoot(container).render(
         </LiveProvider>
       </I18nProvider>
     </ThemeProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );

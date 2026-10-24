@@ -16,7 +16,7 @@ export type HeroSlide = {
 };
 
 export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: slides.length > 1,
     direction: language === "ar" ? "rtl" : "ltr",
@@ -83,10 +83,10 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
           <span className="hero-carousel__counter">
             {selectedIndex + 1} / {slides.length}
           </span>
-          <button type="button" className="hero-carousel__arrow" onClick={scrollPrev} aria-label="Previous slide">
+          <button type="button" className="hero-carousel__arrow" onClick={scrollPrev} aria-label={t("hero.previousSlide")}>
             <ChevronLeft size={18} strokeWidth={2.2} aria-hidden="true" />
           </button>
-          <button type="button" className="hero-carousel__arrow" onClick={scrollNext} aria-label="Next slide">
+          <button type="button" className="hero-carousel__arrow" onClick={scrollNext} aria-label={t("hero.nextSlide")}>
             <ChevronRight size={18} strokeWidth={2.2} aria-hidden="true" />
           </button>
         </div>
