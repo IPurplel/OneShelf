@@ -10,7 +10,7 @@ import sqlite3
 from dataclasses import dataclass
 
 from oneshelf.db.connection import transaction
-from oneshelf.search.presentation import work_cover
+from oneshelf.search.presentation import work_cover, work_covers
 from oneshelf.domain.clock import utcnow_iso
 from oneshelf.search.index import search_local
 from oneshelf.storage.paths import PathSafetyError, delete_managed_file
@@ -78,6 +78,63 @@ class ShelfService:
         row = self._row(work_id)
         return self._entry(row) if row else None
 
+    def _batch_entries(self, rows: list[sqlite3.Row]) -> list[ShelfEntry]:
+        if not rows:
+            return []
+        work_ids = [r["work_id"] for r in rows]
+        ph = ",".join("?" * len(work_ids))
+
+        releases_map: dict[str, int] = {wid: 0 for wid in work_ids}
+        completed = {r["work_id"]: r["completed_at"] for r in rows if r["completed_at"]}
+        if completed:
+            c_ids = list(completed)
+            c_ph = ",".join("?" * len(c_ids))
+            for ev in self.conn.execute(
+                    f"SELECT work_id, detected_at FROM release_events WHERE work_id IN ({c_ph})",
+                    c_ids).fetchall():
+                if ev["detected_at"] > completed[ev["work_id"]]:
+                    releases_map[ev["work_id"]] = releases_map.get(ev["work_id"], 0) + 1
+
+        last_read_map: dict[str, str | None] = {wid: None for wid in work_ids}
+        for row in self.conn.execute(
+                f"SELECT t.work_id, max(rs.updated_at) AS last_read FROM reading_state rs"
+                f" JOIN reading_units u ON u.id = rs.reading_unit_id"
+                f" JOIN source_tracks t ON t.id = u.track_id"
+                f" WHERE t.work_id IN ({ph}) AND rs.read_state != 'unread'"
+                f" GROUP BY t.work_id", work_ids).fetchall():
+            last_read_map[row["work_id"]] = row["last_read"]
+
+        fraction_map: dict[str, float] = {wid: 0.0 for wid in work_ids}
+        for row in self.conn.execute(
+                f"SELECT t.work_id,"
+                f" count(CASE WHEN rs.read_state = 'read' THEN 1 END) AS read_count,"
+                f" count(*) AS total"
+                f" FROM reading_units u"
+                f" JOIN source_tracks t ON t.id = u.track_id"
+                f" LEFT JOIN reading_state rs ON rs.reading_unit_id = u.id"
+                f" WHERE t.work_id IN ({ph})"
+                f" GROUP BY t.work_id", work_ids).fetchall():
+            fraction_map[row["work_id"]] = (row["read_count"] / row["total"]) if row["total"] > 0 else 0.0
+
+        bytes_map: dict[str, int] = {wid: 0 for wid in work_ids}
+        for row in self.conn.execute(
+                f"SELECT t.work_id, coalesce(sum(a.size_bytes), 0) AS total_bytes FROM assets a"
+                f" JOIN reading_units u ON u.id = a.reading_unit_id"
+                f" JOIN source_tracks t ON t.id = u.track_id"
+                f" WHERE t.work_id IN ({ph})"
+                f" GROUP BY t.work_id", work_ids).fetchall():
+            bytes_map[row["work_id"]] = row["total_bytes"]
+
+        covers = work_covers(self.conn, work_ids)
+
+        return [ShelfEntry(
+            r["work_id"], r["display_title"], r["added_at"],
+            bool(r["is_favorite"]), bool(r["is_pinned"]), r["completed_at"],
+            releases_map.get(r["work_id"], 0), covers.get(r["work_id"]),
+            last_read_map.get(r["work_id"]), fraction_map.get(r["work_id"], 0.0),
+            bytes_map.get(r["work_id"], 0),
+        ) for r in rows]
+
     def view(self, name: str = "all") -> list[ShelfEntry]:
         if name not in VIEWS:
             raise ValueError(f"unknown shelf view {name!r}")
@@ -96,16 +153,16 @@ class ShelfService:
         rows = self.conn.execute(
             "SELECT s.*, w.display_title FROM shelf_entries s JOIN works w ON w.id = s.work_id"
             f" WHERE 1 = 1{clauses} ORDER BY s.is_pinned DESC, s.added_at DESC").fetchall()
-        return [self._entry(r) for r in rows]
+        return self._batch_entries(rows)
 
     def search(self, query: str, *, limit: int = 50) -> list[ShelfEntry]:
         """Shelf search is local only: the same index and ranking, no live source requests (§22)."""
-        entries = []
+        matched_rows = []
         for result in search_local(self.conn, query, limit=limit):
             row = self._row(result.work_id)
             if row is not None:
-                entries.append(self._entry(row))
-        return entries
+                matched_rows.append(row)
+        return self._batch_entries(matched_rows)
 
     # -- mutations --------------------------------------------------------------------------------
 
