@@ -31,13 +31,16 @@ from oneshelf.storage.safe_write import publish
 READ_ORDER = {"unread": 0, "partial": 1, "read": 2}
 
 # Restored in dependency order; storage roots are machine configuration and only added when missing.
-RESTORE_TABLES = ("storage_roots", "works", "work_aliases", "source_listings", "source_tracks", "reading_units",
+RESTORE_TABLES = ("storage_roots", "works", "tags", "collections", "work_tags", "collection_works", "work_notes",
+                  "work_aliases", "source_listings", "source_tracks", "reading_units",
                   "assets", "shelf_entries", "follows", "follow_baselines", "follow_baseline_units", "release_events",
                   "work_mappings", "user_overrides", "settings", "imports", "download_history",
                   "reading_bookmarks", "reading_highlights")
-DELETE_ORDER = ("reading_bookmarks", "reading_highlights", "reading_state", "release_events", "follow_baseline_units", "follow_baselines", "follows",
+DELETE_ORDER = ("work_notes", "work_tags", "collection_works", "reading_bookmarks", "reading_highlights",
+                "reading_state", "release_events", "follow_baseline_units", "follow_baselines", "follows",
                 "shelf_entries", "assets", "reading_units", "source_tracks", "source_listings", "work_aliases",
-                "work_mappings", "user_overrides", "settings", "imports", "download_history", "works")
+                "work_mappings", "user_overrides", "settings", "imports", "download_history", "works",
+                "tags", "collections")
 
 
 class RestoreError(RuntimeError):
@@ -197,7 +200,7 @@ class RestoreService:
     def _merge(self, staged: Path, report: RestoreReport) -> dict[str, str]:
         ids: dict[str, dict[str, str]] = {table: {} for table in
                                             ("source_listings", "source_tracks", "reading_units", "assets",
-                                             "follows", "follow_baselines")}
+                                             "follows", "follow_baselines", "tags")}
         skipped: dict[str, set[str]] = {"follows": set(), "follow_baselines": set()}
         with transaction(self.conn):
             for table in RESTORE_TABLES:
@@ -211,7 +214,11 @@ class RestoreService:
                             (row["source_id"], row["source_listing_key"])).fetchone()
                     else:
                         existing = None
-                    if table == "source_tracks":
+                    if table == "tags":
+                        existing = self.conn.execute("SELECT id FROM tags WHERE name = ?", (row["name"],)).fetchone()
+                    elif table == "work_tags":
+                        row["tag_id"] = ids["tags"].get(row["tag_id"], row["tag_id"])
+                    elif table == "source_tracks":
                         if row["listing_id"] is not None:
                             row["listing_id"] = ids["source_listings"].get(row["listing_id"], row["listing_id"])
                             listing = self.conn.execute("SELECT work_id FROM source_listings WHERE id = ?",

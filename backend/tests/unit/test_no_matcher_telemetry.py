@@ -68,6 +68,14 @@ def test_no_module_carries_a_hardcoded_endpoint():
             if match.group(0) in namespaces:
                 continue
             host = match.group(1)
+            # Reviewed native Noor reader and fixed DNS lookup, not reporting endpoints.
+            approved = {
+                "net/ech.py": {"https://dns.google/resolve?name=www.noor-book.com&type=HTTPS"},
+                "plugins/native/noorbook.py": {"https://www.noor-book.com"},
+                "plugins/package.py": {"https://www.noor-book.com"},
+            }
+            if match.group(0) in approved.get(path.relative_to(SOURCE_ROOT).as_posix(), set()):
+                continue
             if host in ("127.0.0.1", "localhost") or host.endswith(".example") or "example." in host:
                 continue
             if host.endswith(("{host}", "{authority}")) or "{" in host:

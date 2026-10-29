@@ -678,3 +678,211 @@ def test_i107_a_disabled_source_says_so_and_its_cached_pages_stay_readable(readi
 
     listed, origin, kind = run(scenario())
     assert listed == 3 and origin == "cache" and kind == "images"
+
+
+# Noor's expiring page generations must be renewed once for all concurrent pages.
+def test_concurrent_cold_reader_requests_share_one_descriptor_list(reading, monkeypatch):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            calls = 0
+            original = env.service.run
+            async def listing(*args, **kwargs):
+                nonlocal calls
+                calls += 1
+                await asyncio.sleep(0)
+                return await original(*args, **kwargs)
+            monkeypatch.setattr(env.service, "run", listing)
+            await asyncio.gather(reader.pages(unit), reader.page(unit, 1), reader.pages(unit))
+            assert calls == 1
+    run(scenario())
+
+
+def test_concurrent_and_late_expiry_share_generation_and_keep_cached_pages(reading, monkeypatch):
+    from oneshelf.plugins.runtime import AuthRequired
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            calls = 0
+            old_requests = 0
+            all_started, refreshed = asyncio.Event(), asyncio.Event()
+            async def listing(*args, **kwargs):
+                nonlocal calls
+                calls += 1
+                generation = calls
+                await asyncio.sleep(0)
+                if generation > 1:
+                    refreshed.set()
+                return ListResult("reader", [ResourceDescriptor(
+                    f"https://test.invalid/g{generation}/{i}.png", i) for i in range(1, 4)],
+                    True, Evidence())
+            async def resource(source, url, **kwargs):
+                nonlocal old_requests
+                if "/g1/" in url:
+                    old_requests += 1
+                    if old_requests == 3:
+                        all_started.set()
+                    await all_started.wait()
+                    if url.endswith("/3.png"):
+                        await refreshed.wait()
+                        await asyncio.sleep(0)
+                    raise AuthRequired()
+                return HttpResponse(url, 200, CIMultiDict(), png_bytes())
+            monkeypatch.setattr(env.service, "run", listing)
+            monkeypatch.setattr(env.service, "fetch_resource", resource)
+            await reader.pages(unit)
+            fetched = await asyncio.gather(*(reader.page(unit, i) for i in range(1, 4)))
+            assert calls == 2  # one initial list and one renewal, including the late failure
+            monkeypatch.setattr(env.service, "available", lambda source: False)
+            for i, page in enumerate(fetched, 1):
+                cached = await reader.page(unit, i)
+                assert cached.origin == "cache" and cached.data == page.data
+    run(scenario())
+
+
+@pytest.mark.parametrize("cancel_waiter", [False, True])
+def test_descriptor_gate_cancellation_releases_unit_and_waiters(reading, monkeypatch, cancel_waiter):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            entered, release = asyncio.Event(), asyncio.Event()
+            calls = 0
+            original = env.service.run
+            async def listing(*args, **kwargs):
+                nonlocal calls
+                calls += 1
+                if calls == 1:
+                    entered.set()
+                    await release.wait()
+                return await original(*args, **kwargs)
+            monkeypatch.setattr(env.service, "run", listing)
+            holder = asyncio.create_task(reader.pages(unit))
+            await entered.wait()
+            waiter = asyncio.create_task(reader.pages(unit))
+            await asyncio.sleep(0)
+            cancelled, survivor = (waiter, holder) if cancel_waiter else (holder, waiter)
+            cancelled.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await cancelled
+            release.set()
+            assert len(await survivor) == 3
+            assert not reader._descriptor_gates
+            assert calls == (1 if cancel_waiter else 2)
+    run(scenario())
+
+
+@pytest.mark.parametrize("changed_url", [False, True])
+def test_public_reader_refusal_is_bounded_and_cached_pages_survive(reading, monkeypatch, changed_url):
+    from oneshelf.plugins.runtime import PublicReaderExpired, PageTemporarilyRefused
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            calls, requests, signals = [], [], []
+            now = [1000.0]
+            monkeypatch.setattr(reader, "_refusal_clock", lambda: now[0])
+            refusing = [True]
+            async def listing(*args, **kwargs):
+                calls.append(True)
+                generation = len(calls) if changed_url else 1
+                return ListResult("reader", [ResourceDescriptor(f"https://test.invalid/g{generation}/{i}.png", i)
+                                             for i in range(1,4)], True, Evidence())
+            async def resource(source, url, **kwargs):
+                requests.append(url)
+                if refusing[0]: raise PublicReaderExpired()
+                return HttpResponse(url,200,CIMultiDict(),png_bytes())
+            monkeypatch.setattr(env.service,"run",listing)
+            monkeypatch.setattr(env.service,"fetch_resource",resource)
+            monkeypatch.setattr(env.service,"record_outcome",lambda *args: signals.append(args))
+            await reader.pages(unit)
+            with pytest.raises(PageTemporarilyRefused) as error:
+                await reader.page(unit,1)
+            assert error.value.retry_after == 120
+            assert len(calls) == 2
+            before = len(requests)
+            for i in [1,2]:
+                with pytest.raises(PageTemporarilyRefused): await reader.page(unit,i)
+            assert len(requests) == before and len(calls) == 2 and len(signals) == 1
+            current = reader._descriptors[unit][1]
+            cache.put(TS,"irr-1",current[2].url,png_bytes())
+            assert (await reader.page(unit,3)).origin == "cache"
+            now[0] += 121
+            refusing[0] = False
+            assert (await reader.page(unit,1)).origin == "online"
+            assert requests[-1] == current[0].url and len(calls) == 2
+            assert not reader._public_refusals
+    run(scenario())
+
+
+
+def test_public_refusal_cache_is_bounded_and_expires(reading, monkeypatch):
+    async def scenario():
+        async with reading() as (_, reader, _):
+            now = [1000.0]
+            monkeypatch.setattr(reader, "_refusal_clock", lambda: now[0])
+            monkeypatch.setattr(reader, "_record", lambda *args: None)
+            for i in range(300):
+                reader._remember_public_refusal({"unit_id": str(i), "source_id": TS})
+            assert len(reader._public_refusals) == 256 and "0" not in reader._public_refusals
+            now[0] += 121
+            reader._check_public_refusal("299")
+            assert not reader._public_refusals
+    run(scenario())
+
+
+def test_failed_public_renewal_does_not_fan_out_queued_browser_flows(reading, monkeypatch):
+    from oneshelf.plugins.runtime import PublicReaderExpired, PageTemporarilyRefused
+    async def scenario():
+        async with reading() as (env, reader, _):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await reader.pages(unit)
+            calls = []
+            async def listing(*args, **kwargs):
+                calls.append(True)
+                await asyncio.sleep(0)
+                raise CapabilityError("transport", "temporary connection failure")
+            async def resource(*args, **kwargs): raise PublicReaderExpired()
+            monkeypatch.setattr(env.service,"run",listing)
+            monkeypatch.setattr(env.service,"fetch_resource",resource)
+            results = await asyncio.gather(reader.page(unit,1),reader.page(unit,2),return_exceptions=True)
+            assert len(calls) == 1
+            assert any(isinstance(x,PageTemporarilyRefused) for x in results)
+            assert all(isinstance(x,CapabilityError) for x in results)
+    run(scenario())
+
+
+def test_reader_api_keeps_authenticated_failures_separate(monkeypatch):
+    from oneshelf.api import library as library_api
+    from oneshelf.plugins.runtime import AuthRequired
+    async def page(*args, **kwargs): raise AuthRequired()
+    monkeypatch.setattr(library_api,"services",lambda request: SimpleNamespace(reader=SimpleNamespace(page=page)))
+    response = run(library_api.reader_page(None,"unit",1))
+    assert response.status_code == 409
+    assert json.loads(response.body)["error"]["code"] == "SESSION_REQUIRED"
+
+
+@pytest.mark.parametrize("evicted", [False, True])
+def test_public_cooldown_prevents_expired_or_evicted_descriptor_reload(reading, monkeypatch, evicted):
+    from oneshelf.plugins.runtime import PageTemporarilyRefused
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await reader.page(unit,1)
+            held = reader._descriptors[unit]
+            reader._remember_public_refusal(reader._unit(unit))
+            if evicted: reader._descriptors.pop(unit)
+            else: reader._descriptors[unit] = (held[0]-reader_module.DESCRIPTOR_TTL_SECONDS-1, held[1])
+            calls = []
+            async def listing(*args, **kwargs):
+                calls.append(True)
+                raise CapabilityError("transport", "must not call a cooling-down source")
+            monkeypatch.setattr(env.service,"run",listing)
+            assert (await reader.page(unit,1)).origin == "cache"
+            with pytest.raises(PageTemporarilyRefused): await reader.page(unit,2)
+            assert not calls
+    run(scenario())

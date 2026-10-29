@@ -1,6 +1,7 @@
 """Source service: runs plugin capabilities through Core infrastructure and records passive health."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import sqlite3
 import time
@@ -9,7 +10,7 @@ from typing import Any
 from oneshelf.net.governor import Priority, TrafficGovernor
 from oneshelf.net.http import HttpClient, HttpResponse
 from oneshelf.net.policy import policy_for_plugin
-from oneshelf.plugins.manager import PluginManager
+from oneshelf.plugins.manager import PluginManager, PluginUnavailable
 from oneshelf.plugins.package import PluginPackage
 from oneshelf.plugins.schema import is_text_reader
 from oneshelf.plugins.results import ListResult
@@ -57,6 +58,8 @@ class SourceService:
         self.resolver_backend = resolver_backend  # injectable DNS for tests; None = system resolver
         self.browser = browser
         self._clients: dict[tuple[str, str], HttpClient] = {}
+        self._ech_clients = {}
+        self._ech_lock = asyncio.Lock()
 
     async def __aenter__(self) -> SourceService:
         return self
@@ -68,6 +71,9 @@ class SourceService:
         for client in self._clients.values():
             await client.__aexit__(None, None, None)
         self._clients.clear()
+        for client in self._ech_clients.values():
+            await client.__aexit__(None, None, None)
+        self._ech_clients.clear()
 
     def policy_for(self, package: PluginPackage):
         network = package.manifest.network
@@ -91,6 +97,25 @@ class SourceService:
                                 connect_timeout=timeouts.connect_seconds, read_timeout=timeouts.read_seconds)
             self._clients[key] = await client.__aenter__()
         return self._clients[key]
+
+    async def _native_provider(self, package, priority):
+        from oneshelf.net.ech import EchClient
+        from oneshelf.plugins.native.noorbook import NoorBookProvider
+
+        limits = package.source.rate_limit
+        self.governor.configure_source(package.id, concurrency=limits.concurrency,
+                                       requests_per_minute=limits.requests_per_minute)
+        key = (package.id, package.sha256)
+        policy = self.policy_for(package)
+        async with self._ech_lock:
+            if key not in self._ech_clients:
+                for old in [k for k in self._ech_clients if k[0] == package.id and k != key]:
+                    await self._ech_clients.pop(old).__aexit__(None, None, None)
+                client = EchClient(policy, resolver_backend=self.resolver_for(package, policy),
+                                   timeout=package.source.timeouts.read_seconds)
+                self._ech_clients[key] = await client.__aenter__()
+        return NoorBookProvider(self._ech_clients[key], self.browser, self.governor, policy, priority,
+                                resolver_backend=self.resolver_for(package, policy))
 
     async def _fetcher(self, plugin_id: str, priority: Priority) -> tuple[PluginPackage, SourceFetcher]:
         package = self.plugins.load_active(plugin_id)
@@ -154,7 +179,7 @@ class SourceService:
                 package = self.plugins.load_active(record.id)
             except Exception:
                 continue
-            if capability in package.recipes:
+            if capability in package.manifest.capabilities:
                 found.append((record.id, package.version))
         return found
 
@@ -188,21 +213,37 @@ class SourceService:
             package = self.plugins.load_active(plugin_id)
         except Exception:
             return False
-        return "reader" in package.recipes
+        return "reader" in package.manifest.capabilities
+
+    def supports_download(self, plugin_id: str) -> bool:
+        """Whether the active source supports Core's permanent download pipeline."""
+        try:
+            package = self.plugins.load_active(plugin_id)
+        except PluginUnavailable:
+            return False
+        return package.manifest.native_profile is None and bool({'downloads', 'reader'} & package.recipes.keys())
 
     def searchable_sources(self) -> list[tuple[str, str]]:
         return self.sources_with_capability("search")
 
     async def run(self, plugin_id: str, capability: str, inputs: dict[str, Any], *,
                   priority: Priority = Priority.INTERACTIVE):
-        package, fetcher = await self._fetcher(plugin_id, priority)
+        package = self.plugins.load_active(plugin_id)
+        native = None
+        if package.manifest.native_profile is not None:
+            native = await self._native_provider(package, priority)
+        else:
+            package, fetcher = await self._fetcher(plugin_id, priority)
         recipe = package.recipes.get(capability)
         if recipe is not None:
             # The core offers context (a track's language, for instance); a source that does not declare
             # an input simply does not receive it, instead of failing the call.
             inputs = {name: value for name, value in inputs.items() if name in recipe.inputs}
         try:
-            result = await RecipeRuntime(package, fetcher).run(capability, inputs)
+            if native is not None:
+                result = await native.run(capability, inputs)
+            else:
+                result = await RecipeRuntime(package, fetcher).run(capability, inputs)
         except AuthRequired:
             self._auth_failed(plugin_id)
             self._record(package, capability, "failure", "auth_failure")
@@ -229,6 +270,8 @@ class SourceService:
                                 headers: dict[str, str] | None = None, resume_from: int = 0,
                                 validator: str | None = None):
         """`fetch_resource`, with the body written to `path` instead of held in memory (I-101)."""
+        if self.plugins.load_active(plugin_id).manifest.native_profile is not None:
+            raise CapabilityError("unsupported", "This native source provides online reading, not file downloads")
         package, fetcher = await self._fetcher(plugin_id, priority)
         recipe = package.recipes.get(capability)
         auth_mode = recipe.request.auth if recipe is not None else "none"
@@ -248,6 +291,14 @@ class SourceService:
                              priority: Priority = Priority.MANUAL, max_bytes: int | None = None,
                              headers: dict[str, str] | None = None) -> HttpResponse:
         """Fetch a resource descriptor URL (images, files) with the capability's session scope."""
+        package = self.plugins.load_active(plugin_id)
+        if package.manifest.native_profile is not None:
+            native = await self._native_provider(package, priority)
+            response = await native.resource(url, capability=capability, max_bytes=max_bytes, headers=headers)
+            if response.status == 429:
+                self._record(package, capability, "failure", "rate_limit")
+                raise_for_rate_limit(response)
+            return response
         package, fetcher = await self._fetcher(plugin_id, priority)
         recipe = package.recipes.get(capability)
         auth_mode = recipe.request.auth if recipe is not None else "none"

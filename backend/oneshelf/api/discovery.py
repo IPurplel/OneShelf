@@ -222,7 +222,7 @@ def _source_problem(exc: Exception) -> str:
 async def _open_details(s, package, work_id: str, body: OpenBody) -> str:
     """What the source says about the work, kept only where the library knows nothing yet. The title, aliases
     and type are identity and matching evidence, so they are never rewritten here."""
-    if "work" not in package.recipes:
+    if "work" not in package.manifest.capabilities:
         return "unsupported"
     try:
         details = await s.source_service.run(body.source_id, "work",
@@ -245,7 +245,7 @@ async def _open_details(s, package, work_id: str, body: OpenBody) -> str:
 
 
 async def _open_catalog(s, package, track_id: str, body: OpenBody) -> tuple[str, str | None]:
-    if "catalog" not in package.recipes:
+    if "catalog" not in package.manifest.capabilities:
         return "unsupported", None
     if s.conn.execute("SELECT 1 FROM reading_units WHERE track_id = ? LIMIT 1", (track_id,)).fetchone():
         return "present", None
@@ -315,7 +315,7 @@ async def track_languages(request: Request, track_id: str):
         return error(404, "TRACK_NOT_FOUND", "Unknown source track.")
     try:
         package = s.plugins.load_active(row["source_id"])
-        if "work" not in package.recipes:
+        if "work" not in package.manifest.capabilities:
             return error(409, "UNSUPPORTED", "This source cannot list reading languages.")
         details = await s.source_service.run(row["source_id"], "work",
                                              {"listing_key": row["source_listing_key"],

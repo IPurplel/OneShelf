@@ -1,0 +1,16 @@
+# Fixture tests exercise the real static parser. Complete browser/group flow is tested in Core.
+cases:
+  - capability: work
+    inputs: {listing_key: /en/ebook-test-pdf}
+    fixtures:
+      - {url: 'https://www.noor-book.com/en/ebook-test-pdf', file: fixtures/book.html}
+    expect:
+      first: {title: White Nights, language: ar, creator: Dostoevsky}
+  - capability: catalog
+    inputs: {listing_key: /en/ebook-test-pdf}
+    fixtures:
+      - {url: 'https://www.noor-book.com/en/ebook-test-pdf', file: fixtures/book.html}
+    expect:
+      min_items: 1
+      complete: true
+      first: {unit_key: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:0', title: White Nights}

@@ -57,6 +57,18 @@ class AuthRequired(CapabilityError):
         super().__init__("auth_failure", message)
 
 
+class PublicReaderExpired(CapabilityError):
+    """A public page link was refused; this is not an account login failure."""
+    def __init__(self) -> None:
+        super().__init__("expired_link", "public reader link temporarily refused or expired")
+
+
+class PageTemporarilyRefused(CapabilityError):
+    def __init__(self, retry_after: float) -> None:
+        super().__init__("temporarily_refused", "The source temporarily refused this page. Wait a moment and try again.")
+        self.retry_after = retry_after
+
+
 class RateLimited(CapabilityError):
     def __init__(self, retry_after: float | None) -> None:
         super().__init__("rate_limit", "source rate limit reached")
@@ -592,7 +604,12 @@ async def run_packaged_tests(package: PluginPackage) -> TestReport:
     for index, case in enumerate(package.tests.cases):
         label = f"case {index} ({case.capability})"
         try:
-            result = await RecipeRuntime(package, FixtureFetcher(package, case.fixtures)).run(case.capability, dict(case.inputs))
+            fetcher = FixtureFetcher(package, case.fixtures)
+            if package.manifest.native_profile == "noorbook":
+                from oneshelf.plugins.native.noorbook import run_static
+                result = await run_static(case.capability, dict(case.inputs), fetcher)
+            else:
+                result = await RecipeRuntime(package, fetcher).run(case.capability, dict(case.inputs))
         except CapabilityError as exc:
             report.failures.append(f"{label}: {exc.category}: {exc}")
             continue

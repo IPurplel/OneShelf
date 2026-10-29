@@ -811,3 +811,11 @@ it('includes the selected work and track in every reading link', async () => {
   expect(await screen.findByRole('link', { name: /^continue$/i })).toHaveAttribute('href', '/read/u2?work=w1&track=t-en');
   expect(screen.getByRole('link', { name: /prologue/i })).toHaveAttribute('href', '/read/u1?work=w1&track=t-en');
 });
+
+
+it("keeps online-only source reading available without offering downloads", async () => {
+  mockApi([get("/api/works/w1", { ...DETAILS, tracks: DETAILS.tracks.map(track => ({ ...track, can_download: false })) })]);
+  renderWithProviders(<WorkScreen workId="w1" />);
+  expect(await screen.findByRole("link", { name: "Continue" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /download/i })).not.toBeInTheDocument();
+});

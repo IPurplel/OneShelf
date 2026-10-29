@@ -5,7 +5,10 @@ OneShelf is a private library, not a place where anyone is watched, sold to, or 
 without something below failing first.
 """
 import importlib.util
+import json
 import re
+
+import pytest
 
 from .conftest import BACKEND, code_lines, frontend_sources, python_sources
 
@@ -45,9 +48,38 @@ def test_the_interface_never_offers_one_of_these_in_either_language():
     """A surface reaches a person through its words, so the strings are guarded too (§1, §2.3)."""
     strings = (BACKEND.parent / "frontend" / "src" / "i18n" / "strings.ts").read_text(encoding="utf-8")
     # "Review" here is a person reviewing a plugin or an export before it happens — a safety step, and
-    # the opposite of a product review. What is excluded is rating, selling and broadcasting.
+    # the opposite of a product review. Social reviews, selling and broadcasting are excluded;
+    # the exact private 1-10 rating title is not a social review surface.
     forbidden = re.compile(r'"[^"]*(\bcomment\b|write a review|leave a review|user review|star rating|'
                            r'your rating|rate this|\bfollower|\bfriends\b|\bchat\b|advertisement|sponsored|'
                            r'checkout|subscribe|upgrade to|achievement|\bbadge|leaderboard|\bstreak)[^"]*"',
                            re.IGNORECASE)
-    assert [m.group(0) for m in forbidden.finditer(strings)] == []
+    pairs = re.findall(r'("(?:[^"\\]|\\.)*")\s*:\s*("(?:[^"\\]|\\.)*")', strings)
+    values = [(json.loads(key), json.loads(value)) for key, value in pairs]
+    assert [(key, value) for key, value in values
+            if (key, value) != ("rating.title", "Your Rating")
+            and forbidden.search(json.dumps(value, ensure_ascii=False))] == []
+
+
+@pytest.mark.parametrize(("key", "value", "allowed"), [
+    ("rating.title", "Your Rating", True),
+    ("social.badge", "A safe label", True),
+    ("prompt", "Rate this book", False),
+    ("prompt", "Leave a review", False),
+    ("prompt", "Write a review", False),
+    ("prompt", "Star rating", False),
+    ("prompt", "User review", False),
+    ("rating.title", "Your rating, shared with friends", False),
+    ("other.title", "Your Rating", False),
+])
+def test_interface_guard_exempts_only_the_private_rating_pair(tmp_path, monkeypatch, key, value, allowed):
+    # Exercise the actual file guard so a broad rating exemption cannot silently weaken it.
+    strings = tmp_path / "frontend" / "src" / "i18n" / "strings.ts"
+    strings.parent.mkdir(parents=True)
+    strings.write_text("export const strings = " + json.dumps({key: value}), encoding="utf-8")
+    monkeypatch.setattr(__name__ + ".BACKEND", tmp_path / "backend")
+    if allowed:
+        test_the_interface_never_offers_one_of_these_in_either_language()
+    else:
+        with pytest.raises(AssertionError):
+            test_the_interface_never_offers_one_of_these_in_either_language()

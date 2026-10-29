@@ -7,6 +7,7 @@ export class PagePreloads {
   private active: { page: number; controller: AbortController } | null = null;
   private pausedFor: number | null = null;
   private disposed = false;
+  private retryAt = 0;
 
   constructor(readonly unitId: string, private changed: () => void) {}
 
@@ -39,7 +40,7 @@ export class PagePreloads {
   }
 
   private startNext(): void {
-    if (this.disposed || this.active !== null || this.pausedFor !== null) return;
+    if (this.disposed || this.active !== null || this.pausedFor !== null || Date.now() < this.retryAt) return;
     const page = this.targets.find((candidate) => !this.blobs.has(candidate) && !this.failed.has(candidate));
     if (page === undefined) return;
     const controller = new AbortController();
@@ -52,6 +53,12 @@ export class PagePreloads {
       const response = await fetch(`/api/reader/units/${this.unitId}/pages/${page}?prefetch=1`, {
         credentials: "same-origin", signal: controller.signal,
       });
+      if (this.disposed || controller.signal.aborted) return;
+      const retryAfter = Number(response.headers.get("Retry-After"));
+      if (response.status === 503 && Number.isFinite(retryAfter) && retryAfter > 0) {
+        this.retryAt = Date.now() + retryAfter * 1000;
+        return; // later reader activity resumes prefetch; no background retry loop
+      }
       if (!response.ok) throw new Error(`page ${page}: HTTP ${response.status}`);
       const blob = await response.blob();
       if (this.disposed || controller.signal.aborted || !this.keep.has(page)) return;

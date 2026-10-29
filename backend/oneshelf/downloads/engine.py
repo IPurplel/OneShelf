@@ -203,6 +203,8 @@ class DownloadEngine:
                     if context["track_availability"] == "unavailable":
                         raise ValueError("this source edition is no longer linked")
                     package = self.plugins.load_active(context["source_id"])
+                    if not self.sources.supports_download(context["source_id"]):
+                        raise ValueError("This source provides online reading only; permanent downloads are unavailable")
                     if file_format is not None:
                         if "downloads" not in package.recipes:
                             raise ValueError("this source offers no files to choose a format from")

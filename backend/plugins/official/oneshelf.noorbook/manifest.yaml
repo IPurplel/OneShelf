@@ -1,0 +1,19 @@
+schema: oneshelf.osp/1
+id: oneshelf.noorbook
+name: "Noor Book · Books · AR/EN"
+version: 1.0.0
+api: '1.3'
+native_profile: noorbook
+description: >-
+  Open a Noor Book URL and read its public first scan inside OneShelf. Core uses a reviewed native
+  Read flow, its policy proxy and ECH transport with a fixed dns.google HTTPS-record lookup.
+  All page groups must validate before reading. Up to 1000 pages per book. Search, restricted
+  previews, alternate scans and permanent downloads are not provided by this package.
+publisher: OneShelf
+capabilities: [work, catalog, reader]
+network:
+  domains: [www.noor-book.com]
+browser:
+  capabilities: [reader]
+defaults:
+  content_type: book

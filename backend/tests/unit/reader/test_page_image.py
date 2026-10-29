@@ -161,3 +161,62 @@ def test_static_presentation_styles_and_symbol_overflow_preserve_pixels():
 def test_static_style_rejects_css_and_invalid_values(style):
     with pytest.raises(ValueError, match="unsupported SVG style"):
         normalize(svg(f'<rect style="{style}"/>'))
+
+
+@linux_worker
+@pytest.mark.parametrize(("linecap", "linejoin"), [("round", "round"), ("butt", "miter"), ("square", "bevel")])
+def test_static_stroke_styles_render_identically_to_presentation_attributes(linecap, linejoin):
+    path = 'd="M 3 15 L 10 5 L 17 15" fill="none" stroke="black" stroke-width="3"'
+    style = f'stroke-linecap:{linecap};stroke-linejoin:{linejoin};stroke-miterlimit:10'
+    styled = svg(f'<path {path} style="{style}"/>')
+    attrs = svg(f'<path {path} stroke-linecap="{linecap}" stroke-linejoin="{linejoin}" stroke-miterlimit="10"/>')
+    assert normalize(styled) == normalize(attrs)
+
+
+@linux_worker
+@pytest.mark.parametrize("style", ["stroke-linecap:url(#x)", "stroke-linecap:inherit", "stroke-linejoin:arcs",
+    "stroke-miterlimit:0", "stroke-miterlimit:NaN", "stroke-miterlimit:1e999", "stroke-miterlimit:-2",
+    "stroke-linecap:round;stroke-linecap:butt"])
+def test_stroke_style_subset_rejects_unsupported_values(style):
+    with pytest.raises(ValueError, match="unsupported SVG style"):
+        normalize(svg(f'<path d="M 1 1 L 10 10" style="{style}"/>'))
+
+
+@pytest.mark.parametrize(("value", "expected"), [("612pt",816), ("792pt",1056), ("15pt",20), ("20",20), ("20px",20)])
+def test_dimension_supports_points_as_css_pixels(value, expected):
+    from oneshelf.reader.page_image import _dimension
+    assert _dimension(value) == expected
+
+
+@pytest.mark.parametrize("value", ["50%","10em","10mm","1in","612PT","612 pt","-5pt","0pt","1e3pt","pt","",None,"9"*400+"pt"])
+def test_dimension_refuses_unsupported_and_nonfinite_sizes(value):
+    from oneshelf.reader.page_image import _dimension
+    with pytest.raises(ValueError):
+        _dimension(value)
+
+
+@linux_worker
+@pytest.mark.parametrize(("pt", "px", "viewbox", "size"), [
+    (("15pt","15pt"),("20","20"),"0 0 20 20",(40,40)),
+    (("612pt","792pt"),("816","1056"),"0 0 612 792",(1632,2112)),
+])
+def test_point_pages_match_equivalent_pixel_pages(pt, px, viewbox, size):
+    content = '<rect x="2" y="3" width="12" height="14" fill="blue"/>'
+    result = normalize(svg(content,width=pt[0],height=pt[1],viewBox=viewbox))
+    assert result == normalize(svg(content,width=px[0],height=px[1],viewBox=viewbox))
+    with Image.open(io.BytesIO(result)) as image:
+        assert image.size == size
+
+
+@linux_worker
+@pytest.mark.parametrize("size", ["13000pt","2200pt"])
+def test_point_pages_keep_output_pixel_limits(size):
+    with pytest.raises(ValueError,match="pixel limit"):
+        normalize(svg('<rect/>',width=size,height=size))
+
+
+@linux_worker
+@pytest.mark.parametrize("size", ["50%","10em"])
+def test_relative_root_dimensions_remain_unsupported(size):
+    with pytest.raises(ValueError,match="unsupported SVG dimensions"):
+        normalize(svg('<rect/>',width=size))
