@@ -26,29 +26,6 @@ async def shelf_view(request: Request, view: str = "all", q: str | None = None):
     return {"view": "search" if q else view, "entries": [_entry(e) for e in entries]}
 
 
-class ShelfBody(BaseModel):
-    favorite: bool | None = None
-    pinned: bool | None = None
-    completed: bool | None = None
-
-
-@router.post("/shelf/{work_id}")
-async def shelf_add(request: Request, work_id: str, body: ShelfBody | None = None):
-    shelf = services(request).shelf
-    try:
-        entry = shelf.add(work_id)
-    except ValueError as exc:
-        return error(404, "WORK_NOT_FOUND", str(exc))
-    body = body or ShelfBody()
-    if body.favorite is not None:
-        entry = shelf.set_favorite(work_id, body.favorite)
-    if body.pinned is not None:
-        entry = shelf.set_pinned(work_id, body.pinned)
-    if body.completed is not None:
-        entry = shelf.set_completed(work_id, body.completed)
-    return _entry(entry)
-
-
 class BatchBody(BaseModel):
     work_ids: list[str] = Field(min_length=1, max_length=200)
     action: str = Field(pattern=r"^(favorite|unfavorite|complete|uncomplete|remove)$")
@@ -74,6 +51,29 @@ async def shelf_batch(request: Request, body: BatchBody):
         except (ValueError, Exception):
             continue
     return {"action": body.action, "affected": count}
+
+
+class ShelfBody(BaseModel):
+    favorite: bool | None = None
+    pinned: bool | None = None
+    completed: bool | None = None
+
+
+@router.post("/shelf/{work_id}")
+async def shelf_add(request: Request, work_id: str, body: ShelfBody | None = None):
+    shelf = services(request).shelf
+    try:
+        entry = shelf.add(work_id)
+    except ValueError as exc:
+        return error(404, "WORK_NOT_FOUND", str(exc))
+    body = body or ShelfBody()
+    if body.favorite is not None:
+        entry = shelf.set_favorite(work_id, body.favorite)
+    if body.pinned is not None:
+        entry = shelf.set_pinned(work_id, body.pinned)
+    if body.completed is not None:
+        entry = shelf.set_completed(work_id, body.completed)
+    return _entry(entry)
 
 
 @router.get("/shelf/{work_id}/removal-summary")

@@ -13,7 +13,7 @@ def test_upgrade_backfills_last_success_from_the_signals_still_held(tmp_path):
                                     ("b", "failure", "2026-10-11T00:00:00+00:00")):
             conn.execute("INSERT INTO source_health_signals (source_id, capability, outcome, category, plugin_version,"
                          " created_at) VALUES (?, 'search', ?, NULL, '1', ?)", (source, outcome, at))
-    assert migrate(path, MIGRATIONS, snapshot_dir=tmp_path / "snapshots") == [21]
+    assert migrate(path, MIGRATIONS[:21], snapshot_dir=tmp_path / "snapshots") == [21]
     with open_database(path) as conn:
         assert last_successful_check(conn, "a") == "2026-10-10T00:00:00+00:00"   # the later failure does not erase it
         assert last_successful_check(conn, "b") is None                         # never succeeded

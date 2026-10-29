@@ -47,7 +47,8 @@ KEPT_TABLES = ("app_meta", "assets", "backup_records", "bundled_plugins", "catal
                "generator_drafts", "imports", "notifications", "plugin_versions", "plugins", "reading_bookmarks",
                "reading_highlights", "reading_state", "reading_units", "release_events", "schema_migrations",
                "settings", "shelf_entries", "snapshot_units", "source_listings", "source_tracks", "storage_roots",
-               "user_overrides", "work_aliases", "work_mappings", "works")
+               "user_overrides", "work_aliases", "work_mappings", "works", "tags", "work_tags", "collections",
+               "collection_works", "work_notes")
 COUNTED_TABLES = ("works", "source_tracks", "reading_units", "assets", "shelf_entries", "follows", "reading_state",
                   "work_mappings", "user_overrides", "settings", "reading_bookmarks", "reading_highlights")
 
