@@ -72,6 +72,7 @@ export type Notification = {
 export type NotificationsResponse = { notifications: Notification[]; needs_attention: number };
 
 export type Track = {
+  can_download?: boolean;
   id: string;
   source_id: string;
   language: string;

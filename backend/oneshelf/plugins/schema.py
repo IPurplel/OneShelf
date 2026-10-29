@@ -12,7 +12,8 @@ from oneshelf.net.domains import DomainRuleError, normalize_rule
 from oneshelf.plugins import jsonpath
 from oneshelf.plugins.transforms import TransformError, _compile, validate_pipeline
 
-API_MAJOR, API_MINOR = 1, 2
+API_MAJOR, API_MINOR = 1, 3
+NATIVE_PROFILE_API = (1, 3)
 # Features and the plugin API that introduced them; a package using one must declare at least that API.
 TEXT_UNITS_API = (1, 2)
 MAX_SELECTOR = 512
@@ -95,6 +96,7 @@ class Manifest(Strict):
     publisher: str | None = Field(default=None, max_length=120)
     capabilities: list[Capability] = Field(min_length=1)
     network: Network
+    native_profile: Literal["noorbook"] | None = None
     browser: Browser = Field(default_factory=Browser)
     auth: Auth | None = None
     defaults: Defaults = Field(default_factory=Defaults)

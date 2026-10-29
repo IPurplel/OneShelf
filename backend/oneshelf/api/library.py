@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 from dataclasses import asdict
 from pathlib import Path
 from typing import Literal
@@ -19,11 +20,17 @@ from oneshelf.net.governor import Priority
 from oneshelf.api.sources import error, services
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.plugins.manager import PluginUnavailable
-from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited
+from oneshelf.plugins.runtime import AuthRequired, CapabilityError, PageTemporarilyRefused, RateLimited
 from oneshelf.reader.alternatives import alternatives
 from oneshelf.reader.service import DownloadRequired, MarkOperationConflict, SourceUnavailable, StaleProgress
 
 router = APIRouter(prefix="/api")
+
+
+def _temporary_reader_error(exc: PageTemporarilyRefused) -> JSONResponse:
+    return JSONResponse({"error": {"code": "SOURCE_TEMPORARILY_UNAVAILABLE", "message": str(exc)}},
+                        status_code=503, headers={"Retry-After": str(max(1, math.ceil(exc.retry_after))),
+                                                  "Cache-Control": "no-store"})
 
 # Reader content is served sandboxed and never inline in the application origin (Master §27).
 CONTENT_HEADERS = {
@@ -355,6 +362,8 @@ async def reader_pages(request: Request, unit_id: str):
         return error(409, "SESSION_REQUIRED", "This source needs a connected account.")
     except RateLimited as exc:
         return error(429, "RATE_LIMITED", f"The source is rate limited (retry after {exc.retry_after}s).")
+    except PageTemporarilyRefused as exc:
+        return _temporary_reader_error(exc)
     except CapabilityError as exc:
         return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
     return {"reading_unit_id": unit_id, "pages": [asdict(p) for p in pages]}
@@ -393,6 +402,8 @@ async def reader_page(request: Request, unit_id: str, index: int, prefetch: bool
         return error(409, "SESSION_REQUIRED", "This source needs a connected account.")
     except RateLimited as exc:
         return error(429, "RATE_LIMITED", f"The source is rate limited (retry after {exc.retry_after}s).")
+    except PageTemporarilyRefused as exc:
+        return _temporary_reader_error(exc)
     except CapabilityError as exc:
         return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
     return Response(page.data, media_type="application/octet-stream",
@@ -453,6 +464,8 @@ async def reader_text(request: Request, unit_id: str):
         return error(409, "SESSION_REQUIRED", "This source needs a connected account.")
     except RateLimited as exc:
         return error(429, "RATE_LIMITED", f"The source is rate limited (retry after {exc.retry_after}s).")
+    except PageTemporarilyRefused as exc:
+        return _temporary_reader_error(exc)
     except CapabilityError as exc:
         return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
     body = {"reading_unit_id": unit_id, "origin": origin, "title": unit.title, "language": unit.language,

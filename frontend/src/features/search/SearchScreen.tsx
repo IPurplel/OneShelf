@@ -22,6 +22,7 @@ export function SearchScreen() {
   const { t, language } = useI18n();
   const [params, setParams] = useSearchParams();
   const submitted = (params.get("q") ?? "").trim();
+  const isLink = /^https?:\/\//i.test(submitted);
   const categories = params.getAll("category");
   const languages = params.getAll("language");
   const categoryKey = categories.join("\u0000");
@@ -30,6 +31,7 @@ export function SearchScreen() {
   const [layout, setLayout] = useState<"grid" | "list">("grid");
   const [attempt, setAttempt] = useState(0);
   const [streamFailed, setStreamFailed] = useState(false);
+  const [linkProblem, setLinkProblem] = useState<string | null>(null);
   useEffect(() => setQuery(submitted), [submitted]);
   const [update, setUpdate] = useState<SearchUpdate | null>(null);
   const [retryProblem, setRetryProblem] = useState<string | null>(null);
@@ -49,9 +51,23 @@ export function SearchScreen() {
     if (!retainResults.current) setUpdate(null);
     retainResults.current = false;
     setStreamFailed(false);
+    setLinkProblem(null);
     setRetryProblem(null);
     setRetrying(null);
     if (submitted === "") return;
+    if (isLink) {
+      void api.post<{ result: SearchUpdate["results"][number] }>("/api/resolve-url", { url: submitted })
+        .then(({ result }) => {
+          if (generation.current !== current) return;
+          setUpdate({ stage: "complete", results: [result], source_status: {},
+            sources_total: 1, sources_done: 1, sources_failed: 0 });
+        })
+        .catch((error: unknown) => {
+          if (generation.current !== current) return;
+          setLinkProblem(error instanceof ApiError ? error.message : t("state.offline"));
+        });
+      return () => { generation.current++; };
+    }
     const searchParams = new URLSearchParams({ q: submitted });
     for (const category of categories) searchParams.append("category", category);
     for (const language of languages) searchParams.append("language", language);
@@ -71,7 +87,7 @@ export function SearchScreen() {
     }
     return () => { generation.current++; close(); };
   // Keys change only when scope values change; URLSearchParams is a new object on render.
-  }, [submitted, categoryKey, languageKey, attempt, close]);
+  }, [submitted, isLink, categoryKey, languageKey, attempt, close, t]);
 
   const removeScope = (kind: "category" | "language", value: string) => {
     const next = new URLSearchParams(params);
@@ -155,17 +171,17 @@ export function SearchScreen() {
 
       {submitted === "" && <p className="screen__subtitle">{t("search.intro")}</p>}
 
-      {submitted !== "" && update === null && !streamFailed && <p role="status">{t("state.loading")}</p>}
-      {streamFailed && (
+      {submitted !== "" && update === null && !streamFailed && !linkProblem && <p role="status">{t("state.loading")}</p>}
+      {(streamFailed || linkProblem) && (
         <div className="notice notice--problem">
-          <p role="alert">{t("search.connectionFailed")}</p>
+          <p role="alert">{linkProblem ?? t("search.connectionFailed")}</p>
           <button className="button" type="button" onClick={() => { retainResults.current = true; setAttempt(value => value + 1); }}>
             {t("reader.retry")}
           </button>
         </div>
       )}
 
-      {update !== null && !streamFailed && update.sources_total > 0 && (
+      {update !== null && !streamFailed && !isLink && update.sources_total > 0 && (
         <p className="search__status" role="status">
           {(categories.length > 0 || languages.length > 0) && <>{update.sources_available === undefined
             ? t("search.scopeActive", { count: update.sources_total })
@@ -175,7 +191,7 @@ export function SearchScreen() {
             : t("search.progress", { done: update.sources_done, total: update.sources_total })}
         </p>
       )}
-      {update !== null && !streamFailed && update.sources_total === 0 && (
+      {update !== null && !streamFailed && !isLink && update.sources_total === 0 && (
         <p className="search__status" role="status">{update.sources_available !== undefined && update.sources_available > 0
           && (categories.length > 0 || languages.length > 0)
           ? t("search.noScopeSources")

@@ -104,6 +104,9 @@ async def work_details(request: Request, work_id: str, track_id: str | None = No
         return error(404, "WORK_NOT_FOUND", "This work is not in your library.")
 
     tracks = _tracks(conn, work_id)
+    for track in tracks:
+        track["can_download"] = (track["kind"] == "source" and track["availability"] != "unavailable"
+                                 and services(request).source_service.supports_download(track["source_id"]))
     selected = next((t for t in tracks if t["id"] == track_id), None)
     if selected is None:
         follow_row = conn.execute("SELECT track_id FROM follows WHERE work_id = ?", (work_id,)).fetchone()

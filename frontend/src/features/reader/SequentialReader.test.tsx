@@ -471,6 +471,28 @@ describe("Sequential Reader", () => {
     fireEvent.scroll(stage);
   }
 
+  it("keeps the resumed page anchored when loaded images shrink the estimated strip height", async () => {
+    longStub({ ...PROGRESS, locator: { page: 30 }, revision: 2 });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findByRole("img", { name: "Page 30" });
+    const stage = screen.getByTestId("reader-stage");
+    stage.scrollTop = 34800; // 29 pages at the initial 1200px estimate
+    Object.defineProperty(stage, "getBoundingClientRect", { value: () => ({ top: 0 }) });
+    Object.defineProperty(stage, "scrollTo", { value: ({ top }: ScrollToOptions) => { stage.scrollTop = top ?? 0; } });
+    for (const frame of stage.querySelectorAll<HTMLElement>("[data-page-slot]")) {
+      Object.defineProperty(frame, "getBoundingClientRect", { value: () => {
+        const height = Number.parseFloat(frame.style.minBlockSize);
+        const top = Number(frame.dataset.pageSlot) * height - stage.scrollTop;
+        return { top, bottom: top + height, height };
+      } });
+    }
+    const image = screen.getByRole("img", { name: "Page 30" });
+    Object.defineProperty(image, "getBoundingClientRect", { value: () => ({ height: 500 }) });
+    fireEvent.load(image);
+    expect(image.parentElement!.getBoundingClientRect().top).toBe(0);
+    expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("30 / 60");
+  });
+
   it("holds only a bounded window of a long chapter, not the whole of it", async () => {
     longStub();
     renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
@@ -897,4 +919,39 @@ describe("Sequential Reader", () => {
     expect(shown).toHaveLength(1);
     expect(shown[0]).toHaveTextContent("Special");          // the one unit Follow recorded as new
   });
+});
+
+
+it("does not offer or trigger permanent downloads for an online-only track", async () => {
+  const calls=mockApi([
+    get("/api/works/w1", { ...WORK, tracks: WORK.tracks.map(track => ({ ...track, can_download: false })) }),
+    get("/api/reader/units/u2/pages", PAGES), get("/api/reader/units/u2/progress", PROGRESS),
+    get("/api/reader/settings", READER_SETTINGS), post("/api/downloads", {}),
+  ]);
+  renderWithProviders(<ReaderScreen unitId="u2" workId="w1" trackId="t1" />);
+  await screen.findByRole("toolbar", { name: /reading controls/i });
+  fireEvent.keyDown(window, { key: "d" });
+  fireEvent.click(screen.getByRole("button", { name: "More" }));
+  expect(screen.queryByRole("button", { name: /download the whole work/i })).not.toBeInTheDocument();
+  expect(calls.filter(call => call.url === "/api/downloads")).toEqual([]);
+  fireEvent.keyDown(window, { key: "Escape" });
+  fireEvent.error((await screen.findAllByRole("img", { name: /page \d/i }))[0]!);
+  const failure = screen.getByRole("group", { name: /could not be loaded/i });
+  expect(within(failure).queryByRole("button", { name: /repair from the source/i })).not.toBeInTheDocument();
+  expect(within(failure).getByRole("button", { name: /try again/i })).toBeEnabled();
+});
+
+
+it("waits for the selected track's capabilities before enabling the download shortcut", async () => {
+  const calls=stub([post("/api/downloads", {})]);
+  const fetch=globalThis.fetch;
+  let release!: (response: Response) => void;
+  vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
+    String(input).startsWith("/api/works/w1") ? new Promise<Response>(resolve => { release=resolve; }) : fetch(input,init)));
+  renderWithProviders(<ReaderScreen unitId="u2" workId="w1" trackId="t1" />);
+  fireEvent.keyDown(window, { key: "d" });
+  expect(calls.filter(call => call.url === "/api/downloads")).toEqual([]);
+  await act(async () => release(Response.json({ ...WORK, tracks: WORK.tracks.map(track => ({ ...track, can_download: false })) })));
+  fireEvent.keyDown(window, { key: "d" });
+  expect(calls.filter(call => call.url === "/api/downloads")).toEqual([]);
 });

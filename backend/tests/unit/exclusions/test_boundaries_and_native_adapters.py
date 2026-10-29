@@ -10,7 +10,7 @@ from .conftest import BACKEND, code_lines, python_sources
 
 # The §41 suite, by name. None of these may appear in the generic machinery.
 SOURCE_NAMES = re.compile(r"\b(mangadex|3asq|aasheq|webtoon|tapas|safahat|hindawi|gutenberg|arxiv|"
-                          r"standardebooks|standard_ebooks)\b", re.IGNORECASE)
+                          r"standardebooks|standard_ebooks|noorbook)\b", re.IGNORECASE)
 GENERIC = ("downloads", "storage", "db", "reader", "library", "follow", "backup", "export")
 WASM_PACKAGES = ["wasmtime", "wasmer", "pywasm", "wasm3"]
 
@@ -33,10 +33,10 @@ def test_the_schema_never_names_a_source_either():
     assert offenders == []
 
 
-def test_there_are_no_native_adapters_by_default():
+def test_only_the_reviewed_native_exception_is_present():
     """§9.6: a native adapter is a rare reviewed exception, so the default state is none at all."""
     native = BACKEND / "oneshelf" / "plugins" / "native"
-    assert not native.exists() or [p for p in native.rglob("*.py") if p.name != "__init__.py"] == []
+    assert sorted(p.name for p in native.rglob("*.py") if p.name != "__init__.py") == ["noorbook.py"]
     offenders = [f"{path.relative_to(BACKEND)}:{number}: {line.strip()}"
                  for path, number, line in code_lines(python_sources())
                  if re.search(r"\bnative_adapter|NativeAdapter|load_native\b", line)]

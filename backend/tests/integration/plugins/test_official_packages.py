@@ -17,7 +17,7 @@ PACKAGES = sorted(p.name for p in official_packages())
 
 def test_the_expected_adapters_ship():
     assert PACKAGES == ["oneshelf.3asq", "oneshelf.arxiv", "oneshelf.gutenberg", "oneshelf.hindawi",
-                        "oneshelf.mangadex", "oneshelf.standard-ebooks", "oneshelf.tapas", "oneshelf.webtoon"]
+                        "oneshelf.mangadex", "oneshelf.noorbook", "oneshelf.standard-ebooks", "oneshelf.tapas", "oneshelf.webtoon"]
 
 
 @pytest.mark.parametrize("name", PACKAGES)
@@ -35,7 +35,14 @@ def test_an_official_adapter_declares_what_it_can_and_cannot_do(name, tmp_path):
     source = next(p for p in official_packages() if p.name == name)
     package = load_package(build_package(source, tmp_path / f"{name}.osp"))
     declared = set(package.manifest.capabilities)
-    assert declared == set(package.recipes), f"{name}: manifest and recipes disagree"
+    if package.manifest.native_profile is not None:
+        # The installer runs metadata fixtures offline; the fixed browser reader is exercised with
+        # real Core Chromium in test_noorbook_flow.py, including a failed final group.
+        assert package.id == "oneshelf.noorbook" and declared == {"work", "catalog", "reader"}
+        assert not package.recipes
+        declared = declared - {"reader"}
+    else:
+        assert declared == set(package.recipes), f"{name}: manifest and recipes disagree"
     exercised = {case.capability for case in package.tests.cases}
     assert declared - {"health", "check_session"} <= exercised, \
         f"{name}: declared but never exercised: {sorted(declared - exercised)}"

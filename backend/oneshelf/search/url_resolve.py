@@ -80,7 +80,7 @@ class UrlResolver:
     async def preview(self, url: str) -> UrlPreview:
         resolved = resolve_url(self.plugins, url)
         details: WorkDetails | None = None
-        if "work" in resolved.package.recipes:
+        if "work" in resolved.package.manifest.capabilities:
             details = await self.sources.run(resolved.plugin_id, "work", {"listing_key": resolved.identifier},
                                              priority=Priority.INTERACTIVE)
         listing = classify_listing(LiveListing(

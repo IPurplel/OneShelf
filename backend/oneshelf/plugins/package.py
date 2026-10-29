@@ -19,7 +19,7 @@ from pydantic import ValidationError
 from oneshelf.integrity.validators import _unsafe_entry_name
 from oneshelf.net.domains import host_allowed
 from oneshelf.plugins.schema import (
-    FIELDS, LIST_CAPABILITIES, TEXT_UNITS_API, Manifest, Recipe, SourceConfig, TestSuite, is_text_reader,
+    FIELDS, LIST_CAPABILITIES, TEXT_UNITS_API, NATIVE_PROFILE_API, Manifest, Recipe, SourceConfig, TestSuite, is_text_reader,
 )
 from oneshelf.plugins.templates import TemplateError, placeholders, validate_url_template
 from oneshelf.plugins.yamlsafe import YamlError, load_yaml
@@ -125,6 +125,8 @@ def _derive_permissions(manifest: Manifest) -> frozenset[str]:
     if manifest.auth:
         perms |= {f"session:required:{c}" for c in manifest.auth.required_for}
         perms |= {f"session:optional:{c}" for c in manifest.auth.optional_for}
+    if manifest.native_profile is not None:
+        perms |= {"native:noorbook", "network:resolver:dns.google"}
     return frozenset(perms)
 
 
@@ -172,7 +174,22 @@ def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str,
     declared = set(manifest.capabilities)
     if not _url_allowed(source.base_url, manifest, include_cdn=False):
         raise PackageError("source.yaml: base_url must use https (or declared http) on an allowlisted domain")
-    missing = declared - set(recipes)
+    native_caps = set()
+    if manifest.native_profile is not None:
+        if not _api_at_least(manifest.api, NATIVE_PROFILE_API):
+            raise PackageError("native_profile needs api '1.3'")
+        if (manifest.id != "oneshelf.noorbook" or manifest.network.domains != ["www.noor-book.com"]
+                or manifest.network.cdn_domains or manifest.network.allow_http or manifest.auth is not None
+                or source.base_url != "https://www.noor-book.com"):
+            raise PackageError("native_profile must retain the reviewed Noor identity and network contract")
+        native_caps = {"work", "catalog", "reader"}
+        if declared != native_caps or set(manifest.browser.capabilities) != {"reader"} or recipes:
+            raise PackageError("native_profile requires work/catalog/reader, browser reader, and no recipes")
+        if source.rate_limit.concurrency < 2:
+            raise PackageError("native_profile needs a source slot for browser child requests")
+        if any(case.capability not in {"work", "catalog"} for case in tests.cases):
+            raise PackageError("native packaged fixtures cover work/catalog; browser flow is tested in Core")
+    missing = declared - set(recipes) - native_caps
     if missing:
         raise PackageError(f"declared capabilities without a recipe: {sorted(missing)}")
     browser_caps = set(manifest.browser.capabilities)

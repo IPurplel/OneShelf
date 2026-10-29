@@ -43,7 +43,7 @@ const COMPLETE = {
   sources_done: 1, sources_failed: 1,
 };
 
-beforeEach(() => vi.stubGlobal("EventSource", FakeEventSource));
+beforeEach(() => { FakeEventSource.last = null; vi.stubGlobal("EventSource", FakeEventSource); });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("Search", () => {
@@ -314,5 +314,44 @@ describe("Search navigation and transport failures", () => {
     const first = FakeEventSource.last;
     await user.type(box, "{Enter}");
     expect(FakeEventSource.last).not.toBe(first);
+  });
+});
+
+
+describe("Source links in Search", () => {
+  const url = "https://www.noor-book.com/en/ebook-white-nights-pdf";
+  it("previews a pasted link without sending it to text search", async () => {
+    const post = vi.spyOn(api, "post").mockResolvedValue({ result: LOCAL.results[0] });
+    const user = userEvent.setup();
+    renderWithProviders(<SearchScreen />);
+    await user.type(screen.getByRole("searchbox"), `${url}{Enter}`);
+    expect(await screen.findByText("The Irregular Chronicle")).toBeInTheDocument();
+    expect(post).toHaveBeenCalledWith("/api/resolve-url", { url });
+    expect(FakeEventSource.last).toBeNull();
+    expect(screen.queryByText(/sources answered/i)).not.toBeInTheDocument();
+  });
+
+  it("shows a link failure and can retry the same link", async () => {
+    const post = vi.spyOn(api, "post")
+      .mockRejectedValueOnce(new ApiError(422, "UNSUPPORTED_URL", "Enable the matching source first."))
+      .mockResolvedValueOnce({ result: LOCAL.results[0] });
+    renderWithProviders(<SearchScreen />, { route: `/search?q=${encodeURIComponent(url)}` });
+    expect(await screen.findByRole("alert")).toHaveTextContent("Enable the matching source first.");
+    expect(screen.queryByText(/nothing matched/i)).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: /try again/i }));
+    expect(await screen.findByText("The Irregular Chronicle")).toBeInTheDocument();
+    expect(post).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores a late link preview after submitting a text query", async () => {
+    let resolve!: (value: unknown) => void;
+    vi.spyOn(api, "post").mockReturnValue(new Promise(done => { resolve = done; }));
+    renderWithProviders(<SearchScreen />, { route: `/search?q=${encodeURIComponent(url)}` });
+    const user = userEvent.setup();
+    await user.clear(screen.getByRole("searchbox"));
+    await user.type(screen.getByRole("searchbox"), "moon{Enter}");
+    expect(FakeEventSource.last!.url).toContain("q=moon");
+    await act(async () => resolve({ result: LOCAL.results[0] }));
+    expect(screen.queryByText("The Irregular Chronicle")).not.toBeInTheDocument();
   });
 });
