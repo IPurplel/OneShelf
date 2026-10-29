@@ -6,8 +6,21 @@ cases:
     file: fixtures/search.xml
   expect:
     min_items: 1
-    fields_present: [listing_key, title, creator]
-    first: {listing_key: mary-shelley/frankenstein, title: Frankenstein}
+    fields_present: [listing_key, title, creator, language]
+    first: {listing_key: mary-shelley/frankenstein, title: Frankenstein, language: en-GB}
+# An OPDS query can have more than one page; follow the feed-level next link and include both pages.
+- capability: search
+  inputs: {query: love}
+  fixtures:
+  - url: https://standardebooks.org/feeds/opds/all?query=love
+    file: fixtures/search-paged-1.xml
+  - url: https://standardebooks.org/feeds/opds/all?query=love&page=2&per-page=12
+    file: fixtures/search-paged-2.xml
+  expect:
+    min_items: 2
+    complete: true
+    fields_present: [listing_key, title, language]
+    first: {listing_key: james-branch-cabell/the-line-of-love, language: en-US}
 # The key's book comes first in the feed.
 - capability: work
   inputs: {listing_key: arthur-conan-doyle/the-adventures-of-sherlock-holmes}
@@ -15,8 +28,9 @@ cases:
   - url: https://standardebooks.org/feeds/opds/all?query=arthur-conan-doyle%2Fthe-adventures-of-sherlock-holmes
     file: fixtures/sherlock.xml
   expect:
-    fields_present: [title, creator, description, cover_url]
+    fields_present: [title, creator, description, cover_url, language]
     first: {title: The Adventures of Sherlock Holmes, creator: Arthur Conan Doyle,
+            language: en-GB,
             cover_url: 'https://standardebooks.org/ebooks/arthur-conan-doyle/the-adventures-of-sherlock-holmes/downloads/cover.jpg'}
 # The key's book comes last, after three other books the query also matched: still only that book.
 - capability: work

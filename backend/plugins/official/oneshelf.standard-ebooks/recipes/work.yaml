@@ -14,6 +14,7 @@ extract:
   fields:
     title: {xpath: "//entry[translate(substring-after(id,'/ebooks/'),'/','2')=translate(substring-before(substring-after(//feed/id,'query='),'&'),'%F','')]/title/text()", transforms: [trim], required: true}
     creator: {xpath: "//entry[translate(substring-after(id,'/ebooks/'),'/','2')=translate(substring-before(substring-after(//feed/id,'query='),'&'),'%F','')]/author/name/text()", transforms: [trim]}
+    language: {xpath: "//entry[translate(substring-after(id,'/ebooks/'),'/','2')=translate(substring-before(substring-after(//feed/id,'query='),'&'),'%F','')]/*[name()='dc:language']/text()", transforms: [trim]}
     description: {xpath: "//entry[translate(substring-after(id,'/ebooks/'),'/','2')=translate(substring-before(substring-after(//feed/id,'query='),'&'),'%F','')]/summary/text()", transforms: [trim]}
     cover_url: {xpath: "//entry[translate(substring-after(id,'/ebooks/'),'/','2')=translate(substring-before(substring-after(//feed/id,'query='),'&'),'%F','')]/link[@rel='http://opds-spec.org/image']/@href"}
     content_type: {template: "book"}
