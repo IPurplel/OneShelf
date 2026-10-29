@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <id>https://standardebooks.org/feeds/opds/all?query=love&amp;page=1&amp;per-page=12</id>
+  <link rel="next" href="https://standardebooks.org/feeds/opds/all?query=love&amp;page=2&amp;per-page=12"/>
+  <entry>
+    <id>https://standardebooks.org/ebooks/james-branch-cabell/the-line-of-love</id>
+    <title>The Line of Love</title>
+    <author><name>James Branch Cabell</name></author>
+    <dc:language>en-US</dc:language>
+  </entry>
+</feed>

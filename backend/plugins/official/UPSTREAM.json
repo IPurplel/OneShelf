@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/IPurplel/OneShelf-Adapters",
-  "commit": "8955ff72b53800cd50cd85746b126f3fd4416666",
+  "commit": "282423555cd35b75f0f2f3ca2ca8d2c1d41c50c9",
   "source_path": "adapters/official",
   "bundled": [
     "oneshelf.3asq",
@@ -8,6 +8,7 @@
     "oneshelf.gutenberg",
     "oneshelf.hindawi",
     "oneshelf.mangadex",
+    "oneshelf.noorbook",
     "oneshelf.standard-ebooks",
     "oneshelf.tapas",
     "oneshelf.webtoon"

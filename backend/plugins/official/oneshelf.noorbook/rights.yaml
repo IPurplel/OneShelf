@@ -1,0 +1,28 @@
+schema: oneshelf.rights/1
+access_scope: per_item
+access_type: free_to_read
+rights_granularity: item
+license: {id: null, url: null}
+commercial_use: unknown
+redistribution: unknown
+derivatives: unknown
+attribution:
+  required: true
+  text: "Noor Book and the author/translator named on the source book page; attribution is a conservative default, not a legal finding."
+visibility: all_listed_items
+local_copy: reader_cache_only
+enforcement:
+  summary: >-
+    Only the reviewed Core API1.3 native Noor profile opens the public Read flow for the first scan
+    of a book supplied by URL. Restricted previews and unavailable reading flows fail explicitly.
+    Core rejects permanent downloads and does not create a CBZ or export for this profile. Page images
+    and descriptors are stored on disk in the app-managed Reader Cache and can survive restarts and
+    remain readable offline. The cache has age and size limits; expiry is checked on access and LRU
+    eviction occurs under size pressure, so this does not promise deletion on a fixed schedule.
+    The cache is local storage, not a copying licence. A grant for redistribution, derivative works
+    or commercial use was not found in the observed book page. No terms page was reviewed.
+  exclusion_tests: []
+evidence:
+  - claim: "Public Read was observed for this first-scan book in local Core Chromium; observed access, not a legal determination or a licence grant."
+    url: https://www.noor-book.com/en/ebook-الليالي-البيضاء-دوستويفسكي-pdf
+last_verified: 2026-10-29
