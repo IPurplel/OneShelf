@@ -33,7 +33,8 @@ if [ "$DELETE_DATA" -eq 1 ]; then
 fi
 
 step "Stopping OneShelf"
-compose_cmd down || die "could not stop the deployment; no data was deleted"
+# With the lan profile, so the local-network proxy goes too, whether or not it is still switched on.
+ONESHELF_LAN_PROXY_ACTIVE=1 compose_cmd down || die "could not stop the deployment; no data was deleted"
 ok "containers stopped and removed"
 
 if [ "$DELETE_DATA" -eq 0 ]; then

@@ -8,8 +8,8 @@ import { DownloadToRead, type DownloadState } from "./DownloadToRead";
 import { ReaderScreen } from "./ReaderScreen";
 import { workLink } from "./links";
 
-type UnitContext = { work_id: string; track_id: string; formats: string[]; kind?: "images" | "text" | "download";
-                     download?: DownloadState };
+type UnitContext = { work_id: string; track_id: string; formats: string[];
+                     kind?: "images" | "text" | "download" | "external"; download?: DownloadState; url?: string | null };
 
 /** Resolve old unit-only links as well as explicit work/track links before selecting a reader. */
 export function ReadRoute() {
@@ -25,6 +25,8 @@ function ResolveUnit({ unitId, workId, trackId }: { unitId: string; workId: stri
   if (error !== null) return <Unavailable message={error} back={workLink(workId ?? "", trackId)} retry={reload} />;
   // A reload keeps what is shown (a download finishing, say) instead of blanking the reader.
   if (data === null) return <p className="screen__subtitle">{t("state.loading")}</p>;
+  // The source lists this book but lets OneShelf neither show nor download it: its own page is the offer.
+  if (data.kind === "external") return <ExternalOnly url={data.url ?? null} back={workLink(workId ?? data.work_id, trackId ?? data.track_id)} />;
   const download = data.kind === "download" ? data.download ?? { state: null, error: null } : null;
   return <OpenUnit unitId={unitId} workId={workId ?? data.work_id} trackId={trackId ?? data.track_id} formats={data.formats}
                    text={data.kind === "text"} download={download} onChange={reload} />;
@@ -63,6 +65,18 @@ function OpenUnit({ unitId, workId, trackId, formats, text, download, onChange }
     return <DownloadToRead unitId={unitId} workId={workId} trackId={trackId} download={download} onChange={onChange} />;
   }
   return <ReaderScreen unitId={unitId} workId={workId} trackId={trackId} />;
+}
+function ExternalOnly({ url, back }: { url: string | null; back: string }) {
+  const { t } = useI18n();
+  return <section className="screen">
+    <h1 className="screen__title">{t("reader.external.title")}</h1>
+    <p className="screen__subtitle">{t("reader.external.body")}</p>
+    <div className="firstrun__actions">
+      {url && <a className="button button--primary" href={url} target="_blank" rel="noopener noreferrer">
+        {t("reader.external.open")}</a>}
+      <Link className="button" to={back}>{t("reader.backToWork")}</Link>
+    </div>
+  </section>;
 }
 function Unavailable({ message, back, retry }: { message: string; back: string; retry: () => void }) {
   const { t } = useI18n();

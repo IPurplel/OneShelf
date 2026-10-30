@@ -157,6 +157,44 @@ def test_hero_falls_back_to_cached_discovery_without_network(db, cache):
     assert len(sources.calls) == calls_before
 
 
+def test_a_failing_feed_is_not_asked_again_on_every_home_visit(db, cache):
+    """A feed that failed used to be re-fetched, one source after another, each time Home opened."""
+    now = [1000.0]
+    sources = FakeSources(capabilities={"broken": {"latest"}, "s": {"latest"}},
+                          responses={("s", "latest"): trending_result("Fresh Chapter")})
+    home = HomeService(db, sources, cache, clock=lambda: now[0])
+    assert [r.title for r in asyncio.run(home.sections()).latest] == ["Fresh Chapter"]
+    assert asyncio.run(home.sections()).latest[0].title == "Fresh Chapter"
+    assert sources.calls.count(("broken", "latest")) == 1          # the second visit did not ask again
+    now[0] += 301
+    asyncio.run(home.sections())
+    assert sources.calls.count(("broken", "latest")) == 2          # after the pause it is tried again
+
+
+def test_a_slow_feed_does_not_hold_home_back_and_fills_the_cache_for_next_time(db, cache):
+    class SlowSources(FakeSources):
+        async def run(self, plugin_id, capability, inputs, *, priority=None):
+            if plugin_id == "slow":
+                await asyncio.sleep(0.3)
+            return await super().run(plugin_id, capability, inputs, priority=priority)
+
+    sources = SlowSources(capabilities={"slow": {"latest"}, "s": {"latest"}},
+                          responses={("s", "latest"): trending_result("Quick"),
+                                     ("slow", "latest"): trending_result("Eventually")})
+
+    async def visits():
+        home = HomeService(db, sources, cache, feed_wait_seconds=0.05)
+        first = await home.sections()
+        await asyncio.sleep(0.4)                        # the slow source finishes in the background
+        second = await home.sections()
+        return first, second
+
+    first, second = asyncio.run(visits())
+    assert [r.title for r in first.latest] == ["Quick"]
+    assert {r.title for r in second.latest} == {"Quick", "Eventually"}
+    assert sources.calls.count(("slow", "latest")) == 1     # one fetch, kept, not repeated
+
+
 def test_home_sections_are_empty_without_fabricated_data(db, cache):
     sections = asyncio.run(HomeService(db, FakeSources(), cache).sections())
     assert sections.trending == [] and sections.latest == [] and sections.recently_added == []

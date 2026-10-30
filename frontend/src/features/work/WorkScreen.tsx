@@ -18,6 +18,7 @@ import { RemoveFromShelf } from "@/features/shelf/RemoveFromShelf";
 import type { RemovalSummary } from "@/features/shelf/RemoveFromShelf";
 import { readerLink } from "@/features/reader/links";
 import { bytes } from "@/lib/format";
+import { typeLabel } from "@/lib/contentType";
 import { WorkNotes } from "./WorkNotes";
 
 type Tab = "read" | "details" | "sources";
@@ -25,10 +26,10 @@ type CatalogAttempt = { trackId: string; status: string; reason: string | null }
 type CatalogRefresh = { state: string; unit_count: number; reason: string | null };
 const archivedTrack = (track: Track | null) => track?.kind === "source"
   && track.listing_id === null && track.availability === "unavailable";
-const CONTENT_TYPES = ["manga", "manhwa", "manhua", "comic", "book", "paper"];
-function typeLabel(value: string, t: ReturnType<typeof useI18n>["t"]): string {
-  return CONTENT_TYPES.includes(value) ? t(`work.type.${value}` as StringKey) : value.replaceAll("_", " ");
-}
+/** The source as people know it, never its internal id when the name is known. */
+const sourceLabel = (track: Track) => track.source_name ?? track.source_id.replace(/^oneshelf\./, "");
+/** A source that only lists and describes a work (no reading, no files) has nothing to open or download. */
+const listingOnly = (track: Track | null) => track?.kind === "source" && track.delivers === false;
 
 /**
  * Work Details (Master §32.8).
@@ -232,8 +233,13 @@ export function WorkScreen({ workId }: { workId?: string }) {
             {current && <span>{languageName(current.language, language)}</span>}
           </p>
           <div className="work__actions">
-            {continueUnit && (
+            {continueUnit && !listingOnly(current) && (
               <Link className="button button--primary" to={readerLink(continueUnit, id, data.selected_track_id)}>{t("work.continue")}</Link>
+            )}
+            {current !== null && listingOnly(current) && current.listing_url && (
+              <a className="button button--primary" href={current.listing_url} target="_blank" rel="noopener noreferrer">
+                {t("work.openOnSource", { source: sourceLabel(current) })}
+              </a>
             )}
             {shelf.on_shelf ? (
               <>
@@ -281,6 +287,9 @@ export function WorkScreen({ workId }: { workId?: string }) {
             <button type="button" className="button" onClick={() => setExporting(true)}>{t("export.open")}</button>
           </div>
           {work.description && <p className="work__description" dir="auto">{work.description}</p>}
+          {current !== null && listingOnly(current) && (
+            <p className="work__listingOnly">{t("work.listingOnly", { source: sourceLabel(current) })}</p>
+          )}
         </div>
       </motion.header>
 
@@ -342,7 +351,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
       <div role="tabpanel" id="work-tabpanel" aria-labelledby={`work-tab-${tab}`} tabIndex={-1}>
         <div hidden={tab !== "read"}>
           <UnitIndex units={units} workId={id} trackId={data.selected_track_id}
-            downloadable={current !== null && !archivedTrack(current)} track={current}
+            downloadable={current !== null && !archivedTrack(current) && !listingOnly(current)} track={current}
             attempt={selectedAttempt} onRetry={() => { if (current) void refreshCatalog(current); }}
             onLanguages={() => setTab("sources")} />
         </div>
@@ -566,7 +575,7 @@ function Sources({ tracks, selected, workId, attempt, onChoose, onOpened, onRefr
       {tracks.map((track) => (
         <li key={track.id} className="tracks__row">
           <span className="tracks__name">
-            <span><bdi>{track.source_id}</bdi> · {languageName(track.language, language)}</span>
+            <span><bdi>{sourceLabel(track)}</bdi> · {languageName(track.language, language)}</span>
             {editionLabel(track) && <span className="tracks__edition" dir="auto">{editionLabel(track)}</span>}
             {archivedTrack(track) && <span className="tracks__edition">{t("work.track.archived")}</span>}
           </span>
@@ -587,7 +596,7 @@ function Sources({ tracks, selected, workId, attempt, onChoose, onOpened, onRefr
             </>
           ) : (
             <button type="button" className="button"
-                    aria-label={`${t("work.track.use")}: ${track.source_id} · ${languageName(track.language, language)}`
+                    aria-label={`${t("work.track.use")}: ${sourceLabel(track)} · ${languageName(track.language, language)}`
                       + `${editionLabel(track) ? ` · ${editionLabel(track)}` : ""}`}
                     onClick={() => onChoose(track)}>
               {t("work.track.use")}

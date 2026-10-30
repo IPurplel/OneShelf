@@ -147,6 +147,14 @@ class ReaderService:
             "SELECT DISTINCT format FROM assets WHERE reading_unit_id = ? AND integrity = 'ok' ORDER BY format",
             (unit_id,))]
         context = {"work_id": unit["work_id"], "track_id": unit["track_id"], "formats": formats}
+        if not formats and self._file_only(unit["source_id"]) and not self._delivers_files(unit["source_id"]):
+            # Listed, described and catalogued, but the source lets OneShelf neither read nor download it
+            # (Noor Book): the honest offer is the source's own page, not a download that cannot work.
+            listing = self.conn.execute(
+                "SELECT l.canonical_url FROM source_tracks t JOIN source_listings l ON l.id = t.listing_id"
+                " WHERE t.id = ?", (unit["track_id"],)).fetchone()
+            return {**context, "kind": "external",
+                    "url": unit["url_hint"] or (listing["canonical_url"] if listing else None)}
         if not formats and self._file_only(unit["source_id"]):
             job = self.conn.execute(
                 "SELECT state, last_error FROM download_jobs WHERE reading_unit_id = ?"
@@ -169,6 +177,10 @@ class ReaderService:
         if source_id == "local" or not self._source_available(source_id):
             return False
         return bool(reads_online and not reads_online(source_id))
+
+    def _delivers_files(self, source_id: str) -> bool:
+        downloads = getattr(self.sources, "downloads", None)
+        return downloads is None or bool(downloads(source_id))
 
     def _source_available(self, source_id: str) -> bool:
         available = getattr(self.sources, "available", None)

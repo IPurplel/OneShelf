@@ -62,7 +62,8 @@ export function ResultCard({ result, size }: { result: ResultWork; size?: "compa
 
   return (
     <>
-      <WorkCard work={{ ...result, work_id: null }} size={size} onOpen={onOpen} busy={busy} problem={problem} />
+      <WorkCard work={{ ...result, work_id: null, source_count: new Set(listings.map((p) => p.source_id)).size }}
+                size={size} onOpen={onOpen} busy={busy} problem={problem} />
       {choosing && createPortal(
         <Drawer title={t("search.open.choose", { title: result.title })} onClose={() => setChoosing(false)}>
           <SourceChoice listings={listings} onChoose={(listing) => void open(listing)} />

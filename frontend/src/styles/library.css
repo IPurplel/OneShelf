@@ -474,6 +474,12 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .workcard--detailed { display: grid; grid-template-columns: 96px 1fr; gap: var(--space-4); align-items: start; }
 
 .home__sections { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.notice.home__setup {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--space-3); margin-block-end: var(--space-5); border-inline-start: 4px solid var(--olive-500);
+}
+.home__setup p { margin: 0; flex: 1 1 28ch; }
+.work__listingOnly { margin-block: var(--space-3) 0; max-inline-size: 62ch; color: var(--ink-500); font-size: 14px; }
 .empty.home__empty {
   max-inline-size: none;
   min-block-size: min(420px, 55dvh);
@@ -814,6 +820,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .cards__warn { color: var(--warning-text); font-size: 14px; }
 .cards__ok { color: var(--positive-text); font-size: 14px; }
 .cards__row .chip { margin-inline-start: auto; }
+.sources__row .chip { margin-inline-start: 0; }
+.sources__identity { display: grid; gap: var(--space-1); flex: 1 1 26ch; min-inline-size: 0; }
+.sources__row .sources__lastCheck { flex: 0 1 auto; }
 .registry__filters, .sources__filters { display: grid; gap: var(--space-3); margin-bottom: var(--space-5); }
 .registry__filter-group, .sources__filter-group { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .registry__name-search { display: grid; gap: var(--space-2); max-inline-size: 360px; color: var(--ink-700); }

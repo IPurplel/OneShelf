@@ -50,6 +50,8 @@ export function HomeScreen() {
       <h1 className="screen__title">{t("home.welcome")}</h1>
       <p className="screen__subtitle">{t("app.tagline")}</p>
 
+      <SetupNotice />
+
       {slides.length > 0 && <HeroCarousel slides={slides} />}
 
       {data.continue_reading.length > 0 && (
@@ -116,6 +118,25 @@ function buildHeroSlides(data: HomeResponse, t: (key: StringKey) => string): Her
     });
   }
   return slides;
+}
+
+type FirstRunState = { state?: "pending" | "completed"; storage?: unknown[] };
+
+/**
+ * First Run is never a gate (Master §29), but nothing else led to it: a fresh install could skip choosing
+ * a storage location without knowing, and its first download then failed. While setup is unfinished and
+ * there is nowhere to keep files, Home says so once, quietly, with the way through.
+ */
+function SetupNotice() {
+  const { t } = useI18n();
+  const { data } = useResource<FirstRunState>("/api/first-run");
+  if (data?.state !== "pending" || !Array.isArray(data.storage) || data.storage.length > 0) return null;
+  return (
+    <div className="notice home__setup" role="status">
+      <p><strong>{t("home.setup.title")}</strong> {t("home.setup.body")}</p>
+      <Link className="button button--primary" to="/first-run">{t("home.setup.action")}</Link>
+    </div>
+  );
 }
 
 function EmptyLibrary() {

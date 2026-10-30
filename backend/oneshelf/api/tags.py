@@ -1,6 +1,8 @@
 """Tags, collections and work notes API."""
 from __future__ import annotations
 
+import sqlite3
+
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
@@ -9,6 +11,15 @@ from oneshelf.domain.ids import new_id
 from oneshelf.domain.clock import utcnow_iso
 
 router = APIRouter(prefix="/api")
+
+
+def _missing(conn, **rows: str):
+    """A 404 for the first named row that does not exist, instead of a foreign-key failure (500)."""
+    tables = {"work": "works", "tag": "tags", "collection": "collections"}
+    for kind, row_id in rows.items():
+        if conn.execute(f"SELECT 1 FROM {tables[kind]} WHERE id = ?", (row_id,)).fetchone() is None:
+            return error(404, f"{kind.upper()}_NOT_FOUND", f"no {kind} {row_id}")
+    return None
 
 
 # ── Tags ─────────────────────────────────────────────────────────────────────
@@ -36,8 +47,11 @@ async def create_tag(request: Request, body: TagBody):
     if existing:
         return error(409, "TAG_EXISTS", f"tag {body.name!r} already exists")
     tag_id = new_id()
-    conn.execute("INSERT INTO tags (id, name, color, created_at) VALUES (?, ?, ?, ?)",
-                 (tag_id, body.name, body.color, utcnow_iso()))
+    try:
+        conn.execute("INSERT INTO tags (id, name, color, created_at) VALUES (?, ?, ?, ?)",
+                     (tag_id, body.name, body.color, utcnow_iso()))
+    except sqlite3.IntegrityError:          # created by another request in the meantime
+        return error(409, "TAG_EXISTS", f"tag {body.name!r} already exists")
     conn.commit()
     return {"id": tag_id, "name": body.name, "color": body.color}
 
@@ -54,6 +68,8 @@ async def delete_tag(request: Request, tag_id: str):
 @router.post("/works/{work_id}/tags/{tag_id}")
 async def tag_work(request: Request, work_id: str, tag_id: str):
     conn = services(request).conn
+    if (problem := _missing(conn, work=work_id, tag=tag_id)) is not None:
+        return problem
     conn.execute("INSERT OR IGNORE INTO work_tags (work_id, tag_id, created_at) VALUES (?, ?, ?)",
                  (work_id, tag_id, utcnow_iso()))
     conn.commit()
@@ -120,6 +136,8 @@ async def delete_collection(request: Request, collection_id: str):
 @router.post("/collections/{collection_id}/works/{work_id}")
 async def add_to_collection(request: Request, collection_id: str, work_id: str):
     conn = services(request).conn
+    if (problem := _missing(conn, collection=collection_id, work=work_id)) is not None:
+        return problem
     conn.execute("INSERT OR IGNORE INTO collection_works (collection_id, work_id, added_at) VALUES (?, ?, ?)",
                  (collection_id, work_id, utcnow_iso()))
     conn.commit()
@@ -162,6 +180,8 @@ async def get_notes(request: Request, work_id: str):
 @router.put("/works/{work_id}/notes")
 async def set_notes(request: Request, work_id: str, body: NoteBody):
     conn = services(request).conn
+    if (problem := _missing(conn, work=work_id)) is not None:
+        return problem
     now = utcnow_iso()
     conn.execute(
         "INSERT INTO work_notes (work_id, rating, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?)"

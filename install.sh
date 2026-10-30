@@ -41,8 +41,11 @@ check_legacy_storage
 
 fix_ownership_if_needed "$ONESHELF_IMAGE" "${DIRS[@]}"
 
+prepare_lan_proxy
+
 step "Starting OneShelf"
 compose_cmd up -d || die "container startup failed; inspect Compose logs"
+retire_lan_proxy
 
 URL="$(oneshelf_url "$ROOT")"
 step "Waiting for OneShelf to be ready"
@@ -57,11 +60,14 @@ ok "health check passed"
 
 say ""
 say "${_b}OneShelf is running at ${URL}${_r}"
+say_lan_access
 say ""
 say "  Your library is kept in the directories listed above and survives restarts and updates."
 say "  Update:     ./update.sh"
 say "  Stop:       ./uninstall.sh          (keeps all your data)"
 say "  Logs:       $COMPOSE -f $COMPOSE_FILE_REL logs -f"
 say ""
-say "  By default OneShelf listens on this machine only. To reach it from other devices on your"
-say "  own network, set ONESHELF_BIND and ONESHELF_TRUSTED_NETWORKS in .env, then ./install.sh again."
+if [ "${ONESHELF_LAN_PROXY_ACTIVE:-0}" != 1 ]; then
+  say "  OneShelf listens on this machine only. To reach it from other devices on your own network,"
+  say "  set ONESHELF_LAN_PROXY=on (and ONESHELF_TRUSTED_NETWORKS) in .env, then ./install.sh again."
+fi

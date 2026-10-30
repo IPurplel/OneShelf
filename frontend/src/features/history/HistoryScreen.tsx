@@ -20,34 +20,42 @@ type HistoryResponse = { entries: HistoryEntry[] };
 
 type DayGroup = { label: string; date: string; entries: HistoryEntry[] };
 
-function dayLabel(dateStr: string, today: string, yesterday: string, t: ReturnType<typeof useI18n>["t"]): string {
+/** The reader's own calendar day (stored times are UTC, and a day boundary is local). */
+function localDay(value: Date): string {
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+}
+
+function dayLabel(dateStr: string, today: string, yesterday: string, t: ReturnType<typeof useI18n>["t"],
+                  language: string): string {
   if (dateStr === today) return t("history.today");
   if (dateStr === yesterday) return t("history.yesterday");
-  return dateStr;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Intl.DateTimeFormat(language, { dateStyle: "full" }).format(new Date(year!, month! - 1, day!));
 }
 
 export function HistoryScreen() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const { data, error, loading } = useResource<HistoryResponse>("/api/history");
 
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterdayDate = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  const today = localDay(new Date());
+  const yesterdayDate = localDay(new Date(Date.now() - 86_400_000));
+  const time = new Intl.DateTimeFormat(language, { timeStyle: "short" });
 
   const groups: DayGroup[] = useMemo(() => {
     if (!data) return [];
     const map = new Map<string, HistoryEntry[]>();
     for (const entry of data.entries) {
-      const date = entry.updated_at.slice(0, 10);
+      const date = localDay(new Date(entry.updated_at));
       const group = map.get(date);
       if (group) group.push(entry);
       else map.set(date, [entry]);
     }
     return [...map.entries()].map(([date, entries]) => ({
-      label: dayLabel(date, today, yesterdayDate, t),
+      label: dayLabel(date, today, yesterdayDate, t, language),
       date,
       entries,
     }));
-  }, [data, today, yesterdayDate, t]);
+  }, [data, today, yesterdayDate, t, language]);
 
   return (
     <section className="screen">
@@ -70,12 +78,13 @@ export function HistoryScreen() {
             {group.entries.map((entry, i) => (
               <li key={`${entry.work_id}-${entry.updated_at}-${i}`} className="history__item">
                 <Link to={`/works/${entry.work_id}`} className="history__link">
-                  <WorkCard size="compact" work={{ work_id: entry.work_id, title: entry.work_title, cover_url: entry.cover_url }} />
+                  {/* No work id here: the row is already the link, and a link inside a link is invalid. */}
+                  <WorkCard size="compact" work={{ work_id: null, title: entry.work_title, cover_url: entry.cover_url }} />
                   <div className="history__info">
                     <span className="history__workTitle" dir="auto">{entry.work_title}</span>
                     {entry.unit_title && <span className="history__unitTitle" dir="auto">{entry.unit_title}</span>}
                     <time className="history__time" dateTime={entry.updated_at}>
-                      {entry.updated_at.slice(11, 16)}
+                      {time.format(new Date(entry.updated_at))}
                     </time>
                   </div>
                 </Link>

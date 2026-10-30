@@ -32,6 +32,36 @@ class ShelfBody(BaseModel):
     completed: bool | None = None
 
 
+class BatchBody(BaseModel):
+    work_ids: list[str] = Field(min_length=1, max_length=200)
+    action: str = Field(pattern=r"^(favorite|unfavorite|complete|uncomplete|remove)$")
+
+
+# Registered before `/shelf/{work_id}`: that route would otherwise take "batch" for a work id.
+@router.post("/shelf/batch")
+async def shelf_batch(request: Request, body: BatchBody):
+    shelf = services(request).shelf
+    count = 0
+    for wid in body.work_ids:
+        if shelf.get(wid) is None:         # not on the shelf: nothing to change for that one
+            continue
+        try:
+            if body.action == "favorite":
+                shelf.set_favorite(wid, True)
+            elif body.action == "unfavorite":
+                shelf.set_favorite(wid, False)
+            elif body.action == "complete":
+                shelf.set_completed(wid, True)
+            elif body.action == "uncomplete":
+                shelf.set_completed(wid, False)
+            elif body.action == "remove":
+                shelf.remove(wid, delete_files=False)
+        except ValueError:
+            continue
+        count += 1
+    return {"action": body.action, "affected": count}
+
+
 @router.post("/shelf/{work_id}")
 async def shelf_add(request: Request, work_id: str, body: ShelfBody | None = None):
     shelf = services(request).shelf
@@ -47,33 +77,6 @@ async def shelf_add(request: Request, work_id: str, body: ShelfBody | None = Non
     if body.completed is not None:
         entry = shelf.set_completed(work_id, body.completed)
     return _entry(entry)
-
-
-class BatchBody(BaseModel):
-    work_ids: list[str] = Field(min_length=1, max_length=200)
-    action: str = Field(pattern=r"^(favorite|unfavorite|complete|uncomplete|remove)$")
-
-
-@router.post("/shelf/batch")
-async def shelf_batch(request: Request, body: BatchBody):
-    shelf = services(request).shelf
-    count = 0
-    for wid in body.work_ids:
-        try:
-            if body.action == "favorite":
-                shelf.set_favorite(wid, True)
-            elif body.action == "unfavorite":
-                shelf.set_favorite(wid, False)
-            elif body.action == "complete":
-                shelf.set_completed(wid, True)
-            elif body.action == "uncomplete":
-                shelf.set_completed(wid, False)
-            elif body.action == "remove":
-                shelf.remove(wid, delete_files=False)
-            count += 1
-        except (ValueError, Exception):
-            continue
-    return {"action": body.action, "affected": count}
 
 
 @router.get("/shelf/{work_id}/removal-summary")

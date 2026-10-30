@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { languageName } from "@/i18n/language";
 import { useI18n } from "@/i18n/i18n";
 import { CoverPlaceholder } from "@/components/CoverPlaceholder";
+import { typeLabel } from "@/lib/contentType";
 
 export type CardWork = {
   work_id: string | null;
@@ -12,7 +13,12 @@ export type CardWork = {
   content_type?: string | null;
   fraction?: number | null;
   availability?: Record<string, number>;
+  /** How many different sources offer it. `availability` counts listings per language, not sources. */
+  source_count?: number;
 };
+
+// A crowded card says which languages, not every one of them: the rest are counted.
+const SHOWN_LANGUAGES = 3;
 
 /**
  * One logical Work, in three sizes (Master §32.6, and the approved reference).
@@ -54,7 +60,9 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
   }, [work.cover_url, nearViewport]);
   const showCover = work.cover_url && failed !== work.cover_url;
   const languages = Object.entries(work.availability ?? {});
-  const sources = languages.reduce((total, [, count]) => total + count, 0);
+  const sources = work.source_count ?? languages.reduce((total, [, count]) => total + count, 0);
+  const shownLanguages = languages.slice(0, SHOWN_LANGUAGES).map(([code]) => languageName(code, language));
+  const moreLanguages = languages.length - shownLanguages.length;
   const href = work.work_id ? `/works/${work.work_id}` : undefined;
   const percent = work.fraction === null || work.fraction === undefined ? null : Math.round(work.fraction * 100);
 
@@ -65,7 +73,9 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
         <CoverPlaceholder title={work.title} className="workcard__blank" />
         {showCover && nearViewport &&
           <img src={work.cover_url!} alt="" loading="lazy" decoding="async" fetchPriority="high"
-               onError={() => setFailed(work.cover_url ?? null)} />}
+               onError={() => setFailed(work.cover_url ?? null)}
+               // A lazy-loading placeholder (a 1×1 pixel) is not a cover: show the designed placeholder.
+               onLoad={(event) => { if (event.currentTarget.naturalWidth <= 1) setFailed(work.cover_url ?? null); }} />}
       </span>
     </span>
   );
@@ -75,9 +85,11 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
       <span className="workcard__title" dir="auto">{work.title}</span>
       {size !== "compact" && (
         <span className="workcard__meta">
-          {work.content_type && <span className="workcard__kind">{work.content_type}</span>}
+          {work.content_type && <span className="workcard__kind">{typeLabel(work.content_type, t)}</span>}
           {languages.length > 0 && (
-            <span>{languages.map(([code]) => languageName(code, language)).join(" · ")}</span>
+            <span title={moreLanguages > 0 ? languages.map(([code]) => languageName(code, language)).join(" · ") : undefined}>
+              {shownLanguages.join(" · ")}{moreLanguages > 0 && ` · ${t("work.moreLanguages", { count: moreLanguages })}`}
+            </span>
           )}
           {sources > 0 && <span>{sources === 1 ? t("work.source") : t("work.sources", { count: sources })}</span>}
         </span>

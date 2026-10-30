@@ -1,0 +1,55 @@
+# OneShelf on the local network: deploy/compose.yaml, service lan-proxy (profile "lan").
+#
+# The official nginx image fills in ${ONESHELF_PORT} and ${ONESHELF_LAN_PORT} at start; nginx's own
+# $variables are left alone. OneShelf keeps listening on this machine only, and this is the one door to it
+# from the network.
+
+upstream oneshelf {
+    server 127.0.0.1:${ONESHELF_PORT};
+    keepalive 16;
+}
+
+server {
+    listen ${ONESHELF_LAN_PORT} default_server;
+    server_name _;
+    server_tokens off;
+
+    # Imports and restores upload whole files; OneShelf enforces its own limits.
+    client_max_body_size 0;
+
+    # Text compresses well over Wi-Fi; images, archives and the event streams are sent as they are.
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_vary on;
+    gzip_types text/css text/plain application/javascript application/json image/svg+xml;
+
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host $http_host;
+    # Who is really asking. OneShelf believes this header only from 127.0.0.2 (proxy_bind below, and
+    # ONESHELF_LAN_PROXY_ADDRESS in compose), so it is overwritten here rather than appended to. Without
+    # it every visitor would look like this machine itself and get its full trust.
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_bind 127.0.0.2;
+
+    # Search progress and live updates are server-sent event streams; downloads and readers stream files.
+    # Nothing is held back in a buffer, and a quiet stream is not cut off.
+    proxy_buffering off;
+    proxy_request_buffering off;
+    proxy_read_timeout 1h;
+    proxy_send_timeout 1h;
+
+    # Built interface files carry a content hash in their names, so a browser may keep them for good.
+    location /assets/ {
+        proxy_pass http://oneshelf;
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+
+    location / {
+        proxy_pass http://oneshelf;
+    }
+}

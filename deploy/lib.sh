@@ -94,9 +94,74 @@ detect_compose() {
 
 compose_cmd() {
   # shellcheck disable=SC2086  # COMPOSE is a deliberately word-split command prefix
-  local env_args=()
+  local env_args=() profile_args=()
   [ ! -f "$ROOT/.env" ] || env_args=(--env-file "$ROOT/.env")
-  ( cd "$ROOT" && $COMPOSE "${env_args[@]}" -p "${COMPOSE_PROJECT_NAME:-oneshelf}" -f "$COMPOSE_FILE_REL" "$@" )
+  [ "${ONESHELF_LAN_PROXY_ACTIVE:-0}" != 1 ] || profile_args=(--profile lan)
+  ( cd "$ROOT" && $COMPOSE "${env_args[@]}" -p "${COMPOSE_PROJECT_NAME:-oneshelf}" -f "$COMPOSE_FILE_REL" \
+      "${profile_args[@]}" "$@" )
+}
+
+# --- local network proxy ---------------------------------------------------------------------------
+# The bundled Nginx (compose service lan-proxy) starts only when asked for and when its port is really
+# available. A port someone else holds is reported and skipped: it never fails the install or the update.
+lan_port_holder() {
+  # Prints whatever listens on the port, if this machine can say; prints nothing when it cannot tell.
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    ss -Hltn "sport = :$port" 2>/dev/null | head -1
+  fi
+}
+
+prepare_lan_proxy() {
+  ONESHELF_LAN_PROXY_ACTIVE=0
+  if [ "$ONESHELF_LAN_PROXY" != on ]; then
+    export ONESHELF_LAN_PROXY_ACTIVE
+    return 0
+  fi
+  local port="$ONESHELF_LAN_PORT" ours="" start
+  ours="$("$RUNTIME" ps --filter name=oneshelf-lan-proxy --format '{{.Names}}' 2>/dev/null || true)"
+  if [ -z "$ours" ] && [ -n "$(lan_port_holder "$port")" ]; then
+    warn "port $port is already in use on this machine, so the local-network proxy was not started."
+    warn "OneShelf itself is unaffected. Set ONESHELF_LAN_PORT to a free port in .env, then run this again."
+    export ONESHELF_LAN_PROXY_ACTIVE
+    return 0
+  fi
+  if [ "$RUNTIME" = podman ] && [ "$(id -u)" != 0 ] && [ -r /proc/sys/net/ipv4/ip_unprivileged_port_start ]; then
+    start="$(cat /proc/sys/net/ipv4/ip_unprivileged_port_start)"
+    if [[ $start =~ ^[0-9]+$ ]] && ((10#$port < 10#$start)); then
+      warn "rootless Podman cannot listen on port $port (ports below $start need privileges), so the"
+      warn "local-network proxy was not started. Set ONESHELF_LAN_PORT=8080 (for example) in .env and run this again."
+      export ONESHELF_LAN_PROXY_ACTIVE
+      return 0
+    fi
+  fi
+  ONESHELF_LAN_PROXY_ACTIVE=1
+  export ONESHELF_LAN_PROXY_ACTIVE
+}
+
+retire_lan_proxy() {
+  # Turned off (or its port taken) after it once ran: stop the proxy left from before, quietly.
+  [ "${ONESHELF_LAN_PROXY_ACTIVE:-0}" != 1 ] || return 0
+  [ -n "$("$RUNTIME" ps -a --filter name=oneshelf-lan-proxy --format '{{.Names}}' 2>/dev/null || true)" ] || return 0
+  ONESHELF_LAN_PROXY_ACTIVE=1 compose_cmd rm -s -f lan-proxy >/dev/null 2>&1 \
+    || warn "could not stop the earlier local-network proxy (container oneshelf-lan-proxy)"
+}
+
+lan_url() {
+  # How other devices reach it: this machine's first network address, and the port unless it is 80.
+  local address port="$ONESHELF_LAN_PORT"
+  address="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  [ -n "$address" ] || address="<this machine's address>"
+  if [ "$port" = 80 ]; then printf 'http://%s/' "$address"; else printf 'http://%s:%s/' "$address" "$port"; fi
+}
+
+say_lan_access() {
+  [ "${ONESHELF_LAN_PROXY_ACTIVE:-0}" = 1 ] || return 0
+  say "  On your local network: ${_b}$(lan_url)${_r}"
+  if [ -z "$ONESHELF_TRUSTED_NETWORKS" ]; then
+    say "    Other devices are trusted only once your network is listed: set ONESHELF_TRUSTED_NETWORKS"
+    say "    (for example 192.168.1.0/24) in .env, or choose LAN in First Run, then run this again."
+  fi
 }
 
 # --- configuration ---------------------------------------------------------------------------------
@@ -140,18 +205,25 @@ load_configuration() {
   # Export the exact values used for paths/probes so providers see the same configuration.
   local key value
   for key in ONESHELF_BIND ONESHELF_PORT ONESHELF_IMAGE ONESHELF_TRUSTED_NETWORKS \
-      ONESHELF_TRUSTED_PROXIES ONESHELF_ALLOWED_HOSTS; do
+      ONESHELF_TRUSTED_PROXIES ONESHELF_ALLOWED_HOSTS ONESHELF_LAN_PROXY ONESHELF_LAN_PORT; do
     case "$key" in
       ONESHELF_BIND) value="$(env_value "$ROOT" "$key" 127.0.0.1)" ;;
       ONESHELF_PORT) value="$(env_value "$ROOT" "$key" 8420)" ;;
       ONESHELF_IMAGE) value="$(env_value "$ROOT" "$key" oneshelf:local)" ;;
       ONESHELF_ALLOWED_HOSTS) value="$(env_value "$ROOT" "$key" localhost)" ;;
+      ONESHELF_LAN_PROXY) value="$(env_value "$ROOT" "$key" on)" ;;
+      ONESHELF_LAN_PORT) value="$(env_value "$ROOT" "$key" 80)" ;;
       *) value="$(env_value "$ROOT" "$key" '')" ;;
     esac
     export "$key=$value"
   done
   [[ $ONESHELF_PORT =~ ^[0-9]{1,5}$ ]] && ((10#$ONESHELF_PORT > 0 && 10#$ONESHELF_PORT < 65536)) \
     || die "ONESHELF_PORT must be between 1 and 65535"
+  [[ $ONESHELF_LAN_PROXY == on || $ONESHELF_LAN_PROXY == off ]] || die "ONESHELF_LAN_PROXY must be on or off"
+  [[ $ONESHELF_LAN_PORT =~ ^[0-9]{1,5}$ ]] && ((10#$ONESHELF_LAN_PORT > 0 && 10#$ONESHELF_LAN_PORT < 65536)) \
+    || die "ONESHELF_LAN_PORT must be between 1 and 65535"
+  [ "$ONESHELF_LAN_PORT" != "$ONESHELF_PORT" ] || [ "$ONESHELF_LAN_PROXY" = off ] \
+    || die "ONESHELF_LAN_PORT must differ from ONESHELF_PORT"
   [[ $ONESHELF_BIND =~ ^[a-zA-Z0-9.:-]+$ ]] || die "invalid ONESHELF_BIND"
   [[ $ONESHELF_IMAGE =~ ^[a-zA-Z0-9][a-zA-Z0-9./:@_-]*$ ]] || die "invalid ONESHELF_IMAGE"
   resolve_directories

@@ -198,6 +198,49 @@ def test_health_state_reflects_recorded_signals(api):
     assert client.get(f"/api/sources/{TS}/health/state").json()["capabilities"]["catalog"]["state"] == "healthy"
 
 
+def test_history_lists_what_was_read_with_its_work(api):
+    client, _, tmp_path = api
+    bound = bind(client, "irregular", "The Irregular Chronicle", content_type="manga")
+    client.post(f"/api/tracks/{bound['track_id']}/catalog/refresh")
+    assert client.get("/api/history").json() == {"entries": []}
+    unit = client.get(f"/api/works/{bound['work_id']}").json()["units"][0]["id"]
+    client.post(f"/api/reader/units/{unit}/progress", json={"fraction": 0.5, "locator": {"page": 3}})
+
+    response = client.get("/api/history")
+    assert response.status_code == 200
+    [entry] = response.json()["entries"]
+    assert entry["work_id"] == bound["work_id"] and entry["work_title"] == "The Irregular Chronicle"
+    assert entry["read_state"] == "partial" and entry["fraction"] == pytest.approx(0.5)
+    assert "cover_url" in entry
+    assert client.get("/api/history?limit=0").status_code == 422
+
+
+def test_shelf_batch_actions_reach_the_batch_route(api):
+    client, _, _ = api
+    works = [bind(client, key, title)["work_id"] for key, title in (("irregular", "First"), ("paged", "Second"))]
+    for work in works:
+        client.post(f"/api/shelf/{work}")
+    done = client.post("/api/shelf/batch", json={"work_ids": works, "action": "favorite"})
+    assert done.status_code == 200 and done.json() == {"action": "favorite", "affected": 2}
+    assert {e["work_id"] for e in client.get("/api/shelf?view=favorites").json()["entries"]} == set(works)
+    assert client.post("/api/shelf/batch", json={"work_ids": works, "action": "remove"}).json()["affected"] == 2
+    assert client.get("/api/shelf").json()["entries"] == []
+
+
+def test_tags_and_collections_refuse_unknown_works_and_tags(api):
+    client, _, _ = api
+    work = bind(client, "irregular", "The Irregular Chronicle")["work_id"]
+    tag = client.post("/api/tags", json={"name": "Favourites of 2026"}).json()["id"]
+    assert client.post(f"/api/works/{work}/tags/{tag}").status_code == 200
+    assert client.post(f"/api/works/no-such-work/tags/{tag}").status_code == 404
+    assert client.post(f"/api/works/{work}/tags/no-such-tag").status_code == 404
+    collection = client.post("/api/collections", json={"name": "Shelf A"}).json()["id"]
+    assert client.post(f"/api/collections/{collection}/works/no-such-work").status_code == 404
+    assert client.post(f"/api/collections/no-such-collection/works/{work}").status_code == 404
+    assert client.put("/api/works/no-such-work/notes", json={"rating": 7}).status_code == 404
+    assert client.post("/api/tags", json={"name": "favourites OF 2026"}).status_code == 409
+
+
 def test_notification_preferences_are_the_ones_the_service_honours(api):
     """§30.10: Source Recovered is optional and silent by default, and Settings can turn it on."""
     client = api[0] if isinstance(api, tuple) else api

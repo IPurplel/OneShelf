@@ -31,7 +31,7 @@ def _tracks(conn: sqlite3.Connection, work_id: str) -> list[dict]:
     rows = conn.execute(
         "SELECT t.id, t.source_id, t.language, t.kind, t.availability, t.listing_id,"
         " coalesce(l.raw_title, t.listing_title) AS listing_title,"
-        " coalesce(l.source_listing_key, t.listing_key) AS listing_key,"
+        " coalesce(l.source_listing_key, t.listing_key) AS listing_key, l.canonical_url AS listing_url,"
         " (SELECT count(*) FROM reading_units u WHERE u.track_id = t.id) AS unit_count"
         " FROM source_tracks t LEFT JOIN source_listings l ON l.id = t.listing_id"
         " WHERE t.work_id = ? ORDER BY (t.kind = 'local') DESC, t.source_id, t.language, t.id",
@@ -87,6 +87,30 @@ def _units(conn: sqlite3.Connection, track_id: str) -> list[dict]:
     return units
 
 
+def _describe_sources(s, tracks: list[dict]) -> None:
+    """Each track's source by name, and whether it can deliver content at all (read online or download).
+
+    A source that only lists and describes a book (Noor Book) is still worth showing, but the interface
+    must not offer reading or downloading from it."""
+    known: dict[str, tuple[str | None, bool]] = {}
+    for track in tracks:
+        source_id = track["source_id"]
+        if track["kind"] == "local" or source_id == "local":
+            track["source_name"], track["delivers"] = None, True
+            continue
+        if source_id not in known:
+            try:
+                name = s.plugins.get(source_id).name
+            except Exception:
+                name = None
+            sources = s.source_service
+            # A disabled or removed source keeps its own "unavailable" explanations; this is about capability.
+            delivers = (not sources.available(source_id) or sources.reads_online(source_id)
+                        or sources.downloads(source_id))
+            known[source_id] = (name, delivers)
+        track["source_name"], track["delivers"] = known[source_id]
+
+
 def _continue_unit(units: list[dict]) -> str | None:
     """Where reading would resume: the furthest partial unit, else the first unread one (§22)."""
     partial = [u for u in units if u["read_state"] == "partial"]
@@ -104,6 +128,7 @@ async def work_details(request: Request, work_id: str, track_id: str | None = No
         return error(404, "WORK_NOT_FOUND", "This work is not in your library.")
 
     tracks = _tracks(conn, work_id)
+    _describe_sources(services(request), tracks)
     selected = next((t for t in tracks if t["id"] == track_id), None)
     if selected is None:
         follow_row = conn.execute("SELECT track_id FROM follows WHERE work_id = ?", (work_id,)).fetchone()

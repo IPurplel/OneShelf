@@ -77,6 +77,29 @@ class _QueryState:
     sources_available: int = 0
 
 
+def _title_match(query: str) -> Callable[[ResultWork], int]:
+    """How plainly a result's titles contain the query: exact, prefix, substring, all words, or none.
+
+    Used only to order results, so the order no longer depends on which source answered first. It is never
+    shown and never hides anything (§6: no invented relevance score)."""
+    wanted = search_keys(query)
+
+    def tier(group: ResultWork) -> int:
+        best = 4
+        for title in dict.fromkeys([group.title, *(p.title for p in group.provenance)]):
+            keys = search_keys(title)
+            if wanted.loose and keys.loose == wanted.loose:
+                return 0
+            if wanted.loose and keys.loose.startswith(wanted.loose):
+                best = min(best, 1)
+            elif wanted.loose and wanted.loose in keys.loose:
+                best = min(best, 2)
+            elif wanted.tokens and set(wanted.tokens) <= set(keys.tokens):
+                best = min(best, 3)
+        return best
+    return tier
+
+
 def _to_live(source_id: str, entry) -> LiveListing:
     return LiveListing(source_id=source_id, listing_key=entry.listing_key, title=entry.title, url=entry.url,
                        content_type=entry.content_type, language=entry.language, cover_url=entry.cover_url,
@@ -185,7 +208,10 @@ class SearchService:
                     listings.append(replace(listing, available_languages=available))
             elif language_code(listing.language or "") in languages:
                 listings.append(listing)
-        live_groups = group_results(self.conn, listings)
+        # Stable sorts: sources in a fixed order rather than the order they answered in, each keeping its own
+        # order, and then by how plainly the title matches.
+        listings.sort(key=lambda listing: listing.source_id)
+        live_groups = sorted(group_results(self.conn, listings), key=_title_match(query))
         by_work = {g.work_id: g for g in live_groups if g.work_id}
         combined: list[ResultWork] = []
         used: set[int] = set()

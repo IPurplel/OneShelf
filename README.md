@@ -128,17 +128,21 @@ manually. A failure to remove a directory is reported as failure, never as succe
 
 ## Reaching OneShelf from other devices
 
-By default OneShelf listens on this machine only. To use it from a phone or tablet on your own
-network, edit `.env`:
+OneShelf itself listens on this machine only. Beside it, `./install.sh` starts a small Nginx
+(`ONESHELF_LAN_PROXY=on`, the default) that serves it to your own network on port 80, so a phone or
+tablet opens `http://<this machine's address>/` with no port to type. To have those devices trusted,
+edit `.env`:
 
 ```sh
-ONESHELF_BIND=0.0.0.0
 ONESHELF_TRUSTED_NETWORKS=192.168.1.0/24    # the subnet you actually trust
-ONESHELF_ALLOWED_HOSTS=localhost,my-machine.local
+ONESHELF_ALLOWED_HOSTS=localhost,my-machine.local   # only if you reach it by name
 ```
 
-then `./install.sh` again. Trust is decided by the real network connection, never by a header a
-client can set. Anything arriving from outside those networks has to authenticate with a passkey,
+then `./install.sh` again. If port 80 is taken, set `ONESHELF_LAN_PORT` (for example 8080); install
+warns and carries on without the proxy rather than failing. `ONESHELF_LAN_PROXY=off` leaves it out, and
+`ONESHELF_BIND=0.0.0.0` still works if you prefer OneShelf to listen on the network directly. Trust is
+decided by the real network connection, never by a header a client can set — the bundled proxy is the
+one source of the visitor's address OneShelf believes. Anything arriving from outside those networks has to authenticate with a passkey,
 which you set up in Settings → Remote Access. If a reverse proxy runs on this same host, configure
 its address in `ONESHELF_TRUSTED_PROXIES` **before exposing it publicly**; otherwise the application
 sees its trusted loopback connection instead of the remote visitor. See [access configuration](docs/operations.md#4-access).

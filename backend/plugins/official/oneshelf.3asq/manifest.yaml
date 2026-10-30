@@ -1,7 +1,7 @@
 schema: oneshelf.osp/1
 id: oneshelf.3asq
 name: "3asq (Al-Aasheq) · Manga · AR"
-version: 1.0.2
+version: 1.0.3
 api: '1.0'
 description: >-
   Arabic scanlations from مانجا العاشق, at 3asq.online. The site's earlier domain, 3asq.org, no longer

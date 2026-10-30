@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 
 import { ApiError, api } from "@/api/client";
 import { useResource } from "@/api/useApi";
+import { FolderPicker } from "@/components/FolderPicker";
 import { useI18n } from "@/i18n/i18n";
 import { TRANSITION_SLOW, useReducedMotion } from "@/lib/motion";
 
@@ -36,6 +37,7 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
   const [networks, setNetworks] = useState("");
   const [hostname, setHostname] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
+  const [browsing, setBrowsing] = useState(false);
 
   useEffect(() => {
     if (data?.access_mode) setMode(data.access_mode);
@@ -85,6 +87,10 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
               {t("first.storage.field")}
               <input type="text" className="field" value={path} onChange={(event) => setPath(event.target.value)} />
             </label>
+            {/* The location must already exist on the server: choosing it beats typing a path from memory. */}
+            <button type="button" className="button" onClick={() => setBrowsing(true)}>{t("storage.browse")}</button>
+            {browsing && <FolderPicker onSelect={(selected) => { setPath(selected); setBrowsing(false); }}
+                                       onClose={() => setBrowsing(false)} />}
             <label className="field__label">
               {t("first.storage.name")}
               <input type="text" className="field" value={name} onChange={(event) => setName(event.target.value)} />
@@ -164,7 +170,20 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
           </>
         )}
 
-        {step === "finish" && (
+        {step === "finish" && data?.access_mode === "remote" && !data.remote.passkey_registered && (
+          <>
+            {/* Remote setup cannot finish without a passkey, and a passkey is registered from Remote access:
+                send the person there instead of offering a Finish button that can only be refused. */}
+            <h1 className="firstrun__title display">{t("first.remote.title")}</h1>
+            <p className="firstrun__lede">{t("first.remote.body")}</p>
+            <div className="firstrun__actions">
+              <Link className="button button--primary" to="/settings/remote">{t("first.remote.go")}</Link>
+              <button type="button" className="button" onClick={() => setStep("access_mode")}>{t("first.back")}</button>
+            </div>
+          </>
+        )}
+
+        {step === "finish" && !(data?.access_mode === "remote" && !data.remote.passkey_registered) && (
           <>
             <h1 className="firstrun__title display">{t("first.finish.title")}</h1>
             <p className="firstrun__lede">{t("first.finish.body")}</p>

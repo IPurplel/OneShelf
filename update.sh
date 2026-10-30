@@ -60,9 +60,12 @@ compose_cmd build || die "image build failed; current deployment and data are pr
 
 check_legacy_storage
 
+prepare_lan_proxy
+
 step "Restarting OneShelf"
 # Migrations and recovery run on startup, the same way they always do — there is no separate path.
 compose_cmd up -d || die "container startup failed; inspect Compose logs"
+retire_lan_proxy
 
 URL="$(oneshelf_url "$ROOT")"
 step "Waiting for OneShelf to be ready"
@@ -76,3 +79,4 @@ verify_health "$URL" || { diagnose "$URL"; die "health check failed"; }
 ok "health check passed"
 say ""
 say "${_b}OneShelf is up to date and running at ${URL}${_r}"
+say_lan_access

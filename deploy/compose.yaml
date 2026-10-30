@@ -40,6 +40,9 @@ services:
       # learns which source hosts you use. Same `${VAR-default}` rule as the Registry: unset gets Cloudflare,
       # `ONESHELF_ECH_DOH_URL=` (set, empty) contacts none and those sources then say they need it.
       ONESHELF_ECH_DOH_URL: "${ONESHELF_ECH_DOH_URL-https://cloudflare-dns.com/dns-query}"
+      # The address lan-proxy connects from. Only it may say who the real visitor is (X-Forwarded-For);
+      # container_start adds it to ONESHELF_TRUSTED_PROXIES. Nothing else on this machine uses it.
+      ONESHELF_LAN_PROXY_ADDRESS: "127.0.0.2"
     volumes:
       # Read-only view prevents a pre-release updater from hiding legacy nested files.
       - ${ONESHELF_DATA_PATH:-./volumes/data}:/legacy-data:ro,z
@@ -48,3 +51,22 @@ services:
       - ${ONESHELF_KEYS_PATH:-./volumes/keys}:/keys:z           # the session key: its own volume, backed up separately
       - ${ONESHELF_CONTENT_PATH:-./volumes/content}:/content:z  # a storage root for downloaded and imported content
       - ${ONESHELF_BACKUP_PATH:-./volumes/backups}:/data/backups:z   # .osbackup archives; ideally a different physical disk
+
+  # Serves OneShelf to the local network on ONESHELF_LAN_PORT (80 by default: http://<this machine>/, no
+  # port to type), with compression and long-lived caching of the interface files. OneShelf itself stays on
+  # this machine only. Started by ./install.sh and ./update.sh when ONESHELF_LAN_PROXY=on (the default) and
+  # the port is free; by hand: `--profile lan`. Host networking keeps each visitor's real address.
+  lan-proxy:
+    image: docker.io/library/nginx:1.28.0-alpine
+    container_name: oneshelf-lan-proxy
+    profiles: ["lan"]
+    restart: unless-stopped
+    network_mode: host
+    depends_on: [oneshelf]
+    environment:
+      ONESHELF_PORT: "${ONESHELF_PORT:-8420}"
+      ONESHELF_LAN_PORT: "${ONESHELF_LAN_PORT:-80}"
+      NGINX_ENTRYPOINT_QUIET_LOGS: "1"
+    volumes:
+      # Replaces the image's own default site, which would otherwise also claim port 80.
+      - ./nginx/oneshelf.conf.template:/etc/nginx/templates/default.conf.template:ro,z

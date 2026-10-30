@@ -1,0 +1,4 @@
+# Shell scripts run on Linux hosts: a CRLF checkout (Windows, core.autocrlf) breaks their shebang line
+# ("env: 'bash\r': No such file or directory"), so they are always checked out with LF.
+*.sh text eol=lf
+deploy/nginx/*.template text eol=lf

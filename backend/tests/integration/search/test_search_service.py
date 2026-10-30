@@ -113,6 +113,29 @@ def test_a_slow_source_does_not_block_results(db, cache):
     assert seen[-1][2] == {"Fast Result", "Slow Result"} and seen[-1][1] >= 0.4
 
 
+def test_plain_title_matches_come_first_whichever_source_answered_first(db, cache):
+    """Searching "الغريب" used to show unrelated manga first, because that source happened to answer first."""
+    async def late_exact(inputs):
+        await asyncio.sleep(0.05)
+        return listing_result("Something Else", "الغريب", "الغريب وقصص أخرى", source="books")
+
+    sources = FakeSources({"manga": listing_result("JoJo no Kimyou na Bouken", "Akaya Akashiya", source="manga"),
+                           "books": late_exact})
+    for _ in range(2):        # the order is the same on every run, not a race between sources
+        final = asyncio.run(collect(SearchService(db, sources, cache), "الغريب", refresh=True))[-1]
+        assert [r.title for r in final.results][:2] == ["الغريب", "الغريب وقصص أخرى"]
+        assert {r.title for r in final.results[2:]} == {"Something Else", "JoJo no Kimyou na Bouken", "Akaya Akashiya"}
+
+
+def test_a_result_with_nothing_to_open_is_not_shown(db, cache):
+    empty = Listing(listing_key="promo", title="A Promo With No Translation", content_type="manga",
+                    language="ja", available_languages=[])
+    sources = FakeSources({"s": ListResult("search", [empty, *listing_result("A Real One").entries], True,
+                                           Evidence(pages=1, stop_reason="single_response"))})
+    final = asyncio.run(collect(SearchService(db, sources, cache), "one"))[-1]
+    assert [r.title for r in final.results] == ["A Real One"]
+
+
 def test_failing_source_never_clears_other_results(db, cache):
     add_local_work(db, "Berserk")
 

@@ -11,8 +11,8 @@ from starlette.testclient import TestClient
 from oneshelf.api.app import AppConfig, create_app
 
 OFFICIAL = Path(__file__).resolve().parents[2] / "plugins" / "official"
-EIGHT = ["oneshelf.3asq", "oneshelf.arxiv", "oneshelf.gutenberg", "oneshelf.hindawi", "oneshelf.mangadex",
-         "oneshelf.standard-ebooks", "oneshelf.tapas", "oneshelf.webtoon"]
+NINE = ["oneshelf.3asq", "oneshelf.arxiv", "oneshelf.gutenberg", "oneshelf.hindawi", "oneshelf.mangadex",
+        "oneshelf.noorbook", "oneshelf.standard-ebooks", "oneshelf.tapas", "oneshelf.webtoon"]
 
 
 def config(tmp_path, bundled=OFFICIAL):
@@ -28,10 +28,10 @@ def start(tmp_path, **kwargs):
     return TestClient(create_app(config(tmp_path, **kwargs)), client=("127.0.0.1", 50000))
 
 
-def test_a_fresh_start_lists_all_eight_official_sources_as_active(tmp_path):
+def test_a_fresh_start_lists_all_nine_official_sources_as_active(tmp_path):
     with start(tmp_path) as client:
         sources = client.get("/api/sources").json()["sources"]
-    assert sorted(s["id"] for s in sources) == EIGHT
+    assert sorted(s["id"] for s in sources) == NINE
     for source in sources:
         assert (source["state"], source["trust_label"], source["channel"]) == ("active", "official", "bundled")
         assert source["capabilities"], f"{source['id']} loaded without capabilities"
@@ -39,9 +39,9 @@ def test_a_fresh_start_lists_all_eight_official_sources_as_active(tmp_path):
 
 def test_first_run_counts_the_sources_that_are_actually_active(tmp_path):
     with start(tmp_path) as client:
-        assert client.get("/api/first-run").json()["sources_installed"] == 8
+        assert client.get("/api/first-run").json()["sources_installed"] == 9
         client.delete("/api/sources/oneshelf.tapas")                       # the person removes one
-        assert client.get("/api/first-run").json()["sources_installed"] == 7
+        assert client.get("/api/first-run").json()["sources_installed"] == 8
 
 
 def test_restarting_the_application_keeps_the_person_s_choices(tmp_path):
@@ -53,7 +53,7 @@ def test_restarting_the_application_keeps_the_person_s_choices(tmp_path):
             states = {s["id"]: s["state"] for s in client.get("/api/sources").json()["sources"]}
     assert states["oneshelf.webtoon"] == "disabled"
     assert states["oneshelf.3asq"] == "uninstalled"
-    assert sum(1 for s in states.values() if s == "active") == 6
+    assert sum(1 for s in states.values() if s == "active") == 7
 
 
 def test_readiness_reports_the_bootstrap_and_is_not_blocked_by_it(tmp_path):
@@ -61,7 +61,7 @@ def test_readiness_reports_the_bootstrap_and_is_not_blocked_by_it(tmp_path):
         ready = client.get("/api/ready").json()
     assert ready["ready"] is True
     bundled = ready["bundled_sources"]
-    assert sorted(bundled["installed"]) == EIGHT and bundled["failed"] == []
+    assert sorted(bundled["installed"]) == NINE and bundled["failed"] == []
 
 
 def test_a_broken_official_adapter_degrades_one_source_and_the_library_still_starts(tmp_path):

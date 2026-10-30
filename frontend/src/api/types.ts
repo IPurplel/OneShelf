@@ -81,6 +81,12 @@ export type Track = {
   listing_key?: string | null;
   listing_id?: string | null;
   unit_count: number;
+  /** The listing's page on its source, when known. */
+  listing_url?: string | null;
+  /** The source's display name (absent for local tracks and older servers). */
+  source_name?: string | null;
+  /** False when the source can neither show nor hand over the work's content (it only lists it). */
+  delivers?: boolean;
 };
 
 export type Unit = {

@@ -142,13 +142,16 @@ export function SourcesScreen() {
 
       <ul className="cards">
         {filtered.map((source, i) => (
-          <motion.li key={source.id} className="cards__row"
+          <motion.li key={source.id} className="cards__row sources__row"
             initial={reduced ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...TRANSITION_EASE, delay: Math.min(i * 0.04, 0.3) }}
           >
-            <span className="cards__name display" dir="auto">{source.name}</span>
-            <span className="cards__meta">{source.capabilities.map(value => capabilityLabel(value, t)).join(" · ")}</span>
+            {/* Name over capabilities, so every row has the same shape however long either is. */}
+            <span className="sources__identity">
+              <span className="cards__name display" dir="auto">{source.name}</span>
+              <span className="cards__meta">{source.capabilities.map(value => capabilityLabel(value, t)).join(" · ")}</span>
+            </span>
             {/* Where it came from: bundled with OneShelf, the Registry, or a file the person chose. */}
             {originKey(source) !== null && <span className="chip chip--static">{t(originKey(source)!)}</span>}
             <span className={`cards__state cards__state--${source.state}`}>

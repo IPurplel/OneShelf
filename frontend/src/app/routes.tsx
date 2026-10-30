@@ -1,17 +1,20 @@
-import type { ReactElement } from "react";
+import { lazy, type ReactElement } from "react";
 
 import { HomeScreen } from "@/features/home/HomeScreen";
-import { DownloadsScreen } from "@/features/downloads/DownloadsScreen";
-import { FirstRunScreen } from "@/features/firstrun/FirstRunScreen";
-import { FollowingScreen } from "@/features/following/FollowingScreen";
 import { SearchScreen } from "@/features/search/SearchScreen";
-import { SettingsScreen } from "@/features/settings/SettingsScreen";
-import { SourcesScreen } from "@/features/sources/SourcesScreen";
 import { ShelfScreen } from "@/features/shelf/ShelfScreen";
 import { WorkScreen } from "@/features/work/WorkScreen";
-import { ReadRoute } from "@/features/reader/ReadRoute";
-import { StatsScreen } from "@/features/stats/StatsScreen";
-import { HistoryScreen } from "@/features/history/HistoryScreen";
+
+// The everyday screens load with the app; the rest arrive when first opened, so the first page a phone
+// downloads is not every screen at once (the single bundle was 780 kB).
+const DownloadsScreen = lazy(() => import("@/features/downloads/DownloadsScreen").then(m => ({ default: m.DownloadsScreen })));
+const FirstRunScreen = lazy(() => import("@/features/firstrun/FirstRunScreen").then(m => ({ default: m.FirstRunScreen })));
+const FollowingScreen = lazy(() => import("@/features/following/FollowingScreen").then(m => ({ default: m.FollowingScreen })));
+const SettingsScreen = lazy(() => import("@/features/settings/SettingsScreen").then(m => ({ default: m.SettingsScreen })));
+const SourcesScreen = lazy(() => import("@/features/sources/SourcesScreen").then(m => ({ default: m.SourcesScreen })));
+const ReadRoute = lazy(() => import("@/features/reader/ReadRoute").then(m => ({ default: m.ReadRoute })));
+const StatsScreen = lazy(() => import("@/features/stats/StatsScreen").then(m => ({ default: m.StatsScreen })));
+const HistoryScreen = lazy(() => import("@/features/history/HistoryScreen").then(m => ({ default: m.HistoryScreen })));
 
 export type AppRoute = { path: string; element: ReactElement };
 

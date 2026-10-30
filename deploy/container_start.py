@@ -1,5 +1,5 @@
-"""Container start: keep old updaters from concealing pre-release plugin/backup directories, and read the
-historical default Registry URL as the current one."""
+"""Container start: keep old updaters from concealing pre-release plugin/backup directories, read the
+historical default Registry URL as the current one, and trust the bundled LAN proxy for itself."""
 import os
 from pathlib import Path
 import sys
@@ -16,6 +16,21 @@ def alias_registry_url(environ) -> None:
         environ["ONESHELF_REGISTRY_URL"] = REGISTRY_URL
 
 
+def trust_lan_proxy(environ) -> None:
+    """The bundled LAN proxy connects from its own loopback address; only it may name the real visitor.
+
+    It is added to whatever proxies the owner configured, never in place of them. Requests made on this
+    machine directly (the healthcheck, a browser on the server) still come from 127.0.0.1 and keep their trust.
+    """
+    address = environ.get("ONESHELF_LAN_PROXY_ADDRESS", "").strip()
+    if not address:
+        return
+    network = f"{address}/32"
+    proxies = [part.strip() for part in environ.get("ONESHELF_TRUSTED_PROXIES", "").split(",") if part.strip()]
+    if network not in proxies:
+        environ["ONESHELF_TRUSTED_PROXIES"] = ",".join([*proxies, network])
+
+
 def check_legacy_storage(root: Path) -> None:
     for name in ("plugins", "backups"):
         directory = root / name
@@ -30,4 +45,5 @@ if __name__ == "__main__":
     except (OSError, RuntimeError):
         sys.exit("Cannot start safely: check legacy deployment storage and permissions; see README.")
     alias_registry_url(os.environ)
+    trust_lan_proxy(os.environ)
     os.execvp("python", ["python", "-m", "oneshelf.api.app"])

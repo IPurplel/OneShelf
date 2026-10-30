@@ -30,7 +30,13 @@ export function languageLabel(code: string, language: "en" | "ar"): string {
     AR: ["Arabic", "العربية"], EN: ["English", "الإنجليزية"], FA: ["Persian", "الفارسية"],
     JA: ["Japanese", "اليابانية"], MULTI: ["Multilingual", "متعددة اللغات"],
   };
-  return known[normalized]?.[language === "ar" ? 1 : 0] ?? normalized;
+  const listed = known[normalized]?.[language === "ar" ? 1 : 0];
+  if (listed) return listed;
+  try {
+    return new Intl.DisplayNames([language], { type: "language" }).of(normalized.toLowerCase()) ?? normalized;
+  } catch {
+    return normalized;                    // not a language code Intl knows
+  }
 }
 
 export function parseScopes(input: string): { query: string; categories: string[]; languages: string[] } {

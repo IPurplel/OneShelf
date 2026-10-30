@@ -140,7 +140,9 @@ def group_results(conn: sqlite3.Connection, listings: list[LiveListing]) -> list
     for group in groups.values():
         if group.cover_url is None and group.work_id:
             group.cover_url = work_cover(conn, group.work_id)
-    return list(groups.values())
+    # A listing whose source offers no reading language at all (an empty `available_languages`) gives the
+    # person nothing to open; unless the library already has the Work, it is not a result.
+    return [group for group in groups.values() if group.provenance or group.work_id]
 
 
 def persist_listing(conn: sqlite3.Connection, listing: LiveListing, *, work_id: str | None = None,

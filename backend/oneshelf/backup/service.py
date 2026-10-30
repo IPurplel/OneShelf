@@ -42,12 +42,13 @@ EXCLUDED_TABLES = ("source_session_refs", "commit_journal", "download_jobs", "do
                    "source_check_summary")
 # Everything else in the schema, carried on purpose. A table in neither list fails the inventory test, so a
 # new table cannot ride along in backups without someone deciding that it should.
-KEPT_TABLES = ("app_meta", "assets", "backup_records", "bundled_plugins", "catalog_snapshots", "download_history",
-               "export_items", "export_jobs", "first_run", "follow_baseline_units", "follow_baselines", "follows",
-               "generator_drafts", "imports", "notifications", "plugin_versions", "plugins", "reading_bookmarks",
-               "reading_highlights", "reading_state", "reading_units", "release_events", "schema_migrations",
-               "settings", "shelf_entries", "snapshot_units", "source_listings", "source_tracks", "storage_roots",
-               "user_overrides", "work_aliases", "work_mappings", "works")
+KEPT_TABLES = ("app_meta", "assets", "backup_records", "bundled_plugins", "catalog_snapshots", "collection_works",
+               "collections", "download_history", "export_items", "export_jobs", "first_run", "follow_baseline_units",
+               "follow_baselines", "follows", "generator_drafts", "imports", "notifications", "plugin_versions",
+               "plugins", "reading_bookmarks", "reading_highlights", "reading_state", "reading_units",
+               "release_events", "schema_migrations", "settings", "shelf_entries", "snapshot_units",
+               "source_listings", "source_tracks", "storage_roots", "tags", "user_overrides", "work_aliases",
+               "work_mappings", "work_notes", "work_tags", "works")
 COUNTED_TABLES = ("works", "source_tracks", "reading_units", "assets", "shelf_entries", "follows", "reading_state",
                   "work_mappings", "user_overrides", "settings", "reading_bookmarks", "reading_highlights")
 

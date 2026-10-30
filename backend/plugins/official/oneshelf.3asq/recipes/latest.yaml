@@ -14,7 +14,9 @@ extract:
                   transforms: [{regex_extract: {pattern: "/manga/([^/]+)/", group: 1}}]}
     title: {css: "div.post-title a[href*='/manga/']::text", required: true, transforms: [trim]}
     url: {css: "div.post-title a[href*='/manga/']::attr(href)", transforms: [normalize_url]}
-    cover_url: {css: "div.item-thumb img::attr(src)", transforms: [trim, normalize_url]}
+    # Lazy-loaded covers keep the real image in `data-src` behind a placeholder `src` (dflazy.jpg).
+    cover_url: {xpath: ".//div[contains(@class, 'item-thumb')]//img/@data-src | .//div[contains(@class, 'item-thumb')]//img/@src[not(contains(., 'dflazy'))]",
+                transforms: [trim, normalize_url]}
 pagination:
   mode: page_number
   start: 1

@@ -61,7 +61,9 @@ def test_mangadex_with_no_uploaded_translations_does_not_offer_a_chapterless_tra
     grouped = group_results(db, [LiveListing(package.id, untranslated.listing_key, untranslated.title,
                                               language=untranslated.language,
                                               available_languages=untranslated.available_languages)])
-    assert grouped[0].provenance == []
+    # Nothing to read means nothing to open: it is not offered at all, rather than as a card that opens
+    # nothing (it used to be shown with an empty provenance, found 2026-10-30).
+    assert grouped == []
 
 
 def test_mangadex_direct_work_preview_offers_its_actual_chapter_languages(tmp_path):

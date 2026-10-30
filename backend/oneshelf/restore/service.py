@@ -34,8 +34,11 @@ READ_ORDER = {"unread": 0, "partial": 1, "read": 2}
 RESTORE_TABLES = ("storage_roots", "works", "work_aliases", "source_listings", "source_tracks", "reading_units",
                   "assets", "shelf_entries", "follows", "follow_baselines", "follow_baseline_units", "release_events",
                   "work_mappings", "user_overrides", "settings", "imports", "download_history",
-                  "reading_bookmarks", "reading_highlights")
-DELETE_ORDER = ("reading_bookmarks", "reading_highlights", "reading_state", "release_events", "follow_baseline_units", "follow_baselines", "follows",
+                  "reading_bookmarks", "reading_highlights",
+                  # The person's own labels, collections and notes travel with the works they describe.
+                  "tags", "work_tags", "collections", "collection_works", "work_notes")
+DELETE_ORDER = ("work_tags", "collection_works", "work_notes", "tags", "collections",
+                "reading_bookmarks", "reading_highlights", "reading_state", "release_events", "follow_baseline_units", "follow_baselines", "follows",
                 "shelf_entries", "assets", "reading_units", "source_tracks", "source_listings", "work_aliases",
                 "work_mappings", "user_overrides", "settings", "imports", "download_history", "works")
 
@@ -197,7 +200,7 @@ class RestoreService:
     def _merge(self, staged: Path, report: RestoreReport) -> dict[str, str]:
         ids: dict[str, dict[str, str]] = {table: {} for table in
                                             ("source_listings", "source_tracks", "reading_units", "assets",
-                                             "follows", "follow_baselines")}
+                                             "follows", "follow_baselines", "tags")}
         skipped: dict[str, set[str]] = {"follows": set(), "follow_baselines": set()}
         with transaction(self.conn):
             for table in RESTORE_TABLES:
@@ -311,6 +314,20 @@ class RestoreService:
                         row["reading_unit_id"] = ids["reading_units"].get(row["reading_unit_id"], row["reading_unit_id"])
                     elif table in ("reading_bookmarks", "reading_highlights"):
                         row["reading_unit_id"] = ids["reading_units"].get(row["reading_unit_id"], row["reading_unit_id"])
+                    elif table == "tags":
+                        # Tag names are unique regardless of case: the current library's tag is the one kept.
+                        existing = self.conn.execute("SELECT id FROM tags WHERE name = ? COLLATE NOCASE",
+                                                     (row["name"],)).fetchone()
+                    elif table in ("work_tags", "collection_works", "work_notes"):
+                        if table == "work_tags":
+                            row["tag_id"] = ids["tags"].get(row["tag_id"], row["tag_id"])
+                        if self.conn.execute("SELECT 1 FROM works WHERE id = ?", (row["work_id"],)).fetchone() is None:
+                            kept += 1
+                            continue
+                        if table == "work_notes":
+                            # A note written since the backup is a current decision, and it stays.
+                            existing = self.conn.execute("SELECT work_id AS id FROM work_notes WHERE work_id = ?",
+                                                         (row["work_id"],)).fetchone()
                     if existing is not None:
                         kept += 1
                         if old_id is not None and table in ids:

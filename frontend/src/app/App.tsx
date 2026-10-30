@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { Link, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { motion } from "motion/react";
 
@@ -11,6 +11,7 @@ import { Sidebar } from "./Sidebar";
 import { NotificationsDrawer } from "@/features/notifications/NotificationsDrawer";
 import { Drawer } from "@/components/Drawer";
 import { Icon } from "@/components/Icon";
+import { LoadingState } from "@/components/LoadingState";
 import { DESTINATIONS, destinationForPath } from "./navigation";
 import { routes } from "./routes";
 
@@ -40,7 +41,9 @@ function Layout() {
             animate={{ opacity: 1 }}
             transition={TRANSITION_EASE}
           >
-            <Outlet />
+            <Suspense fallback={<LoadingState />}>
+              <Outlet />
+            </Suspense>
           </motion.div>
         </main>
       </div>

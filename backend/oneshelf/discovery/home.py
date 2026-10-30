@@ -6,7 +6,10 @@ Continue Reading, then a pinned Work, then cached discovery data.
 """
 from __future__ import annotations
 
+import asyncio
 import sqlite3
+import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 
 from oneshelf.net.governor import Priority
@@ -16,6 +19,10 @@ from oneshelf.search.presentation import cover_path, work_cover
 
 SECTION_LIMIT = 12
 FEED_KINDS = ("trending", "latest")
+# A feed that just failed is left alone this long; successes are cached by the discovery cache as before.
+FAILED_FEED_RETRY_SECONDS = 300
+# How long Home waits for feeds that are not cached yet before showing what it has.
+FEED_WAIT_SECONDS = 2.5
 
 
 @dataclass(frozen=True)
@@ -46,10 +53,15 @@ class HeroChoice:
 
 
 class HomeService:
-    def __init__(self, conn: sqlite3.Connection, sources, cache: DiscoveryCache) -> None:
+    def __init__(self, conn: sqlite3.Connection, sources, cache: DiscoveryCache, *,
+                 clock: Callable[[], float] = time.monotonic, feed_wait_seconds: float = FEED_WAIT_SECONDS) -> None:
         self.conn = conn
         self.sources = sources
         self.cache = cache
+        self.clock = clock
+        self.feed_wait_seconds = feed_wait_seconds
+        self._failed_until: dict[tuple[str, str, str], float] = {}
+        self._inflight: dict[tuple[str, str, str], asyncio.Task] = {}
 
     # -- library sections --------------------------------------------------------------------------
 
@@ -80,28 +92,57 @@ class HomeService:
                 listings.extend(LiveListing(**item) for item in payload["listings"])
         return listings
 
+    async def _fetch(self, source_id: str, version: str, kind: str) -> list[LiveListing] | None:
+        key = (source_id, version, kind)
+        if self.clock() < self._failed_until.get(key, 0):
+            return None                    # failed moments ago: not asked again on every Home visit
+        try:
+            result = await self.sources.run(source_id, kind, {}, priority=Priority.INTERACTIVE)
+        except Exception:  # a failing feed hides its section, never fabricates data
+            self._failed_until[key] = self.clock() + FAILED_FEED_RETRY_SECONDS
+            return None
+        self._failed_until.pop(key, None)
+        entries = [LiveListing(source_id=source_id, listing_key=e.listing_key, title=e.title, url=e.url,
+                               content_type=e.content_type, language=e.language, cover_url=e.cover_url,
+                               creator=e.creator, original_title=e.original_title,
+                               available_languages=getattr(e, "available_languages", None)) for e in result.entries]
+        self.cache.put(source_id, version, kind, kind, {"listings": [asdict(e) for e in entries]})
+        return entries
+
+    def _start(self, source_id: str, version: str, kind: str) -> asyncio.Task:
+        """One fetch per feed at a time, however many Home visits are waiting on it."""
+        key = (source_id, version, kind)
+        task = self._inflight.get(key)
+        if task is None or task.done():
+            task = asyncio.ensure_future(self._fetch(source_id, version, kind))
+            self._inflight[key] = task
+            task.add_done_callback(lambda done: self._inflight.pop(key, None) if self._inflight.get(key) is done else None)
+        return task
+
     async def _feed(self, kind: str) -> list[ResultWork]:
-        listings: list[LiveListing] = []
-        for source_id, version in self.sources.sources_with_capability(kind):
+        sources = self.sources.sources_with_capability(kind)
+        found: dict[str, list[LiveListing]] = {}
+        missing: dict[str, asyncio.Task] = {}
+        for source_id, version in sources:
             cached = self.cache.get(source_id, version, kind, kind)
             if cached is not None:
-                listings.extend(LiveListing(**item) for item in cached["listings"])
-                continue
-            try:
-                result = await self.sources.run(source_id, kind, {}, priority=Priority.INTERACTIVE)
-            except Exception:  # a failing feed hides its section, never fabricates data
-                continue
-            entries = [LiveListing(source_id=source_id, listing_key=e.listing_key, title=e.title, url=e.url,
-                                   content_type=e.content_type, language=e.language, cover_url=e.cover_url,
-                                   creator=e.creator, original_title=e.original_title,
-                                   available_languages=getattr(e, "available_languages", None)) for e in result.entries]
-            self.cache.put(source_id, version, kind, kind, {"listings": [asdict(e) for e in entries]})
-            listings.extend(entries)
+                found[source_id] = [LiveListing(**item) for item in cached["listings"]]
+            else:
+                missing[source_id] = self._start(source_id, version, kind)
+        # Sources that have to be asked are asked together, and Home waits for them only briefly: a slow or
+        # cold source keeps working in the background and fills the cache for the next visit.
+        if missing:
+            await asyncio.wait(missing.values(), timeout=self.feed_wait_seconds)
+        for source_id, task in missing.items():
+            if task.done() and not task.cancelled() and task.result() is not None:
+                found[source_id] = task.result()
+        listings = [listing for source_id, _ in sources for listing in found.get(source_id, [])]
         return group_results(self.conn, listings)[:SECTION_LIMIT] if listings else []
 
     async def sections(self) -> HomeSections:
-        return HomeSections(continue_reading=self.continue_reading(), trending=await self._feed("trending"),
-                            latest=await self._feed("latest"), recently_added=self.recently_added())
+        trending, latest = await asyncio.gather(self._feed("trending"), self._feed("latest"))
+        return HomeSections(continue_reading=self.continue_reading(), trending=trending,
+                            latest=latest, recently_added=self.recently_added())
 
     def _about(self, work_id: str | None) -> dict:
         if work_id is None:

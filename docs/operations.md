@@ -50,6 +50,7 @@ ONESHELF_DATA_DIR=./var .venv/bin/python -m oneshelf.api.app
 | `ONESHELF_TRUSTED_PROXIES` | empty | CIDRs whose `X-Forwarded-For` is believed. Anything else is ignored entirely. |
 | `ONESHELF_ALLOWED_HOSTS` | `localhost` plus IP literals | Host header allowlist (DNS-rebinding defence). The canonical hostname you set for remote access is accepted automatically. |
 | `ONESHELF_HOST`, `ONESHELF_PORT` | `127.0.0.1`, `8420` | Bind address. |
+| `ONESHELF_LAN_PROXY`, `ONESHELF_LAN_PORT` | `on`, `80` (install scripts and `.env.example`) | The bundled Nginx for the local network (§4). `off` leaves it out; the port must differ from `ONESHELF_PORT`. |
 | `ONESHELF_REGISTRY_URL` | the Source Registry, `https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json` (Compose and `.env.example`) | Read only when Sources → Source Registry is opened. `ONESHELF_REGISTRY_URL=` (set, empty) switches it off. The old default `https://raw.githubusercontent.com/IPurplel/OneShelf/main/registry/index.json` is read as the new one at container start, without editing `.env`. `https://` or a local `file://` mirror. |
 | `ONESHELF_FIRST_PARTY_REGISTRY_URL` | `https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json` (Compose and `.env.example`) | The Registry whose Official and Verified Community tiers are trusted without a signature — only while `ONESHELF_REGISTRY_URL` is exactly this URL. Empty: no Registry is trusted by its tiers. |
 | `ONESHELF_REGISTRY_TRUSTED_KEYS` | empty | Optional **public** Ed25519 keys (`key-id:base64,…`). A valid signature from one of them makes an Official/Verified Community claim count from any Registry, shown as *Signed*. List two while rotating. A private key never goes in configuration. |
@@ -61,6 +62,16 @@ ONESHELF_DATA_DIR=./var .venv/bin/python -m oneshelf.api.app
 - **Local**: loopback is trusted, no authentication.
 - **LAN**: list your subnets in `ONESHELF_TRUSTED_NETWORKS` (or finish First Run with Access Mode = LAN). A genuine
   LAN device is fully trusted, including administrative actions such as resetting remote passkeys.
+- **LAN proxy (Nginx)**: `./install.sh` and `./update.sh` start the `lan-proxy` service (`docker.io/library/nginx`,
+  Compose profile `lan`) when `ONESHELF_LAN_PROXY=on` — the default — and `ONESHELF_LAN_PORT` (80) is free. Other
+  devices then open `http://<this machine>/`; OneShelf itself stays on `127.0.0.1`. It compresses text, lets
+  browsers keep the hashed interface files, and passes event streams, file streams and uploads through
+  unbuffered. It connects to OneShelf from `127.0.0.2`, which the container adds to `ONESHELF_TRUSTED_PROXIES`
+  (`ONESHELF_LAN_PROXY_ADDRESS`), and it overwrites `X-Forwarded-For` with the visitor's address — so a LAN
+  device gets LAN trust, anything else is remote, and no visitor ever borrows this machine's own trust. A
+  port already in use, or a port below 1024 under rootless Podman, skips the proxy with a warning instead
+  of failing. `ONESHELF_LAN_PROXY=off` leaves it out (and stops one that was running). By hand:
+  `docker compose --env-file .env -f deploy/compose.yaml --profile lan up -d`.
 - **Remote**: put OneShelf behind HTTPS on a stable hostname, set that hostname in First Run, and register a
   passkey from a LAN device. Remote clients then need a passkey session. Record the Recovery Code it shows once.
 - Behind a reverse proxy, add the proxy's address to `ONESHELF_TRUSTED_PROXIES`. An unlisted proxy

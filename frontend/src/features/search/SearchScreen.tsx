@@ -5,11 +5,38 @@ import { motion } from "motion/react";
 
 import { ApiError, api } from "@/api/client";
 import type { SearchUpdate } from "@/api/types";
+import { useResource } from "@/api/useApi";
 import { ResultCard } from "./ResultCard";
 import { Icon } from "@/components/Icon";
 import { useI18n } from "@/i18n/i18n";
 import { TRANSITION_EASE, useReducedMotion } from "@/lib/motion";
-import { categoryLabel, languageLabel, parseScopes } from "./scopes";
+import { CATEGORIES, categoryLabel, languageLabel, parseScopes } from "./scopes";
+
+type InstalledSource = { id: string; name: string; state: string; capabilities?: string[];
+                         category?: string | null; languages?: string[] };
+// Shown only until the installed sources are known (or if they cannot be read).
+const FALLBACK_CATEGORIES = ["Manga", "Books", "Journal", "Academic books", "Children's books", "Manuscripts"];
+const FALLBACK_LANGUAGES = ["AR"];
+
+/**
+ * The quick scopes offered are the categories and languages of the sources that can actually search,
+ * in the catalogue's own order: a chip for a category nobody provides could only ever find nothing.
+ */
+function useQuickScopes(): { categories: string[]; languages: string[]; names: Map<string, string> } {
+  const { data } = useResource<{ sources?: InstalledSource[] }>("/api/sources");
+  const searchable = (Array.isArray(data?.sources) ? data.sources : [])
+    .filter(source => source.state === "active" && (source.capabilities ?? []).includes("search"));
+  const names = new Map((Array.isArray(data?.sources) ? data.sources : []).map(source => [source.id, source.name]));
+  if (searchable.length === 0) return { categories: FALLBACK_CATEGORIES, languages: FALLBACK_LANGUAGES, names };
+  const offered = new Set(searchable.map(source => source.category).filter((value): value is string => !!value));
+  const categories = [...CATEGORIES.filter(value => offered.has(value)),
+                      ...[...offered].filter(value => !(CATEGORIES as readonly string[]).includes(value))];
+  const codes = new Set(searchable.flatMap(source => source.languages ?? []).map(code => code.toUpperCase())
+    .filter(code => code !== "MULTI"));
+  const languages = [...codes].sort((a, b) => a === "AR" ? -1 : b === "AR" ? 1 : a === "EN" ? -1 : b === "EN" ? 1
+    : a.localeCompare(b)).slice(0, 4);
+  return { categories, languages, names };
+}
 
 /**
  * Search (Master §6, §32.7).
@@ -37,6 +64,8 @@ export function SearchScreen() {
   const generation = useRef(0);
   const stream = useRef<EventSource | null>(null);
   const retainResults = useRef(false);
+  const quick = useQuickScopes();
+  const sourceName = (sourceId: string) => quick.names.get(sourceId) ?? sourceId.replace(/^oneshelf\./, "");
 
   const close = useCallback(() => {
     stream.current?.close();
@@ -101,7 +130,7 @@ export function SearchScreen() {
     } catch (error) {
       if (current === generation.current) {
         setRetryProblem(t("search.retryFailed", {
-          source: sourceId, message: error instanceof ApiError ? error.message : t("state.offline"),
+          source: sourceName(sourceId), message: error instanceof ApiError ? error.message : t("state.offline"),
         }));
       }
     } finally {
@@ -136,11 +165,12 @@ export function SearchScreen() {
 
       <p className="search__scope-hint">{t("search.scopeHint")}</p>
       <div className="search__quick-scopes" role="group" aria-label={t("search.quickScopes")}>
-        {(["Manga", "Books", "Journal", "Academic books", "Children's books", "Manuscripts"] as const).map(value =>
+        {quick.categories.map(value =>
           <button type="button" className="chip" key={value} aria-pressed={categories.includes(value)}
             onClick={() => toggleScope("category", value)}>{categoryLabel(value, language)}</button>)}
-        <button type="button" className="chip" aria-pressed={languages.includes("AR")}
-          onClick={() => toggleScope("language", "AR")}>{languageLabel("AR", language)}</button>
+        {quick.languages.map(code =>
+          <button type="button" className="chip" key={`language:${code}`} aria-pressed={languages.includes(code)}
+            onClick={() => toggleScope("language", code)}>{languageLabel(code, language)}</button>)}
       </div>
       {(categories.length > 0 || languages.length > 0) && <div className="search__scopes" role="group" aria-label={t("search.scopes")}>
         {categories.map(category => <button type="button" className="chip" key={`category:${category}`}
@@ -187,7 +217,7 @@ export function SearchScreen() {
           {failedSources.map((sourceId) => (
             <button key={sourceId} type="button" className="chip" disabled={retrying !== null}
                     aria-busy={retrying === sourceId || undefined} onClick={() => void retry(sourceId)}>
-              {t("search.retry", { source: sourceId })}
+              {t("search.retry", { source: sourceName(sourceId) })}
             </button>
           ))}
         </div>

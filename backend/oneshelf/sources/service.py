@@ -196,6 +196,14 @@ class SourceService:
             return False
         return "reader" in package.recipes
 
+    def downloads(self, plugin_id: str) -> bool:
+        """Whether this source can hand OneShelf a file for a unit (its `downloads` recipe)."""
+        try:
+            package = self.plugins.load_active(plugin_id)
+        except Exception:
+            return False
+        return "downloads" in package.recipes
+
     def searchable_sources(self) -> list[tuple[str, str]]:
         return self.sources_with_capability("search")
 

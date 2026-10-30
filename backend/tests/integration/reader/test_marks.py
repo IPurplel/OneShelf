@@ -104,6 +104,27 @@ def test_marks_for_a_unit_that_does_not_exist_are_refused(api):
     assert response.status_code == 404 and response.json()["error"]["code"] == "UNIT_NOT_FOUND"
 
 
+def test_tags_collections_and_notes_travel_in_a_library_backup(api):
+    client, tmp_path = api
+    work = import_unit(client, tmp_path)["work_id"]
+    tag = client.post("/api/tags", json={"name": "Keep"}).json()["id"]
+    client.post(f"/api/works/{work}/tags/{tag}")
+    collection = client.post("/api/collections", json={"name": "Shelf A"}).json()["id"]
+    client.post(f"/api/collections/{collection}/works/{work}")
+    client.put(f"/api/works/{work}/notes", json={"rating": 8, "note": "worth a reread"})
+    created = client.post("/api/backups", json={"kind": "library"}).json()
+
+    client.delete(f"/api/tags/{tag}")
+    client.delete(f"/api/collections/{collection}")
+    client.delete(f"/api/works/{work}/notes")
+    client.post("/api/tags", json={"name": "KEEP"})          # same name, new id: the current one is kept
+    assert client.post("/api/restore", json={"path": created["path"], "mode": "merge"}).status_code == 200
+
+    assert [t["name"] for t in client.get(f"/api/works/{work}/tags").json()["tags"]] == ["KEEP"]
+    assert [c["work_count"] for c in client.get("/api/collections").json()["collections"]] == [1]
+    assert client.get(f"/api/works/{work}/notes").json()["note"] == "worth a reread"
+
+
 def test_marks_travel_in_a_library_backup(api):
     client, tmp_path = api
     unit = import_unit(client, tmp_path)["reading_unit_id"]
