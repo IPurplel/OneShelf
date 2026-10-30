@@ -127,6 +127,18 @@ def test_plain_title_matches_come_first_whichever_source_answered_first(db, cach
         assert {r.title for r in final.results[2:]} == {"Something Else", "JoJo no Kimyou na Bouken", "Akaya Akashiya"}
 
 
+def test_arabic_words_match_with_or_without_the_article_and_more_shared_words_rank_higher(db, cache):
+    """"قواعد العشق الأربعون" used to list every book with "قواعد" in its title in source order."""
+    sources = FakeSources({"books": listing_result("قواعد النحو", "العشق الطاهر", "عشق والقواعد",
+                                                   "رواية قواعد العشق الاربعون", "Bungou Stray Dogs",
+                                                   source="books")})
+    final = asyncio.run(collect(SearchService(db, sources, cache), "قواعد العشق الأربعون"))[-1]
+    titles = [r.title for r in final.results]
+    assert titles[0] == "رواية قواعد العشق الاربعون"     # every word, the hamza on the alef ignored
+    assert titles[1] == "عشق والقواعد"                     # two of three words: "والقواعد" is "قواعد" with its article
+    assert titles[-1] == "Bungou Stray Dogs"             # shares nothing: still shown, last
+
+
 def test_a_result_with_nothing_to_open_is_not_shown(db, cache):
     empty = Listing(listing_key="promo", title="A Promo With No Translation", content_type="manga",
                     language="ja", available_languages=[])

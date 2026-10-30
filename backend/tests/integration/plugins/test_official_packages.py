@@ -38,7 +38,7 @@ def test_an_official_adapter_declares_what_it_can_and_cannot_do(name, tmp_path):
     if package.manifest.native_profile is not None:
         # The installer runs metadata fixtures offline; the fixed browser reader is exercised with
         # real Core Chromium in test_noorbook_flow.py, including a failed final group.
-        assert package.id == "oneshelf.noorbook" and declared == {"work", "catalog", "reader"}
+        assert package.id == "oneshelf.noorbook" and declared == {"search", "work", "catalog", "reader"}
         assert not package.recipes
         declared = declared - {"reader"}
     else:

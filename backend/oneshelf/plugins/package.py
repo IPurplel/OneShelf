@@ -184,12 +184,15 @@ def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str,
                 or source.base_url != "https://www.noor-book.com"):
             raise PackageError("native_profile must retain the reviewed Noor identity and network contract")
         native_caps = {"work", "catalog", "reader"}
-        if declared != native_caps or set(manifest.browser.capabilities) != {"reader"} or recipes:
-            raise PackageError("native_profile requires work/catalog/reader, browser reader, and no recipes")
+        if (not native_caps <= declared <= native_caps | {"search"} or set(manifest.browser.capabilities) != {"reader"}
+                or recipes):
+            raise PackageError("native_profile requires work/catalog/reader (search optional), browser reader, "
+                               "and no recipes")
+        native_caps = declared
         if source.rate_limit.concurrency < 2:
             raise PackageError("native_profile needs a source slot for browser child requests")
-        if any(case.capability not in {"work", "catalog"} for case in tests.cases):
-            raise PackageError("native packaged fixtures cover work/catalog; browser flow is tested in Core")
+        if any(case.capability not in {"search", "work", "catalog"} for case in tests.cases):
+            raise PackageError("native packaged fixtures cover search/work/catalog; browser flow is tested in Core")
     missing = declared - set(recipes) - native_caps
     if missing:
         raise PackageError(f"declared capabilities without a recipe: {sorted(missing)}")

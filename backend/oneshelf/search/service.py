@@ -77,26 +77,41 @@ class _QueryState:
     sources_available: int = 0
 
 
-def _title_match(query: str) -> Callable[[ResultWork], int]:
-    """How plainly a result's titles contain the query: exact, prefix, substring, all words, or none.
+def _word(token: str) -> str:
+    """A word without the Arabic article, so "الغريب" and "غريب" count as the same word when ordering."""
+    for article in ("وال", "بال", "فال", "كال", "ال"):
+        if token.startswith(article) and len(token) - len(article) >= 2:
+            return token[len(article):]
+    return token
+
+
+def _title_match(query: str) -> Callable[[ResultWork], tuple[int, float]]:
+    """How plainly a result's titles contain the query: exact, prefix, substring, all words, some words (more
+    first), or none.
 
     Used only to order results, so the order no longer depends on which source answered first. It is never
     shown and never hides anything (§6: no invented relevance score)."""
     wanted = search_keys(query)
+    wanted_words = {_word(token) for token in wanted.tokens}
 
-    def tier(group: ResultWork) -> int:
-        best = 4
+    def tier(group: ResultWork) -> tuple[int, float]:
+        best, shared = 5, 0.0
         for title in dict.fromkeys([group.title, *(p.title for p in group.provenance)]):
             keys = search_keys(title)
             if wanted.loose and keys.loose == wanted.loose:
-                return 0
+                return 0, 0.0
+            words = {_word(token) for token in keys.tokens}
             if wanted.loose and keys.loose.startswith(wanted.loose):
                 best = min(best, 1)
             elif wanted.loose and wanted.loose in keys.loose:
                 best = min(best, 2)
-            elif wanted.tokens and set(wanted.tokens) <= set(keys.tokens):
+            elif wanted_words and wanted_words <= words:
                 best = min(best, 3)
-        return best
+            if wanted_words:
+                shared = max(shared, len(wanted_words & words) / len(wanted_words))
+        if best == 5 and shared:
+            best = 4
+        return best, -shared
     return tier
 
 
