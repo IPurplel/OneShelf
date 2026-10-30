@@ -36,10 +36,6 @@ services:
       ONESHELF_FIRST_PARTY_REGISTRY_URL: "${ONESHELF_FIRST_PARTY_REGISTRY_URL-https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json}"
       # Public Ed25519 keys only ("key-id:base64,..."); list two while rotating. A private key never goes here.
       ONESHELF_REGISTRY_TRUSTED_KEYS: "${ONESHELF_REGISTRY_TRUSTED_KEYS-}"
-      # DNS-over-HTTPS JSON endpoint for ECH keys (sources with network.ech, e.g. Noor Book); that resolver
-      # learns which source hosts you use. Same `${VAR-default}` rule as the Registry: unset gets Cloudflare,
-      # `ONESHELF_ECH_DOH_URL=` (set, empty) contacts none and those sources then say they need it.
-      ONESHELF_ECH_DOH_URL: "${ONESHELF_ECH_DOH_URL-https://cloudflare-dns.com/dns-query}"
       # The address lan-proxy connects from. Only it may say who the real visitor is (X-Forwarded-For);
       # container_start adds it to ONESHELF_TRUSTED_PROXIES. Nothing else on this machine uses it.
       ONESHELF_LAN_PROXY_ADDRESS: "127.0.0.2"

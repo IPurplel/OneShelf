@@ -203,10 +203,12 @@ class DownloadEngine:
                     if context["track_availability"] == "unavailable":
                         raise ValueError("this source edition is no longer linked")
                     package = self.plugins.load_active(context["source_id"])
-                    if "reader" not in package.recipes and "downloads" not in package.recipes:
-                        # A job here could only ever fail: the source lists this unit and nothing more.
-                        raise ValueError("this source lists this book but lets OneShelf neither read nor "
-                                         "download it; open it on the source's own site")
+                    if not self.sources.supports_download(context["source_id"]):
+                        if "reader" not in package.manifest.capabilities:
+                            # A job here could only ever fail: the source lists this unit and nothing more.
+                            raise ValueError("this source lists this book but lets OneShelf neither read nor "
+                                             "download it; open it on the source's own site")
+                        raise ValueError("This source provides online reading only; permanent downloads are unavailable")
                     if file_format is not None:
                         if "downloads" not in package.recipes:
                             raise ValueError("this source offers no files to choose a format from")

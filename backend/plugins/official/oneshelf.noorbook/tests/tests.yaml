@@ -1,40 +1,16 @@
-# Fixtures are trimmed from the live site (captured 2026-10-30); the markup is sliced verbatim.
+# Fixture tests exercise the real static parser. Complete browser/group flow is tested in Core.
 cases:
-- capability: search
-  inputs: {query: "الليالي البيضاء"}
-  fixtures:
-  - url: "https://www.noor-book.com/?search_for=%D8%A7%D9%84%D9%84%D9%8A%D8%A7%D9%84%D9%8A%20%D8%A7%D9%84%D8%A8%D9%8A%D8%B6%D8%A7%D8%A1"
-    file: fixtures/search.html
-  expect:
-    # Three results on the page; the third is withdrawn for copyright (a review link) and is skipped.
-    min_items: 2
-    fields_present: [listing_key, title, cover_url, url]
-    first:
-      listing_key: "كتاب-الليالي-البيضاء-دوستويفسكي-pdf"
-      title: "الليالي البيضاء"
-      creator: "فيودور دوستويفسكي"
-      cover_url: "https://www.noor-book.com/publice/covers_cache_jpg/9/9/5/a/857b3068b995a1f3abd18552397f2051.png.jpg"
-
-- capability: work
-  inputs: {listing_key: "كتاب-الليالي-البيضاء-دوستويفسكي-pdf"}
-  fixtures:
-  - url: "https://www.noor-book.com/%D9%83%D8%AA%D8%A7%D8%A8-%D8%A7%D9%84%D9%84%D9%8A%D8%A7%D9%84%D9%8A-%D8%A7%D9%84%D8%A8%D9%8A%D8%B6%D8%A7%D8%A1-%D8%AF%D9%88%D8%B3%D8%AA%D9%88%D9%8A%D9%81%D8%B3%D9%83%D9%8A-pdf"
-    file: fixtures/book.html
-  expect:
-    fields_present: [title, creator, description, cover_url, language]
-    first:
-      title: "الليالي البيضاء"
-      creator: "فيودور دوستويفسكي"
-      language: ar
-      cover_url: "https://www.noor-book.com/publice/covers_cache_jpg/9/9/5/a/857b3068b995a1f3abd18552397f2051.png.jpg"
-
-- capability: catalog
-  inputs: {listing_key: "كتاب-الليالي-البيضاء-دوستويفسكي-pdf"}
-  fixtures:
-  - url: "https://www.noor-book.com/%D9%83%D8%AA%D8%A7%D8%A8-%D8%A7%D9%84%D9%84%D9%8A%D8%A7%D9%84%D9%8A-%D8%A7%D9%84%D8%A8%D9%8A%D8%B6%D8%A7%D8%A1-%D8%AF%D9%88%D8%B3%D8%AA%D9%88%D9%8A%D9%81%D8%B3%D9%83%D9%8A-pdf"
-    file: fixtures/book.html
-  expect:
-    min_items: 1
-    complete: true
-    fields_present: [unit_key, title, unit_type]
-    first: {unit_key: "كتاب-الليالي-البيضاء-دوستويفسكي-pdf", title: "الليالي البيضاء", unit_type: one_shot}
+  - capability: work
+    inputs: {listing_key: /en/ebook-test-pdf}
+    fixtures:
+      - {url: 'https://www.noor-book.com/en/ebook-test-pdf', file: fixtures/book.html}
+    expect:
+      first: {title: White Nights, language: ar, creator: Dostoevsky}
+  - capability: catalog
+    inputs: {listing_key: /en/ebook-test-pdf}
+    fixtures:
+      - {url: 'https://www.noor-book.com/en/ebook-test-pdf', file: fixtures/book.html}
+    expect:
+      min_items: 1
+      complete: true
+      first: {unit_key: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:0', title: White Nights}

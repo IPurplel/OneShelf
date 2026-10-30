@@ -42,7 +42,7 @@ def _error(status: int, code: str, message: str) -> Response:
 
 
 async def _image_response(s, source: str, package, url: str) -> Response:
-    capability = next((c for c in CAPABILITY_ORDER if c in package.recipes), None)
+    capability = next((c for c in CAPABILITY_ORDER if c in package.manifest.capabilities), None)
     if capability is None:
         return _error(404, "NO_COVER", "This source has no recipe that could carry a cover.")
     # Image hosts sometimes want what the source's own pages send (a Referer, say): whatever the source's

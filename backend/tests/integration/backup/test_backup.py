@@ -264,3 +264,23 @@ def test_i105_every_table_is_either_carried_or_excluded_on_purpose(library):
         " AND name NOT LIKE 'search_index_%'")}
     assert not set(excluded) & set(kept)
     assert tables - set(excluded) - set(kept) == set(), "classify these tables for backups"
+
+
+def test_backup_carries_private_notes_ratings_tags_and_collections(library, clock, tmp_path):
+    work = library.add_work("Private library")["work_id"]
+    library.conn.execute("INSERT INTO tags VALUES ('tag', 'Favorites', '#123456', '2026-10-29')")
+    library.conn.execute("INSERT INTO work_tags VALUES (?, 'tag', '2026-10-29')", (work,))
+    library.conn.execute("INSERT INTO collections VALUES ('collection', 'Reading next', 0, NULL, '2026-10-29', '2026-10-29')")
+    library.conn.execute("INSERT INTO collection_works VALUES ('collection', ?, '2026-10-29')", (work,))
+    library.conn.execute("INSERT INTO work_notes VALUES (?, 8, 'Private note', '2026-10-29', '2026-10-29')", (work,))
+
+    record = service(library, clock).create("library")
+    with zipfile.ZipFile(record.path) as archive:
+        archive.extract("library.db", tmp_path / "private-check")
+    with closing(sqlite3.connect(tmp_path / "private-check" / "library.db")) as conn:
+        assert conn.execute("SELECT name, color FROM tags").fetchall() == [("Favorites", "#123456")]
+        assert conn.execute("SELECT work_id, tag_id FROM work_tags").fetchall() == [(work, "tag")]
+        assert conn.execute("SELECT name FROM collections").fetchall() == [("Reading next",)]
+        assert conn.execute("SELECT collection_id, work_id FROM collection_works").fetchall() == [("collection", work)]
+        assert conn.execute("SELECT work_id, rating, note FROM work_notes").fetchall() == [(work, 8, "Private note")]
+    assert not {"tags", "work_tags", "collections", "collection_works", "work_notes"} & read_manifest(Path(record.path))["counts"].keys()

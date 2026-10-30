@@ -31,16 +31,16 @@ from oneshelf.storage.safe_write import publish
 READ_ORDER = {"unread": 0, "partial": 1, "read": 2}
 
 # Restored in dependency order; storage roots are machine configuration and only added when missing.
-RESTORE_TABLES = ("storage_roots", "works", "work_aliases", "source_listings", "source_tracks", "reading_units",
+RESTORE_TABLES = ("storage_roots", "works", "tags", "collections", "work_tags", "collection_works", "work_notes",
+                  "work_aliases", "source_listings", "source_tracks", "reading_units",
                   "assets", "shelf_entries", "follows", "follow_baselines", "follow_baseline_units", "release_events",
                   "work_mappings", "user_overrides", "settings", "imports", "download_history",
-                  "reading_bookmarks", "reading_highlights",
-                  # The person's own labels, collections and notes travel with the works they describe.
-                  "tags", "work_tags", "collections", "collection_works", "work_notes")
-DELETE_ORDER = ("work_tags", "collection_works", "work_notes", "tags", "collections",
-                "reading_bookmarks", "reading_highlights", "reading_state", "release_events", "follow_baseline_units", "follow_baselines", "follows",
+                  "reading_bookmarks", "reading_highlights")
+DELETE_ORDER = ("work_notes", "work_tags", "collection_works", "reading_bookmarks", "reading_highlights",
+                "reading_state", "release_events", "follow_baseline_units", "follow_baselines", "follows",
                 "shelf_entries", "assets", "reading_units", "source_tracks", "source_listings", "work_aliases",
-                "work_mappings", "user_overrides", "settings", "imports", "download_history", "works")
+                "work_mappings", "user_overrides", "settings", "imports", "download_history", "works",
+                "tags", "collections")
 
 
 class RestoreError(RuntimeError):
@@ -214,7 +214,11 @@ class RestoreService:
                             (row["source_id"], row["source_listing_key"])).fetchone()
                     else:
                         existing = None
-                    if table == "source_tracks":
+                    if table == "tags":
+                        existing = self.conn.execute("SELECT id FROM tags WHERE name = ?", (row["name"],)).fetchone()
+                    elif table == "work_tags":
+                        row["tag_id"] = ids["tags"].get(row["tag_id"], row["tag_id"])
+                    elif table == "source_tracks":
                         if row["listing_id"] is not None:
                             row["listing_id"] = ids["source_listings"].get(row["listing_id"], row["listing_id"])
                             listing = self.conn.execute("SELECT work_id FROM source_listings WHERE id = ?",
@@ -314,20 +318,6 @@ class RestoreService:
                         row["reading_unit_id"] = ids["reading_units"].get(row["reading_unit_id"], row["reading_unit_id"])
                     elif table in ("reading_bookmarks", "reading_highlights"):
                         row["reading_unit_id"] = ids["reading_units"].get(row["reading_unit_id"], row["reading_unit_id"])
-                    elif table == "tags":
-                        # Tag names are unique regardless of case: the current library's tag is the one kept.
-                        existing = self.conn.execute("SELECT id FROM tags WHERE name = ? COLLATE NOCASE",
-                                                     (row["name"],)).fetchone()
-                    elif table in ("work_tags", "collection_works", "work_notes"):
-                        if table == "work_tags":
-                            row["tag_id"] = ids["tags"].get(row["tag_id"], row["tag_id"])
-                        if self.conn.execute("SELECT 1 FROM works WHERE id = ?", (row["work_id"],)).fetchone() is None:
-                            kept += 1
-                            continue
-                        if table == "work_notes":
-                            # A note written since the backup is a current decision, and it stays.
-                            existing = self.conn.execute("SELECT work_id AS id FROM work_notes WHERE work_id = ?",
-                                                         (row["work_id"],)).fetchone()
                     if existing is not None:
                         kept += 1
                         if old_id is not None and table in ids:

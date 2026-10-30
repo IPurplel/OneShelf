@@ -1,7 +1,7 @@
 schema: oneshelf.osp/1
 id: oneshelf.standard-ebooks
 name: "Standard Ebooks · Books · EN"
-version: 1.1.1
+version: 1.1.2
 api: '1.0'
 description: >-
   Standard Ebooks through its public OPDS feeds. One work offers several formats; OneShelf keeps them

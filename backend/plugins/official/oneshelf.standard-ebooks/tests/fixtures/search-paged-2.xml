@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <id>https://standardebooks.org/feeds/opds/all?query=love&amp;page=2&amp;per-page=12</id>
+  <entry>
+    <id>https://standardebooks.org/ebooks/ella-cheever-thayer/wired-love</id>
+    <title>Wired Love</title>
+    <author><name>Ella Cheever Thayer</name></author>
+    <dc:language>en-US</dc:language>
+  </entry>
+</feed>

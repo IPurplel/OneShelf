@@ -351,7 +351,8 @@ export function WorkScreen({ workId }: { workId?: string }) {
       <div role="tabpanel" id="work-tabpanel" aria-labelledby={`work-tab-${tab}`} tabIndex={-1}>
         <div hidden={tab !== "read"}>
           <UnitIndex units={units} workId={id} trackId={data.selected_track_id}
-            downloadable={current !== null && !archivedTrack(current) && !listingOnly(current)} track={current}
+            downloadable={current !== null && !archivedTrack(current) && !listingOnly(current)
+                          && current.can_download !== false} track={current}
             attempt={selectedAttempt} onRetry={() => { if (current) void refreshCatalog(current); }}
             onLanguages={() => setTab("sources")} />
         </div>

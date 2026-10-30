@@ -120,9 +120,6 @@ class AppConfig:
     registry_url: str | None = None
     registry_trusted_keys: str | None = None
     first_party_registry_url: str | None = None
-    # DNS-over-HTTPS JSON endpoint used to look up ECH keys for sources that declare network.ech. Unset by
-    # default: no resolver is contacted unless the person chooses one, and ECH sources say so when used.
-    ech_doh_url: str | None = None
     # The built interface, served from this same origin (§2.1). Empty in a source checkout that has
     # not run a frontend build; the API then serves itself and nothing else.
     web_root: str | None = None
@@ -153,7 +150,6 @@ class AppConfig:
             registry_url=env.get("ONESHELF_REGISTRY_URL") or None,
             registry_trusted_keys=env.get("ONESHELF_REGISTRY_TRUSTED_KEYS") or None,
             first_party_registry_url=env.get("ONESHELF_FIRST_PARTY_REGISTRY_URL") or None,
-            ech_doh_url=env.get("ONESHELF_ECH_DOH_URL") or None,
         )
 
     def dev_hosts(self) -> dict[str, tuple[str, int]]:
@@ -262,8 +258,7 @@ def create_app(config: AppConfig) -> FastAPI:
         browser = LazyBrowser()
         source_service = SourceService(conn, plugins, governor, sessions, events=app.state.bus,
                                        dev_test_source=config.dev_test_source,
-                                       dev_hosts=config.dev_hosts(), browser=browser,
-                                       ech_doh_url=config.ech_doh_url)
+                                       dev_hosts=config.dev_hosts(), browser=browser)
         logins = LoginController(source_service, browser, sessions, governor)
         cache = DiscoveryCache(Path(config.data_dir) / "cache.db")
         settings = Settings(conn)

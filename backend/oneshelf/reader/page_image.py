@@ -106,9 +106,10 @@ def _embedded_image(value: str) -> int:
 
 
 def _dimension(value: str | None) -> float:
-    if value is None or not re.fullmatch(r"(?:\d+(?:\.\d*)?|\.\d+)(?:px)?", value):
+    if value is None or not re.fullmatch(r"(?:\d+(?:\.\d*)?|\.\d+)(?:px|pt)?", value):
         raise ValueError("unsupported SVG dimensions")
-    result = float(value.removesuffix("px"))
+    result = (float(value[:-2]) * 96 / 72 if value.endswith("pt")
+              else float(value.removesuffix("px")))
     if not math.isfinite(result) or result <= 0:
         raise ValueError("invalid SVG dimensions")
     return result
@@ -138,6 +139,13 @@ def _presentation_style(node) -> None:
             valid = valid and math.isfinite(float(value)) and float(value) > 0
         elif key == "fill-rule":
             valid = value in {"nonzero", "evenodd"}
+        elif key == "stroke-linecap":
+            valid = value in {"butt", "round", "square"}
+        elif key == "stroke-linejoin":
+            valid = value in {"miter", "round", "bevel"}
+        elif key == "stroke-miterlimit":
+            valid = re.fullmatch(r"(?:\d+(?:\.\d*)?|\.\d+)", value) is not None
+            valid = valid and math.isfinite(float(value)) and float(value) >= 1
         if not valid or key in properties:
             raise ValueError("unsupported SVG style")
         properties[key] = value
@@ -166,7 +174,10 @@ def _render(data: bytes) -> bytes:
         raise ValueError("malformed SVG XML") from exc
     if root.tag != f"{{{_SVG}}}svg":
         raise ValueError("unsupported SVG root")
-    width, height = math.ceil(_dimension(root.get("width")) * 2), math.ceil(_dimension(root.get("height")) * 2)
+    width_px, height_px = _dimension(root.get("width")), _dimension(root.get("height"))
+    width, height = math.ceil(width_px * 2), math.ceil(height_px * 2)
+    root.set("width", f"{width_px}px")
+    root.set("height", f"{height_px}px")
     if width > 16_384 or height > 16_384 or width * height > MAX_PIXELS:
         raise ValueError("SVG exceeds output pixel limit")
 

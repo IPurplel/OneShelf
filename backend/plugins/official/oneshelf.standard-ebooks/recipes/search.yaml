@@ -1,3 +1,4 @@
+# OPDS supplies a feed-level next link and each entry's own language tag.
 capability: search
 inputs: [query]
 request:
@@ -13,8 +14,10 @@ extract:
       required: true
     title: {css: "title::text", transforms: [trim], required: true}
     creator: {css: "author name::text", transforms: [trim]}
+    language: {xpath: "*[name()='dc:language']/text()", transforms: [trim]}
     description: {css: "summary::text", transforms: [trim]}
     cover_url: {css: "link[rel='http://opds-spec.org/image']::attr(href)"}
 pagination:
-  mode: none
-  complete_when: single_response
+  mode: next_link
+  max_pages: 10
+  next: {xpath: "//feed/link[@rel='next']/@href"}

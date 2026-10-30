@@ -11,6 +11,8 @@ dependencies = [
     "defusedxml>=0.7.1",
     # Static SVG reader pages are normalized in a bounded, offline Linux worker.
     "resvg_py==0.5.0",
+    # Reviewed native Noor ECH transport; not the Scrapling fetchers extra.
+    "curl_cffi==0.16.3",
     "PyYAML>=6.0.3",
     "google-re2>=1.1.20251105",
     "cryptography>=50.0.1",
@@ -20,8 +22,6 @@ dependencies = [
     "playwright>=1.63.0",
     # Parser only. Never install the "fetchers" extra (stealth/fingerprint stack; ledger K1).
     "scrapling>=0.4.15",
-    # ECH (Encrypted Client Hello) transport only, for its BoringSSL build; its fingerprint options stay unused (K1).
-    "curl_cffi>=0.10",
     # Allowlist HTML sanitiser (Rust ammonia) for text reading units (Master §27).
     "nh3>=0.3.7",
 ]

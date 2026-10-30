@@ -14,8 +14,7 @@ python3 -m venv .venv
 
 Never install `scrapling[fetchers]` (or any stealth/fingerprint package): OneShelf uses Scrapling's parser only,
 and `tests/unit/test_no_stealth.py` fails if stealth tooling appears. The one exception is `curl_cffi`, used
-only by `oneshelf/net/curl_ech.py` because its BoringSSL build can send Encrypted Client Hello; the same test
-fails if any other module imports it or if any code uses its fingerprint options (`impersonate`, JA3, Akamai).
+only by `oneshelf/net/ech.py`, the reviewed Noor Book Encrypted Client Hello transport.
 
 Run locally (loopback only by default):
 
@@ -36,7 +35,6 @@ curl http://127.0.0.1:8420/api/health
 | `ONESHELF_REGISTRY_URL` | unset (no registry) when running from source; Compose defaults it to the OneShelf-Adapters Source Registry | `https://…/index.json` static index or `file:///path/to/mirror` (e.g. `file://$PWD/../registry`) |
 | `ONESHELF_FIRST_PARTY_REGISTRY_URL` | unset | the Registry whose tiers are trusted without a signature, only while `ONESHELF_REGISTRY_URL` equals it exactly (Compose sets the OneShelf-Adapters Registry) |
 | `ONESHELF_REGISTRY_TRUSTED_KEYS` | unset | **public** `key-id:base64-ed25519-public-key,…` for Official/Verified labels; list several to rotate |
-| `ONESHELF_ECH_DOH_URL` | unset when running from source; Compose defaults it to `https://cloudflare-dns.com/dns-query` | DNS-over-HTTPS JSON endpoint (e.g. `https://cloudflare-dns.com/dns-query`) for the ECH keys of sources that declare `network.ech`; unset, those sources fail and say so |
 | `ONESHELF_DEV_TEST_SOURCE` | off | enables the OneShelf Test Source loopback exception (development only) |
 | `ONESHELF_DEV_TEST_SOURCE_ADDRESS` | unset | `127.0.0.1:PORT` where `python -m testsource PORT` runs |
 

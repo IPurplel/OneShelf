@@ -271,3 +271,20 @@ def test_units_say_which_of_them_are_new(api):
     assert client.post(f"/api/follows/{work}/seen").json()["marked"] == len(new_ids)
     after = client.get(f"/api/works/{work}").json()["units"]
     assert all(not u["is_new"] for u in after)
+
+
+def test_batch_favorites_updates_selected_works_without_creating_batch_work(api):
+    client, _, tmp_path = api
+    works = [bind(client, key, title)["work_id"] for key, title in (("irregular", "First"), ("paged", "Second"))]
+    for work in works:
+        assert client.post(f"/api/shelf/{work}").status_code == 200
+
+    response = client.post("/api/shelf/batch", json={"action": "favorite", "work_ids": works})
+
+    assert response.status_code == 200
+    assert response.json() == {"action": "favorite", "affected": 2}
+    entries = client.get("/api/shelf").json()["entries"]
+    assert {entry["work_id"] for entry in entries if entry["is_favorite"]} == set(works)
+    from oneshelf.db.connection import open_database
+    with open_database(tmp_path / "data" / "oneshelf.db") as conn:
+        assert conn.execute("SELECT count(*) FROM shelf_entries WHERE work_id = 'batch'").fetchone()[0] == 0

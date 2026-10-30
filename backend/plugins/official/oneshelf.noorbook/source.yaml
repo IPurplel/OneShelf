@@ -1,13 +1,11 @@
 base_url: https://www.noor-book.com
 url_patterns:
-  # A book page as the site links it ("/كتاب-…-pdf"). A percent-encoded copy of the same link is not
-  # matched: url_patterns see the URL as pasted, and the key must equal the one search produces.
-  - pattern: '^https://www\.noor-book\.com/(كتاب-[^/?#]+-pdf(?:-[0-9]+)?)$'
+  - pattern: '^https://www\.noor-book\.com(/(?:en/ebook-|كتاب-)[^/?#]+-pdf)$'
     capability: work
     id_group: 1
 rate_limit:
   requests_per_minute: 30
   concurrency: 2
 timeouts:
-  connect_seconds: 15
-  read_seconds: 60
+  connect_seconds: 10
+  read_seconds: 30

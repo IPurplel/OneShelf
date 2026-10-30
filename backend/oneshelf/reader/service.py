@@ -24,7 +24,7 @@ from oneshelf.integrity.validators import _is_image_entry, _natural_key, _valida
 from oneshelf.library.copies import local_copy
 from oneshelf.net.governor import Priority
 from oneshelf.plugins.results import ResourceDescriptor
-from oneshelf.plugins.runtime import AuthRequired, CapabilityError
+from oneshelf.plugins.runtime import AuthRequired, CapabilityError, PageTemporarilyRefused, PublicReaderExpired, RateLimited
 from oneshelf.reader.cache import ReaderCache
 from oneshelf.reader.page_image import normalize_page_image
 from oneshelf.settings.defaults import DEFAULTS
@@ -70,6 +70,12 @@ class PageData:
     data: bytes
     origin: str  # local | cache | online
     content_type: str = "image/*"
+
+
+@dataclass
+class _DescriptorGate:
+    lock: asyncio.Lock
+    waiters: int = 0
 
 
 @dataclass
@@ -127,6 +133,9 @@ class ReaderService:
         self.events = events
         self._reading: dict[str, str] = {}   # work_id -> unit currently being read
         self._descriptors: OrderedDict[str, tuple[float, list]] = OrderedDict()
+        self._descriptor_gates: dict[str, _DescriptorGate] = {}
+        self._public_refusals: OrderedDict[str, float] = OrderedDict()
+        self._refusal_clock = time.monotonic
         self._page_fetches: dict[tuple[str, str, str], _PageFlight] = {}
 
     # -- unit context ------------------------------------------------------------------------------
@@ -243,7 +252,39 @@ class ReaderService:
             raise ValueError("this reading unit is text, not pages; open it in the Book Reader")
         return [PageInfo(index=i, label=d.page_label, url=d.url) for i, d in enumerate(descriptors, start=1)]
 
-    async def _online_descriptors(self, unit_id: str, *, refresh: bool = False) -> list:
+    def _check_public_refusal(self, unit_id: str) -> None:
+        now = self._refusal_clock()
+        for key, deadline in list(self._public_refusals.items()):
+            if deadline <= now:
+                self._public_refusals.pop(key, None)
+        deadline = self._public_refusals.get(unit_id)
+        if deadline is not None:
+            raise PageTemporarilyRefused(deadline - now)
+
+    def _remember_public_refusal(self, unit) -> None:
+        try:
+            self._check_public_refusal(unit["unit_id"])
+        except PageTemporarilyRefused:
+            return  # concurrent failures neither extend the window nor duplicate health signals
+        self._public_refusals[unit["unit_id"]] = self._refusal_clock() + 120
+        while len(self._public_refusals) > DESCRIPTOR_CACHE_UNITS:
+            self._public_refusals.popitem(last=False)
+        self._record(unit["source_id"], "failure", "expired_link")
+
+    async def _online_descriptors(self, unit_id: str, *, stale: list | None = None) -> list:
+        gate = self._descriptor_gates.setdefault(unit_id, _DescriptorGate(asyncio.Lock()))
+        gate.waiters += 1
+        try:
+            async with gate.lock:
+                return await self._load_online_descriptors(unit_id, stale=stale)
+        finally:
+            gate.waiters -= 1
+            if gate.waiters == 0:
+                self._descriptor_gates.pop(unit_id, None)
+
+    async def _load_online_descriptors(self, unit_id: str, *, stale: list | None) -> list:
+        if stale is not None:
+            self._check_public_refusal(unit_id)
         unit = self._unit(unit_id)
         if unit["track_availability"] == "unavailable":
             raise FileNotFoundError("this source edition is no longer linked")
@@ -258,7 +299,22 @@ class ReaderService:
             # Asking anyway fails as "unsupported" and is recorded against the source's health.
             raise DownloadRequired("this book has to be downloaded before it can be read")
         held = self._descriptors.get(unit_id)
-        if held is not None and not refresh and time.monotonic() - held[0] < DESCRIPTOR_TTL_SECONDS:
+        try:
+            self._check_public_refusal(unit_id)
+        except PageTemporarilyRefused:
+            # Keep cached pages readable without reopening the source when the
+            # descriptor TTL expires or the in-memory list has been evicted.
+            if held is not None:
+                return held[1]
+            stored = (self.cache.get_descriptors(unit["source_id"], unit["source_unit_key"])
+                      if self.cache is not None else None)
+            if stored is not None:
+                return [ResourceDescriptor(**d) for d in stored]
+            raise
+        # A late failure from an older list must reuse the renewal already performed.
+        # Compare list identity: sources can renew a list without changing every URL.
+        if held is not None and ((stale is None and time.monotonic() - held[0] < DESCRIPTOR_TTL_SECONDS)
+                                 or (stale is not None and held[1] is not stale)):
             self._descriptors.move_to_end(unit_id)
             return held[1]
         result = await self.sources.run(unit["source_id"], "reader",
@@ -309,11 +365,12 @@ class ReaderService:
             return PageData(index, cached, "cache")
         if not self._source_available(unit["source_id"]):
             raise SourceUnavailable("this page was never cached, and its source is disabled or not installed")
+        self._check_public_refusal(unit_id)
         key = (unit["source_id"], unit["source_unit_key"], descriptor.url)
         flight = self._page_fetches.get(key)
         if flight is None:
             task = asyncio.create_task(self._fetch_online_page(unit, descriptor.url, index,
-                                       Priority.READ_AHEAD if prefetch else Priority.READER))
+                                       Priority.READ_AHEAD if prefetch else Priority.READER, descriptors))
             flight = _PageFlight(task)
             self._page_fetches[key] = flight
 
@@ -351,21 +408,37 @@ class ReaderService:
             self._page_fetches.pop(key)
             flight.task.cancel()
 
-    async def _fetch_online_page(self, unit: sqlite3.Row, url: str, index: int, priority: Priority) -> bytes:
+    async def _fetch_online_page(self, unit: sqlite3.Row, url: str, index: int, priority: Priority,
+                                 seen: list) -> bytes:
         source = unit["source_id"]
+        self._check_public_refusal(unit["unit_id"])
+        public_expiry = False
         try:
             response = await self.sources.fetch_resource(source, url, capability="reader", priority=priority)
             status = response.status
-        except AuthRequired:
+        except (AuthRequired, PublicReaderExpired) as exc:
+            public_expiry = isinstance(exc, PublicReaderExpired)
             response, status = None, 403
         if status in (403, 404, 410):
             # A refused or vanished link may simply have expired (signed CDN links): ask the source once for
             # its current page list, and try the page's new link if it changed (Meta Prompt G4; I-107).
-            fresh = await self._online_descriptors(unit["unit_id"], refresh=True)
+            try:
+                fresh = await self._online_descriptors(unit["unit_id"], stale=seen)
+            except CapabilityError as exc:
+                if public_expiry and not isinstance(exc, RateLimited):
+                    self._remember_public_refusal(unit)
+                raise
             if index <= len(fresh) and fresh[index - 1].url and fresh[index - 1].url != url:
                 url = fresh[index - 1].url
-                response = await self.sources.fetch_resource(source, url, capability="reader", priority=priority)
+                try:
+                    response = await self.sources.fetch_resource(source, url, capability="reader", priority=priority)
+                except PublicReaderExpired:
+                    self._remember_public_refusal(unit)
+                    self._check_public_refusal(unit["unit_id"])
                 status = response.status
+            elif public_expiry:
+                self._remember_public_refusal(unit)
+                self._check_public_refusal(unit["unit_id"])
             elif response is None:
                 raise AuthRequired()
         if status != 200:
@@ -379,6 +452,7 @@ class ReaderService:
         if problem:
             raise ValueError(f"page {index}: {problem}")
         self.cache.put(source, unit["source_unit_key"], url, data)
+        self._public_refusals.pop(unit["unit_id"], None)
         return data
 
     def local_file(self, unit_id: str, *, format: str | None = None) -> LocalArtefact:
@@ -539,6 +613,8 @@ class ReaderService:
         unit = self._unit(unit_id)
         self._reading[unit["work_id"]] = unit_id
         if not enabled or not interacted or fraction < threshold or self.downloads is None:
+            return []
+        if not self.sources.supports_download(unit["source_id"]):
             return []
         units = [unit_id] if self._needs_download(unit_id) else []
         if mode in ("read_ahead", "current_plus_read_ahead"):

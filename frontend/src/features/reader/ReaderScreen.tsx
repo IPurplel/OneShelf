@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { api } from "@/api/client";
@@ -113,11 +113,14 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
   const resumed = useRef<string | null>(null);
   const [scrollTo, setScrollTo] = useState<number | null>(null);
   const [pageHeight, setPageHeight] = useState(ESTIMATED_PAGE);
+  const heightAnchor = useRef<{ node: HTMLElement; offset: number } | null>(null);
   const navigate = useNavigate();
   const approximate = search.get("approx");
 
   const units = useMemo(() => details?.units ?? [], [details]);
   const unit = units.find((candidate) => candidate.id === id) ?? null;
+  const selectedTrack = details?.tracks.find(candidate => candidate.id === (track ?? details.selected_track_id));
+  const canDownload = selectedTrack !== undefined && selectedTrack.can_download !== false;
   const next = nextInSourceOrder(units, id);
 
   useEffect(() => {
@@ -217,9 +220,20 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
     const target = stage.current?.querySelector(`[data-page-slot="${scrollTo}"]`);
     // The resume needs no guard against its own scroll: the position is read from the pages, so the
     // scroll it causes resolves to the slot that was just restored and changes nothing.
-    (target as HTMLElement | null)?.scrollIntoView?.({ block: "start" });
+    // A virtualized jump must be immediate: intermediate smooth-scroll events
+    // replace the target window while its images are still changing height.
+    (target as HTMLElement | null)?.scrollIntoView?.({ block: "start", behavior: "instant" });
     setScrollTo(null);
   }, [scrollTo, index]);
+
+  useLayoutEffect(() => {
+    const anchor = heightAnchor.current;
+    heightAnchor.current = null;
+    const container = stage.current;
+    if (!anchor || !container || !container.contains(anchor.node) || settings.mode !== "long_strip") return;
+    const offset = anchor.node.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    container.scrollTo({ top: container.scrollTop + offset - anchor.offset, behavior: "instant" });
+  }, [pageHeight, id, settings.mode]);
 
   // Interaction reveals the controls in Smart; in Minimal it does not, which is the whole point.
   const show = useCallback(() => {
@@ -295,14 +309,14 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
       else if (event.key === "s") setPanel("settings");
       else if (event.key === "f") toggleFullscreen();
       // §26.5: download belongs to the reader's own keyboard set, beside the contents and settings keys.
-      else if (event.key === "d") void api.post("/api/downloads", { unit_ids: [id] });
+      else if (event.key === "d" && canDownload) void api.post("/api/downloads", { unit_ids: [id] });
       else if (event.key === "+" || event.key === "=") { changeZoom(ZOOM_STEP); event.preventDefault(); }
       else if (event.key === "-") { changeZoom(1 / ZOOM_STEP); event.preventDefault(); }
       else if (event.key === "0") { resetZoom(); event.preventDefault(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [panel, settings.direction, step, changeZoom, resetZoom, toggleFullscreen, id]);
+  }, [panel, settings.direction, step, changeZoom, resetZoom, toggleFullscreen, id, canDownload]);
 
   /**
    * In Long Strip the reader's position is where they have scrolled to (§26.6, §26.11). It drives the
@@ -491,13 +505,13 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
                     onClick={() => { void api.post(`/api/reader/units/${id}/mark-unread`, {}); setMore(false); }}>
               {t("reader.markUnread")}
             </button>
-            <button type="button" className="reader__button"
+            {canDownload && <button type="button" className="reader__button"
                     onClick={() => {
                       void api.post("/api/downloads", { unit_ids: units.map((entry) => entry.id) });
                       setMore(false);
                     }}>
               {t("reader.downloadWork")}
-            </button>
+            </button>}
             <button type="button" className="reader__button"
                     onClick={() => { setPanel("source"); setMore(false); }}>
               {t("reader.changeSource")}
@@ -551,7 +565,7 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
                   });
                 }}>{t("reader.retry")}</button>
                 {/* Repair is the same download again, through the normal validated commit (§16.5). */}
-                <button type="button" className="button" disabled={repairing || unit?.integrity === "none"}
+                {canDownload && <button type="button" className="button" disabled={repairing || unit?.integrity === "none"}
                         onClick={() => {
                           setRepairing(true);
                           setRepairProblem(null);
@@ -560,7 +574,7 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
                             .finally(() => setRepairing(false));
                         }}>
                   {t("reader.repair")}
-                </button>
+                </button>}
                 <button type="button" className="button"
                         onClick={() => setSkipped((set) => new Set(set).add(page.index))}>
                   {t("reader.skip")}
@@ -588,7 +602,15 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
                      const height = event.currentTarget.getBoundingClientRect().height;
                      // One estimate for the whole strip, updated only when it is materially wrong, so the
                      // spacers and the reserved page heights never disagree.
-                     if (height > 0 && Math.abs(height - pageHeight) > 24) setPageHeight(height);
+                     if (height > 0 && Math.abs(height - pageHeight) > 24) {
+                       const container = stage.current;
+                       const anchor = container?.querySelector<HTMLElement>(`[data-page-slot="${indexRef.current}"]`);
+                       if (settings.mode === "long_strip" && container && anchor && heightAnchor.current === null) {
+                         heightAnchor.current = { node: anchor,
+                           offset: anchor.getBoundingClientRect().top - container.getBoundingClientRect().top };
+                       }
+                       setPageHeight(height);
+                     }
                    }}
                    onError={() => {
                      setFailed((set) => new Set(set).add(page.index));

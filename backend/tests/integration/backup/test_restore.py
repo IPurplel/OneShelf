@@ -359,3 +359,60 @@ def test_i102_merge_restores_corrections_and_current_corrections_still_win(libra
     unit = library.conn.execute("SELECT user_number, unit_type FROM reading_units").fetchone()
     assert tuple(work) == ("comic", "user")                     # the current correction wins
     assert tuple(unit) == ("0", "prologue")                     # the backup's correction is restored and applied
+
+
+def add_private_metadata(library, work):
+    library.conn.execute("INSERT INTO tags VALUES ('saved-tag', 'Favorites', '#123456', '2026-10-29')")
+    library.conn.execute("INSERT INTO work_tags VALUES (?, 'saved-tag', '2026-10-29')", (work,))
+    library.conn.execute("INSERT INTO collections VALUES ('saved-collection', 'Reading next', 0, NULL, '2026-10-29', '2026-10-29')")
+    library.conn.execute("INSERT INTO collection_works VALUES ('saved-collection', ?, '2026-10-29')", (work,))
+    library.conn.execute("INSERT INTO work_notes VALUES (?, 8, 'Saved private note', '2026-10-29', '2026-10-29')", (work,))
+
+
+@pytest.mark.parametrize("mode", ["replace", "merge"])
+def test_restore_recovers_private_metadata_from_backup(library, clock, mode):
+    work = library.add_work("Private library")["work_id"]
+    add_private_metadata(library, work)
+    record = make_backup(library, clock)
+    for table in ("tags", "collections", "work_notes"):
+        library.conn.execute(f"DELETE FROM {table}")
+    if mode == "replace":
+        library.conn.execute("INSERT INTO tags VALUES ('local-tag', 'Local only', NULL, '2026-10-29')")
+        library.conn.execute("INSERT INTO collections VALUES ('local-collection', 'Local only', 0, NULL, '2026-10-29', '2026-10-29')")
+
+    restore_service(library, clock).restore(record.path, mode=mode)
+
+    assert [tuple(r) for r in library.conn.execute("SELECT id, name, color FROM tags")] == [("saved-tag", "Favorites", "#123456")]
+    assert [tuple(r) for r in library.conn.execute("SELECT work_id, tag_id FROM work_tags")] == [(work, "saved-tag")]
+    assert [tuple(r) for r in library.conn.execute("SELECT id, name FROM collections")] == [("saved-collection", "Reading next")]
+    assert [tuple(r) for r in library.conn.execute("SELECT collection_id, work_id FROM collection_works")] == [("saved-collection", work)]
+    assert [tuple(r) for r in library.conn.execute("SELECT work_id, rating, note FROM work_notes")] == [(work, 8, "Saved private note")]
+
+
+def test_merge_keeps_current_note_and_rating_while_adding_missing_notes(library, clock):
+    current = library.add_work("Current note")["work_id"]
+    missing = library.add_work("Missing note")["work_id"]
+    for work in (current, missing):
+        library.conn.execute("INSERT INTO work_notes VALUES (?, 8, 'Saved note', '2026-10-28', '2026-10-28')", (work,))
+    record = make_backup(library, clock)
+    library.conn.execute("UPDATE work_notes SET rating = 3, note = 'Current note', updated_at = '2026-10-29' WHERE work_id = ?", (current,))
+    library.conn.execute("DELETE FROM work_notes WHERE work_id = ?", (missing,))
+
+    restore_service(library, clock).restore(record.path, mode="merge")
+
+    assert tuple(library.conn.execute("SELECT rating, note, updated_at FROM work_notes WHERE work_id = ?", (current,)).fetchone()) == (3, "Current note", "2026-10-29")
+    assert tuple(library.conn.execute("SELECT rating, note FROM work_notes WHERE work_id = ?", (missing,)).fetchone()) == (8, "Saved note")
+
+
+def test_merge_remaps_case_insensitive_tag_name_to_current_id(library, clock):
+    work = library.add_work("Tagged work")["work_id"]
+    add_private_metadata(library, work)
+    record = make_backup(library, clock)
+    library.conn.execute("DELETE FROM tags")
+    library.conn.execute("INSERT INTO tags VALUES ('current-tag', 'FAVORITES', '#abcdef', '2026-10-29')")
+
+    restore_service(library, clock).restore(record.path, mode="merge")
+
+    assert [tuple(r) for r in library.conn.execute("SELECT id, name, color FROM tags")] == [("current-tag", "FAVORITES", "#abcdef")]
+    assert [tuple(r) for r in library.conn.execute("SELECT work_id, tag_id FROM work_tags")] == [(work, "current-tag")]
+    assert library.conn.execute("PRAGMA foreign_key_check").fetchall() == []
