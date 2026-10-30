@@ -31,8 +31,10 @@ cases:
 - capability: catalog
   inputs: {listing_key: baki-dou}
   fixtures:
-  - url: https://3asq.online/manga/baki-dou/ajax/chapters/
+  - url: https://3asq.online/manga/baki-dou/ajax/chapters/?t=1
     file: fixtures/chapters.html
+  - url: https://3asq.online/manga/baki-dou/ajax/chapters/?t=2
+    file: fixtures/chapters-paged-end.html
   expect:
     min_items: 3
     fields_present: [unit_key, title, url, number]
@@ -40,12 +42,30 @@ cases:
 - capability: catalog
   inputs: {listing_key: berserk}
   fixtures:
-  - url: https://3asq.online/manga/berserk/ajax/chapters/
+  - url: https://3asq.online/manga/berserk/ajax/chapters/?t=1
     file: fixtures/chapters-lettered.html
+  - url: https://3asq.online/manga/berserk/ajax/chapters/?t=2
+    file: fixtures/chapters-paged-end.html
   expect:
     min_items: 400
     fields_present: [unit_key, title, url]
     first: {unit_key: 0a}
+# The chapter list as the site now serves it, fifty at a time (captured 2026-10-30, sliced verbatim): two
+# pages, then a page with no chapters. All of them are read, oldest first.
+- capability: catalog
+  inputs: {listing_key: one-piece}
+  fixtures:
+  - url: https://3asq.online/manga/one-piece/ajax/chapters/?t=1
+    file: fixtures/chapters-paged-1.html
+  - url: https://3asq.online/manga/one-piece/ajax/chapters/?t=2
+    file: fixtures/chapters-paged-2.html
+  - url: https://3asq.online/manga/one-piece/ajax/chapters/?t=3
+    file: fixtures/chapters-paged-end.html
+  expect:
+    min_items: 5
+    complete: true
+    fields_present: [unit_key, title, url, number]
+    first: {unit_key: '1153'}
 - capability: reader
   inputs: {url: 'https://3asq.online/manga/one-piece/0chapter/'}
   fixtures:
@@ -64,3 +84,14 @@ cases:
     min_items: 4
     fields_present: [listing_key, title]
     first: {listing_key: wistoria-wand-and-sword}
+# A chapter after the site turned on lazy-loaded pages (captured 2026-10-30): only the first image has a real
+# `src`; every page must still be read, from `data-src`.
+- capability: reader
+  inputs: {url: 'https://3asq.online/manga/one-piece/1197/'}
+  fixtures:
+  - url: https://3asq.online/manga/one-piece/1197/
+    file: fixtures/chapter-lazy.html
+  expect:
+    min_items: 4
+    complete: true
+    fields_present: [url]

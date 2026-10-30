@@ -1,11 +1,11 @@
 capability: catalog
-inputs: [listing_key]
+inputs: [listing_key, page]
 # The chapter list is not in the series page: the site fetches it from its own endpoint under the same
 # series path, which robots.txt allows. That is the request the site itself makes, so it is the one
 # asked for here — no browser, and no guessing at a list that was never in the HTML.
 request:
   method: POST
-  url: "{base_url}/manga/{listing_key:path}/ajax/chapters/"
+  url: "{base_url}/manga/{listing_key:path}/ajax/chapters/?t={page}"
   headers: {Accept: text/html, X-Requested-With: XMLHttpRequest}
 response:
   format: html
@@ -21,6 +21,10 @@ extract:
     number: {css: "a::text", transforms: [trim, {regex_extract: {pattern: "^([0-9]+(?:[.][0-9]+)?)(?:$|[ :\\-])", group: 1}}]}
     url: {css: "a::attr(href)", transforms: [trim, normalize_url]}
     release_date: {css: "span.chapter-release-date i::text", transforms: [trim]}
+# The endpoint now answers fifty chapters at a time (?t=1, ?t=2, ... newest first), and a page past the end
+# lists none ("ليس للمانجا أي فصول بعد"); taken as one response, a long series showed only its latest fifty.
 pagination:
-  mode: none
-  complete_when: single_response
+  mode: page_number
+  start: 1
+  max_pages: 100
+  stop_when: empty_items

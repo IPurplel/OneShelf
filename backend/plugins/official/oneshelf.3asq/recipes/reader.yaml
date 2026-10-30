@@ -12,7 +12,8 @@ extract:
     # `normalize_url` tolerates it, so this `trim` changes nothing today — it is here to say the quirk
     # was seen and handled deliberately, not to fix a break. Checked: removing it extracts the same
     # five URLs from the same fixture.
-    url: {css: "::attr(src)", required: true, transforms: [trim, normalize_url]}
+    # Only the first image keeps a real `src`; the rest are lazy-loaded from `data-src` (seen 2026-10-30).
+    url: {xpath: "./@data-src | ./@src", required: true, transforms: [trim, normalize_url]}
 pagination:
   mode: none
   complete_when: single_response
