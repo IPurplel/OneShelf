@@ -12,7 +12,7 @@ cases:
       complete: true
       fields_present: [listing_key, title, cover_url, url]
       first:
-        listing_key: "/كتاب-الليالي-البيضاء-دوستويفسكي-pdf"
+        listing_key: "/%D9%83%D8%AA%D8%A7%D8%A8-%D8%A7%D9%84%D9%84%D9%8A%D8%A7%D9%84%D9%8A-%D8%A7%D9%84%D8%A8%D9%8A%D8%B6%D8%A7%D8%A1-%D8%AF%D9%88%D8%B3%D8%AA%D9%88%D9%8A%D9%81%D8%B3%D9%83%D9%8A-pdf"
         title: "الليالي البيضاء"
         creator: "فيودور دوستويفسكي"
         cover_url: "https://www.noor-book.com/publice/covers_cache_jpg/9/9/5/a/857b3068b995a1f3abd18552397f2051.png.jpg"

@@ -191,17 +191,21 @@ def parse_search(body: bytes) -> list[Listing]:
             url = book_url(unquote(urlsplit(urljoin(ORIGIN, href)).path))
         except CapabilityError:
             continue
-        key = urlsplit(url).path
+        # Percent-encoded, as a copied book address is, so a book found here and the same book opened by its
+        # URL are one listing, not two.
+        key = quote(urlsplit(url).path)
         if key in seen:
             continue
         seen.add(key)
+        url = ORIGIN + key
         creator = ' '.join((item.css("[itemprop='author'] [itemprop='name']::text").get() or '').split()) or None
         cover = item.css("img[itemprop='image']::attr(src)").get()
         cover = urljoin(ORIGIN, cover) if cover else None
         if cover and (urlsplit(cover).scheme != 'https' or urlsplit(cover).netloc != 'www.noor-book.com'):
             cover = None
         listings.append(Listing(listing_key=key, title=title, url=url, cover_url=cover, creator=creator,
-                                content_type='book', language='en' if key.startswith('/en/') else 'ar'))
+                                # "/en/" is the site's interface language, not the book's.
+                                content_type='book', language='ar'))
     return listings
 
 
