@@ -1,0 +1,18 @@
+# A Noor Book title is one Reading Unit: the whole book (Master §4.4).
+capability: catalog
+inputs: [listing_key]
+request:
+  url: "{base_url}/{listing_key}"
+  headers: {Accept: text/html}
+response:
+  format: html
+extract:
+  items: {css: "h2.under_img_title"}
+  order: source_listed
+  fields:
+    unit_key: {template: "{listing_key}", required: true}
+    title: {css: "#trans_title_here::text", transforms: [trim]}
+    unit_type: {template: "one_shot"}
+pagination:
+  mode: none
+  complete_when: single_response

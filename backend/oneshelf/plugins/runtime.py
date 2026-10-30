@@ -538,6 +538,14 @@ class RecipeRuntime:
         return ListResult(capability, entries, complete, evidence)
 
     def _raw_items(self, recipe: Recipe, document: Any) -> list[Any]:
+        if recipe.extract.count is not None:
+            raw = self._raw_values(document, recipe.extract.count)
+            text = str(raw[0]).strip() if raw else "0"
+            try:
+                n = int(text)
+            except ValueError:
+                return []
+            return list(range(1, max(0, min(n, MAX_TOTAL_ITEMS)) + 1))
         spec = recipe.extract.items
         if spec.kind == "json":
             return [] if isinstance(document, Selector) else [n for n in jsonpath.evaluate(spec.json_, document)]

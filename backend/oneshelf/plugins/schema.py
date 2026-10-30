@@ -12,9 +12,10 @@ from oneshelf.net.domains import DomainRuleError, normalize_rule
 from oneshelf.plugins import jsonpath
 from oneshelf.plugins.transforms import TransformError, _compile, validate_pipeline
 
-API_MAJOR, API_MINOR = 1, 2
+API_MAJOR, API_MINOR = 1, 3
 # Features and the plugin API that introduced them; a package using one must declare at least that API.
 TEXT_UNITS_API = (1, 2)
+COUNT_ITEMS_API = (1, 3)
 MAX_SELECTOR = 512
 MAX_TEMPLATE = 512
 MAX_PAGES_CAP = 1000
@@ -57,6 +58,7 @@ class Network(Strict):
     domains: list[str] = Field(min_length=1, max_length=32)
     cdn_domains: list[str] = Field(default_factory=list, max_length=32)
     allow_http: bool = False
+    ech: bool = False
 
     @field_validator("domains", "cdn_domains")
     @classmethod
@@ -247,8 +249,18 @@ class Extract(Strict):
     # Values read once per page and reusable by templates (a base URL, a hash, a token in the body).
     values: dict[str, FieldSpec] = Field(default_factory=dict, max_length=8)
     items: FieldSpec | None = None
+    # Generate N virtual items (1..N) from a page count instead of selecting them (API 1.3).
+    # Each virtual item has {position} = {item} = its 1-based number — for sources whose page list
+    # is a count and a URL template, not an array of entries (Noorbook, scanned PDFs).
+    count: FieldSpec | None = None
     order: Literal["source_listed", "reverse"] = "source_listed"
     fields: dict[str, FieldSpec] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _items_xor_count(self) -> Extract:
+        if self.items is not None and self.count is not None:
+            raise ValueError("items and count are mutually exclusive")
+        return self
 
 
 class Pagination(Strict):

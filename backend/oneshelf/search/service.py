@@ -236,11 +236,17 @@ class SearchService:
         except Exception as exc:  # transport or unexpected plugin failure must not clear other results
             state.status[source_id] = {"state": "failed", "category": "transport", "detail": type(exc).__name__}
             return
+        if not result.entries and not result.complete and result.evidence.issues:
+            # A page that could not be fetched is a failure the person can retry, not "no results".
+            state.status[source_id] = {"state": "failed", "category": result.evidence.issues[0].category}
+            return
         defaults = defaults_for(getattr(self.sources, "plugins", None), source_id)
         entries = [classify_listing(_to_live(source_id, entry), defaults) for entry in result.entries]
         for entry in entries:
             state.listings[(entry.source_id, entry.listing_key)] = entry
-        self.cache.put(source_id, version, SEARCH_KIND, key, {"listings": [asdict(e) for e in entries]})
+        if result.complete:
+            # Only a whole answer is reused; a partial one would hide the missing pages for the cache's lifetime.
+            self.cache.put(source_id, version, SEARCH_KIND, key, {"listings": [asdict(e) for e in entries]})
         state.status[source_id] = {"state": "done", "complete": result.complete}
 
     # -- public API --------------------------------------------------------------------------------

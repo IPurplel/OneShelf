@@ -20,6 +20,8 @@ dependencies = [
     "playwright>=1.63.0",
     # Parser only. Never install the "fetchers" extra (stealth/fingerprint stack; ledger K1).
     "scrapling>=0.4.15",
+    # ECH (Encrypted Client Hello) transport only, for its BoringSSL build; its fingerprint options stay unused (K1).
+    "curl_cffi>=0.10",
     # Allowlist HTML sanitiser (Rust ammonia) for text reading units (Master §27).
     "nh3>=0.3.7",
 ]

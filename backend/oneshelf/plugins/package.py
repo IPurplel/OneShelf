@@ -19,7 +19,8 @@ from pydantic import ValidationError
 from oneshelf.integrity.validators import _unsafe_entry_name
 from oneshelf.net.domains import host_allowed
 from oneshelf.plugins.schema import (
-    FIELDS, LIST_CAPABILITIES, TEXT_UNITS_API, Manifest, Recipe, SourceConfig, TestSuite, is_text_reader,
+    COUNT_ITEMS_API, FIELDS, LIST_CAPABILITIES, TEXT_UNITS_API, Manifest, Recipe, SourceConfig, TestSuite,
+    is_text_reader,
 )
 from oneshelf.plugins.templates import TemplateError, placeholders, validate_url_template
 from oneshelf.plugins.yamlsafe import YamlError, load_yaml
@@ -226,8 +227,9 @@ def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str,
                 raise PackageError(f"recipes/{capability}: required field {field!r} is not extracted")
         validate_templates(recipe.extract, capability=capability, inputs=recipe.inputs)
         is_list = capability in LIST_CAPABILITIES
-        if is_list != (recipe.extract.items is not None):
-            raise PackageError(f"recipes/{capability}: items selector {'required' if is_list else 'not allowed'}")
+        has_items = recipe.extract.items is not None or recipe.extract.count is not None
+        if is_list != has_items:
+            raise PackageError(f"recipes/{capability}: items or count selector {'required' if is_list else 'not allowed'}")
         if not is_list and recipe.pagination.mode != "none":
             raise PackageError(f"recipes/{capability}: pagination only applies to list capabilities")
         if capability == "reader" and ("url" in recipe.extract.fields) == ("html" in recipe.extract.fields):
@@ -236,6 +238,9 @@ def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str,
         if features and not _api_at_least(manifest.api, TEXT_UNITS_API):
             raise PackageError(f"recipes/{capability}: {' and '.join(features)} need api "
                                f"'{TEXT_UNITS_API[0]}.{TEXT_UNITS_API[1]}' or newer in manifest.yaml")
+        if recipe.extract.count is not None and not _api_at_least(manifest.api, COUNT_ITEMS_API):
+            raise PackageError(f"recipes/{capability}: count-generated items need api "
+                               f"'{COUNT_ITEMS_API[0]}.{COUNT_ITEMS_API[1]}' or newer in manifest.yaml")
 
     for index, case in enumerate(tests.cases):
         expect = case.expect

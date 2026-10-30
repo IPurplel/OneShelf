@@ -129,6 +129,24 @@ def test_failing_source_never_clears_other_results(db, cache):
     assert final.sources_done == 1 and final.sources_failed == 1
 
 
+def test_an_unfetchable_page_is_a_failure_and_is_not_cached(db, cache):
+    from oneshelf.plugins.results import Issue
+
+    calls = {"n": 0}
+
+    async def unreachable(inputs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return ListResult("search", [], False, Evidence(pages=0, issues=[Issue("transport", "reset", 1)]))
+        return listing_result("Found", source="net")
+
+    sources = FakeSources({"net": unreachable})
+    first = asyncio.run(collect(SearchService(db, sources, cache), "found"))[-1]
+    assert first.source_status["net"] == {"state": "failed", "category": "transport"}
+    second = asyncio.run(collect(SearchService(db, sources, cache), "found"))[-1]
+    assert {r.title for r in second.results} == {"Found"} and calls["n"] == 2
+
+
 def test_rate_limited_source_is_reported_as_retryable(db, cache):
     async def limited(inputs):
         raise RateLimited(30)

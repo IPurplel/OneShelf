@@ -36,6 +36,9 @@ services:
       ONESHELF_FIRST_PARTY_REGISTRY_URL: "${ONESHELF_FIRST_PARTY_REGISTRY_URL-https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json}"
       # Public Ed25519 keys only ("key-id:base64,..."); list two while rotating. A private key never goes here.
       ONESHELF_REGISTRY_TRUSTED_KEYS: "${ONESHELF_REGISTRY_TRUSTED_KEYS-}"
+      # DNS-over-HTTPS JSON endpoint for ECH keys (sources with network.ech, e.g. Noor Book). Empty = none
+      # contacted; those sources then say they need it.
+      ONESHELF_ECH_DOH_URL: "${ONESHELF_ECH_DOH_URL-}"
     volumes:
       # Read-only view prevents a pre-release updater from hiding legacy nested files.
       - ${ONESHELF_DATA_PATH:-./volumes/data}:/legacy-data:ro,z

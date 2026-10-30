@@ -44,8 +44,9 @@ class SourceService:
     def __init__(self, conn: sqlite3.Connection, plugins: PluginManager, governor: TrafficGovernor,
                  sessions: SessionManager | None, *, dev_test_source: bool = False,
                  dev_hosts: dict[str, tuple[str, int]] | None = None, resolver_backend=None, browser=None,
-                 events=None, clock=time.monotonic) -> None:
+                 events=None, clock=time.monotonic, ech_doh_url: str | None = None) -> None:
         self.conn = conn
+        self.ech_doh_url = ech_doh_url
         self.events = events
         self.clock = clock
         self._health_published: dict[str, tuple[str, float]] = {}
@@ -87,8 +88,13 @@ class SourceService:
                 await self._clients.pop(k).__aexit__(None, None, None)
             policy = self.policy_for(package)
             timeouts = package.source.timeouts
-            client = HttpClient(policy, resolver_backend=self.resolver_for(package, policy),
-                                connect_timeout=timeouts.connect_seconds, read_timeout=timeouts.read_seconds)
+            if package.manifest.network.ech:
+                from oneshelf.net.curl_ech import CurlEchClient
+                client = CurlEchClient(policy, doh_url=self.ech_doh_url, connect_timeout=timeouts.connect_seconds,
+                                       read_timeout=timeouts.read_seconds)
+            else:
+                client = HttpClient(policy, resolver_backend=self.resolver_for(package, policy),
+                                    connect_timeout=timeouts.connect_seconds, read_timeout=timeouts.read_seconds)
             self._clients[key] = await client.__aenter__()
         return self._clients[key]
 

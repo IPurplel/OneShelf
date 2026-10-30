@@ -1,0 +1,36 @@
+# Noor Book's own search, the target of its schema.org SearchAction. A result linking to a review page
+# instead of a book page is a title withdrawn for copyright ("غير متاح"): it has nothing to open, so its
+# listing_key does not match and the item is skipped.
+capability: search
+inputs: [query]
+request:
+  url: "{base_url}/?search_for={query}"
+  headers: {Accept: text/html}
+response:
+  format: html
+extract:
+  items: {css: "div.book-restult"}
+  fields:
+    listing_key:
+      css: "a.img-a::attr(href)"
+      required: true
+      transforms:
+        - url_decode
+        # Same-titled books get a numeric suffix: "/كتاب-الغريب-pdf-1613751028".
+        - {regex_extract: {pattern: "^(?:https?://[^/]+)?/([^/?#]+-pdf(?:-[0-9]+)?)$", group: 1}}
+    title:
+      css: "h3[itemprop='name']::text"
+      required: true
+      transforms: [trim]
+    creator:
+      css: "[itemprop='author'] [itemprop='name']::text"
+      transforms: [trim]
+    cover_url:
+      css: "img[itemprop='image']::attr(src)"
+      transforms: [normalize_url]
+    url:
+      css: "a.img-a::attr(href)"
+      transforms: [normalize_url]
+pagination:
+  mode: none
+  complete_when: single_response
