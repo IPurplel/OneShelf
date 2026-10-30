@@ -36,9 +36,10 @@ services:
       ONESHELF_FIRST_PARTY_REGISTRY_URL: "${ONESHELF_FIRST_PARTY_REGISTRY_URL-https://raw.githubusercontent.com/IPurplel/OneShelf-Adapters/registry/index.json}"
       # Public Ed25519 keys only ("key-id:base64,..."); list two while rotating. A private key never goes here.
       ONESHELF_REGISTRY_TRUSTED_KEYS: "${ONESHELF_REGISTRY_TRUSTED_KEYS-}"
-      # DNS-over-HTTPS JSON endpoint for ECH keys (sources with network.ech, e.g. Noor Book). Empty = none
-      # contacted; those sources then say they need it.
-      ONESHELF_ECH_DOH_URL: "${ONESHELF_ECH_DOH_URL-}"
+      # DNS-over-HTTPS JSON endpoint for ECH keys (sources with network.ech, e.g. Noor Book); that resolver
+      # learns which source hosts you use. Same `${VAR-default}` rule as the Registry: unset gets Cloudflare,
+      # `ONESHELF_ECH_DOH_URL=` (set, empty) contacts none and those sources then say they need it.
+      ONESHELF_ECH_DOH_URL: "${ONESHELF_ECH_DOH_URL-https://cloudflare-dns.com/dns-query}"
     volumes:
       # Read-only view prevents a pre-release updater from hiding legacy nested files.
       - ${ONESHELF_DATA_PATH:-./volumes/data}:/legacy-data:ro,z
