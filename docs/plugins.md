@@ -206,7 +206,7 @@ are *Unsupported by Declarative Adapter* and *Native Adapter Review Required*. D
 ## 6. The shipped suite
 
 `backend/plugins/official/` holds the packages that ship with OneShelf, and
-`docs/c9/source-capability-ledger.md` records what each one was actually verified to do, what is missing and
+`docs/source-capability-ledger.md` records what each one was actually verified to do, what is missing and
 why. `backend/testsource/` is the OneShelf Test Source: a local, deterministic source for failure and recovery
 testing (rate limits, 500s, session expiry, corrupt media, interrupted downloads, catalogue collapse), enabled
 only when `ONESHELF_DEV_TEST_SOURCE=1`.

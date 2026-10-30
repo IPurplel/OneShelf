@@ -28,13 +28,6 @@ stays removed: restarting, updating or recreating the container never brings it 
 ./uninstall.sh    # stop OneShelf, keeping your library
 ```
 
-> **Status.** Application, browser, and deployment-script checks are recorded in the
-> [latest verification report](docs/plan/audit-fixes-verification.md). Sources are covered by offline
-> package fixtures; live availability is not established by that run. A full container deployment on a
-> real machine remains unverified: the
-> [Fedora host gate](docs/c9/verification.md#3a-the-final-release-gate--what-the-fedora-host-must-run)
-> is still open, so treat the deployment as unproven until it closes.
-
 ### What you need first
 
 * **A container runtime.** Either Podman or Docker. OneShelf will not install one for you, and will
@@ -214,7 +207,7 @@ one is allowed to reach, and disable or remove it.
 Each is a declarative package — data, not code — installed through the same validation and packaged tests
 as any other. When an update to one asks for more than it had before, it waits for your review rather than
 being approved for you. What each source can and cannot do is recorded in
-[docs/c9/source-capability-ledger.md](docs/c9/source-capability-ledger.md).
+[docs/source-capability-ledger.md](docs/source-capability-ledger.md).
 
 The Sources screen also shows the **Source Registry**: adapters published from
 [OneShelf-Adapters](https://github.com/IPurplel/OneShelf-Adapters), where adapters are developed and contributed. Each entry carries its own trust
@@ -237,7 +230,6 @@ Want to add a source? See OneShelf-Adapters' [CONTRIBUTING.md](https://github.co
 | [docs/api.md](docs/api.md) | the HTTP API |
 | [docs/plugins.md](docs/plugins.md) | how source packages work, and how to write one |
 | [docs/development.md](docs/development.md) | running from source, tests, environment variables |
-| [docs/agent-browser-verification.md](docs/agent-browser-verification.md) | browser QA gate for coding agents after pushed changes |
 
 ## Licence
 

@@ -3,8 +3,7 @@
 No container runtime exists where this suite runs, so the image cannot be built here. What can be
 proved is everything the build is made of: which files Docker would send in the build context (with
 the real `.dockerignore`, evaluated the way Docker evaluates it), where the Dockerfile puts them, and
-what the image tells the application. The Fedora host gate then confirms it inside a real container
-(docs/c9/verification.md §3a).
+what the image tells the application. Running the image on a real host confirms the rest.
 """
 import re
 from pathlib import Path
