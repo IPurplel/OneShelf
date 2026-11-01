@@ -173,11 +173,16 @@
 .shelf--compactRow { --shelf-card-width: 118px; --shelf-cover-height: 168px; }
 /* On My Shelf the rows do not scroll: they fill the width and wrap into further shelves. */
 .shelfview { --shelf-card-width: 190px; --shelf-cover-height: 270px; }
-.shelf__row--wrap { grid-auto-flow: column; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+.shelf__row--wrap {
+  display: flex; flex-wrap: wrap; gap: var(--shelf-card-gap);
+  overflow: visible; -webkit-mask-image: none; mask-image: none;
+}
+.shelf__row--wrap > * { inline-size: var(--shelf-card-width); }
+.shelf__row--wrap .workcard { grid-row: auto; grid-template-rows: auto auto; }
 .shelfview .shelf__case { inline-size: fit-content; max-inline-size: 100%; }
 .shelfview .workcard__title { display: -webkit-box; -webkit-box-orient: vertical;
                                -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
-.shelfview .shelf__case { margin-bottom: var(--space-6); }
+.shelfview .shelf__case { margin-bottom: var(--space-6); padding-bottom: 28px; }
 .shelf__row > * { scroll-snap-align: start; }
 /* A shadowed rear rail and a projected deck give the volumes somewhere to rest. */
 .shelf__back {

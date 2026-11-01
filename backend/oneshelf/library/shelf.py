@@ -16,7 +16,7 @@ from oneshelf.search.index import search_local
 from oneshelf.storage.paths import PathSafetyError, delete_managed_file
 from oneshelf.storage.roots import get_root
 
-VIEWS = ("all", "saved", "reading", "completed", "favorites", "pinned")
+VIEWS = ("all", "saved", "reading", "completed", "favorites", "pinned", "downloaded")
 
 
 @dataclass(frozen=True)
@@ -149,6 +149,10 @@ class ShelfService:
             "saved": " AND s.completed_at IS NULL AND NOT EXISTS (SELECT 1 FROM reading_state rs"
                      " JOIN reading_units u ON u.id = rs.reading_unit_id JOIN source_tracks t ON t.id = u.track_id"
                      " WHERE t.work_id = s.work_id AND rs.read_state IN ('partial', 'read'))",
+            "downloaded": " AND EXISTS (SELECT 1 FROM assets a"
+                          " JOIN reading_units u ON u.id = a.reading_unit_id"
+                          " JOIN source_tracks t ON t.id = u.track_id"
+                          " WHERE t.work_id = s.work_id AND a.integrity = 'ok')",
         }[name]
         rows = self.conn.execute(
             "SELECT s.*, w.display_title FROM shelf_entries s JOIN works w ON w.id = s.work_id"

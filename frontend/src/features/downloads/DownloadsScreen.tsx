@@ -79,6 +79,7 @@ export function DownloadsScreen() {
     <section className="screen">
       <div className="screen__head">
         <h1 className="screen__title">{t("downloads.title")}</h1>
+        <Link className="chip" to="/settings/storage">{t("downloads.storageSettings")}</Link>
         {batches.length > 0 && (
           <button type="button" className="button" disabled={loading} onClick={() => setConfirming(true)}>{t("downloads.clear")}</button>
         )}
@@ -92,6 +93,7 @@ export function DownloadsScreen() {
       {data !== null && !loading && batches.length === 0 && <div className="empty">
         <p className="empty__body">{t("downloads.empty")}</p>
         <Link className="button button--primary" to="/shelf">{t("nav.shelf")}</Link>
+        <Link className="button" to="/settings/storage">{t("downloads.storageSettings")}</Link>
       </div>}
 
       <ul className="batches">

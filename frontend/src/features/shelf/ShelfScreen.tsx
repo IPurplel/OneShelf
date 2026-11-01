@@ -20,6 +20,7 @@ import { TagsDrawer } from "./TagsDrawer";
 const VIEWS: { id: string; labelKey: StringKey }[] = [
   { id: "all", labelKey: "shelf.view.all" },
   { id: "saved", labelKey: "shelf.view.saved" },
+  { id: "downloaded", labelKey: "shelf.view.downloaded" },
   { id: "reading", labelKey: "shelf.view.reading" },
   { id: "completed", labelKey: "shelf.view.completed" },
   { id: "favorites", labelKey: "shelf.view.favorites" },
