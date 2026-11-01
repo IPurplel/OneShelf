@@ -114,7 +114,7 @@ export function SourcesScreen() {
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
       {loading && <LoadingState />}
 
-      {data !== null && !loading && sources.length === 0 && <p className="shelf__empty">{t("sources.empty")}</p>}
+      {data !== null && !loading && sources.length === 0 && <div className="empty"><p className="empty__body">{t("sources.empty")}</p></div>}
       {data !== null && !loading && sources.length > 0 && <>
         <div className="sources__filters">
           <div className="sources__filter-group" role="group" aria-label={t("registry.categories")}>

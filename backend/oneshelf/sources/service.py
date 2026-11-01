@@ -177,7 +177,7 @@ class SourceService:
                 continue
             try:
                 package = self.plugins.load_active(record.id)
-            except Exception:
+            except PluginUnavailable:
                 continue
             if capability in package.manifest.capabilities:
                 found.append((record.id, package.version))
@@ -187,7 +187,7 @@ class SourceService:
         """Whether this source's reader yields text units rather than image pages (plugin API 1.2)."""
         try:
             package = self.plugins.load_active(plugin_id)
-        except Exception:
+        except PluginUnavailable:
             return False
         return is_text_reader(package.recipes.get("reader"))
 
@@ -195,7 +195,7 @@ class SourceService:
         """Whether the source's plugin is installed and active right now."""
         try:
             self.plugins.load_active(plugin_id)
-        except Exception:
+        except PluginUnavailable:
             return False
         return True
 
@@ -203,7 +203,7 @@ class SourceService:
         """A health signal from work done outside `run` (a reader page, for instance; §21)."""
         try:
             package = self.plugins.load_active(plugin_id)
-        except Exception:
+        except PluginUnavailable:
             return
         self._record(package, capability, outcome, category)
 
@@ -211,7 +211,7 @@ class SourceService:
         """Whether this source can be read without its file: a download-only source cannot."""
         try:
             package = self.plugins.load_active(plugin_id)
-        except Exception:
+        except PluginUnavailable:
             return False
         return "reader" in package.manifest.capabilities
 
@@ -227,7 +227,7 @@ class SourceService:
         """Whether this source can hand OneShelf a file for a unit (its `downloads` recipe)."""
         try:
             package = self.plugins.load_active(plugin_id)
-        except Exception:
+        except PluginUnavailable:
             return False
         return "downloads" in package.recipes
 

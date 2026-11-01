@@ -1,8 +1,20 @@
 import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
+import { STRINGS } from "@/i18n/strings";
 
 type Props = { children: ReactNode };
 type State = { error: Error | null };
+
+function getBoundaryStrings() {
+  const lang = (typeof localStorage !== "undefined" && localStorage.getItem("oneshelf.language")) || "en";
+  const table = lang === "ar" ? STRINGS.ar : STRINGS.en;
+  return {
+    title: table["error.boundary.title"] ?? "Something went wrong",
+    body: table["error.boundary.body"] ?? "An unexpected error occurred. Please reload the page.",
+    reload: table["error.boundary.reload"] ?? "Reload",
+    dir: lang === "ar" ? "rtl" as const : "ltr" as const,
+  };
+}
 
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
@@ -17,15 +29,16 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.error === null) return this.props.children;
+    const s = getBoundaryStrings();
     return (
-      <div style={{
+      <div dir={s.dir} style={{
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
         minHeight: "100vh", gap: "16px", padding: "24px", fontFamily: "system-ui, sans-serif",
         color: "var(--ink-900, #2a2a2a)", background: "var(--ivory-100, #f5f1e7)",
       }}>
-        <h1 style={{ fontSize: "24px", margin: 0 }}>Something went wrong</h1>
+        <h1 style={{ fontSize: "24px", margin: 0 }}>{s.title}</h1>
         <p style={{ margin: 0, color: "var(--ink-500, #777)" }}>
-          An unexpected error occurred. Please reload the page.
+          {s.body}
         </p>
         <button
           type="button"
@@ -36,7 +49,7 @@ export class ErrorBoundary extends Component<Props, State> {
             background: "var(--paper, #fff)", color: "inherit",
           }}
         >
-          Reload
+          {s.reload}
         </button>
       </div>
     );

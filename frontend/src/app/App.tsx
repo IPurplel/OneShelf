@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { motion } from "motion/react";
 
@@ -23,6 +23,8 @@ function Layout() {
   const currentDestination = destinationForPath(location.pathname);
   useEffect(closePanel, [location, closePanel]);
   const mobile = useMediaQuery(MOBILE_QUERY);
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => { mainRef.current?.focus(); }, [location.pathname]);
 
   return (
     <div className="layout">
@@ -34,7 +36,7 @@ function Layout() {
       )}
       <div className="layout__body">
         <Header onOpenNotifications={() => setPanel("notifications")} onOpenAttention={() => setPanel("attention")} />
-        <main id="main" className="layout__main" tabIndex={-1}>
+        <main id="main" ref={mainRef} className="layout__main" tabIndex={-1}>
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0 }}

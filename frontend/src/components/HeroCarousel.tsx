@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CoverPlaceholder } from "@/components/CoverPlaceholder";
 import { useI18n } from "@/i18n/i18n";
+import { useReducedMotion } from "@/lib/motion";
 
 export type HeroSlide = {
   work_id: string | null;
@@ -17,6 +18,7 @@ export type HeroSlide = {
 
 export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
   const { language, t } = useI18n();
+  const reduced = useReducedMotion();
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: slides.length > 1,
     direction: language === "ar" ? "rtl" : "ltr",
@@ -52,12 +54,12 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
     const onSelect = () => setSelectedIndex(emblaApi.selectedScrollSnap());
     emblaApi.on("select", onSelect);
     onSelect();
-    startAutoplay();
+    if (!reduced) startAutoplay();
     return () => {
       emblaApi.off("select", onSelect);
       stopAutoplay();
     };
-  }, [emblaApi, startAutoplay, stopAutoplay]);
+  }, [emblaApi, reduced, startAutoplay, stopAutoplay]);
 
   if (slides.length === 0) return null;
 
@@ -65,11 +67,11 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
     <div
       className="hero-carousel"
       onMouseEnter={stopAutoplay}
-      onMouseLeave={startAutoplay}
+      onMouseLeave={reduced ? undefined : startAutoplay}
       onFocusCapture={stopAutoplay}
       role="region"
       aria-roledescription="carousel"
-      aria-label={slides[selectedIndex]?.title}
+      aria-label={t("hero.carousel")}
     >
       <div className="hero-carousel__viewport" ref={emblaRef}>
         <div className="hero-carousel__container">

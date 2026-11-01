@@ -29,11 +29,11 @@ export function FolderPicker({ onSelect, onClose }: {
       setParent(data.parent ?? null);
       setEntries(data.entries);
     } catch {
-      setError("Could not read directory");
+      setError(t("storage.browse.error"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { void browse(""); }, [browse]);
 
@@ -48,7 +48,7 @@ export function FolderPicker({ onSelect, onClose }: {
       <div className="folderpicker__toolbar">
         {parent !== null && (
           <button type="button" className="chip" onClick={() => void browse(parent)}>
-            <Icon name="close" size={14} /> {t("storage.browse.up")}
+            <Icon name="folderUp" size={14} /> {t("storage.browse.up")}
           </button>
         )}
       </div>

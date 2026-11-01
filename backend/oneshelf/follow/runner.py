@@ -47,7 +47,10 @@ class FollowRunner:
         except RateLimited as exc:
             self._failed(work_id, "rate_limit", row["preferred_source_id"], language=row["language"])
             return {"work_id": work_id, "state": "rate_limited", "retry_after": exc.retry_after, "new_units": []}
-        except (CapabilityError, Exception) as exc:
+        except CapabilityError as exc:
+            self._failed(work_id, exc.category, row["preferred_source_id"], language=row["language"])
+            return {"work_id": work_id, "state": "degraded", "category": exc.category, "new_units": []}
+        except Exception as exc:
             category = getattr(exc, "category", "transport")
             self._failed(work_id, category, row["preferred_source_id"], language=row["language"])
             return {"work_id": work_id, "state": "degraded", "category": category, "new_units": []}
@@ -70,10 +73,17 @@ class FollowRunner:
         self.follows.record_attempt(work_id, language=language, successful=False, category=category)
         logger.warning("follow check for %s via %s failed: %s", work_id, source_id, category)
 
-    async def check_all(self, *, manual: bool = False) -> list[dict]:
-        return [await self.check_work(work_id, language=language)
-                for work_id, language in (self.follows.all_follow_keys() if manual
-                                          else self.follows.due_follow_keys())]
+    async def check_all(self, *, manual: bool = False, concurrency: int = 5) -> list[dict]:
+        keys = list(self.follows.all_follow_keys() if manual else self.follows.due_follow_keys())
+        if not keys:
+            return []
+        semaphore = asyncio.Semaphore(concurrency)
+
+        async def _bounded(work_id: str, language: str | None) -> dict:
+            async with semaphore:
+                return await self.check_work(work_id, language=language)
+
+        return list(await asyncio.gather(*(_bounded(wid, lang) for wid, lang in keys)))
 
     async def start(self) -> None:
         self._task = asyncio.create_task(self._loop())

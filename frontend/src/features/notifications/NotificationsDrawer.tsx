@@ -53,7 +53,7 @@ export function NotificationsDrawer({ attentionOnly = false, onClose }: {
       )}
 
       {data !== null && items.length === 0 && (
-        <p className="shelf__empty">{attentionOnly ? t("notify.emptyAttention") : t("notify.empty")}</p>
+        <div className="empty"><p className="empty__body">{attentionOnly ? t("notify.emptyAttention") : t("notify.empty")}</p></div>
       )}
 
       <ul className="notes">

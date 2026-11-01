@@ -68,6 +68,7 @@ export function HistoryScreen() {
       {data && groups.length === 0 && (
         <div className="empty">
           <p className="empty__body">{t("history.empty")}</p>
+          <Link className="button button--primary" to="/search">{t("nav.search")}</Link>
         </div>
       )}
 

@@ -37,7 +37,13 @@ export function StatsScreen() {
       )}
       {loading && <LoadingState />}
 
-      {data && (
+      {data && data.library.works === 0 && (
+        <div className="empty">
+          <p className="empty__body">{t("stats.empty")}</p>
+        </div>
+      )}
+
+      {data && data.library.works > 0 && (
         <div className="stats">
           <div className="stats__cards" role="list" aria-label={t("stats.library")}>
             <StatCard label={t("stats.works")} value={fmt(data.library.works)} />
@@ -123,10 +129,11 @@ function ProgressRow({ label, count, total, color, fmt }: {
 }
 
 function ActivityChart({ activity, language }: { activity: StatsResponse["activity"]; language: string }) {
+  const { t } = useI18n();
   const max = Math.max(...activity.map((d) => d.count), 1);
   const dateFormat = new Intl.DateTimeFormat(language, { month: "short", day: "numeric" });
   return (
-    <div className="stats__chart" role="img" aria-label="Reading activity last 30 days">
+    <div className="stats__chart" role="img" aria-label={t("stats.activity")}>
       {activity.map(({ day, count }) => (
         <div key={day} className="stats__chartCol" title={`${dateFormat.format(new Date(day + "T00:00:00"))}: ${count}`}>
           <div className="stats__chartBar" style={{ blockSize: `${(count / max) * 100}%` }} />
