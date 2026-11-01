@@ -46,7 +46,6 @@ export function Header({ onOpenNotifications, onOpenAttention }: {
             <Icon name="attention" />
             <span className="header__count">{attention}</span>
             <span className="visually-hidden">{t("header.attention")}</span>
-            <span aria-hidden="true" className="visually-hidden">{t("header.attention")}</span>
           </button>
         )}
         <button type="button" className="header__button" onClick={onOpenNotifications}

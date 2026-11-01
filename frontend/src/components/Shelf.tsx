@@ -19,7 +19,7 @@ export function Shelf({ title, children, id, viewAllHref, recessed = false, comp
   recessed?: boolean;
   compactRow?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, direction } = useI18n();
   const classes = ["shelf", recessed ? "shelf--recessed" : "", compactRow ? "shelf--compactRow" : ""]
     .filter(Boolean).join(" ");
   return (
@@ -28,7 +28,7 @@ export function Shelf({ title, children, id, viewAllHref, recessed = false, comp
         <h2 className="shelf__title display" id={`${id}-title`}>{title}</h2>
         {viewAllHref && (
           <Link className="shelf__viewall" to={viewAllHref}>
-            {t("home.viewAll")}<span aria-hidden="true"> →</span>
+            {t("home.viewAll")}<span aria-hidden="true"> {direction === "rtl" ? "←" : "→"}</span>
           </Link>
         )}
       </header>

@@ -63,6 +63,12 @@
   --space-6: 32px;
   --space-7: 48px;
 
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-lg: 19px;
+  --surface-hover: rgba(31, 29, 26, 0.045);
+  --surface-sunken: var(--ivory-200);
+
   /* Motion stays subtle: a 2–4px cover lift, a soft drawer slide, a hero crossfade (§32.20). */
   --motion-fast: 120ms;
   --motion-slow: 260ms;
@@ -93,6 +99,8 @@
   --press-accent: #c9e6a7;
   --primary-bg: #557952;
   --primary-hover-bg: #4c6f4b;
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --surface-sunken: #1b2a21;
   --shadow-card: 0 1px 3px rgb(0 0 0 / 28%), 0 6px 18px rgb(0 0 0 / 20%);
   --shadow-raised: 0 2px 4px rgb(0 0 0 / 28%), 0 12px 28px rgb(0 0 0 / 30%);
 }

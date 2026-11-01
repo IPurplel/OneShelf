@@ -910,7 +910,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   padding: var(--space-3);
   border-radius: var(--radius-md);
   background: var(--ivory-100);
+  transition: background var(--motion-fast) var(--ease), box-shadow var(--motion-fast) var(--ease);
 }
+.notes__row:hover { background: var(--ivory-200); box-shadow: var(--shadow-card); }
 .notes__row[data-seen="false"] { background: var(--ivory-200); }
 .notes__title { font-family: var(--font-display); }
 .notes__count { color: var(--positive-text); font-variant-numeric: tabular-nums; }
