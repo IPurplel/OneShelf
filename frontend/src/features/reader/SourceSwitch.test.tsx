@@ -14,7 +14,7 @@ const PAGES = {
 
 const READER_SETTINGS = {
   auto_mark_read_threshold: 0.97, smart_controls_hide_after_ms: 3000, remember_per_work: true,
-  preload_next: 7, preload_previous: 4,
+  preload_next: 15, preload_previous: 4,
 };
 
 const WORK = {

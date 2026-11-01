@@ -21,7 +21,7 @@ type PagesResponse = { reading_unit_id: string; pages: Page[] };
 type ReaderDefaults = { preload_next: number; preload_previous: number };
 
 /** Until the library answers, the Master's own numbers (§26.18); the registry stays the source. */
-const PRELOAD: ReaderDefaults = { preload_next: 7, preload_previous: 4 };
+const PRELOAD: ReaderDefaults = { preload_next: 15, preload_previous: 4 };
 
 /** A page's height before one has been measured — only ever used to size the spacers (§26.6). */
 const ESTIMATED_PAGE = 1200;

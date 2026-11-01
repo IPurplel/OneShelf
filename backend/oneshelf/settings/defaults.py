@@ -38,7 +38,7 @@ class ReaderDefaults:
     auto_mark_read_threshold: float = 0.97
     smart_controls_hide_after: timedelta = timedelta(seconds=3)
     remember_per_work: bool = True
-    preload_next: int = 7
+    preload_next: int = 15
     preload_previous: int = 4
 
 

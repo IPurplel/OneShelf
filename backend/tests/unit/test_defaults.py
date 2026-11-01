@@ -26,7 +26,7 @@ def test_reading_defaults():
     assert DEFAULTS.reader.auto_mark_read_threshold == pytest.approx(0.97)
     assert DEFAULTS.reader.smart_controls_hide_after == timedelta(seconds=3)
     assert DEFAULTS.reader.remember_per_work is True
-    assert DEFAULTS.reader.preload_next == 7
+    assert DEFAULTS.reader.preload_next == 15
     assert DEFAULTS.reader.preload_previous == 4
 
 

@@ -16,7 +16,7 @@ const AUTH = {
 };
 
 const READER = { auto_mark_read_threshold: 0.97, smart_controls_hide_after_ms: 3000,
-                 remember_per_work: true, preload_next: 7, preload_previous: 4 };
+                 remember_per_work: true, preload_next: 15, preload_previous: 4 };
 
 const DOWNLOADS = { auto_download: { enabled: false, mode: "current", read_ahead: 5, threshold: 0.12 },
                     keep_partial_on_cancel: false,
@@ -150,7 +150,7 @@ describe("Settings", () => {
   });
 
   it("keeps the technical knobs behind disclosure, and writes what the reader chooses", async () => {
-    const calls = mockApi([...ALL, post("/api/reader/settings", { ...READER, preload_next: 7 })]);
+    const calls = mockApi([...ALL, post("/api/reader/settings", { ...READER, preload_next: 15 })]);
     const user = userEvent.setup();
     renderWithProviders(<SettingsScreen />);
     await screen.findByRole("tablist", { name: /settings/i });

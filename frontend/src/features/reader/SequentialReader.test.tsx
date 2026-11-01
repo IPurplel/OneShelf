@@ -24,7 +24,7 @@ const LONG = {
 
 const READER_SETTINGS = {
   auto_mark_read_threshold: 0.97, smart_controls_hide_after_ms: 3000, remember_per_work: true,
-  preload_next: 7, preload_previous: 4,
+  preload_next: 15, preload_previous: 4,
 };
 
 const WORK = {
@@ -529,7 +529,7 @@ describe("Sequential Reader", () => {
     expect(total).toBe(60);
   });
 
-  it("preloads the next seven and the previous four, and no further", async () => {
+  it("preloads the next fifteen and the previous four, and no further", async () => {
     longStub({ ...PROGRESS, read_state: "partial", fraction: 0.5, locator: { page: 30 }, revision: 2 });
     renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
     await screen.findAllByRole("img", { name: /page \d/i });
@@ -538,7 +538,7 @@ describe("Sequential Reader", () => {
       const shown = screen.getAllByRole("img", { name: /page \d/i })
         .map((img) => Number(img.getAttribute("src")!.split("/").pop()));
       expect(Math.min(...shown)).toBe(26);                     // 30 − 4
-      expect(Math.max(...shown)).toBe(37);                     // 30 + 7
+      expect(Math.max(...shown)).toBe(45);                     // 30 + 15
     });
   });
 
@@ -584,13 +584,13 @@ describe("Sequential Reader", () => {
     // One page is on screen; §26.18's band is fetched quietly around it.
     await waitFor(() => expect(screen.getAllByRole("img", { name: /page \d/i })).toHaveLength(1));
     fireEvent.load(screen.getByRole("img", { name: /page 30/i }));
-    await waitFor(() => expect(calls.filter((call) => call.url.includes("?prefetch=1"))).toHaveLength(11));
+    await waitFor(() => expect(calls.filter((call) => call.url.includes("?prefetch=1"))).toHaveLength(19));
     const prefetched = calls.filter((call) => call.url.includes("?prefetch=1"))
       .map((call) => Number(call.url.split("/").pop()!.split("?")[0]))
       .sort((a, b) => a - b);
 
     expect(Math.min(...prefetched)).toBe(26);                  // 30 − 4
-    expect(Math.max(...prefetched)).toBe(37);                  // 30 + 7
+    expect(Math.max(...prefetched)).toBe(45);                  // 30 + 15
     expect(prefetched).not.toContain(30);                      // the page itself is already on screen
     expect(screen.getAllByRole("img", { name: /page \d/i })).toHaveLength(1);
   });
