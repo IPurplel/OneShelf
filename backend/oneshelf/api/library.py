@@ -33,11 +33,16 @@ def _temporary_reader_error(exc: PageTemporarilyRefused) -> JSONResponse:
                                                   "Cache-Control": "no-store"})
 
 # Reader content is served sandboxed and never inline in the application origin (Master §27).
-CONTENT_HEADERS = {
+_READER_SECURITY = {
     "Content-Security-Policy": "sandbox; default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'",
     "X-Content-Type-Options": "nosniff",
-    "Cache-Control": "no-store",
     "Cross-Origin-Resource-Policy": "same-origin",
+}
+CONTENT_HEADERS = {**_READER_SECURITY, "Cache-Control": "no-store"}
+_CACHE_BY_ORIGIN = {
+    "local": "private, max-age=604800, immutable",
+    "cache": "private, max-age=86400",
+    "online": "private, max-age=3600",
 }
 
 
@@ -406,8 +411,9 @@ async def reader_page(request: Request, unit_id: str, index: int, prefetch: bool
         return _temporary_reader_error(exc)
     except CapabilityError as exc:
         return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
+    cache = _CACHE_BY_ORIGIN.get(page.origin, "no-store")
     return Response(page.data, media_type="application/octet-stream",
-                    headers={**CONTENT_HEADERS, "X-OneShelf-Origin": page.origin})
+                    headers={**_READER_SECURITY, "Cache-Control": cache, "X-OneShelf-Origin": page.origin})
 
 
 MEDIA_TYPES = {"pdf": "application/pdf", "epub": "application/epub+zip", "cbz": "application/vnd.comicbook+zip",

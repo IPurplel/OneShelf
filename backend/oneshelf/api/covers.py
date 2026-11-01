@@ -26,12 +26,13 @@ router = APIRouter(prefix="/api")
 
 MAX_COVER_BYTES = 4 * 1024 * 1024
 MEDIA_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp"}
-HEADERS = {
+_SECURITY_HEADERS = {
     "Content-Security-Policy": "sandbox; default-src 'none'",
     "X-Content-Type-Options": "nosniff",
     "Cross-Origin-Resource-Policy": "same-origin",
-    "Cache-Control": "private, max-age=86400",
 }
+HEADERS_URL = {**_SECURITY_HEADERS, "Cache-Control": "private, max-age=604800, immutable"}
+HEADERS_LISTING = {**_SECURITY_HEADERS, "Cache-Control": "private, max-age=86400, stale-while-revalidate=86400"}
 CAPABILITY_ORDER = ("work", "search", "reader", "catalog")
 
 
@@ -41,7 +42,7 @@ def _error(status: int, code: str, message: str) -> Response:
                     media_type="application/json", headers={"Cache-Control": cache})
 
 
-async def _image_response(s, source: str, package, url: str) -> Response:
+async def _image_response(s, source: str, package, url: str, *, headers: dict[str, str] = HEADERS_URL) -> Response:
     capability = next((c for c in CAPABILITY_ORDER if c in package.manifest.capabilities), None)
     if capability is None:
         return _error(404, "NO_COVER", "This source has no recipe that could carry a cover.")
@@ -69,7 +70,7 @@ async def _image_response(s, source: str, package, url: str) -> Response:
     media_type = MEDIA_TYPES.get(detect_image_suffix(response.body))
     if media_type is None or _validate_image(response.body):
         return _error(415, "NOT_AN_IMAGE", "The source did not return an image.")
-    return Response(response.body, media_type=media_type, headers=HEADERS)
+    return Response(response.body, media_type=media_type, headers=headers)
 
 
 @router.get("/covers")
@@ -126,7 +127,7 @@ async def cover(request: Request, source: str = "", url: str = "", listing_key: 
         if parts.scheme not in ("http", "https") or not parts.hostname or len(found_url) > 2048:
             last_error = _error(404, "NO_COVER", "This listing has no cover.")
             continue
-        response = await _image_response(s, candidate_source, package, found_url)
+        response = await _image_response(s, candidate_source, package, found_url, headers=HEADERS_LISTING)
         if response.status_code == 200:
             return response
         last_error = response

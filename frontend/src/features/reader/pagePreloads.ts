@@ -4,15 +4,18 @@ export class PagePreloads {
   private failed = new Set<number>();
   private targets: number[] = [];
   private keep = new Set<number>();
-  private active: { page: number; controller: AbortController } | null = null;
+  private active = new Map<number, AbortController>();
   private pausedFor: number | null = null;
   private disposed = false;
   private retryAt = 0;
+  private concurrency: number;
 
-  constructor(readonly unitId: string, private changed: () => void) {}
+  constructor(readonly unitId: string, private changed: () => void, concurrency = 3) {
+    this.concurrency = concurrency;
+  }
 
   url(page: number): string | undefined { return this.blobs.get(page); }
-  pending(page: number): boolean { return this.active?.page === page; }
+  pending(page: number): boolean { return this.active.has(page); }
 
   update(targets: number[], visible: number[], foregroundPage: number | null = null): void {
     this.targets = targets;
@@ -25,27 +28,30 @@ export class PagePreloads {
       }
     }
     for (const page of this.failed) if (!this.keep.has(page)) this.failed.delete(page);
-    if (this.active !== null && (foregroundPage !== null || visible.includes(this.active.page)
-                                 || !this.keep.has(this.active.page))) {
-      const active = this.active;
-      this.active = null;
-      active.controller.abort();
-      this.changed();
+    for (const [page, controller] of this.active) {
+      if (foregroundPage !== null || visible.includes(page) || !this.keep.has(page)) {
+        this.active.delete(page);
+        controller.abort();
+        this.changed();
+      }
     }
-    this.startNext();
+    this.fillSlots();
   }
 
   visibleLoaded(page: number): void {
     if (this.pausedFor === page) this.pausedFor = null;
+    this.fillSlots();
   }
 
-  private startNext(): void {
-    if (this.disposed || this.active !== null || this.pausedFor !== null || Date.now() < this.retryAt) return;
-    const page = this.targets.find((candidate) => !this.blobs.has(candidate) && !this.failed.has(candidate));
-    if (page === undefined) return;
-    const controller = new AbortController();
-    this.active = { page, controller };
-    void this.load(page, controller);
+  private fillSlots(): void {
+    if (this.disposed || this.pausedFor !== null || Date.now() < this.retryAt) return;
+    for (const candidate of this.targets) {
+      if (this.active.size >= this.concurrency) break;
+      if (this.blobs.has(candidate) || this.failed.has(candidate) || this.active.has(candidate)) continue;
+      const controller = new AbortController();
+      this.active.set(candidate, controller);
+      void this.load(candidate, controller);
+    }
   }
 
   private async load(page: number, controller: AbortController): Promise<void> {
@@ -57,7 +63,7 @@ export class PagePreloads {
       const retryAfter = Number(response.headers.get("Retry-After"));
       if (response.status === 503 && Number.isFinite(retryAfter) && retryAfter > 0) {
         this.retryAt = Date.now() + retryAfter * 1000;
-        return; // later reader activity resumes prefetch; no background retry loop
+        return;
       }
       if (!response.ok) throw new Error(`page ${page}: HTTP ${response.status}`);
       const blob = await response.blob();
@@ -66,17 +72,18 @@ export class PagePreloads {
     } catch {
       if (!controller.signal.aborted) this.failed.add(page);
     } finally {
-      if (this.active?.controller === controller) this.active = null;
+      if (this.active.get(page) === controller) this.active.delete(page);
       if (!this.disposed) {
         this.changed();
-        this.startNext();
+        this.fillSlots();
       }
     }
   }
 
   dispose(): void {
     this.disposed = true;
-    this.active?.controller.abort();
+    for (const controller of this.active.values()) controller.abort();
+    this.active.clear();
     for (const url of this.blobs.values()) URL.revokeObjectURL(url);
     this.blobs.clear();
   }
