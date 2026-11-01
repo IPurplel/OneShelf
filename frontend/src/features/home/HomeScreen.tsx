@@ -8,6 +8,7 @@ import { WorkCard } from "@/components/WorkCard";
 import { LoadingState } from "@/components/LoadingState";
 import { ResultCard } from "@/features/search/ResultCard";
 import { useI18n } from "@/i18n/i18n";
+import { useLive } from "@/app/live";
 import type { StringKey } from "@/i18n/strings";
 
 /**
@@ -20,6 +21,7 @@ import type { StringKey } from "@/i18n/strings";
 export function HomeScreen() {
   const { t } = useI18n();
   const { data, error, reload } = useResource<HomeResponse>("/api/home");
+  useLive(["shelf.changed"], reload);
 
   if (error !== null) {
     return (

@@ -1,7 +1,7 @@
 import type { StringKey } from "./strings";
 
 type Translate = (key: StringKey) => string;
-const CAPABILITIES = new Set(["search", "work", "catalog", "reader", "downloads", "latest", "health"]);
+const CAPABILITIES = new Set(["search", "work", "catalog", "reader", "downloads", "latest", "health", "check_session"]);
 const CHANNELS = new Set(["bundled", "registry", "upload"]);
 const TRUST = new Set(["official", "verified_community", "community", "local"]);
 

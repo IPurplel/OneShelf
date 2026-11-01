@@ -86,10 +86,23 @@ describe("My Shelf", () => {
 
     const tabs = screen.getByRole("tablist", { name: /views/i });
     expect(within(tabs).getAllByRole("tab").map((t) => t.textContent)).toEqual(
-      ["All", "Saved", "Reading", "Completed", "Favorites", "Pinned"]);
+      ["All", "Saved", "Downloaded", "Reading", "Completed", "Favorites", "Pinned"]);
 
     await user.click(within(tabs).getByRole("tab", { name: "Completed" }));
     expect(calls.some((call) => call.url.includes("view=completed"))).toBe(true);
+  });
+
+  it("opens on the view the address names, and says what each card is and whether it is offline", async () => {
+    const calls = mockApi([get("/api/shelf", { view: "downloaded", entries: [
+      { ...ENTRY, content_type: "novel", read_fraction: 0.5, downloaded_units: 2 }] })]);
+    renderWithProviders(<ShelfScreen />, { route: "/shelf?view=downloaded" });
+    const card = await screen.findByRole("link", { name: /the irregular chronicle/i });
+
+    expect(screen.getByRole("tab", { name: "Downloaded" })).toHaveAttribute("aria-selected", "true");
+    expect(calls.some((call) => call.url.includes("view=downloaded"))).toBe(true);
+    expect(card).toHaveTextContent("Novel");
+    expect(card).toHaveTextContent("Saved offline");
+    expect(card).toHaveTextContent("50%");
   });
 
   it("searches the shelf locally rather than the internet", async () => {

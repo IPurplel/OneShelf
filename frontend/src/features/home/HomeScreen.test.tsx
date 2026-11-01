@@ -22,7 +22,7 @@ describe("Home", () => {
     respondWith({ ...EMPTY, hero: { reason: "pinned", title: "حكاية القمر", work_id: "w1",
       cover_url: "/api/covers/missing" } });
     renderWithProviders(<HomeScreen />, { language });
-    const hero = await screen.findByRole("region", { name: "حكاية القمر" });
+    const hero = await screen.findByRole("group", { name: "حكاية القمر" });
     fireEvent.error(hero.querySelector(".hero__cover img")!);
     expect(hero.querySelector(".hero__cover img, .hero__art")).toBeNull();
     expect(hero.querySelector(".workcard__blank")).toHaveTextContent("ح");
@@ -45,7 +45,7 @@ describe("Home", () => {
       continue_reading: [{ work_id: "w1", title: "The Irregular Chronicle", cover_url: null, fraction: 0.42 }],
     });
     renderWithProviders(<HomeScreen />);
-    const hero = await screen.findByRole("region", { name: "The Irregular Chronicle" });
+    const hero = await screen.findByRole("group", { name: "The Irregular Chronicle" });
     expect(within(hero).getByRole("heading", { name: "The Irregular Chronicle" })).toBeInTheDocument();
     expect(within(hero).getByText(/continue reading/i, { selector: ".hero__reason" })).toBeInTheDocument();
     expect(within(hero).getByRole("link", { name: /continue reading/i })).toHaveAttribute("href", "/works/w1");

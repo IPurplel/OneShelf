@@ -50,6 +50,8 @@ export type ShelfEntry = {
   last_read_at: string | null;
   read_fraction: number;
   total_bytes: number;
+  content_type?: string | null;
+  downloaded_units?: number;
 };
 
 export type ShelfResponse = { view: string; entries: ShelfEntry[] };

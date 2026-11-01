@@ -1,18 +1,19 @@
 import { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { useResource } from "@/api/useApi";
 import { Icon } from "@/components/Icon";
 import { ModalSurface } from "@/components/ModalSurface";
 import { LoadingState } from "@/components/LoadingState";
-import type { ShelfResponse } from "@/api/types";
-import { WorkCard } from "@/components/WorkCard";
+import type { ShelfEntry, ShelfResponse } from "@/api/types";
+import { WorkCard, type CardWork } from "@/components/WorkCard";
 import { ShelfCase } from "@/components/ShelfCase";
 import { useShelfColumns } from "./useShelfColumns";
 import { RemoveFromShelf } from "./RemoveFromShelf";
 import type { RemovalSummary } from "./RemoveFromShelf";
 import { ApiError, api } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
+import { useLive } from "@/app/live";
 import type { StringKey } from "@/i18n/strings";
 import { handleTabKeys } from "@/components/tabKeyboard";
 import { TagsDrawer } from "./TagsDrawer";
@@ -34,7 +35,11 @@ const VIEWS: { id: string; labelKey: StringKey }[] = [
 export function ShelfScreen() {
   const { t, language } = useI18n();
   const { ref: shelfRef, columns } = useShelfColumns();
-  const [view, setView] = useState("all");
+  // The view lives in the address, so "Downloaded" can be linked to and survives a reload.
+  const [params, setParams] = useSearchParams();
+  const requested = params.get("view");
+  const view = VIEWS.some((candidate) => candidate.id === requested) ? requested! : "all";
+  const setView = (next: string) => setParams(next === "all" ? {} : { view: next }, { replace: true });
   const [query, setQuery] = useState("");
   const [layout, setLayout] = useState<"grid" | "list">("grid");
   const [sort, setSort] = useState<"added" | "title" | "last_read" | "progress" | "size">("added");
@@ -49,6 +54,8 @@ export function ShelfScreen() {
   const activeView = searchTerm ? "all" : view;
   const { data, error, loading, reload } = useResource<ShelfResponse>("/api/shelf",
     searchTerm ? { q: searchTerm } : { view });
+  // A finished download or a change made elsewhere shows here without a refresh.
+  useLive(["shelf.changed", "download.batch"], reload);
 
   /**
    * §32.9: sorting is the screen's own work. The shelf arrives whole and local, so reordering it needs
@@ -131,7 +138,7 @@ export function ShelfScreen() {
       <h1 className="screen__title">{t("shelf.title")}</h1>
 
       <div className="toolbar">
-        <div className="toolbar__tabs" role="tablist" aria-label={t("shelf.views")} onKeyDown={handleTabKeys}>
+        <div className="toolbar__tabs toolbar__tabs--scroll" role="tablist" aria-label={t("shelf.views")} onKeyDown={handleTabKeys}>
           {VIEWS.map((candidate) => (
             <button key={candidate.id} type="button" role="tab" className="chip"
                     id={`shelf-tab-${candidate.id}`} aria-controls="shelf-tabpanel"
@@ -199,6 +206,8 @@ export function ShelfScreen() {
           <p className="empty__body">{t(searchTerm ? "shelf.searchEmpty" : "shelf.empty")}</p>
           {!searchTerm && activeView === "all" &&
             <Link className="button button--primary" to="/search">{t("home.empty.search")}</Link>}
+          {!searchTerm && activeView === "downloaded" &&
+            <Link className="button button--primary" to="/downloads">{t("nav.downloads")}</Link>}
         </div>}
         {layout === "list" ? (
           <div className="shelfview__list">
@@ -209,7 +218,7 @@ export function ShelfScreen() {
                          aria-label={t("shelf.batch.toggle", { title: entry.title })}
                          onChange={() => toggleSelect(entry.work_id)} />
                 )}
-                <WorkCard size="detailed" work={{ work_id: entry.work_id, title: entry.title, cover_url: entry.cover_url ?? null }} />
+                <WorkCard size="detailed" work={cardWork(entry)} />
                 {!selecting && <ManageButton entry={entry} onOpen={setManaging} />}
               </div>
             ))}
@@ -226,7 +235,7 @@ export function ShelfScreen() {
                            aria-label={t("shelf.batch.toggle", { title: entry.title })}
                            onChange={() => toggleSelect(entry.work_id)} />
                   )}
-                  <WorkCard work={{ work_id: entry.work_id, title: entry.title, cover_url: entry.cover_url ?? null }} />
+                  <WorkCard work={cardWork(entry)} />
                 </div>
               ))}
             </ShelfCase>
@@ -275,6 +284,18 @@ function ManageButton({ entry, onOpen }: {
   );
 }
 
+
+/** What a shelf card can say at a glance: the kind of work, how far along, and whether it is on this device. */
+function cardWork(entry: ShelfEntry): CardWork {
+  return {
+    work_id: entry.work_id,
+    title: entry.title,
+    cover_url: entry.cover_url ?? null,
+    content_type: entry.content_type ?? null,
+    fraction: entry.read_fraction > 0 ? entry.read_fraction : null,
+    downloaded: (entry.downloaded_units ?? 0) > 0,
+  };
+}
 
 function chunk<T>(items: T[], size: number): T[][] {
   const rows: T[][] = [];

@@ -228,13 +228,15 @@ export function WorkScreen({ workId }: { workId?: string }) {
           <h1 className="work__title display" dir="auto">{work.title}</h1>
           {work.original_title && <p className="work__original" dir="auto">{work.original_title}</p>}
           <p className="work__meta">
-            {work.content_type && <span>{typeLabel(work.content_type, t)}</span>}
+            {work.content_type && typeLabel(work.content_type, t) && <span>{typeLabel(work.content_type, t)}</span>}
             {work.creator && <span dir="auto">{work.creator}</span>}
             {current && <span>{languageName(current.language, language)}</span>}
           </p>
           <div className="work__actions">
             {continueUnit && !listingOnly(current) && (
-              <Link className="button button--primary" to={readerLink(continueUnit, id, data.selected_track_id)}>{t("work.continue")}</Link>
+              <Link className="button button--primary" to={readerLink(continueUnit, id, data.selected_track_id)}>
+                {units.some((unit) => unit.read_state !== "unread") ? t("work.continue") : t("work.read")}
+              </Link>
             )}
             {current !== null && listingOnly(current) && current.listing_url && (
               <a className="button button--primary" href={current.listing_url} target="_blank" rel="noopener noreferrer">
@@ -293,7 +295,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
         </div>
       </motion.header>
 
-      <div className="toolbar__tabs" role="tablist" aria-label={t("work.tab.details")} onKeyDown={handleTabKeys}>
+      <div className="toolbar__tabs work__tabs" role="tablist" aria-label={t("work.sections")} onKeyDown={handleTabKeys}>
         {(["read", "details", "sources"] as Tab[]).map((candidate) => (
           <button key={candidate} type="button" role="tab" className="chip" aria-selected={tab === candidate}
                   tabIndex={tab === candidate ? 0 : -1}
@@ -480,7 +482,7 @@ function Details({ data }: { data: WorkDetails }) {
   return (
     <dl className="details">
       {work.creator && <><dt>{t("work.detail.creator")}</dt><dd dir="auto">{work.creator}</dd></>}
-      {work.content_type && <><dt>{t("work.detail.type")}</dt><dd>{typeLabel(work.content_type, t)}</dd></>}
+      {work.content_type && typeLabel(work.content_type, t) && <><dt>{t("work.detail.type")}</dt><dd>{typeLabel(work.content_type, t)}</dd></>}
       {work.aliases.length > 0 && <><dt>{t("work.detail.aliases")}</dt><dd>
         {work.aliases.map((alias, index) => <span key={`${alias}-${index}`}>
           {index > 0 && " · "}<bdi>{alias}</bdi>

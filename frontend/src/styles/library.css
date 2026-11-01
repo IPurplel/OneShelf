@@ -173,7 +173,7 @@
 .shelf--compactRow { --shelf-card-width: 118px; --shelf-cover-height: 168px; }
 /* On My Shelf the rows do not scroll: they fill the width and wrap into further shelves. */
 .shelfview { --shelf-card-width: 190px; --shelf-cover-height: 270px; }
-.shelf__row--wrap {
+.shelf__row--wrap, [dir="rtl"] .shelf__row--wrap {
   display: flex; flex-wrap: wrap; gap: var(--shelf-card-gap);
   overflow: visible; -webkit-mask-image: none; mask-image: none;
 }
@@ -468,7 +468,14 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .workcard__title { font-size: 15px; font-weight: 600; line-height: 1.35; }
 .workcard__meta { display: flex; flex-wrap: wrap; gap: var(--space-2); color: var(--ink-500); font-size: 13px; }
 .workcard__kind { text-transform: capitalize; }
-.workcard__meta > span + span::before { content: "·"; margin-inline-end: var(--space-2); }
+/* The separator trails its item, so a wrapped line never starts with a stray dot. */
+.workcard__meta > span:not(:last-child)::after { content: "·"; margin-inline-start: var(--space-2); }
+.workcard__saved { display: inline-flex; align-items: center; gap: 4px; color: var(--positive-text); font-size: 13px; }
+/* A title in another script keeps its own reading order but lines up with the page, not against it. */
+[dir="ltr"] :is(.workcard__title, .hero__title, .work__title, .history__workTitle, .history__unitTitle,
+  .cards__name, .batches__jobTitle) { text-align: left; }
+[dir="rtl"] :is(.workcard__title, .hero__title, .work__title, .history__workTitle, .history__unitTitle,
+  .cards__name, .batches__jobTitle) { text-align: right; }
 
 .workcard__progress { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
 .workcard__track { flex: 1; block-size: 4px; border-radius: 2px; background: var(--progress-track); overflow: hidden; }
@@ -478,7 +485,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .workcard--compact .workcard__title { font-size: 14px; }
 .workcard--detailed { display: grid; grid-template-columns: 96px 1fr; gap: var(--space-4); align-items: start; }
 
-.home__sections { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+/* Side by side when both exist; a lone section takes the whole width instead of half of it. */
+.home__sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: var(--space-5); }
 .notice.home__setup {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
   gap: var(--space-3); margin-block-end: var(--space-5); border-inline-start: 4px solid var(--olive-500);
@@ -551,8 +559,13 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .toolbar__end { min-inline-size: 0; max-inline-size: 100%; flex-wrap: wrap; margin-inline-start: auto; display: flex; gap: var(--space-2); align-items: center; }
 
 .chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
   min-height: 44px;
   padding: 0 var(--space-4);
+  text-decoration: none;
   border: 1px solid var(--surface-border);
   border-radius: 999px;
   background: var(--paper-raised);
@@ -584,6 +597,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .field::placeholder { color: var(--ink-500); opacity: 1; }
 
 .toolbar__end .field { min-inline-size: 0; max-inline-size: 100%; flex: 1 1 180px; }
+.toolbar__end > .chip, .toolbar__end > .iconbutton { flex: none; white-space: nowrap; }
+.iconbutton { display: inline-grid; place-items: center; color: var(--ink-700); }
 
 .iconbutton {
   min-width: 44px; min-height: 44px;
@@ -646,6 +661,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .work__title { margin: 0 0 var(--space-3); font-size: clamp(26px, 3vw, 38px); line-height: 1.18; }
 .work__original { margin: 0 0 var(--space-2); color: var(--ink-500); }
 .work__meta { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: 0 0 var(--space-4); color: var(--ink-500); }
+.work__meta > span:not(:last-child)::after { content: "·"; margin-inline-start: var(--space-3); }
+.work__tabs { margin-block-end: var(--space-4); }
 .work__description { margin: var(--space-5) 0 0; max-inline-size: 70ch; line-height: 1.65; }
 .work__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 .work__toggleMark { inline-size: 1em; flex: none; visibility: hidden; }
@@ -733,8 +750,10 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .search__results[data-layout="list"] .workcard { max-inline-size: none; inline-size: 100%; padding: var(--space-3); border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--paper-raised); }
 .search__results[data-layout="list"] .workcard__caption { min-inline-size: 0; }
 
-.screen__head { display: flex; align-items: baseline; gap: var(--space-4); }
+.screen__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-4); }
 .screen__head .button { margin-inline-start: auto; }
+.screen__actions { margin-inline-start: auto; display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.screen__actions .button { margin-inline-start: 0; }
 
 /* Following: a reading journal on warm paper rows (§32.10). */
 .journal { margin-bottom: var(--space-6); }
@@ -777,13 +796,32 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .batches__state--failed { color: var(--danger-text); }
 .batches__state--completed_with_issues { color: var(--warning-text); }
 .batches__counts { display: flex; flex-wrap: wrap; gap: var(--space-3); color: var(--ink-500); font-size: 14px; }
-.batches__progress { flex: 1 1 100%; inline-size: 100%; block-size: 8px; accent-color: var(--olive-600); }
+.batches__progress, .batches__jobProgress {
+  --bar: var(--olive-600);
+  appearance: none;
+  flex: 1 1 100%;
+  inline-size: 100%;
+  block-size: 8px;
+  border: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--progress-track);
+  color: var(--bar);
+}
+.batches__progress::-webkit-progress-bar, .batches__jobProgress::-webkit-progress-bar { background: var(--progress-track); }
+.batches__progress::-webkit-progress-value, .batches__jobProgress::-webkit-progress-value { background: var(--bar); border-radius: 999px; }
+.batches__progress::-moz-progress-bar, .batches__jobProgress::-moz-progress-bar { background: var(--bar); border-radius: 999px; }
+/* The bar says how much finished; its colour says whether finishing went well. */
+.batches__progress[data-state="failed"] { --bar: var(--danger-text); }
+.batches__progress[data-state="completed_with_issues"] { --bar: var(--warning-text); }
+.batches__progress[data-state="paused"] { --bar: var(--ink-300); }
+.batches__note { flex: 1 1 100%; margin: 0; color: var(--ink-500); font-size: 14px; }
 .batches__actions { margin-inline-start: auto; display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .batches__detail { flex: 1 1 100%; min-inline-size: 0; border-block-start: 1px solid var(--surface-border); padding-block-start: var(--space-3); display: grid; gap: var(--space-2); }
 .batches__job { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-3); background: var(--paper); border-radius: var(--radius-sm); min-inline-size: 0; }
 .batches__jobTitle { font-weight: 600; overflow-wrap: anywhere; }
 .batches__job .chip { margin-inline-start: auto; }
-.batches__jobProgress { flex: 1 1 100%; inline-size: 100%; block-size: 6px; accent-color: var(--olive-600); }
+.batches__jobProgress { block-size: 6px; }
 .batches__error { color: var(--danger-text); overflow-wrap: anywhere; }
 
 .confirm {
@@ -861,6 +899,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 
 .paper { padding: var(--space-6); background: var(--paper-raised); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
 .paper h2 { margin: 0 0 var(--space-4); font-size: 20px; line-height: 1.3; }
+.paper + .paper, .screen > section + .paper { margin-block-start: var(--space-5); }
+.settings__general > .paper + .paper { margin-block-start: 0; }
+.sources__installed { margin-block-start: var(--space-4); }
 
 @media (max-width: 899px) {
   .settings__layout { grid-template-columns: 1fr; }
@@ -896,6 +937,19 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   .shelfview { --shelf-card-width: 150px; --shelf-card-gap: 16px; --shelf-cover-height: 214px; }
   .shelf--compactRow { --shelf-card-width: 104px; --shelf-cover-height: 150px; }
   .shelf__title { font-size: 22px; }
+}
+@media (max-width: 599px) {
+  /* On a phone the view tabs scroll sideways instead of stacking two rows above the shelf. */
+  .toolbar__tabs--scroll {
+    flex: 1 1 100%;
+    min-inline-size: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-block-end: 2px;
+  }
+  .toolbar__tabs--scroll::-webkit-scrollbar { display: none; }
+  .toolbar__tabs--scroll > .chip { flex: none; white-space: nowrap; }
 }
 @media (max-width: 540px) {
   .hero__inner { gap: var(--space-4); }

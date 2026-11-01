@@ -37,6 +37,15 @@
     linear-gradient(165deg, var(--forest-800), var(--forest-900) 82%);
   color: var(--ivory-50);
   border-inline-end: 1px solid rgba(233, 226, 204, 0.08);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+/* On a short window the navigation keeps its room; the decorative footer gives way first. */
+@media (max-height: 860px) {
+  .sidebar__botanical { display: none; }
+}
+@media (max-height: 720px) {
+  .sidebar__footer { display: none; }
 }
 
 .sidebar__brand { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3) var(--space-4); border-block-end: 1px solid rgba(241, 236, 225, 0.1); }

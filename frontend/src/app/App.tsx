@@ -24,7 +24,17 @@ function Layout() {
   useEffect(closePanel, [location, closePanel]);
   const mobile = useMediaQuery(MOBILE_QUERY);
   const mainRef = useRef<HTMLElement>(null);
-  useEffect(() => { mainRef.current?.focus(); }, [location.pathname]);
+  // A new screen starts at its top, with focus on it, as a page load would (WCAG 2.4.3). The first screen
+  // is a real page load: focus stays at the document start, so the skip link is still the first stop.
+  const firstScreen = useRef(true);
+  useEffect(() => {
+    if (firstScreen.current) {
+      firstScreen.current = false;
+      return;
+    }
+    window.scrollTo({ top: 0 });
+    mainRef.current?.focus({ preventScroll: true });
+  }, [location.pathname]);
 
   return (
     <div className="layout">

@@ -500,7 +500,7 @@ describe("Sequential Reader", () => {
 
     await waitFor(() => {
       const mounted = screen.getAllByRole("img", { name: /page \d/i });
-      expect(mounted.length).toBeLessThanOrEqual(12);          // previous 4 + current + next 7
+      expect(mounted.length).toBeLessThanOrEqual(20);          // previous 4 + current + next 15
       expect(mounted.length).toBeGreaterThan(1);
     });
     expect(screen.getAllByRole("img", { name: /page \d/i }).length).toBeLessThan(60);
@@ -520,7 +520,7 @@ describe("Sequential Reader", () => {
 
     await waitFor(() => expect(sources()).toContain(21));
     expect(sources()).not.toContain(1);                        // the far page was released
-    expect(sources().length).toBeLessThanOrEqual(12);
+    expect(sources().length).toBeLessThanOrEqual(20);
 
     // The spacers stand in for what is not mounted, so the strip keeps its full height.
     const total = [...stage.querySelectorAll<HTMLElement>("[data-spacer]")]

@@ -27,6 +27,8 @@ type Follow = {
 export function FollowingScreen() {
   const { t, language } = useI18n();
   const { data, error, loading, reload } = useResource<{ follows: Follow[] }>("/api/follows");
+  const { data: installed } = useResource<{ sources: { id: string; name: string }[] }>("/api/sources");
+  const sourceNames = new Map((installed?.sources ?? []).map((source) => [source.id, source.name]));
 
   // §20, §36: a check that finishes elsewhere lands here without waiting for a refresh.
   useLive(["follow.changed", "follow.releases"], reload);
@@ -74,20 +76,24 @@ export function FollowingScreen() {
         <Link className="button button--primary" to="/search">{t("follow.findWorks")}</Link>
       </div>}
 
-      <Section id="new" title={t("follow.new")} follows={fresh} onCheck={check} language={language} disabled={busy || loading} />
-      <Section id="attention" title={t("follow.attention")} follows={attention} onCheck={check} language={language} disabled={busy || loading} />
-      <Section id="current" title={t("follow.current")} follows={current} onCheck={check} language={language} disabled={busy || loading} />
+      <Section id="new" title={t("follow.new")} follows={fresh} onCheck={check} language={language}
+               disabled={busy || loading} sourceNames={sourceNames} />
+      <Section id="attention" title={t("follow.attention")} follows={attention} onCheck={check} language={language}
+               disabled={busy || loading} sourceNames={sourceNames} />
+      <Section id="current" title={t("follow.current")} follows={current} onCheck={check} language={language}
+               disabled={busy || loading} sourceNames={sourceNames} />
     </section>
   );
 }
 
-function Section({ id, title, follows, onCheck, language, disabled }: {
+function Section({ id, title, follows, onCheck, language, disabled, sourceNames }: {
   id: string;
   title: string;
   follows: Follow[];
   onCheck: (call: Promise<unknown>) => void;
   language: "en" | "ar";
   disabled: boolean;
+  sourceNames: Map<string, string>;
 }) {
   const { t } = useI18n();
   const reduced = useReducedMotion();
@@ -103,8 +109,10 @@ function Section({ id, title, follows, onCheck, language, disabled }: {
       <ul className="journal__rows">
         {follows.map((follow) => (
           <li key={`${follow.work_id}:${follow.language}`} className="journal__row">
-            <Link className="journal__work" to={workLink(follow.work_id, follow.track_id)}>{follow.work_title}</Link>
-            <span className="journal__source">{follow.source_id} · {languageName(follow.language, language)}</span>
+            <Link className="journal__work" dir="auto" to={workLink(follow.work_id, follow.track_id)}>{follow.work_title}</Link>
+            <span className="journal__source">
+              <bdi>{sourceNames.get(follow.source_id) ?? follow.source_id}</bdi> · {languageName(follow.language, language)}
+            </span>
             {follow.unseen_releases > 0 && (
               <span className="journal__badge">{t("follow.count", { count: follow.unseen_releases })}</span>
             )}
@@ -112,7 +120,8 @@ function Section({ id, title, follows, onCheck, language, disabled }: {
               <span className="journal__state">{t(`follow.state.${follow.state}` as const)}</span>
             )}
             <span className="journal__when">
-              {t("follow.lastAnswered", { when: relative(follow.last_successful_at, language) })}
+              {follow.last_successful_at === null ? t("follow.notAnsweredYet")
+                : t("follow.lastAnswered", { when: relative(follow.last_successful_at, language) })}
             </span>
             <button type="button" className="chip" disabled={disabled}
                     aria-label={`${t("follow.check")} · ${follow.work_title} · ${languageName(follow.language, language)}`}

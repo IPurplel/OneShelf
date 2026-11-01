@@ -79,10 +79,13 @@ export function DownloadsScreen() {
     <section className="screen">
       <div className="screen__head">
         <h1 className="screen__title">{t("downloads.title")}</h1>
-        <Link className="chip" to="/settings/storage">{t("downloads.storageSettings")}</Link>
-        {batches.length > 0 && (
-          <button type="button" className="button" disabled={loading} onClick={() => setConfirming(true)}>{t("downloads.clear")}</button>
-        )}
+        <div className="screen__actions">
+          <Link className="button" to="/shelf?view=downloaded">{t("shelf.view.downloaded")}</Link>
+          <Link className="button" to="/settings/storage">{t("downloads.storageSettings")}</Link>
+          {batches.length > 0 && (
+            <button type="button" className="button" disabled={loading} onClick={() => setConfirming(true)}>{t("downloads.clear")}</button>
+          )}
+        </div>
       </div>
 
       {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
@@ -114,8 +117,11 @@ export function DownloadsScreen() {
               {batch.skipped > 0 && <span>{t("downloads.skipped", { count: batch.skipped })}</span>}
               {batch.canceled > 0 && <span>{t("downloads.canceled", { count: batch.canceled })}</span>}
             </span>
-            <progress className="batches__progress" value={processed} max={Math.max(1, total)}
+            <progress className="batches__progress" data-state={batch.state} value={processed} max={Math.max(1, total)}
                       aria-label={t("downloads.progress", { done: processed, total })} />
+            {batch.failed > 0 && batch.pending === 0 && expanded !== batch.batch_id && (
+              <p className="batches__note">{t("downloads.failedHint")}</p>
+            )}
             <span className="batches__actions">
               <button type="button" className="chip" aria-expanded={expanded === batch.batch_id}
                       aria-controls={expanded === batch.batch_id ? `batch-details-${batch.batch_id}` : undefined}

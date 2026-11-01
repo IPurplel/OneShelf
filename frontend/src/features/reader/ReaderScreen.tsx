@@ -464,7 +464,8 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
         {/* §26.16: subtle, and about this unit's own track — "English · source-a". */}
         {offer !== null && (
           <span className="reader__source" data-testid="reader-source" title={t("reader.source")}>
-            {languageName(offer.language, language)} · {offer.source_id}
+            {languageName(offer.language, language)} · <bdi>{details?.tracks.find((candidate) =>
+              candidate.source_id === offer.source_id)?.source_name ?? offer.source_id}</bdi>
           </span>
         )}
         <button type="button" className="reader__button" onClick={() => setPanel("contents")}>

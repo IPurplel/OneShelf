@@ -288,3 +288,31 @@ def test_batch_favorites_updates_selected_works_without_creating_batch_work(api)
     from oneshelf.db.connection import open_database
     with open_database(tmp_path / "data" / "oneshelf.db") as conn:
         assert conn.execute("SELECT count(*) FROM shelf_entries WHERE work_id = 'batch'").fetchone()[0] == 0
+
+
+def test_downloaded_view_lists_only_works_with_sound_local_files(api):
+    client, _, tmp_path = api
+    kept = bind(client, "irregular", "Kept", content_type="manga")
+    other = bind(client, "paged", "Online only", content_type="comic")
+    for work in (kept, other):
+        client.post(f"/api/tracks/{work['track_id']}/catalog/refresh")
+        client.post(f"/api/shelf/{work['work_id']}")
+    entries = {e["work_id"]: e for e in client.get("/api/shelf").json()["entries"]}
+    assert entries[kept["work_id"]]["content_type"] == "manga"
+    assert entries[kept["work_id"]]["downloaded_units"] == 0
+    assert client.get("/api/shelf?view=downloaded").json()["entries"] == []
+
+    from oneshelf.storage.roots import register_root
+    conn = client.app.state.services.conn
+    (tmp_path / "lib").mkdir()
+    root = register_root(conn, "Library", tmp_path / "lib")
+    unit = client.get(f"/api/works/{kept['work_id']}").json()["units"][0]["id"]
+    conn.execute(
+        "INSERT INTO assets (id, reading_unit_id, format, storage_root_id, relative_path, size_bytes, sha256,"
+        " integrity, created_at, updated_at) VALUES ('a1', ?, 'cbz', ?, 'kept/1.cbz', 10, ?, 'ok', 'now', 'now')",
+        (unit, root.id, "0" * 64))
+    conn.commit()
+
+    downloaded = client.get("/api/shelf?view=downloaded").json()["entries"]
+    assert [e["work_id"] for e in downloaded] == [kept["work_id"]]
+    assert downloaded[0]["downloaded_units"] == 1

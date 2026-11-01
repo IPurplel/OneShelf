@@ -106,7 +106,7 @@ export function SourcesScreen() {
   return (
     <section className="screen">
       <h1 className="screen__title">{t("sources.title")}</h1>
-      <section aria-labelledby={installedHeading}>
+      <section className="sources__installed" aria-labelledby={installedHeading}>
       <h2 className="display" id={installedHeading}>{t("sources.installed")}</h2>
 
       {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
@@ -137,7 +137,7 @@ export function SourcesScreen() {
           </div>
         </div>
         <p className="cards__meta" role="status">{t("sources.count", { shown: filtered.length, total: sources.length })}</p>
-        {filtered.length === 0 && <p className="shelf__empty">{t("sources.noMatch")}</p>}
+        {filtered.length === 0 && <div className="empty"><p className="empty__body">{t("sources.noMatch")}</p></div>}
       </>}
 
       <ul className="cards">

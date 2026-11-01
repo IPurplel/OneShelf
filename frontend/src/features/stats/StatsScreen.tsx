@@ -1,7 +1,7 @@
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 import { LoadingState } from "@/components/LoadingState";
-import type { StringKey } from "@/i18n/strings";
+import { typeLabel } from "@/lib/contentType";
 
 type StatsResponse = {
   library: { works: number; shelf: number; units: number; favorites: number; follows: number };
@@ -71,10 +71,10 @@ export function StatsScreen() {
           {data.content_types.length > 0 && (
             <div className="stats__section">
               <h2 className="stats__heading">{t("stats.contentTypes")}</h2>
-              <div className="stats__types">
+              <div className="stats__types" role="list" aria-label={t("stats.contentTypes")}>
                 {data.content_types.map(({ type, count }) => (
                   <div key={type} className="stats__type" role="listitem">
-                    <span className="stats__typeLabel">{t(`stats.type.${type}` as StringKey)}</span>
+                    <span className="stats__typeLabel">{statsTypeLabel(type, t)}</span>
                     <span className="stats__typeCount">{fmt(count)}</span>
                   </div>
                 ))}
@@ -101,6 +101,14 @@ export function StatsScreen() {
       )}
     </section>
   );
+}
+
+const STAT_TYPES = ["manga", "manhwa", "manhua", "comic", "book", "novel", "paper", "other", "unknown"];
+
+/** The same word the rest of the library uses for a kind of work, so a type is never called two things. */
+function statsTypeLabel(type: string, t: ReturnType<typeof useI18n>["t"]): string {
+  if (!type || type === "unknown") return t("stats.type.unknown");
+  return STAT_TYPES.includes(type) ? typeLabel(type, t) : t("stats.type.other");
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {

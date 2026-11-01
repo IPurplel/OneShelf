@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { languageName } from "@/i18n/language";
 import { useI18n } from "@/i18n/i18n";
 import { CoverPlaceholder } from "@/components/CoverPlaceholder";
+import { Icon } from "@/components/Icon";
 import { typeLabel } from "@/lib/contentType";
 
 export type CardWork = {
@@ -15,6 +16,8 @@ export type CardWork = {
   availability?: Record<string, number>;
   /** How many different sources offer it. `availability` counts listings per language, not sources. */
   source_count?: number;
+  /** It has files on this device, so it opens without a source. */
+  downloaded?: boolean;
 };
 
 // A crowded card says which languages, not every one of them: the rest are counted.
@@ -65,6 +68,7 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
   const moreLanguages = languages.length - shownLanguages.length;
   const href = work.work_id ? `/works/${work.work_id}` : undefined;
   const percent = work.fraction === null || work.fraction === undefined ? null : Math.round(work.fraction * 100);
+  const kind = work.content_type ? typeLabel(work.content_type, t) : "";
 
   const cover = (
     <span className="workcard__cover" ref={coverRef}>
@@ -83,15 +87,20 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
   const caption = (
     <span className="workcard__caption">
       <span className="workcard__title" dir="auto">{work.title}</span>
-      {size !== "compact" && (
+      {size !== "compact" && (kind || languages.length > 0 || sources > 0) && (
         <span className="workcard__meta">
-          {work.content_type && <span className="workcard__kind">{typeLabel(work.content_type, t)}</span>}
+          {kind && <span className="workcard__kind">{kind}</span>}
           {languages.length > 0 && (
             <span title={moreLanguages > 0 ? languages.map(([code]) => languageName(code, language)).join(" · ") : undefined}>
               {shownLanguages.join(" · ")}{moreLanguages > 0 && ` · ${t("work.moreLanguages", { count: moreLanguages })}`}
             </span>
           )}
           {sources > 0 && <span>{sources === 1 ? t("work.source") : t("work.sources", { count: sources })}</span>}
+        </span>
+      )}
+      {work.downloaded && size !== "compact" && (
+        <span className="workcard__saved">
+          <Icon name="downloads" size={13} />{t("work.card.downloaded")}
         </span>
       )}
       {problem && <span className="notice notice--problem resultcard__problem" role="alert">{problem}</span>}

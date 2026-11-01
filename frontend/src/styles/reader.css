@@ -81,6 +81,15 @@
 
 /* §26.24: the page holds its own place while it loads — a calm placeholder, never a blank spinner. */
 .reader__frame { display: block; position: relative; }
+/*
+ * The frame carries the fit. It shrinks to its image otherwise, and an image sized in percent of a frame
+ * that is sized by that image only ever shows at its natural size — tiny scans stay tiny, Fit Width does nothing.
+ */
+.reader__stage[data-fit="smart"] > .reader__frame { inline-size: min(100%, 900px); }
+.reader__stage[data-fit="width"] > .reader__frame { inline-size: 100%; }
+.reader__stage[data-mode="single"][data-fit="smart"] > .reader__frame,
+.reader__stage[data-mode="double"][data-fit="smart"] > .reader__frame { inline-size: auto; }
+.reader__stage[data-mode="double"][data-fit="width"] > .reader__frame { inline-size: calc(50% - var(--space-1)); }
 .reader__page--skeleton {
   background: linear-gradient(105deg, rgba(255, 255, 255, 0.04) 30%, rgba(255, 255, 255, 0.09) 50%,
               rgba(255, 255, 255, 0.04) 70%);

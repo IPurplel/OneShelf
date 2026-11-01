@@ -19,6 +19,11 @@ from oneshelf.storage.roots import get_root
 VIEWS = ("all", "saved", "reading", "completed", "favorites", "pinned", "downloaded")
 
 
+def _content_type(row: sqlite3.Row) -> str | None:
+    value = row["content_type"]
+    return None if value in (None, "unknown") else value
+
+
 @dataclass(frozen=True)
 class ShelfEntry:
     work_id: str
@@ -32,6 +37,8 @@ class ShelfEntry:
     last_read_at: str | None = None
     read_fraction: float = 0.0
     total_bytes: int = 0
+    content_type: str | None = None
+    downloaded_units: int = 0
 
 
 class ShelfService:
@@ -65,14 +72,19 @@ class ShelfService:
             " JOIN reading_units u ON u.id = a.reading_unit_id"
             " JOIN source_tracks t ON t.id = u.track_id"
             " WHERE t.work_id = ?", (wid,)).fetchone()[0]
+        downloaded = self.conn.execute(
+            "SELECT count(DISTINCT a.reading_unit_id) FROM assets a"
+            " JOIN reading_units u ON u.id = a.reading_unit_id"
+            " JOIN source_tracks t ON t.id = u.track_id"
+            " WHERE t.work_id = ? AND a.integrity = 'ok'", (wid,)).fetchone()[0]
         return ShelfEntry(wid, row["display_title"], row["added_at"], bool(row["is_favorite"]),
                           bool(row["is_pinned"]), row["completed_at"], releases, work_cover(self.conn, wid),
-                          last_read, read_fraction, total_bytes)
+                          last_read, read_fraction, total_bytes, _content_type(row), downloaded)
 
     def _row(self, work_id: str) -> sqlite3.Row | None:
         return self.conn.execute(
-            "SELECT s.*, w.display_title FROM shelf_entries s JOIN works w ON w.id = s.work_id WHERE s.work_id = ?",
-            (work_id,)).fetchone()
+            "SELECT s.*, w.display_title, w.content_type FROM shelf_entries s JOIN works w ON w.id = s.work_id"
+            " WHERE s.work_id = ?", (work_id,)).fetchone()
 
     def get(self, work_id: str) -> ShelfEntry | None:
         row = self._row(work_id)
@@ -125,6 +137,15 @@ class ShelfService:
                 f" GROUP BY t.work_id", work_ids).fetchall():
             bytes_map[row["work_id"]] = row["total_bytes"]
 
+        downloaded_map: dict[str, int] = {wid: 0 for wid in work_ids}
+        for row in self.conn.execute(
+                f"SELECT t.work_id, count(DISTINCT a.reading_unit_id) AS units FROM assets a"
+                f" JOIN reading_units u ON u.id = a.reading_unit_id"
+                f" JOIN source_tracks t ON t.id = u.track_id"
+                f" WHERE t.work_id IN ({ph}) AND a.integrity = 'ok'"
+                f" GROUP BY t.work_id", work_ids).fetchall():
+            downloaded_map[row["work_id"]] = row["units"]
+
         covers = work_covers(self.conn, work_ids)
 
         return [ShelfEntry(
@@ -132,7 +153,7 @@ class ShelfService:
             bool(r["is_favorite"]), bool(r["is_pinned"]), r["completed_at"],
             releases_map.get(r["work_id"], 0), covers.get(r["work_id"]),
             last_read_map.get(r["work_id"]), fraction_map.get(r["work_id"], 0.0),
-            bytes_map.get(r["work_id"], 0),
+            bytes_map.get(r["work_id"], 0), _content_type(r), downloaded_map.get(r["work_id"], 0),
         ) for r in rows]
 
     def view(self, name: str = "all") -> list[ShelfEntry]:
@@ -155,7 +176,7 @@ class ShelfService:
                           " WHERE t.work_id = s.work_id AND a.integrity = 'ok')",
         }[name]
         rows = self.conn.execute(
-            "SELECT s.*, w.display_title FROM shelf_entries s JOIN works w ON w.id = s.work_id"
+            "SELECT s.*, w.display_title, w.content_type FROM shelf_entries s JOIN works w ON w.id = s.work_id"
             f" WHERE 1 = 1{clauses} ORDER BY s.is_pinned DESC, s.added_at DESC").fetchall()
         return self._batch_entries(rows)
 
