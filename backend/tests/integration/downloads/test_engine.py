@@ -596,6 +596,22 @@ def test_i93_a_book_from_a_source_with_both_recipes_still_downloads_its_file(env
     assert output == "file" and [a["format"] for a in assets] == ["pdf"]
 
 
+def test_a_book_downloaded_the_default_way_takes_its_file_not_the_reader_pages(environment):
+    """The Download button sends no method. A file is still taken from the source's files, not its reader."""
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("manual", "The Manual", content_type="book")
+            batch = env.engine.enqueue([env.unit_id("manual-1")])
+            report = await env.engine.run_until_idle()
+            job = env.job_rows(batch)[0]
+            return report, json.loads(job["extraction_contract_json"]), job["last_error"], env.assets()
+
+    report, contract, error, assets = run(scenario())
+    assert contract["output_format"] == "file" and contract["method"] != "direct"
+    assert report.completed == 1, error
+    assert [a["format"] for a in assets] == ["pdf"]
+
+
 # -- I-97 (BE-007): resume asks only for bytes that exist, and Retry starts a bad file over -------------------
 
 def _recording(env, calls):

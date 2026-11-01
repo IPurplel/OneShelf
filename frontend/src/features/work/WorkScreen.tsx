@@ -17,9 +17,12 @@ import { ModalSurface } from "@/components/ModalSurface";
 import { RemoveFromShelf } from "@/features/shelf/RemoveFromShelf";
 import type { RemovalSummary } from "@/features/shelf/RemoveFromShelf";
 import { readerLink } from "@/features/reader/links";
-import { bytes } from "@/lib/format";
+import { bytes, isolate } from "@/lib/format";
 import { typeLabel } from "@/lib/contentType";
 import { WorkNotes } from "./WorkNotes";
+import { Icon } from "@/components/Icon";
+import { useLive } from "@/app/live";
+import { type Deleted, useFileDeletion } from "@/features/files/useFileDeletion";
 
 type Tab = "read" | "details" | "sources";
 type CatalogAttempt = { trackId: string; status: string; reason: string | null };
@@ -65,6 +68,13 @@ export function WorkScreen({ workId }: { workId?: string }) {
   }, [id]);
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${id}`,
     trackId ? { track_id: trackId } : undefined);
+  // Chapters turn "Downloaded" as they finish. A batch sends many job events, so they are gathered into one re-read.
+  const refreshSoon = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useLive(["download.job", "shelf.changed"], () => {
+    if (refreshSoon.current !== null) return;
+    refreshSoon.current = setTimeout(() => { refreshSoon.current = null; reload(); }, 800);
+  });
+  useEffect(() => () => { if (refreshSoon.current !== null) clearTimeout(refreshSoon.current); }, []);
   const [problem, setProblem] = useState<string | null>(null);
   const reduced = useReducedMotion();
   const location = useLocation();
@@ -331,7 +341,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
           <h2 className="display">{t("shelf.completed.title")}</h2>
           <p>{t("shelf.completed.body", { title: work.title })}</p>
           <p>{t("shelf.completed.offer", { files: completedOffer.summary.files,
-            size: bytes(completedOffer.summary.bytes) })}</p>
+            size: isolate(bytes(completedOffer.summary.bytes)) })}</p>
           <div className="confirm__actions">
             <button type="button" className="button button--primary" onClick={() => setCompletedOffer(null)}>
               {t("shelf.completed.keep")}
@@ -356,7 +366,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
             downloadable={current !== null && !archivedTrack(current) && !listingOnly(current)
                           && current.can_download !== false} track={current}
             attempt={selectedAttempt} onRetry={() => { if (current) void refreshCatalog(current); }}
-            onLanguages={() => setTab("sources")} />
+            onLanguages={() => setTab("sources")} workTitle={work.title} onFilesChanged={reload} />
         </div>
         {tab === "details" && <><Details data={data} /><WorkNotes workId={id} /></>}
         {tab === "sources" && (
@@ -379,11 +389,39 @@ export function WorkScreen({ workId }: { workId?: string }) {
   );
 }
 
-function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRetry, onLanguages }: {
+function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRetry, onLanguages, workTitle,
+                     onFilesChanged }: {
   units: Unit[]; workId: string; trackId: string | null; downloadable: boolean;
   track: Track | null; attempt: CatalogAttempt | null; onRetry: () => void; onLanguages: () => void;
+  workTitle: string; onFilesChanged: () => void;
 }) {
   const { t } = useI18n();
+  const deletion = useFileDeletion(onFilesChanged);
+  const saved = units.filter((unit) => unit.downloaded);
+  const askDeleteUnit = (unit: Unit) => deletion.ask({
+    title: t("files.delete.unitTitle", { title: unit.title ?? unit.id }),
+    body: t("files.delete.unitBody"),
+    // A deleted chapter is downloadable again, not still "requested" from earlier in this visit.
+    run: () => api.delete<Deleted>(`/api/units/${unit.id}/files`).then((done) => {
+      setRequested((current) => current.filter((id) => id !== unit.id));
+      return done;
+    }),
+  });
+  const askDeleteAll = async () => {
+    try {
+      const summary = await api.get<RemovalSummary>(`/api/shelf/${workId}/removal-summary`);
+      deletion.ask({
+        title: t("files.delete.workTitle", { title: workTitle }),
+        body: t("files.delete.workBody", { files: summary.files, size: isolate(bytes(summary.bytes)) }),
+        run: () => api.delete<Deleted>(`/api/works/${workId}/files`).then((done) => {
+          setRequested([]);
+          return done;
+        }),
+      });
+    } catch (error) {
+      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+    }
+  };
   const [problem, setProblem] = useState<string | null>(null);
   const [queueing, setQueueing] = useState(false);
   const [requested, setRequested] = useState<string[]>([]);
@@ -418,7 +456,13 @@ function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRet
         aria-busy={queueing} onClick={() => void queueAll()}>{t("work.downloadAll")}</button>}
       {requested.length > 0 && <p role="status" className="cards__meta">{requested.length === 1
         ? t("work.downloadRequestedOne") : t("work.downloadRequested", { count: requested.length })}</p>}
+      {saved.length > 0 && (
+        <button type="button" className="button" onClick={() => void askDeleteAll()}>
+          <Icon name="trash" size={16} />{t("files.delete.workAction")}
+        </button>
+      )}
     </div>
+    {deletion.dialog}
     <ul className="units" aria-label={t("work.units")}>
       {units.map((unit) => (
         <li key={unit.id} className="units__row">
@@ -431,7 +475,14 @@ function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRet
               : unit.read_state === "partial" ? `${Math.round(unit.fraction * 100)}%` : t("work.unread")}
           </span>
           {unit.downloaded
-            ? <span className="units__badge">{t("work.downloaded")}</span>
+            ? <span className="units__saved">
+                <span className="units__badge">{t("work.downloaded")}</span>
+                <button type="button" className="units__trash" title={t("files.delete.action")}
+                        aria-label={t("files.delete.aria", { title: unit.title ?? unit.id })}
+                        onClick={() => askDeleteUnit(unit)}>
+                  <Icon name="trash" size={17} />
+                </button>
+              </span>
             : requested.includes(unit.id) ? <span className="units__badge">{t("work.requested")}</span>
             : downloadable && <button type="button" className="units__action"
                       onClick={() => {

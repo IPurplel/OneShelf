@@ -92,6 +92,34 @@ describe("My Shelf", () => {
     expect(calls.some((call) => call.url.includes("view=completed"))).toBe(true);
   });
 
+  it("frees space from the Downloaded view: a quick delete per cover, and several at once", async () => {
+    const offline = [
+      { ...ENTRY, total_bytes: 5 * 1024 * 1024, downloaded_units: 2 },
+      { ...ENTRY, work_id: "w2", title: "Paged Archive", total_bytes: 1024 * 1024, downloaded_units: 1 },
+    ];
+    const calls = mockApi([get("/api/shelf", { view: "downloaded", entries: offline }),
+      del("/api/works/w1/files", { work_id: "w1", deleted_files: 2, freed_bytes: 5 * 1024 * 1024 }),
+      { match: (url, init) => url === "/api/shelf/batch" && init?.method === "POST",
+        payload: { action: "delete_files", affected: 2, deleted_files: 3, freed_bytes: 6 * 1024 * 1024 } }]);
+    const user = userEvent.setup();
+    renderWithProviders(<ShelfScreen />, { route: "/shelf?view=downloaded" });
+
+    expect(await screen.findByText(/^2 works · ⁨?6\.0 MB⁩? on this device$/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Delete the download of The Irregular Chronicle" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Delete files" }));
+    await waitFor(() => expect(calls.some((call) => call.method === "DELETE" && call.url === "/api/works/w1/files"))
+      .toBe(true));
+
+    await user.click(screen.getByRole("button", { name: /free up space/i }));
+    await user.click(screen.getByRole("button", { name: /select all/i }));
+    await user.click(screen.getByRole("button", { name: /^delete downloads$/i }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("Delete the downloads of 2 works?");
+    await user.click(within(dialog).getByRole("button", { name: "Delete files" }));
+    await waitFor(() => expect(calls.find((call) => call.url === "/api/shelf/batch")?.body)
+      .toEqual({ work_ids: ["w1", "w2"], action: "delete_files" }));
+  });
+
   it("opens on the view the address names, and says what each card is and whether it is offline", async () => {
     const calls = mockApi([get("/api/shelf", { view: "downloaded", entries: [
       { ...ENTRY, content_type: "novel", read_fraction: 0.5, downloaded_units: 2 }] })]);

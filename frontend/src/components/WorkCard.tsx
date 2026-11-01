@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n/i18n";
 import { CoverPlaceholder } from "@/components/CoverPlaceholder";
 import { Icon } from "@/components/Icon";
 import { typeLabel } from "@/lib/contentType";
+import { bytes } from "@/lib/format";
 
 export type CardWork = {
   work_id: string | null;
@@ -18,6 +19,8 @@ export type CardWork = {
   source_count?: number;
   /** It has files on this device, so it opens without a source. */
   downloaded?: boolean;
+  /** How much those files take, when it is worth saying. */
+  downloadedSize?: number;
 };
 
 // A crowded card says which languages, not every one of them: the rest are counted.
@@ -101,6 +104,7 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
       {work.downloaded && size !== "compact" && (
         <span className="workcard__saved">
           <Icon name="downloads" size={13} />{t("work.card.downloaded")}
+          {work.downloadedSize ? <> · <bdi>{bytes(work.downloadedSize)}</bdi></> : null}
         </span>
       )}
       {problem && <span className="notice notice--problem resultcard__problem" role="alert">{problem}</span>}

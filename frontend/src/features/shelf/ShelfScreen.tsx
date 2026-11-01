@@ -17,6 +17,8 @@ import { useLive } from "@/app/live";
 import type { StringKey } from "@/i18n/strings";
 import { handleTabKeys } from "@/components/tabKeyboard";
 import { TagsDrawer } from "./TagsDrawer";
+import { type Deleted, useFileDeletion } from "@/features/files/useFileDeletion";
+import { bytes, isolate } from "@/lib/format";
 
 const VIEWS: { id: string; labelKey: StringKey }[] = [
   { id: "all", labelKey: "shelf.view.all" },
@@ -88,6 +90,25 @@ export function ShelfScreen() {
     setSelecting(false);
     setSelected(new Set());
   }, []);
+
+  const deletion = useFileDeletion(() => { exitBatch(); reload(); });
+  const offline = entries.filter((entry) => (entry.downloaded_units ?? 0) > 0);
+  const offlineBytes = offline.reduce((sum, entry) => sum + entry.total_bytes, 0);
+  const selectedOffline = offline.filter((entry) => selected.has(entry.work_id));
+
+  const askDeleteWork = (entry: ShelfEntry) => deletion.ask({
+    title: t("files.delete.workTitle", { title: entry.title }),
+    body: t("files.delete.workBody", { files: entry.downloaded_units ?? 0, size: isolate(bytes(entry.total_bytes)) }),
+    run: () => api.delete<Deleted>(`/api/works/${entry.work_id}/files`),
+  });
+
+  const askDeleteSelected = () => deletion.ask({
+    title: t("files.delete.worksTitle", { count: selectedOffline.length }),
+    body: t("files.delete.worksBody", {
+      size: isolate(bytes(selectedOffline.reduce((sum, entry) => sum + entry.total_bytes, 0))) }),
+    run: () => api.post<Deleted>("/api/shelf/batch", {
+      work_ids: selectedOffline.map((entry) => entry.work_id), action: "delete_files" }),
+  });
 
   const batchAction = useCallback(async (action: string) => {
     if (selected.size === 0) return;
@@ -189,9 +210,28 @@ export function ShelfScreen() {
                   onClick={() => void batchAction("unfavorite")}>{t("shelf.batch.unfavorite")}</button>
           <button type="button" className="chip" disabled={batchBusy || selected.size === 0}
                   onClick={() => void batchAction("complete")}>{t("shelf.batch.complete")}</button>
+          <button type="button" className="chip chip--danger" disabled={batchBusy || selectedOffline.length === 0}
+                  onClick={askDeleteSelected}>
+            <Icon name="trash" size={16} />{t("files.delete.workAction")}
+          </button>
           <button type="button" className="chip chip--danger" disabled={batchBusy || selected.size === 0}
                   onClick={() => void batchAction("remove")}>{t("shelf.batch.remove")}</button>
           <button type="button" className="chip" onClick={exitBatch}>{t("common.cancel")}</button>
+        </div>
+      )}
+
+      {/* How much the downloads take, and the one step that frees it, where the downloads are listed. */}
+      {activeView === "downloaded" && offline.length > 0 && (
+        <div className="files__summary" role="status">
+          <span><Icon name="storage" size={18} />
+            {t("files.summary", { count: new Intl.NumberFormat(language).format(offline.length),
+                                  size: isolate(bytes(offlineBytes)) })}</span>
+          {!selecting && (
+            <button type="button" className="button" onClick={() => setSelecting(true)}>
+              <Icon name="trash" size={16} />{t("files.freeUp")}
+            </button>
+          )}
+          {selecting && <p className="files__hint">{t("files.freeUpHint")}</p>}
         </div>
       )}
 
@@ -219,6 +259,12 @@ export function ShelfScreen() {
                          onChange={() => toggleSelect(entry.work_id)} />
                 )}
                 <WorkCard size="detailed" work={cardWork(entry)} />
+                {!selecting && (entry.downloaded_units ?? 0) > 0 && (
+                  <button type="button" className="chip chip--danger" onClick={() => askDeleteWork(entry)}
+                          aria-label={t("files.delete.aria", { title: entry.title })}>
+                    <Icon name="trash" size={16} />{t("files.delete.workAction")}
+                  </button>
+                )}
                 {!selecting && <ManageButton entry={entry} onOpen={setManaging} />}
               </div>
             ))}
@@ -236,6 +282,14 @@ export function ShelfScreen() {
                            onChange={() => toggleSelect(entry.work_id)} />
                   )}
                   <WorkCard work={cardWork(entry)} />
+                  {/* On the Downloaded view each cover carries its own quick delete; elsewhere it stays a book. */}
+                  {!selecting && activeView === "downloaded" && (entry.downloaded_units ?? 0) > 0 && (
+                    <button type="button" className="files__quick" title={t("files.delete.workAction")}
+                            aria-label={t("files.delete.aria", { title: entry.title })}
+                            onClick={() => askDeleteWork(entry)}>
+                      <Icon name="trash" size={17} />
+                    </button>
+                  )}
                 </div>
               ))}
             </ShelfCase>
@@ -250,6 +304,15 @@ export function ShelfScreen() {
           <h2 className="display">{managing.title}</h2>
           <div className="confirm__actions">
             <button type="button" className="button" onClick={() => setManaging(null)}>{t("common.cancel")}</button>
+            {offline.some((entry) => entry.work_id === managing.work_id) && (
+              <button type="button" className="button" onClick={() => {
+                const entry = offline.find((candidate) => candidate.work_id === managing.work_id)!;
+                setManaging(null);
+                askDeleteWork(entry);
+              }}>
+                {t("files.delete.workAction")}
+              </button>
+            )}
             <button type="button" className="button"
                     onClick={() => void startRemoval(managing.work_id, managing.title)}>
               {t("shelf.remove.action")}
@@ -257,6 +320,8 @@ export function ShelfScreen() {
           </div>
         </ModalSurface>
       )}
+
+      {deletion.dialog}
 
       {removing !== null && (
         <RemoveFromShelf title={removing.title} summary={removing.summary}
@@ -294,6 +359,7 @@ function cardWork(entry: ShelfEntry): CardWork {
     content_type: entry.content_type ?? null,
     fraction: entry.read_fraction > 0 ? entry.read_fraction : null,
     downloaded: (entry.downloaded_units ?? 0) > 0,
+    downloadedSize: (entry.downloaded_units ?? 0) > 0 ? entry.total_bytes : undefined,
   };
 }
 

@@ -24,6 +24,7 @@ from oneshelf.domain.ids import new_id
 from oneshelf.storage.hashing import sha256_file
 from oneshelf.storage.paths import PathSafetyError, resolve_within
 from oneshelf.storage.roots import check_availability, get_root
+from oneshelf.storage.safe_write import fsync_dir, sync_file
 from oneshelf.storage.staging import STAGING_PREFIX
 
 FAULT_POINTS = ("after_journal", "after_retire", "after_move", "after_verify", "after_register")
@@ -56,13 +57,6 @@ class RecoveryReport:
     skipped_unavailable: int = 0
     errors: list[str] = field(default_factory=list)
 
-
-def _fsync_dir(path: str) -> None:
-    fd = os.open(path, os.O_RDONLY)
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)
 
 
 def _matches(path: str, sha: str, size: int) -> bool:
@@ -121,8 +115,7 @@ class CommitEngine:
         replaces = (request.registration.get("replaces") or {}).get("relative_path")
         if os.path.lexists(final) and replaces != request.final_relpath:
             raise CommitError("final path already exists; refusing to overwrite")
-        with open(staged, "rb") as f:
-            os.fsync(f.fileno())
+        sync_file(staged)
         sha, size = sha256_file(staged)
 
         journal_id = new_id()
@@ -207,7 +200,7 @@ class CommitEngine:
         if old == final and _matches(final, sha, size):
             return                                   # already replaced before a crash; nothing to set aside
         os.rename(old, aside)
-        _fsync_dir(os.path.dirname(old))
+        fsync_dir(os.path.dirname(old))
         self.fault("after_retire")
 
     @staticmethod
@@ -244,7 +237,7 @@ class CommitEngine:
                     os.makedirs(parent, exist_ok=True)
                     resolve_within(root.path, row["final_relpath"])  # re-check: no symlink appeared
                     _move_no_replace(staged, final)
-                    _fsync_dir(parent)
+                    fsync_dir(parent)
                     self._set_state(journal_id, "moved")
                     self.fault("after_move")
                 else:

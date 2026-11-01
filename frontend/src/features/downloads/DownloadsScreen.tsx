@@ -10,6 +10,8 @@ import { TRANSITION_EASE, useReducedMotion } from "@/lib/motion";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LoadingState } from "@/components/LoadingState";
 import { readerLink } from "@/features/reader/links";
+import { Icon } from "@/components/Icon";
+import { type Deleted, useFileDeletion } from "@/features/files/useFileDeletion";
 import type { StringKey } from "@/i18n/strings";
 
 type Batch = {
@@ -177,6 +179,7 @@ function BatchDetails({ batch }: { batch: Batch }) {
   const [offset, setOffset] = useState(0);
   const { data, error, loading, reload } = useResource<BatchDetail>(`/api/downloads/${batch.batch_id}`, offset ? { offset } : undefined);
   useLive(["download.batch", "download.job", "shelf.changed"], reload);
+  const deletion = useFileDeletion(reload);
   const bytes = (value: number) => new Intl.NumberFormat(language, { style: "unit", unit: "byte", unitDisplay: "narrow" }).format(value);
   return <div className="batches__detail" id={`batch-details-${batch.batch_id}`}>
     {loading && data === null && <LoadingState />}
@@ -210,6 +213,14 @@ function BatchDetails({ batch }: { batch: Batch }) {
             aria-label={t("downloads.openUnit", { title: label })}>{t("downloads.open")}</Link>
           <a className="chip" href={`/api/downloads/jobs/${job.id}/file`} download
             aria-label={t("downloads.saveFile", { title: label })}>{t("downloads.save")}</a>
+          <button type="button" className="chip chip--danger" aria-label={t("files.delete.aria", { title: label })}
+            onClick={() => deletion.ask({
+              title: t("files.delete.unitTitle", { title: label }),
+              body: t("files.delete.unitBody"),
+              run: () => api.delete<Deleted>(`/api/units/${job.reading_unit_id}/files`),
+            })}>
+            <Icon name="trash" size={15} />{t("files.delete.action")}
+          </button>
         </span>}
       </div>;
     })}
@@ -220,5 +231,6 @@ function BatchDetails({ batch }: { batch: Batch }) {
         onClick={() => setOffset(offset + (data?.limit ?? 500))}>{t("downloads.nextPage")}</button>
     </div>}
     {batch.skipped > 0 && <p className="cards__meta">{t("downloads.skippedExplanation", { count: batch.skipped })}</p>}
+    {deletion.dialog}
   </div>;
 }

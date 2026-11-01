@@ -316,3 +316,58 @@ def test_downloaded_view_lists_only_works_with_sound_local_files(api):
     downloaded = client.get("/api/shelf?view=downloaded").json()["entries"]
     assert [e["work_id"] for e in downloaded] == [kept["work_id"]]
     assert downloaded[0]["downloaded_units"] == 1
+
+
+def _downloaded(client, tmp_path, work, units: int) -> list[str]:
+    """Give a work real files on disk, as finished downloads would, and return their unit ids."""
+    from oneshelf.storage.roots import list_roots, register_root
+    conn = client.app.state.services.conn
+    library = tmp_path / "lib"
+    if not list_roots(conn):
+        library.mkdir()
+        register_root(conn, "Library", library)
+    root = list_roots(conn)[0]
+    unit_ids = [u["id"] for u in client.get(f"/api/works/{work['work_id']}").json()["units"][:units]]
+    for index, unit in enumerate(unit_ids):
+        relative = f"{work['work_id']}/{index}.cbz"
+        (library / work["work_id"]).mkdir(exist_ok=True)
+        (library / relative).write_bytes(b"x" * 100)
+        conn.execute(
+            "INSERT INTO assets (id, reading_unit_id, format, storage_root_id, relative_path, size_bytes, sha256,"
+            " integrity, created_at, updated_at) VALUES (?, ?, 'cbz', ?, ?, 100, ?, 'ok', 'now', 'now')",
+            (f"{work['work_id']}-{index}", unit, root.id, relative, "0" * 64))
+    conn.commit()
+    return unit_ids
+
+
+def test_one_downloaded_chapter_can_be_deleted_and_the_rest_stays(api):
+    client, _, tmp_path = api
+    work = bind(client, "irregular", "Kept", content_type="manga")
+    client.post(f"/api/tracks/{work['track_id']}/catalog/refresh")
+    client.post(f"/api/shelf/{work['work_id']}")
+    first, second = _downloaded(client, tmp_path, work, 2)
+
+    done = client.delete(f"/api/units/{first}/files").json()
+
+    assert done == {"unit_id": first, "deleted_files": 1, "freed_bytes": 100}
+    assert not (tmp_path / "lib" / work["work_id"] / "0.cbz").exists()
+    assert (tmp_path / "lib" / work["work_id"] / "1.cbz").exists()
+    entry = client.get("/api/shelf?view=downloaded").json()["entries"][0]
+    assert entry["downloaded_units"] == 1 and entry["work_id"] == work["work_id"]
+    assert client.delete("/api/units/nope/files").status_code == 404
+
+
+def test_batch_delete_files_frees_space_and_keeps_shelf_and_progress(api):
+    client, _, tmp_path = api
+    works = [bind(client, key, title) for key, title in (("irregular", "First"), ("paged", "Second"))]
+    for work in works:
+        client.post(f"/api/tracks/{work['track_id']}/catalog/refresh")
+        client.post(f"/api/shelf/{work['work_id']}")
+        _downloaded(client, tmp_path, work, 2)
+
+    done = client.post("/api/shelf/batch", json={"action": "delete_files",
+                                                 "work_ids": [w["work_id"] for w in works]}).json()
+
+    assert done == {"action": "delete_files", "affected": 2, "deleted_files": 4, "freed_bytes": 400}
+    assert client.get("/api/shelf?view=downloaded").json()["entries"] == []
+    assert len(client.get("/api/shelf").json()["entries"]) == 2

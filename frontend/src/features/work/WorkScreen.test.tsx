@@ -34,6 +34,42 @@ const DETAILS = {
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe("Deleting downloads", () => {
+  it("deletes one chapter's file after saying what stays, and reloads the list", async () => {
+    const calls = mockApi([get("/api/works/w1", DETAILS),
+                           del("/api/units/u1/files", { unit_id: "u1", deleted_files: 1, freed_bytes: 2048 })]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await user.click(await screen.findByRole("button", { name: "Delete the download of Prologue" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent(/reading progress/i);
+    expect(calls.some((call) => call.method === "DELETE")).toBe(false);   // nothing goes before the answer
+    await user.click(within(dialog).getByRole("button", { name: "Delete files" }));
+
+    await waitFor(() => expect(calls.some((call) => call.method === "DELETE" && call.url === "/api/units/u1/files"))
+      .toBe(true));
+    await waitFor(() => expect(calls.filter((call) => call.url === "/api/works/w1").length).toBeGreaterThan(1));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("offers to delete every download of the work, with its size", async () => {
+    const calls = mockApi([get("/api/works/w1", DETAILS),
+      get("/api/shelf/w1/removal-summary", { work_id: "w1", files: 3, bytes: 3 * 1024 * 1024,
+                                             has_progress: true, is_followed: false }),
+      del("/api/works/w1/files", { work_id: "w1", deleted_files: 3, freed_bytes: 3 * 1024 * 1024 })]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await user.click(await screen.findByRole("button", { name: /^delete downloads$/i }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent(/3 files \(⁨?3\.0 MB⁩?\)/);
+    await user.click(within(dialog).getByRole("button", { name: "Delete files" }));
+    await waitFor(() => expect(calls.some((call) => call.method === "DELETE" && call.url === "/api/works/w1/files"))
+      .toBe(true));
+  });
+});
+
 describe("Work Details", () => {
   it("distinguishes same-source editions and marks detached saved tracks", async () => {
     const tracks = [
@@ -817,5 +853,6 @@ it("keeps online-only source reading available without offering downloads", asyn
   mockApi([get("/api/works/w1", { ...DETAILS, tracks: DETAILS.tracks.map(track => ({ ...track, can_download: false })) })]);
   renderWithProviders(<WorkScreen workId="w1" />);
   expect(await screen.findByRole("link", { name: "Continue" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /download/i })).not.toBeInTheDocument();
+  // Deleting a file already on the device is still offered; fetching one is not.
+  expect(screen.queryByRole("button", { name: /^download/i })).not.toBeInTheDocument();
 });

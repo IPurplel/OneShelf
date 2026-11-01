@@ -16,9 +16,22 @@ def destination_path(root: str | Path, path: str | Path) -> Path:
     return resolve_within(root, path.relative_to(root).as_posix())
 
 
-def sync_file(path: Path) -> None:
-    with path.open('rb') as handle:
+def sync_file(path: str | Path) -> None:
+    # Windows flushes a file only through a handle that may write to it; a read-only one fails with EBADF.
+    with open(path, "r+b" if os.name == "nt" else "rb") as handle:
         os.fsync(handle.fileno())
+
+
+def fsync_dir(path: str | Path) -> None:
+    """Make a rename or link durable. Windows cannot open a directory for fsync (EBADF); NTFS journals
+    its directory entries itself, so there is nothing further to flush there."""
+    if os.name == "nt":
+        return
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 def publish(root: str | Path, staged: Path, target: Path, *, replace: bool = False) -> Path:
@@ -32,9 +45,5 @@ def publish(root: str | Path, staged: Path, target: Path, *, replace: bool = Fal
         os.link(staged, target)
         # Migration recovery uses this staging link to prove ownership after interruption.
         # The caller owns staging cleanup; no two library assets share this file.
-    fd = os.open(target.parent, os.O_RDONLY)
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)
+    fsync_dir(target.parent)
     return target

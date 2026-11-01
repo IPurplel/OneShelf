@@ -476,7 +476,11 @@ class DownloadEngine:
         raise RuntimeError("no storage location configured")
 
     async def _resources(self, contract: ExtractionContract, context: sqlite3.Row) -> list:
-        capability = "downloads" if contract.method == "direct" else "reader"
+        # A contract for the original file takes it from the source's files whatever the method: the reader
+        # of a source that offers both would hand back page images, and no image is a book file.
+        package = self.plugins.load_active(contract.source_id)
+        wants_file = contract.output_format == "file" and "downloads" in package.recipes
+        capability = "downloads" if contract.method == "direct" or wants_file else "reader"
         result = await self.sources.run(contract.source_id, capability,
                                         {"unit_key": context["source_unit_key"], "url": context["url_hint"],
                                          "language": contract.language},

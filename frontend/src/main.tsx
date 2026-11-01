@@ -36,6 +36,8 @@ createRoot(container).render(
               <App />
               <Toaster
                 position="bottom-right"
+                // On a phone the bottom navigation owns the screen's foot; toasts sit above it.
+                mobileOffset={{ bottom: "calc(76px + env(safe-area-inset-bottom, 0px))" }}
                 toastOptions={{
                   style: {
                     background: "var(--paper)",

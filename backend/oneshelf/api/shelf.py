@@ -34,19 +34,25 @@ class ShelfBody(BaseModel):
 
 class BatchBody(BaseModel):
     work_ids: list[str] = Field(min_length=1, max_length=200)
-    action: str = Field(pattern=r"^(favorite|unfavorite|complete|uncomplete|remove)$")
+    action: str = Field(pattern=r"^(favorite|unfavorite|complete|uncomplete|remove|delete_files)$")
 
 
 # Registered before `/shelf/{work_id}`: that route would otherwise take "batch" for a work id.
 @router.post("/shelf/batch")
 async def shelf_batch(request: Request, body: BatchBody):
     shelf = services(request).shelf
-    count = 0
+    count = deleted = freed = 0
     for wid in body.work_ids:
         if shelf.get(wid) is None:         # not on the shelf: nothing to change for that one
             continue
         try:
-            if body.action == "favorite":
+            if body.action == "delete_files":
+                # Files only: the Work stays on the shelf, followed and with its progress (§23, INV-10).
+                files, size = shelf.delete_work_files(wid)
+                if not files:
+                    continue
+                deleted, freed = deleted + files, freed + size
+            elif body.action == "favorite":
                 shelf.set_favorite(wid, True)
             elif body.action == "unfavorite":
                 shelf.set_favorite(wid, False)
@@ -59,6 +65,8 @@ async def shelf_batch(request: Request, body: BatchBody):
         except ValueError:
             continue
         count += 1
+    if body.action == "delete_files":
+        return {"action": body.action, "affected": count, "deleted_files": deleted, "freed_bytes": freed}
     return {"action": body.action, "affected": count}
 
 
@@ -92,7 +100,17 @@ async def shelf_remove(request: Request, work_id: str, delete_files: bool = Fals
 
 @router.delete("/works/{work_id}/files")
 async def delete_files(request: Request, work_id: str):
-    return {"work_id": work_id, "deleted_files": services(request).shelf.delete_files(work_id)}
+    files, freed = services(request).shelf.delete_work_files(work_id)
+    return {"work_id": work_id, "deleted_files": files, "freed_bytes": freed}
+
+
+@router.delete("/units/{unit_id}/files")
+async def delete_unit_files(request: Request, unit_id: str):
+    """One chapter's or book's files. The unit, its progress and its Work stay (§23)."""
+    outcome = services(request).shelf.delete_unit_files(unit_id)
+    if outcome is None:
+        return error(404, "UNIT_NOT_FOUND", "No reading unit by that id.")
+    return {"unit_id": unit_id, "deleted_files": outcome[0], "freed_bytes": outcome[1]}
 
 
 class FollowBody(BaseModel):

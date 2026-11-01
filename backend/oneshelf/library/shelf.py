@@ -246,8 +246,25 @@ class ShelfService:
         a deletion that did not happen would be a lie on a destructive path, and forgetting the asset
         would leave a file on disk that the library no longer knows about (§24.4, §47).
         """
-        removed = 0
-        for asset in self._assets(work_id):
+        return self.delete_work_files(work_id)[0]
+
+    def delete_work_files(self, work_id: str) -> tuple[int, int]:
+        """(files deleted, bytes freed) for a whole Work."""
+        return self._delete_assets(work_id, self._assets(work_id))
+
+    def delete_unit_files(self, unit_id: str) -> tuple[int, int] | None:
+        """One chapter's or book's files, with the same safety as a whole Work's. None: no such unit."""
+        row = self.conn.execute(
+            "SELECT t.work_id FROM reading_units u JOIN source_tracks t ON t.id = u.track_id WHERE u.id = ?",
+            (unit_id,)).fetchone()
+        if row is None:
+            return None
+        assets = self.conn.execute("SELECT * FROM assets WHERE reading_unit_id = ?", (unit_id,)).fetchall()
+        return self._delete_assets(row["work_id"], assets)
+
+    def _delete_assets(self, work_id: str, assets: list[sqlite3.Row]) -> tuple[int, int]:
+        removed = freed = 0
+        for asset in assets:
             root = get_root(self.conn, asset["storage_root_id"])
             try:
                 delete_managed_file(root.path, asset["relative_path"])
@@ -261,9 +278,10 @@ class ShelfService:
                 self.conn.execute("UPDATE imports SET asset_id = NULL WHERE asset_id = ?", (asset["id"],))
                 self.conn.execute("DELETE FROM assets WHERE id = ?", (asset["id"],))
             removed += 1
+            freed += asset["size_bytes"]
         if removed:
             self._emit("shelf.changed", {"work_id": work_id, "action": "files_deleted", "files": removed})
-        return removed
+        return removed, freed
 
     def remove(self, work_id: str, *, delete_files: bool = False) -> dict:
         summary = self.removal_summary(work_id)
