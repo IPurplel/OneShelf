@@ -1,16 +1,15 @@
-"""§49 (M49): every exclusion the Master lists has something standing over it.
+"""Every v1 exclusion has something standing over it (docs/REFERENCE.md §21).
 
-The list in §49 is the authority. This reads it from the Master itself and insists that each item is
-answered by a named test — so an exclusion cannot be quietly dropped from the list, and a guard cannot
-be quietly deleted from the suite. What each guard proves is its own business; that one exists, and
-still runs, is this test's.
+The lists below are the authority now that the original specification is no longer kept in the
+repository: each exclusion and non-goal is answered by a named test, so a guard cannot be quietly
+deleted from the suite. What each guard proves is its own business; that one exists, and still runs,
+is this test's.
 """
 import re
 from pathlib import Path
 
 from .conftest import BACKEND
 
-MASTER = BACKEND.parent / "docs" / "OneShelf_Final_Implementation_Meta_Prompt.md"
 SUITE = Path(__file__).parent
 
 # Each exclusion, as the Master words it, and the test that answers it. A test named here must exist.
@@ -49,15 +48,8 @@ GUARDS = {
 }
 
 
-def master_exclusions() -> list[str]:
-    section = re.search(r"^# 49\. Explicit v1 Exclusions(.*?)^# 50\.", MASTER.read_text(encoding="utf-8"),
-                        re.DOTALL | re.MULTILINE)
-    assert section is not None, "§49 is not where it was; the guard list cannot be checked against it"
-    return [line[2:].strip().lower() for line in section.group(1).splitlines() if line.startswith("- ")]
-
-
-def test_the_guard_list_still_matches_the_masters_own_list():
-    assert sorted(master_exclusions()) == sorted(GUARDS)
+def test_the_guard_list_covers_every_exclusion():
+    assert len(GUARDS) == 30 and all(GUARDS.values())
 
 
 def test_every_named_guard_exists_somewhere_in_the_suite():
@@ -87,17 +79,6 @@ NON_GOALS = {
     "storage deduplication": "test_nothing_deduplicates_stored_files",
     "browser/system push notifications": "test_no_browser_notification_or_push_apis_anywhere",
 }
-
-
-def master_non_goals() -> list[str]:
-    section = re.search(r"^# 50\. Non-Goals(.*?)^# 51\.", MASTER.read_text(encoding="utf-8"),
-                        re.DOTALL | re.MULTILINE)
-    assert section is not None
-    return [line[2:].strip().lower() for line in section.group(1).splitlines() if line.startswith("- ")]
-
-
-def test_the_non_goal_list_still_matches_the_masters_own_list():
-    assert sorted(master_non_goals()) == sorted(NON_GOALS)
 
 
 def test_no_non_goal_arrived_early():

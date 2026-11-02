@@ -225,15 +225,6 @@ def test_without_a_registry_the_listing_says_so_plainly(tmp_path):
         assert client.get("/api/registry").json() == {"configured": False, "plugins": []}
 
 
-def test_the_frozen_core_registry_remains_usable_when_the_bundle_has_a_newer_mangadex(tmp_path):
-    committed = Path(__file__).resolve().parents[3] / "registry"
-    with start(tmp_path, committed) as client:
-        plugins = listing(client)
-    assert sorted(plugins) == EIGHT
-    assert {plugin: entry["state"] for plugin, entry in plugins.items()} == {
-        plugin: ("installed_newer" if plugin == "oneshelf.mangadex" else "installed") for plugin in EIGHT}
-
-
 def test_a_pending_update_is_approved_from_the_registry_review_bound_to_its_bytes(tmp_path):
     registry = registry_dir(tmp_path, {"oneshelf.hindawi": edited(tmp_path, "oneshelf.hindawi", version="1.1.0",
                                                                   extra_domain="www.hindawi.org")})

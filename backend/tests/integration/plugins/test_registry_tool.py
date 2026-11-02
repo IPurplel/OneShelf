@@ -204,17 +204,3 @@ def test_the_public_key_command_prints_only_the_public_half(tmp_path, capsys):
     assert out == f"owner-2026:{public}"
     assert "PRIVATE" not in out
 
-
-# -- the committed registry ---------------------------------------------------------------------------------
-
-def test_the_frozen_core_registry_is_still_internally_consistent():
-    """Deprecated: kept only for installations older than the move to OneShelf-Adapters. It is no longer
-    rebuilt, so it is checked for its own hashes and packages, not against today's sources."""
-    committed = REPO / "registry"
-    assert registry_tool.verify(committed, None, {}, False) == []
-    assert "deprecated" in (committed / "README.md").read_text(encoding="utf-8").lower()
-
-
-@pytest.mark.parametrize("pattern", ["*.pem", "*.key", "*signing*"])
-def test_no_private_key_is_in_the_registry(pattern):
-    assert list((REPO / "registry").rglob(pattern)) == []

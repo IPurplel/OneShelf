@@ -262,7 +262,7 @@ read only when the Sources screen is opened — there is no background polling.
 `.env`, so the container start (`deploy/container_start.py`) reads exactly that value as the new default,
 for the process only. Any other value is used as configured. The application itself carries no Registry
 host (INV-29), which is why the translation lives in deployment. Running from source, set the new URL
-yourself. Core's own `registry/` directory is a frozen, deprecated snapshot kept for older installations.
+yourself. The former in-repository `registry/` snapshot has been removed.
 
 ### Trust tiers — first-party trust (owner decision, 2026-09-21)
 

@@ -32,7 +32,7 @@ curl http://127.0.0.1:8420/api/health
 | `ONESHELF_TRUSTED_PROXIES` | empty | comma-separated CIDRs whose `X-Forwarded-For` is honoured |
 | `ONESHELF_ALLOWED_HOSTS` | empty (IP literals and `localhost` only) | extra host names accepted in the `Host` header |
 | `ONESHELF_SESSION_KEY_FILE` | `<data_dir>/keys/session.key` | source-session encryption key; mount on separate storage in deployments |
-| `ONESHELF_REGISTRY_URL` | unset (no registry) when running from source; Compose defaults it to the OneShelf-Adapters Source Registry | `https://…/index.json` static index or `file:///path/to/mirror` (e.g. `file://$PWD/../registry`) |
+| `ONESHELF_REGISTRY_URL` | unset (no registry) when running from source; Compose defaults it to the OneShelf-Adapters Source Registry | `https://…/index.json` static index or `file:///path/to/mirror` (a local copy of the OneShelf-Adapters `registry` branch) |
 | `ONESHELF_FIRST_PARTY_REGISTRY_URL` | unset | the Registry whose tiers are trusted without a signature, only while `ONESHELF_REGISTRY_URL` equals it exactly (Compose sets the OneShelf-Adapters Registry) |
 | `ONESHELF_REGISTRY_TRUSTED_KEYS` | unset | **public** `key-id:base64-ed25519-public-key,…` for Official/Verified labels; list several to rotate |
 | `ONESHELF_DEV_TEST_SOURCE` | off | enables the OneShelf Test Source loopback exception (development only) |
@@ -91,7 +91,8 @@ Adapter development moved to [OneShelf-Adapters](https://github.com/IPurplel/One
   then move that pin in its own reviewed PR;
 - the bundled release snapshot in `backend/plugins/official/`, refreshed only with
   `python -m plugins.sync_snapshot --from <OneShelf-Adapters checkout>` (never edited by hand);
-- `registry/` and `plugins.registry_tool`: the frozen, deprecated former Registry, kept for older installations.
+- `plugins.registry_tool`: builds, signs and verifies a Registry directory (`--registry DIR`). The former
+  in-repository Registry was removed; the container still reads its old URL as the OneShelf-Adapters one.
 
 Tests that sign use throwaway Ed25519 keys generated in the test's temporary directory; no key file is
 committed, and `tests/deploy/test_no_private_key_ships.py` fails if a tracked file contains private-key
