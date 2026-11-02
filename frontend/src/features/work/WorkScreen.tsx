@@ -44,12 +44,13 @@ const listingOnly = (track: Track | null) => track?.kind === "source" && track.d
 export function WorkScreen({ workId }: { workId?: string }) {
   const params = useParams();
   const id = workId ?? params.workId ?? "";
-  const { t, language } = useI18n();
+  const { t, language, tn, errorText } = useI18n();
   const [tab, setTab] = useState<Tab>("read");
   // The reader can send someone here to a *named* track when it could not find their unit there (§26.16).
   const [search, setSearch] = useSearchParams();
   const trackId = search.get("track");
   const [exporting, setExporting] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [removing, setRemoving] = useState<RemovalSummary | null>(null);
   const [completedOffer, setCompletedOffer] = useState<{
     workId: string; generation: number; summary: RemovalSummary;
@@ -133,6 +134,9 @@ export function WorkScreen({ workId }: { workId?: string }) {
 
   const { work, shelf, follow, tracks, units, continue_unit_id: continueUnit } = data;
   const completed = completion?.workId === id ? completion.value : shelf.completed;
+  // The button says what to do; beside it, which chapter that means.
+  const nextUnit = units.find((unit) => unit.id === continueUnit);
+  const nextTitle = nextUnit?.title ?? null;
   const current = tracks.find((track) => track.id === data.selected_track_id) ?? null;
   const selectedFollowing = current !== null && follow.following && follow.track_id === current.id;
 
@@ -141,7 +145,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
     try {
       await call;
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
     } finally {
       reload();
     }
@@ -174,7 +178,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
       // touch is not deleted, and claiming otherwise on a destructive path would be a lie (§47).
       const done = await api.delete<{ deleted_files?: number }>(`/api/shelf/${id}?delete_files=${deleteFiles}`);
       const deleted = done?.deleted_files ?? 0;
-      setNotice(deleteFiles ? `${t("shelf.removed")} ${t("shelf.filesDeleted", { files: deleted })}`
+      setNotice(deleteFiles ? `${t("shelf.removed")} ${tn("shelf.filesDeleted", deleted)}`
                             : t("shelf.removed"));
     } catch {
       setNotice(t("state.offline"));
@@ -213,7 +217,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
       await api.post(`/api/shelf/${workId}`, { completed: next });
     } catch (error) {
       if (completionRequest.current.workId === workId && completionRequest.current.generation === generation)
-        setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+        setProblem(errorText(error));
       return;
     }
     if (completionRequest.current.workId !== workId || completionRequest.current.generation !== generation) return;
@@ -242,11 +246,15 @@ export function WorkScreen({ workId }: { workId?: string }) {
             {work.creator && <span dir="auto">{work.creator}</span>}
             {current && <span>{languageName(current.language, language)}</span>}
           </p>
+          {/* One clear next step, the everyday choices beside it, and the rare ones behind More (§45). */}
           <div className="work__actions">
             {continueUnit && !listingOnly(current) && (
-              <Link className="button button--primary" to={readerLink(continueUnit, id, data.selected_track_id)}>
-                {units.some((unit) => unit.read_state !== "unread") ? t("work.continue") : t("work.read")}
-              </Link>
+              <span className="work__primary">
+                <Link className="button button--primary" to={readerLink(continueUnit, id, data.selected_track_id)}>
+                  {units.some((unit) => unit.read_state !== "unread") ? t("work.continue") : t("work.read")}
+                </Link>
+                {nextTitle && <span className="work__next" dir="auto">{nextTitle}</span>}
+              </span>
             )}
             {current !== null && listingOnly(current) && current.listing_url && (
               <a className="button button--primary" href={current.listing_url} target="_blank" rel="noopener noreferrer">
@@ -254,15 +262,10 @@ export function WorkScreen({ workId }: { workId?: string }) {
               </a>
             )}
             {shelf.on_shelf ? (
-              <>
-                <button type="button" className="button" onClick={() => void startRemoval()}>
-                  {t("shelf.remove.action")}
-                </button>
-                <button type="button" className="button" aria-pressed={completed}
-                        onClick={() => void markCompleted(!completed)}>
-                  {completed ? t("shelf.completed.undo") : t("shelf.completed.action")}
-                </button>
-              </>
+              <button type="button" className="button" aria-pressed={completed}
+                      onClick={() => void markCompleted(!completed)}>
+                {completed ? t("shelf.completed.undo") : t("shelf.completed.action")}
+              </button>
             ) : (
               <button type="button" className="button" onClick={() => toggle(api.post(`/api/shelf/${id}`))}>
                 {t("work.addShelf")}
@@ -282,22 +285,39 @@ export function WorkScreen({ workId }: { workId?: string }) {
                     }}>
               {selectedFollowing ? t("work.unfollow") : t("work.follow")}
             </button>
-            <button type="button" className="button work__toggle" aria-pressed={shelf.favorite}
+            <button type="button" className="iconbutton work__toggle" aria-pressed={shelf.favorite}
+                    aria-label={t("work.favorite")} title={t("work.favorite")}
                     onClick={() => toggle(api.post(`/api/shelf/${id}`, { favorite: !shelf.favorite }))}>
-              <span className="work__toggleMark" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none">
-                <path d="m3 8 3.2 3.2L13 4.5" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg></span>
-              {t("work.favorite")}
+              <span className="work__toggleMark" aria-hidden="true"><Icon name="star" size={20} /></span>
             </button>
-            <button type="button" className="button work__toggle" aria-pressed={shelf.pinned}
+            <button type="button" className="iconbutton work__toggle" aria-pressed={shelf.pinned}
+                    aria-label={t("work.pin")} title={t("work.pin")}
                     onClick={() => toggle(api.post(`/api/shelf/${id}`, { pinned: !shelf.pinned }))}>
-              <span className="work__toggleMark" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none">
-                <path d="m3 8 3.2 3.2L13 4.5" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg></span>
-              {t("work.pin")}
+              <span className="work__toggleMark" aria-hidden="true"><Icon name="pin" size={20} /></span>
             </button>
-            <button type="button" className="button" onClick={() => setExporting(true)}>{t("export.open")}</button>
+            <button type="button" className="iconbutton" aria-label={t("nav.more")} title={t("nav.more")}
+                    aria-haspopup="dialog" aria-expanded={moreOpen} onClick={() => setMoreOpen(true)}>
+              <Icon name="more" size={20} />
+            </button>
           </div>
+          {moreOpen && (
+            <ModalSurface className="confirm work__more" title={t("nav.more")} onClose={() => setMoreOpen(false)}>
+              <h2 className="display">{work.title}</h2>
+              <div className="work__moreActions">
+                <button type="button" className="button" onClick={() => { setMoreOpen(false); setExporting(true); }}>
+                  {t("export.open")}
+                </button>
+                {shelf.on_shelf && (
+                  <button type="button" className="button" onClick={() => { setMoreOpen(false); void startRemoval(); }}>
+                    {t("shelf.remove.action")}
+                  </button>
+                )}
+                <button type="button" className="button button--ghost" onClick={() => setMoreOpen(false)}>
+                  {t("common.cancel")}
+                </button>
+              </div>
+            </ModalSurface>
+          )}
           {work.description && <p className="work__description" dir="auto">{work.description}</p>}
           {current !== null && listingOnly(current) && (
             <p className="work__listingOnly">{t("work.listingOnly", { source: sourceLabel(current) })}</p>
@@ -340,8 +360,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
                       onClose={() => setCompletedOffer(null)}>
           <h2 className="display">{t("shelf.completed.title")}</h2>
           <p>{t("shelf.completed.body", { title: work.title })}</p>
-          <p>{t("shelf.completed.offer", { files: completedOffer.summary.files,
-            size: isolate(bytes(completedOffer.summary.bytes)) })}</p>
+          <p>{tn("shelf.completed.offer", completedOffer.summary.files, { size: isolate(bytes(completedOffer.summary.bytes)) })}</p>
           <div className="confirm__actions">
             <button type="button" className="button button--primary" onClick={() => setCompletedOffer(null)}>
               {t("shelf.completed.keep")}
@@ -351,7 +370,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
                       if (!completionIsCurrent(completedOffer.workId, completedOffer.generation)) return;
                       setCompletedOffer(null);
                       void toggle(api.delete<{ deleted_files: number }>(`/api/works/${completedOffer.workId}/files`)
-                        .then((done) => setNotice(t("shelf.filesDeleted", { files: done.deleted_files }))));
+                        .then((done) => setNotice(tn("shelf.filesDeleted", done.deleted_files))));
                     }}>
               {t("shelf.completed.delete")}
             </button>
@@ -395,7 +414,7 @@ function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRet
   track: Track | null; attempt: CatalogAttempt | null; onRetry: () => void; onLanguages: () => void;
   workTitle: string; onFilesChanged: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, tn, errorText } = useI18n();
   const deletion = useFileDeletion(onFilesChanged);
   const saved = units.filter((unit) => unit.downloaded);
   const askDeleteUnit = (unit: Unit) => deletion.ask({
@@ -412,14 +431,14 @@ function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRet
       const summary = await api.get<RemovalSummary>(`/api/shelf/${workId}/removal-summary`);
       deletion.ask({
         title: t("files.delete.workTitle", { title: workTitle }),
-        body: t("files.delete.workBody", { files: summary.files, size: isolate(bytes(summary.bytes)) }),
+        body: tn("files.delete.workBody", summary.files, { size: isolate(bytes(summary.bytes)) }),
         run: () => api.delete<Deleted>(`/api/works/${workId}/files`).then((done) => {
           setRequested([]);
           return done;
         }),
       });
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
     }
   };
   const [problem, setProblem] = useState<string | null>(null);
@@ -440,7 +459,7 @@ function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRet
         setRequested(current => [...current, ...batch]);
       }
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
     } finally {
       setQueueing(false);
     }
@@ -454,8 +473,7 @@ function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRet
     <div className="units__bulk">
       {downloadable && track?.kind !== "local" && eligible.length > 0 && <button type="button" className="button" disabled={queueing}
         aria-busy={queueing} onClick={() => void queueAll()}>{t("work.downloadAll")}</button>}
-      {requested.length > 0 && <p role="status" className="cards__meta">{requested.length === 1
-        ? t("work.downloadRequestedOne") : t("work.downloadRequested", { count: requested.length })}</p>}
+      {requested.length > 0 && <p role="status" className="cards__meta">{tn("work.downloadRequested", requested.length)}</p>}
       {saved.length > 0 && (
         <button type="button" className="button" onClick={() => void askDeleteAll()}>
           <Icon name="trash" size={16} />{t("files.delete.workAction")}
@@ -483,14 +501,19 @@ function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRet
                   <Icon name="trash" size={17} />
                 </button>
               </span>
-            : requested.includes(unit.id) ? <span className="units__badge">{t("work.requested")}</span>
-            : downloadable && <button type="button" className="units__action"
+            : unit.download_state === "downloading"
+              ? <span className="units__badge units__badge--busy">{t("work.downloadingNow")}</span>
+            : unit.download_state === "queued" || requested.includes(unit.id)
+              ? <span className="units__badge">{t("work.requested")}</span>
+            : downloadable && <button type="button"
+                      className={`units__action${unit.download_state === "failed" ? " units__action--failed" : ""}`}
+                      title={unit.download_state === "failed" ? t("work.downloadFailedRetry") : undefined}
                       onClick={() => {
                         setProblem(null);
                         void api.post("/api/downloads", { unit_ids: [unit.id] }).catch((error: unknown) =>
-                          setProblem(error instanceof ApiError ? error.message : t("state.offline")));
+                          setProblem(errorText(error)));
                       }}>
-                {t("work.download")}
+                {unit.download_state === "failed" ? t("work.downloadFailedRetry") : t("work.download")}
               </button>}
         </li>
       ))}
@@ -558,7 +581,7 @@ function Sources({ tracks, selected, workId, attempt, onChoose, onOpened, onRefr
   onRefresh: (track: Track) => Promise<void>;
   onRefreshed: () => void;
 }) {
-  const { t, language } = useI18n();
+  const { t, language, errorText } = useI18n();
   const [finding, setFinding] = useState(false);
   const [opening, setOpening] = useState(false);
   const [readingLanguages, setReadingLanguages] = useState<{ trackId: string; value: ReadingLanguages } | null>(null);
@@ -578,7 +601,7 @@ function Sources({ tracks, selected, workId, attempt, onChoose, onOpened, onRefr
       const value = await api.get<ReadingLanguages>(`/api/tracks/${track.id}/languages`);
       setReadingLanguages({ trackId: track.id, value });
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
     } finally {
       setFinding(false);
     }

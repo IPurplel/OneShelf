@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { explain } from "@/features/sources/permissions";
 import { useI18n } from "@/i18n/i18n";
@@ -55,7 +55,7 @@ function transformList(transforms: unknown[] | undefined): string {
  * Repair follows the same rule: the selector diff is shown before a validated repair may be activated.
  */
 export function GeneratorPanel() {
-  const { t } = useI18n();
+  const { t, errorText } = useI18n();
   const { data: sources } = useResource<{ sources: Source[] }>("/api/sources");
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
@@ -77,7 +77,7 @@ export function GeneratorPanel() {
     try {
       then(await call);
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
     } finally {
       setBusy(false);
     }

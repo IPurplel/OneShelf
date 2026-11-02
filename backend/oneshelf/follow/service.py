@@ -20,6 +20,7 @@ from oneshelf.domain.ids import new_id
 from oneshelf.settings.defaults import DEFAULTS
 
 JITTER_SECONDS = 3600
+FIRST_CHECK_DELAY = timedelta(minutes=1)
 # A Follow made before its track has a trusted catalog has no baseline yet. The first check that finds one
 # sets it silently, so the catalog's existing units are never reported as new (§20 First Follow, I-100).
 PENDING = "pending"
@@ -88,8 +89,11 @@ class FollowService:
         """~12 hours with jitter so followed sources are not checked in bursts (§20, §42)."""
         return DEFAULTS.follow.check_interval + timedelta(seconds=self.rng.uniform(0, JITTER_SECONDS))
 
-    def _schedule(self, follow_id: str) -> None:
-        due = (datetime.now(UTC) + self.next_check_delay()).isoformat()
+    def _schedule(self, follow_id: str, *, first: bool = False) -> None:
+        # A new or re-pointed Follow is checked within minutes, not half a day later: until then it can only say
+        # "checking". It is never immediate, so a manual check made right away is the one that reports.
+        delay = FIRST_CHECK_DELAY if first else self.next_check_delay()
+        due = (datetime.now(UTC) + delay).isoformat()
         self.conn.execute("UPDATE follows SET next_check_at = ? WHERE id = ?", (due, follow_id))
 
     def _baseline(self, follow_id: str, track_id: str, kind: str) -> tuple[int, str]:
@@ -133,7 +137,7 @@ class FollowService:
                 " track_id=excluded.track_id", (follow_id, work_id, language, source_id, track_id, now))
             row = self._row(work_id, language)
             count, kind = self._baseline(row["id"], track_id, "first_follow")
-            self._schedule(row["id"])
+            self._schedule(row["id"], first=True)
         self._emit("follow.changed", {"work_id": work_id, "action": "followed"})
         return FollowRecord(row["id"], work_id, language, source_id, track_id, count, kind)
 
@@ -189,7 +193,7 @@ class FollowService:
                               (source_id, track_id, row["id"]))
             self.conn.execute("DELETE FROM release_events WHERE follow_id = ?", (row["id"],))
             count, kind = self._baseline(row["id"], track_id, "source_change")
-            self._schedule(row["id"])
+            self._schedule(row["id"], first=True)
         self._emit("follow.changed", {"work_id": work_id, "action": "source_changed", "source_id": source_id})
         return FollowRecord(row["id"], work_id, row["language"], source_id, track_id, count, kind)
 
@@ -261,6 +265,8 @@ class FollowService:
             state = "catalog_suspicious"
         elif unseen:
             state = "new_releases"
+        elif row["last_attempted_at"] is None:
+            state = "checking"          # never asked yet: not a source that stopped answering
         elif row["last_error_category"] or row["last_successful_at"] is None:
             state = "degraded"
         else:

@@ -81,7 +81,7 @@ export function StoragePanel() {
         <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
       {message !== null && <p className="notice" role="status">{message}</p>}
-      {loading && <LoadingState />}
+      {loading && data === null && <LoadingState />}
       {data !== null && !loading && data.roots.length === 0 && <p className="shelf__empty">{t("storage.empty")}</p>}
 
       <ul className="cards">

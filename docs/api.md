@@ -7,7 +7,19 @@ Authority: Master §40; written from the routers in `backend/oneshelf/api/`.
 
 - JSON in, JSON out. Errors are `{"error": {"code": "UPPER_SNAKE", "message": "a sentence for a person"}}`
   with a meaningful status: 401 unauthenticated, 403 refused, 404 unknown, 409 conflicting state,
-  422 rejected input, 429 rate limited by a source, 502 the source failed.
+  422 rejected input, 429 rate limited by a source, 502 the source failed. `SOURCE_FAILED` adds `"category"`
+  (the engine's reason) beside the sentence, never inside it.
+- `GET /api/works/{id}` units carry `download_state` (`queued` | `downloading` | `failed` | null, from the unit's
+  latest job) and `size_bytes` (its files on this device, or null). `GET /api/home` Continue Reading items and a
+  `continue_reading` hero carry a work-level `fraction` and `next_unit_id`.
+- `GET /api/downloads` batches carry `label`, `created_at`, `total`, `works` (up to 3 `{work_id, title}`) and
+  `works_total`; finished jobs in a batch's detail carry `storage_root_name`.
+- `GET /api/follows` rows carry `source_name`; a follow never checked yet reads `checking`, not `degraded`, and is
+  first checked within minutes. `GET /api/stats` counts the shelf and the files present on this device.
+- A `download-failed:<unit>` notification is titled "<chapter> · <work>", its summary is a sentence, its payload is
+  `{reading_unit_id, unit_id, work_id, track_id, source_id, category}`, and it resolves when that unit downloads.
+- `DELETE /api/units/{unit}/files` and `DELETE /api/works/{work}/files` answer `{deleted_files, freed_bytes}`;
+  `POST /api/shelf/batch` accepts `delete_files`; `GET /api/shelf?view=downloaded` lists works with files here.
 - Every state-changing request must be same-origin (`Origin` / `Sec-Fetch-Site`), and every request's `Host`
   must be allowlisted. Both are enforced before routing.
 - Remote clients need the `oneshelf_remote` session cookie; loopback and genuine LAN clients do not.

@@ -41,6 +41,24 @@ class Notification:
     updated_at: str = ""
 
 
+# What a download failure means for the person, by the engine's category. The category itself stays in the
+# payload for the interface; it never appears in the sentence.
+DOWNLOAD_FAILURE_DEFAULT = "It could not be downloaded. Nothing was saved, and you can try again."
+DOWNLOAD_FAILURE_SUMMARIES = {
+    "auth_failure": "The source needs you to sign in again before it can be downloaded.",
+    "rate_limit": "The source asked OneShelf to slow down. Try again in a little while.",
+    "transport": "The source could not be reached. Nothing was saved; try again later.",
+    "media_invalid": "The source sent pages that could not be verified, so nothing was saved.",
+    "storage_full": "There is not enough free space where downloads are kept.",
+    "storage_unavailable": "The storage location cannot be reached right now.",
+    "storage_error": "The file could not be written to the storage location.",
+    "source_unlinked": "This source no longer lists this work.",
+    "format_unavailable": "The source does not offer it in the format you chose.",
+    "too_large": "The file is larger than OneShelf accepts.",
+    "blocked": "The source sent it from an address OneShelf will not reach.",
+}
+
+
 def _format_releases(units: list[dict]) -> str:
     numbers = [u.get("number") for u in units]
     if all(n is not None and str(n).isdigit() for n in numbers) and len(numbers) > 1:
@@ -150,10 +168,20 @@ class NotificationService:
                            summary=_format_releases(units), actions=["view_releases"],
                            data={"work_id": work_id, "units": units}, accumulate=False)
 
-    def download_failed(self, unit_id: str, unit_title: str, *, category: str) -> Notification:
-        return self.notify(IMPORTANT, dedupe_key=f"download-failed:{unit_id}", title="Download failed",
-                           summary=f"{unit_title} could not be downloaded ({category}).", actions=["retry", "view"],
-                           data={"reading_unit_id": unit_id, "category": category})
+    def download_failed(self, unit_id: str, unit_title: str, *, category: str, work_id: str | None = None,
+                        work_title: str | None = None, track_id: str | None = None,
+                        source_id: str | None = None) -> Notification:
+        """Which chapter of which work, what went wrong in words, and the ids Open and Retry need (§30.4)."""
+        title = f"{unit_title} · {work_title}" if work_title else unit_title
+        return self.notify(IMPORTANT, dedupe_key=f"download-failed:{unit_id}", title=title,
+                           summary=DOWNLOAD_FAILURE_SUMMARIES.get(category, DOWNLOAD_FAILURE_DEFAULT),
+                           actions=["retry", "view"],
+                           data={"reading_unit_id": unit_id, "unit_id": unit_id, "work_id": work_id,
+                                 "track_id": track_id, "source_id": source_id, "category": category})
+
+    def download_succeeded(self, unit_id: str) -> None:
+        """A chapter that downloads after all no longer needs attention for having failed before."""
+        self.resolve(f"download-failed:{unit_id}")
 
     def reconnect_required(self, source_id: str, *, detail: str | None = None) -> Notification:
         return self.notify(IMPORTANT, dedupe_key=f"source-auth:{source_id}", title="Reconnect required",

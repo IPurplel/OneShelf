@@ -63,7 +63,7 @@ export function HistoryScreen() {
       <p className="screen__subtitle">{t("history.subtitle")}</p>
 
       {error !== null && <p className="notice notice--problem" role="alert">{error}</p>}
-      {loading && <LoadingState />}
+      {loading && data === null && <LoadingState variant="rows" />}
 
       {data && groups.length === 0 && (
         <div className="empty">

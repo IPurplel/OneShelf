@@ -1,4 +1,5 @@
 import { ModalSurface } from "./ModalSurface";
+import { useId, useRef } from "react";
 import type { ReactNode } from "react";
 
 import { useI18n } from "@/i18n/i18n";
@@ -19,13 +20,16 @@ export function ConfirmDialog({ title, body, confirmLabel, onConfirm, onCancel, 
   busy?: boolean;
 }) {
   const { t } = useI18n();
+  const bodyId = useId();
+  const cancel = useRef<HTMLButtonElement>(null);
   return (
-    <ModalSurface className="confirm" title={title} onClose={onCancel}>
+    <ModalSurface className="confirm" title={title} onClose={onCancel} describedBy={bodyId}
+                  initialFocus={danger ? cancel : undefined}>
       <h2 className="display">{title}</h2>
-      <p>{body}</p>
+      <p id={bodyId}>{body}</p>
       {children}
       <div className="confirm__actions">
-        <button type="button" className="button" onClick={onCancel}>{t("common.cancel")}</button>
+        <button ref={cancel} type="button" className="button" onClick={onCancel}>{t("common.cancel")}</button>
         <button type="button" className={`button ${danger ? "button--danger" : "button--primary"}`}
                 disabled={busy} aria-busy={busy || undefined} onClick={onConfirm}>{confirmLabel}</button>
       </div>

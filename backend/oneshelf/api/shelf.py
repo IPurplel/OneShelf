@@ -126,8 +126,13 @@ async def list_follows(request: Request):
         "SELECT f.work_id, f.language, w.display_title AS work_title"
         " FROM follows f JOIN works w ON w.id = f.work_id"
         " ORDER BY f.created_at DESC, f.language").fetchall()
-    return {"follows": [{**asdict(s.follows.status(r["work_id"], language=r["language"])),
-                          "work_title": r["work_title"]} for r in rows]}
+    names = {plugin.id: plugin.name for plugin in s.plugins.list()}
+    follows = []
+    for r in rows:
+        status = asdict(s.follows.status(r["work_id"], language=r["language"]))
+        follows.append({**status, "work_title": r["work_title"],
+                        "source_name": names.get(status["source_id"], status["source_id"])})
+    return {"follows": follows}
 
 
 class UndoBody(BaseModel):

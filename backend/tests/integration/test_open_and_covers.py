@@ -516,4 +516,4 @@ def test_a_single_document_capability_reports_page_failures_as_capability_errors
     client, _ = api
     response = client.post("/api/resolve-url", json={"url": "http://testsource.example/work/no-such-work"})
     assert response.status_code == 502, response.text
-    assert response.json()["error"]["message"].startswith("not_found")
+    assert response.json()["error"]["category"] == "not_found"          # the reason, beside the sentence

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CoverPlaceholder } from "@/components/CoverPlaceholder";
 import { useI18n } from "@/i18n/i18n";
@@ -77,7 +77,11 @@ export function HeroCarousel({ slides }: { slides: HeroSlide[] }) {
       <div className="hero-carousel__viewport" ref={emblaRef}>
         <div className="hero-carousel__container">
           {slides.map((slide, index) => (
-            <SlideCard key={slide.work_id ?? index} slide={slide} />
+            // A slide out of view is out of reach too, so Tab never lands on a hidden button.
+            <div key={slide.work_id ?? index} className="hero-carousel__item"
+                 inert={slides.length > 1 && index !== selectedIndex}>
+              <SlideCard slide={slide} />
+            </div>
           ))}
         </div>
       </div>
@@ -123,9 +127,7 @@ function SlideCard({ slide }: { slide: HeroSlide }) {
           {percent !== null && <p className="hero__progress">{`${percent}%`}</p>}
           {slide.work_id && (
             <Link className="button button--primary hero__action" to={`/works/${slide.work_id}`}>
-              <span className="hero__play" aria-hidden="true">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M3 1.5 10 6l-7 4.5z" /></svg>
-              </span>
+              <span className="hero__play" aria-hidden="true"><BookOpen size={17} strokeWidth={1.8} /></span>
               {percent !== null && percent > 0 ? t("home.continue") : t("work.open")}
             </Link>
           )}

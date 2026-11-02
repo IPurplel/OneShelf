@@ -169,7 +169,7 @@ describe("Downloads", () => {
     mockApi([get("/api/downloads", { batches: [{ ...BATCHES.batches[0], completed: 1, pending: 0, canceled: 2 }] })]);
     renderWithProviders(<DownloadsScreen />, { language });
     const row = (await screen.findAllByRole("listitem"))[0]!;
-    expect(row).toHaveTextContent(language === "en" ? "2 canceled" : "2 ملغى");
+    expect(row).toHaveTextContent(language === "en" ? "2 canceled" : "أُلغي اثنان");
     expect(within(row).getByRole("progressbar")).toHaveAttribute("value", "3");
     expect(within(row).getByRole("progressbar")).toHaveAttribute("max", "3");
   });
@@ -215,7 +215,7 @@ describe("Downloads", () => {
   it("says plainly when nothing has been downloaded", async () => {
     mockApi([get("/api/downloads", { batches: [] })]);
     renderWithProviders(<DownloadsScreen />);
-    expect(await screen.findByText(/nothing has been downloaded yet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/nothing downloaded yet/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /my shelf/i })).toHaveAttribute("href", "/shelf");
   });
 

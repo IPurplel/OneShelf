@@ -77,7 +77,7 @@ describe("Following", () => {
     const fresh = await screen.findByRole("region", { name: "New releases" });
     expect(within(fresh).getByText(/3 new/i)).toBeInTheDocument();
     const attention = screen.getByRole("region", { name: "Needs attention" });
-    expect(within(attention).getByText(/last answered/i)).toBeInTheDocument();
+    expect(within(attention).getByText(/last checked/i)).toBeInTheDocument();
   });
 
   it("checks one work or all of them, and never downloads by doing so", async () => {

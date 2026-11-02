@@ -340,6 +340,45 @@ def _downloaded(client, tmp_path, work, units: int) -> list[str]:
     return unit_ids
 
 
+def test_a_new_follow_is_checking_not_degraded_and_is_checked_within_minutes(api):
+    client, _, _ = api
+    work = bind(client, "paged", "Paged", content_type="comic")
+    client.post(f"/api/tracks/{work['track_id']}/catalog/refresh")
+    client.post(f"/api/follows/{work['work_id']}", json={"language": "en", "source_id": TS, "track_id": work["track_id"]})
+
+    follow = client.get("/api/follows").json()["follows"][0]
+    assert follow["state"] == "checking"
+    assert follow["source_name"] == "OneShelf Test Source"
+    assert client.get("/api/notifications?attention=true").json()["notifications"] == []
+    from datetime import UTC, datetime, timedelta
+    soon = (datetime.now(UTC) + timedelta(minutes=5)).isoformat()
+    assert client.app.state.services.follows.due_follow_keys(now=soon) == [(work["work_id"], "en")]
+
+
+def test_stats_count_the_shelf_and_the_files_that_are_really_here(api):
+    """Works only opened from search are not the library; never-opened chapters are unread; a downloaded
+    file counts while it is on the device."""
+    client, _, tmp_path = api
+    kept = bind(client, "irregular", "Kept", content_type="manga")
+    browsed = bind(client, "paged", "Only browsed", content_type="comic")
+    for work in (kept, browsed):
+        client.post(f"/api/tracks/{work['track_id']}/catalog/refresh")
+    client.post(f"/api/shelf/{kept['work_id']}")
+    units = client.get(f"/api/works/{kept['work_id']}").json()["units"]
+    client.post(f"/api/reader/units/{units[0]['id']}/mark-read", json={})
+    client.post(f"/api/reader/units/{units[1]['id']}/progress", json={"fraction": 0.3})
+    _downloaded(client, tmp_path, kept, 2)
+    (tmp_path / "lib" / kept["work_id"] / "1.cbz").unlink()                 # deleted by hand
+
+    stats = client.get("/api/stats").json()
+
+    assert stats["library"]["works"] == 1 and stats["library"]["shelf"] == 1
+    assert stats["library"]["units"] == len(units)
+    assert stats["reading"]["read"] == 1 and stats["reading"]["partial"] == 1
+    assert stats["reading"]["unread"] == len(units) - 2
+    assert stats["downloads"]["completed"] == 1 and stats["downloads"]["total_bytes"] == 100
+
+
 def test_one_downloaded_chapter_can_be_deleted_and_the_rest_stays(api):
     client, _, tmp_path = api
     work = bind(client, "irregular", "Kept", content_type="manga")

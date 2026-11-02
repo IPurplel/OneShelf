@@ -11,7 +11,7 @@ import { ShelfCase } from "@/components/ShelfCase";
 import { useShelfColumns } from "./useShelfColumns";
 import { RemoveFromShelf } from "./RemoveFromShelf";
 import type { RemovalSummary } from "./RemoveFromShelf";
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
 import { useLive } from "@/app/live";
 import type { StringKey } from "@/i18n/strings";
@@ -35,7 +35,7 @@ const VIEWS: { id: string; labelKey: StringKey }[] = [
  * Search here is local only — it never reaches a source (§22, §7).
  */
 export function ShelfScreen() {
-  const { t, language } = useI18n();
+  const { t, language, tn, errorText } = useI18n();
   const { ref: shelfRef, columns } = useShelfColumns();
   // The view lives in the address, so "Downloaded" can be linked to and survives a reload.
   const [params, setParams] = useSearchParams();
@@ -98,12 +98,12 @@ export function ShelfScreen() {
 
   const askDeleteWork = (entry: ShelfEntry) => deletion.ask({
     title: t("files.delete.workTitle", { title: entry.title }),
-    body: t("files.delete.workBody", { files: entry.downloaded_units ?? 0, size: isolate(bytes(entry.total_bytes)) }),
+    body: tn("files.delete.workBody", entry.downloaded_units ?? 0, { size: isolate(bytes(entry.total_bytes)) }),
     run: () => api.delete<Deleted>(`/api/works/${entry.work_id}/files`),
   });
 
   const askDeleteSelected = () => deletion.ask({
-    title: t("files.delete.worksTitle", { count: selectedOffline.length }),
+    title: tn("files.delete.worksTitle", selectedOffline.length),
     body: t("files.delete.worksBody", {
       size: isolate(bytes(selectedOffline.reduce((sum, entry) => sum + entry.total_bytes, 0))) }),
     run: () => api.post<Deleted>("/api/shelf/batch", {
@@ -119,7 +119,7 @@ export function ShelfScreen() {
       exitBatch();
       reload();
     } catch (err) {
-      setProblem(err instanceof ApiError ? err.message : t("state.offline"));
+      setProblem(errorText(err));
     } finally {
       setBatchBusy(false);
     }
@@ -138,7 +138,7 @@ export function ShelfScreen() {
       }
       setRemoving({ summary, title });
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
     }
   };
 
@@ -148,7 +148,7 @@ export function ShelfScreen() {
     try {
       await api.delete(`/api/shelf/${summary.work_id}?delete_files=${deleteFiles}`);
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
     } finally {
       reload();
     }
@@ -202,7 +202,7 @@ export function ShelfScreen() {
 
       {selecting && (
         <div className="toolbar toolbar--batch" role="toolbar" aria-label={t("shelf.batch.actions")}>
-          <span className="toolbar__count">{t("shelf.batch.selected", { count: selected.size })}</span>
+          <span className="toolbar__count">{tn("shelf.batch.selected", selected.size)}</span>
           <button type="button" className="chip" onClick={selectAll}>{t("shelf.batch.selectAll")}</button>
           <button type="button" className="chip" disabled={batchBusy || selected.size === 0}
                   onClick={() => void batchAction("favorite")}>{t("shelf.batch.favorite")}</button>
@@ -224,8 +224,7 @@ export function ShelfScreen() {
       {activeView === "downloaded" && offline.length > 0 && (
         <div className="files__summary" role="status">
           <span><Icon name="storage" size={18} />
-            {t("files.summary", { count: new Intl.NumberFormat(language).format(offline.length),
-                                  size: isolate(bytes(offlineBytes)) })}</span>
+            {tn("files.summary", offline.length, { size: isolate(bytes(offlineBytes)) })}</span>
           {!selecting && (
             <button type="button" className="button" onClick={() => setSelecting(true)}>
               <Icon name="trash" size={16} />{t("files.freeUp")}
@@ -238,7 +237,8 @@ export function ShelfScreen() {
       {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
         <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
-      {loading && <LoadingState />}
+      {/* Only the first load shows a placeholder; a live refresh keeps the shelf where it is. */}
+      {loading && data === null && <LoadingState variant={layout === "list" ? "rows" : "shelf"} />}
 
       <div role="tabpanel" id="shelf-tabpanel" aria-labelledby={`shelf-tab-${activeView}`} tabIndex={0}>
       <section ref={shelfRef} className="shelfview" role="region" aria-label={t("shelf.title")} data-layout={layout}>
@@ -259,12 +259,15 @@ export function ShelfScreen() {
                          onChange={() => toggleSelect(entry.work_id)} />
                 )}
                 <WorkCard size="detailed" work={cardWork(entry)} />
-                {!selecting && (entry.downloaded_units ?? 0) > 0 && (
-                  <button type="button" className="chip chip--danger" onClick={() => askDeleteWork(entry)}
-                          aria-label={t("files.delete.aria", { title: entry.title })}>
-                    <Icon name="trash" size={16} />{t("files.delete.workAction")}
-                  </button>
-                )}
+                {/* The facts a list is for: when you last read it and what it takes on this device. */}
+                <span className="shelfview__facts">
+                  {entry.last_read_at && (
+                    <time dateTime={entry.last_read_at}>
+                      {new Intl.DateTimeFormat(language, { dateStyle: "medium" }).format(new Date(entry.last_read_at))}
+                    </time>
+                  )}
+                  {(entry.downloaded_units ?? 0) > 0 && <bdi>{bytes(entry.total_bytes)}</bdi>}
+                </span>
                 {!selecting && <ManageButton entry={entry} onOpen={setManaging} />}
               </div>
             ))}
@@ -274,16 +277,21 @@ export function ShelfScreen() {
           chunk(entries, columns).map((row, rowIndex) => (
             <ShelfCase key={row[0]?.work_id ?? rowIndex} wrap>
               {row.map((entry) => (
-                <div key={entry.work_id} className={`shelfview__selectable${selecting && selected.has(entry.work_id) ? " is-selected" : ""}`}
-                     onClick={selecting ? () => toggleSelect(entry.work_id) : undefined}>
-                  {selecting && (
+                selecting ? (
+                  /* While choosing, the whole card is the checkbox's label: one tap is one toggle, and the card
+                     does not open the work underneath. */
+                  <label key={entry.work_id} data-selecting="true"
+                         className={`shelfview__selectable${selected.has(entry.work_id) ? " is-selected" : ""}`}>
                     <input type="checkbox" className="shelfview__check shelfview__check--grid" checked={selected.has(entry.work_id)}
                            aria-label={t("shelf.batch.toggle", { title: entry.title })}
                            onChange={() => toggleSelect(entry.work_id)} />
-                  )}
+                    <WorkCard work={cardWork(entry)} />
+                  </label>
+                ) : (
+                <div key={entry.work_id} className="shelfview__selectable">
                   <WorkCard work={cardWork(entry)} />
                   {/* On the Downloaded view each cover carries its own quick delete; elsewhere it stays a book. */}
-                  {!selecting && activeView === "downloaded" && (entry.downloaded_units ?? 0) > 0 && (
+                  {activeView === "downloaded" && (entry.downloaded_units ?? 0) > 0 && (
                     <button type="button" className="files__quick" title={t("files.delete.workAction")}
                             aria-label={t("files.delete.aria", { title: entry.title })}
                             onClick={() => askDeleteWork(entry)}>
@@ -291,6 +299,7 @@ export function ShelfScreen() {
                     </button>
                   )}
                 </div>
+                )
               ))}
             </ShelfCase>
           ))
@@ -342,9 +351,10 @@ function ManageButton({ entry, onOpen }: {
 }) {
   const { t } = useI18n();
   return (
-    <button type="button" className="chip shelfview__manage"
+    <button type="button" className="iconbutton shelfview__manage" title={t("shelf.manage", { title: entry.title })}
+            aria-label={t("shelf.manage", { title: entry.title })}
             onClick={() => onOpen({ work_id: entry.work_id, title: entry.title })}>
-      {t("shelf.manage", { title: entry.title })}
+      <Icon name="more" size={20} />
     </button>
   );
 }

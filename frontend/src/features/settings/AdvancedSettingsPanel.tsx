@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 import { bytes } from "@/lib/format";
@@ -28,7 +28,7 @@ type AuthState = {
  * who can reach the library without a passkey.
  */
 export function AdvancedSettingsPanel() {
-  const { t } = useI18n();
+  const { t, errorText } = useI18n();
   const { data, error, reload } = useResource<AuthState>("/api/auth/state");
   const { data: diagnostics, error: diagnosticsError, reload: reloadDiagnostics } = useResource<Diagnostics>("/api/diagnostics");
   const [networks, setNetworks] = useState<string | null>(null);
@@ -50,7 +50,7 @@ export function AdvancedSettingsPanel() {
       });
       setSaved(true);
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
     } finally {
       reload();
     }
@@ -101,7 +101,7 @@ export function AdvancedSettingsPanel() {
             <div className="firstrun__actions">
               <button type="button" className="button"
                       onClick={() => { setProblem(null); void api.delete("/api/diagnostics")
-                        .then(reloadDiagnostics).catch(error => setProblem(error instanceof ApiError ? error.message : t("state.offline"))); }}>
+                        .then(reloadDiagnostics).catch(error => setProblem(errorText(error))); }}>
                 {t("settings.advanced.diagnosticsClear")}
               </button>
             </div>

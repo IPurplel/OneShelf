@@ -490,6 +490,43 @@ def test_i95_an_unexpected_error_fails_the_job_instead_of_stranding_it(environme
     assert len(notes) == 1 and notes[0]["dedupe_key"].startswith("download-failed")
 
 
+def test_a_failed_download_names_the_chapter_and_work_and_clears_once_a_retry_succeeds(environment, monkeypatch):
+    """The notification says which chapter of which work, in words rather than a category code, carries what
+    Open and Retry need, and stops asking for attention as soon as that chapter downloads after all."""
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            notifications = NotificationService(env.db)
+            env.engine.notifications = notifications
+            original = env.engine._resources
+
+            async def broken(*_args, **_kwargs):
+                raise RuntimeError("an error nobody planned for")
+
+            monkeypatch.setattr(env.engine, "_resources", broken)
+            unit = env.unit_id("irr-1")
+            batch = env.engine.enqueue([unit])
+            await env.engine.run_until_idle(max_seconds=40)
+            failed = notifications.needs_attention()
+
+            monkeypatch.setattr(env.engine, "_resources", original)
+            env.engine.retry_all_failed(batch)
+            await env.engine.run_until_idle(max_seconds=40)
+            context = env.engine._unit_context(unit)
+            return failed, notifications.needs_attention(), env.job_rows(batch)[0], dict(context)
+
+    failed, after, job, context = run(scenario(), timeout=120)
+    assert len(failed) == 1
+    note = failed[0]
+    unit_title = context["display_title"] or context["raw_title"]
+    assert note.title == f"{unit_title} · The Irregular Chronicle"
+    assert "internal_error" not in note.summary and note.summary
+    assert note.payload == {"reading_unit_id": context["unit_id"], "unit_id": context["unit_id"],
+                            "work_id": context["work_id"], "track_id": context["track_id"],
+                            "source_id": context["source_id"], "category": "internal_error"}
+    assert job["state"] == "COMPLETED" and after == []
+
+
 def test_i95_an_oversized_resource_fails_at_once(environment, monkeypatch):
     monkeypatch.setattr(engine_module, "MAX_RESOURCE_BYTES", 100)
 

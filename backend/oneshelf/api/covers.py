@@ -48,14 +48,14 @@ async def _image_response(s, source: str, package, url: str, *, headers: dict[st
         return _error(404, "NO_COVER", "This source has no recipe that could carry a cover.")
     # Image hosts sometimes want what the source's own pages send (a Referer, say): whatever the source's
     # recipes declare for their resources, nothing more.
-    headers: dict[str, str] = {}
+    resource_headers: dict[str, str] = {}
     for name in reversed(CAPABILITY_ORDER):
         if name in package.recipes:
-            headers.update(package.recipes[name].resource_headers)
+            resource_headers.update(package.recipes[name].resource_headers)
     try:
         response = await s.source_service.fetch_resource(source, url, capability=capability,
                                                          priority=Priority.READ_AHEAD, max_bytes=MAX_COVER_BYTES,
-                                                         headers=headers or None)
+                                                         headers=resource_headers or None)
     except ResponseTooLarge:
         return _error(413, "COVER_TOO_LARGE", "The cover is larger than OneShelf accepts.")
     except AuthRequired:

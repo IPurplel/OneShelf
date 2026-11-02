@@ -41,7 +41,7 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
   busy?: boolean;
   problem?: string | null;
 }) {
-  const { t, language } = useI18n();
+  const { t, language, tn } = useI18n();
   // A cover that fails to load becomes the placeholder; the card itself never becomes unusable (INV-28).
   const [failed, setFailed] = useState<string | null>(null);
   const coverRef = useRef<HTMLSpanElement>(null);
@@ -98,7 +98,7 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
               {shownLanguages.join(" · ")}{moreLanguages > 0 && ` · ${t("work.moreLanguages", { count: moreLanguages })}`}
             </span>
           )}
-          {sources > 0 && <span>{sources === 1 ? t("work.source") : t("work.sources", { count: sources })}</span>}
+          {sources > 0 && <span>{tn("work.sources", sources)}</span>}
         </span>
       )}
       {work.downloaded && size !== "compact" && (

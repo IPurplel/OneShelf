@@ -1,6 +1,5 @@
 import { useId, useRef, useState } from "react";
 
-import { ApiError } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
 
 /** A draft stays editable and visibly unsaved until its save succeeds. */
@@ -8,7 +7,7 @@ export function NumberSetting({ label, value, min, max, disabled = false, onSave
   label: string; value: number; min: number; max: number; disabled?: boolean;
   onSave: (value: number) => void | Promise<void>;
 }) {
-  const { t } = useI18n();
+  const { t, errorText } = useI18n();
   const id = useId();
   const [draft, setDraft] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -33,7 +32,7 @@ export function NumberSetting({ label, value, min, max, disabled = false, onSave
       await onSave(number);
       setDraft(null);
     } catch (error) {
-      setProblem(t("settings.notSaved", { message: error instanceof ApiError ? error.message : t("state.offline") }));
+      setProblem(t("settings.notSaved", { message: errorText(error) }));
       setRetryable(true);
     } finally {
       pending.current = false;

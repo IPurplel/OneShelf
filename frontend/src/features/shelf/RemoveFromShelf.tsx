@@ -26,7 +26,7 @@ export function RemoveFromShelf({ title, summary, onKeep, onDelete, onCancel }: 
   onDelete: () => void;
   onCancel: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, tn } = useI18n();
 
   return (
     <ModalSurface className="confirm confirm--wide" title={t("shelf.remove.title")} onClose={onCancel}>
@@ -46,7 +46,7 @@ export function RemoveFromShelf({ title, summary, onKeep, onDelete, onCancel }: 
           {/* One file is one file: Arabic marks number and plural differently, and "1 ملفات" reads wrong. */}
           {summary.files === 1 && <li>{t("shelf.remove.file", { size: bytes(summary.bytes) })}</li>}
           {summary.files > 1 && (
-            <li>{t("shelf.remove.files", { files: summary.files, size: bytes(summary.bytes) })}</li>
+            <li>{tn("shelf.remove.files", summary.files, { size: bytes(summary.bytes) })}</li>
           )}
           {summary.has_progress && <li>{t("shelf.remove.progress")}</li>}
           {summary.is_followed && <li>{t("shelf.remove.follow")}</li>}

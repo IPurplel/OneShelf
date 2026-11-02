@@ -32,7 +32,7 @@ it('shows an unavailable work error and a recovery link after a terminal 404', a
 it('shows a missing-unit error instead of falling back to the page reader', async () => {
   mockApi([get('/api/reader/units/u/context', context), get('/api/works/w', { ...details, units: [] })]);
   open('/read/u?work=w&track=second');
-  expect(await screen.findByRole('alert')).toHaveTextContent(/reading unit/i);
+  expect(await screen.findByRole('alert')).toHaveTextContent(/chapter/i);
   expect(screen.queryByText('page reader')).not.toBeInTheDocument();
 });
 it('opens a text unit in the Book Reader whether or not it is downloaded', async () => {

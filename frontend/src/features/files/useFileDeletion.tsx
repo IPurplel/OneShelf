@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { ApiError } from "@/api/client";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useI18n } from "@/i18n/i18n";
 import { bytes, isolate } from "@/lib/format";
@@ -16,7 +15,7 @@ type Request = { title: string; body: string; run: () => Promise<Deleted> };
  * on the shelf and its reading progress stay.
  */
 export function useFileDeletion(onDone: () => void) {
-  const { t, language } = useI18n();
+  const { t, tn, errorText } = useI18n();
   const [request, setRequest] = useState<Request | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -26,11 +25,10 @@ export function useFileDeletion(onDone: () => void) {
     try {
       const done = await request.run();
       const size = isolate(bytes(done.freed_bytes ?? 0));
-      toast.success(done.deleted_files === 1 ? t("files.deletedOne", { size })
-        : t("files.deleted", { files: new Intl.NumberFormat(language).format(done.deleted_files), size }));
+      toast.success(tn("files.deleted", done.deleted_files, { size }));
       onDone();
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : t("state.offline"));
+      toast.error(errorText(error));
     } finally {
       setBusy(false);
       setRequest(null);

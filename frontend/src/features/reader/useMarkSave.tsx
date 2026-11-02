@@ -1,12 +1,11 @@
 import { useState } from "react";
 
-import { ApiError } from "@/api/client";
 import { useI18n } from "@/i18n/i18n";
 import { newOperationId } from "@/lib/operationId";
 
 /** Keep a failed bookmark or highlight available for one exact retry. */
 export function useMarkSave() {
-  const { t } = useI18n();
+  const { t, errorText } = useI18n();
   const [failure, setFailure] = useState<string | null>(null);
   const [retry, setRetry] = useState<(() => Promise<void>) | null>(null);
 
@@ -18,7 +17,7 @@ export function useMarkSave() {
       await action(id);
       setRetry(null);
     } catch (error) {
-      const reason = error instanceof ApiError ? error.message : t("state.offline");
+      const reason = errorText(error);
       setFailure(t("book.markSaveFailed", { reason }));
       setRetry(() => () => save(action, id));
     }

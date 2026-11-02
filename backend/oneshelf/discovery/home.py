@@ -15,14 +15,15 @@ from dataclasses import asdict, dataclass, field
 from oneshelf.net.governor import Priority
 from oneshelf.search.cache import DiscoveryCache
 from oneshelf.search.grouping import LiveListing, ResultWork, group_results
-from oneshelf.search.presentation import cover_path, work_cover
+from oneshelf.search.presentation import cover_path, work_cover, work_covers
 
 SECTION_LIMIT = 12
 FEED_KINDS = ("trending", "latest")
 # A feed that just failed is left alone this long; successes are cached by the discovery cache as before.
 FAILED_FEED_RETRY_SECONDS = 300
-# How long Home waits for feeds that are not cached yet before showing what it has.
-FEED_WAIT_SECONDS = 2.5
+# How long Home waits for feeds that are not cached yet before showing what it has. A cold feed keeps going in
+# the background and is there on the next visit; the library sections never wait for it longer than this.
+FEED_WAIT_SECONDS = 1.0
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,7 @@ class LibraryItem:
     cover_url: str | None = None
     fraction: float | None = None
     content_type: str | None = None
+    next_unit_id: str | None = None
 
 
 @dataclass
@@ -50,6 +52,8 @@ class HeroChoice:
     cover_url: str | None = None
     description: str | None = None
     content_type: str | None = None
+    fraction: float | None = None
+    next_unit_id: str | None = None
 
 
 class HomeService:
@@ -66,20 +70,64 @@ class HomeService:
     # -- library sections --------------------------------------------------------------------------
 
     def continue_reading(self) -> list[LibraryItem]:
-        rows = self.conn.execute(
-            "SELECT w.id AS work_id, w.display_title, w.content_type, max(rs.updated_at) AS at, rs.fraction"
+        """Works being read, most recent first: a chapter in progress, or a finished one with more after it.
+
+        `fraction` is the work's (chapters read of the track being read), and `next_unit_id` is what to open:
+        the chapter in progress, else the first unread chapter after the last one finished. A work read to its
+        end is no longer "continue reading".
+        """
+        candidates = self.conn.execute(
+            "SELECT w.id AS work_id, w.display_title, w.content_type, max(rs.updated_at) AS at"
             " FROM reading_state rs JOIN reading_units u ON u.id = rs.reading_unit_id"
             " JOIN source_tracks t ON t.id = u.track_id JOIN works w ON w.id = t.work_id"
-            " WHERE rs.read_state = 'partial' GROUP BY w.id ORDER BY at DESC LIMIT ?",
-            (SECTION_LIMIT,)).fetchall()
-        return [LibraryItem(r["work_id"], r["display_title"], work_cover(self.conn, r["work_id"]),
-                            fraction=r["fraction"], content_type=r["content_type"]) for r in rows]
+            " WHERE rs.read_state IN ('partial', 'read') GROUP BY w.id ORDER BY at DESC LIMIT ?",
+            (SECTION_LIMIT * 2,)).fetchall()
+        found: list[tuple[sqlite3.Row, float, str]] = []
+        for candidate in candidates:
+            place = self._reading_place(candidate["work_id"])
+            if place is not None:
+                found.append((candidate, *place))
+            if len(found) == SECTION_LIMIT:
+                break
+        covers = work_covers(self.conn, [row["work_id"] for row, _, _ in found])
+        return [LibraryItem(row["work_id"], row["display_title"], covers.get(row["work_id"]), fraction=fraction,
+                            content_type=row["content_type"], next_unit_id=next_unit)
+                for row, fraction, next_unit in found]
+
+    def _reading_place(self, work_id: str) -> tuple[float, str] | None:
+        """(work fraction, next unit) on the track last read, or None when nothing is left to read there."""
+        track = self.conn.execute(
+            "SELECT u.track_id FROM reading_state rs JOIN reading_units u ON u.id = rs.reading_unit_id"
+            " JOIN source_tracks t ON t.id = u.track_id WHERE t.work_id = ? AND rs.read_state IN ('partial', 'read')"
+            " ORDER BY rs.updated_at DESC LIMIT 1", (work_id,)).fetchone()
+        if track is None:
+            return None
+        units = self.conn.execute(
+            "SELECT u.id, coalesce(rs.read_state, 'unread') AS state, coalesce(rs.fraction, 0) AS fraction,"
+            " rs.updated_at FROM reading_units u LEFT JOIN reading_state rs ON rs.reading_unit_id = u.id"
+            " WHERE u.track_id = ? AND u.availability != 'unavailable' ORDER BY u.source_order",
+            (track["track_id"],)).fetchall()
+        if not units:
+            return None
+        partial = [u for u in units if u["state"] == "partial"]
+        if partial:
+            next_unit = max(partial, key=lambda u: u["updated_at"] or "")["id"]
+        else:
+            last_read = max(i for i, u in enumerate(units) if u["state"] == "read")
+            following = [u for u in units[last_read + 1:] if u["state"] == "unread"]
+            if not following:
+                return None
+            next_unit = following[0]["id"]
+        done = sum(1.0 if u["state"] == "read" else (u["fraction"] or 0.0) if u["state"] == "partial" else 0.0
+                   for u in units)
+        return round(done / len(units), 4), next_unit
 
     def recently_added(self) -> list[LibraryItem]:
         rows = self.conn.execute(
             "SELECT w.id AS work_id, w.display_title, w.content_type FROM shelf_entries s"
             " JOIN works w ON w.id = s.work_id ORDER BY s.added_at DESC LIMIT ?", (SECTION_LIMIT,)).fetchall()
-        return [LibraryItem(r["work_id"], r["display_title"], work_cover(self.conn, r["work_id"]),
+        covers = work_covers(self.conn, [r["work_id"] for r in rows])
+        return [LibraryItem(r["work_id"], r["display_title"], covers.get(r["work_id"]),
                             content_type=r["content_type"]) for r in rows]
 
     # -- source feeds ------------------------------------------------------------------------------
@@ -151,12 +199,14 @@ class HomeService:
         return {"description": row["description"] if row else None,
                 "content_type": row["content_type"] if row else None}
 
-    async def hero(self) -> HeroChoice | None:
-        reading = self.continue_reading()
+    async def hero(self, reading: list[LibraryItem] | None = None) -> HeroChoice | None:
+        """`reading` is Continue Reading when the caller already has it, so Home does not work it out twice."""
+        reading = self.continue_reading() if reading is None else reading
         if reading:
             about = self._about(reading[0].work_id)
             return HeroChoice("continue_reading", reading[0].title, reading[0].work_id, reading[0].cover_url,
-                              about["description"], about["content_type"])
+                              about["description"], about["content_type"], reading[0].fraction,
+                              reading[0].next_unit_id)
         pinned = self.conn.execute(
             "SELECT w.id, w.display_title, w.description, w.content_type FROM shelf_entries s"
             " JOIN works w ON w.id = s.work_id WHERE s.is_pinned = 1 ORDER BY s.added_at DESC LIMIT 1").fetchone()

@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 import { useResource } from "@/api/useApi";
-import type { HomeResponse } from "@/api/types";
+import type { HomeResponse, ShelfResponse } from "@/api/types";
 import { HeroCarousel, type HeroSlide } from "@/components/HeroCarousel";
 import { Shelf } from "@/components/Shelf";
 import { WorkCard } from "@/components/WorkCard";
@@ -37,7 +37,7 @@ export function HomeScreen() {
     return (
       <section className="screen">
         <h1 className="screen__title">{t("home.welcome")}</h1>
-        <LoadingState />
+        <LoadingState variant="shelf" />
       </section>
     );
   }
@@ -86,8 +86,34 @@ export function HomeScreen() {
         </div>
       )}
 
+      <LocalShelf view="downloaded" title={t("shelf.view.downloaded")} />
+      <LocalShelf view="favorites" title={t("shelf.view.favorites")} />
+
       {!hasAnything && <EmptyLibrary />}
     </section>
+  );
+}
+
+/**
+ * Shelves drawn from the library itself — what is on this device, what you love — so Home is never a
+ * one-shelf page while the library holds more. No network request: these come from My Shelf.
+ */
+function LocalShelf({ view, title }: { view: "downloaded" | "favorites"; title: string }) {
+  const { data, reload } = useResource<ShelfResponse>("/api/shelf", { view });
+  useLive(["shelf.changed"], reload);
+  const entries = (data?.entries ?? []).slice(0, 12);
+  if (entries.length === 0) return null;
+  return (
+    <Shelf id={`home-${view}`} title={title} viewAllHref={`/shelf?view=${view}`} compactRow>
+      {entries.map((entry) => (
+        <WorkCard key={entry.work_id} work={{
+          work_id: entry.work_id, title: entry.title, cover_url: entry.cover_url ?? null,
+          content_type: entry.content_type ?? null,
+          fraction: entry.read_fraction > 0 ? entry.read_fraction : null,
+          downloaded: view === "downloaded" ? undefined : (entry.downloaded_units ?? 0) > 0,
+        }} />
+      ))}
+    </Shelf>
   );
 }
 

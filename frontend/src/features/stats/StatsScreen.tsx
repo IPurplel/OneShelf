@@ -35,7 +35,7 @@ export function StatsScreen() {
           <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button>
         </>
       )}
-      {loading && <LoadingState />}
+      {loading && data === null && <LoadingState />}
 
       {data && data.library.works === 0 && (
         <div className="empty">

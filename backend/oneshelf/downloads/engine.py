@@ -441,9 +441,16 @@ class DownloadEngine:
         rows = self.conn.execute("SELECT state, count(*) AS n FROM download_jobs WHERE batch_id = ? GROUP BY state",
                                  (batch_id,)).fetchall()
         counts = {r["state"]: r["n"] for r in rows}
-        selection = json.loads(self.conn.execute("SELECT selection_json FROM download_batches WHERE id = ?",
-                                                 (batch_id,)).fetchone()[0] or "{}")
-        paused = self.conn.execute("SELECT paused FROM download_batches WHERE id = ?", (batch_id,)).fetchone()[0]
+        record = self.conn.execute("SELECT selection_json, paused, label, created_at FROM download_batches"
+                                   " WHERE id = ?", (batch_id,)).fetchone()
+        selection = json.loads(record["selection_json"] or "{}")
+        paused = record["paused"]
+        # What the batch is downloading, by Work, so a list of batches can say more than counts.
+        works = self.conn.execute(
+            "SELECT w.id AS work_id, w.display_title AS title, min(j.queue_position) AS first"
+            " FROM download_jobs j JOIN reading_units u ON u.id = j.reading_unit_id"
+            " JOIN source_tracks t ON t.id = u.track_id JOIN works w ON w.id = t.work_id"
+            " WHERE j.batch_id = ? GROUP BY w.id ORDER BY first", (batch_id,)).fetchall()
         completed, failed = counts.get("COMPLETED", 0), counts.get("FAILED", 0)
         pending = sum(n for state, n in counts.items() if state not in ("COMPLETED", "FAILED", "CANCELED"))
         if paused:
@@ -459,7 +466,10 @@ class DownloadEngine:
         else:
             state = "completed"
         return {"batch_id": batch_id, "state": state, "completed": completed, "failed": failed, "pending": pending,
-                "canceled": counts.get("CANCELED", 0), "skipped": len(selection.get("skipped", [])), "counts": counts}
+                "canceled": counts.get("CANCELED", 0), "skipped": len(selection.get("skipped", [])), "counts": counts,
+                "label": record["label"], "created_at": record["created_at"], "total": sum(counts.values()),
+                "works": [{"work_id": w["work_id"], "title": w["title"]} for w in works[:3]],
+                "works_total": len(works)}
 
     # -- pipeline ----------------------------------------------------------------------------------
 
@@ -732,6 +742,9 @@ class DownloadEngine:
             shutil.rmtree(area, ignore_errors=True)
         with transaction(self.conn):
             self.conn.execute("UPDATE download_jobs SET staging_relpath = NULL WHERE id = ?", (job_id,))
+        if self.notifications is not None:
+            # Retried and downloaded after all: the earlier failure no longer needs attention.
+            self.notifications.download_succeeded(context["unit_id"])
         self._emit("download.job", {"job_id": job_id, "state": "COMPLETED"})
 
     def _notify_failure(self, job_id: str, context: sqlite3.Row, category: str) -> None:
@@ -752,7 +765,9 @@ class DownloadEngine:
             else:
                 self.notifications.low_storage(root_id, free_bytes=shutil.disk_usage(root.path).free)
         else:
-            self.notifications.download_failed(context["unit_id"], title, category=category)
+            self.notifications.download_failed(context["unit_id"], title, category=category,
+                                               work_id=context["work_id"], work_title=context["work_title"],
+                                               track_id=context["track_id"], source_id=context["source_id"])
 
     def _record_history(self, job: sqlite3.Row, outcome: str, category: str | None = None) -> None:
         context = self._unit_context(job["reading_unit_id"])

@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
@@ -30,7 +30,7 @@ const BACKGROUNDS = ["black", "dark", "white"] as const;
  * shown live with the reader; the numbers the engine acts on live in the library (§42/D2).
  */
 export function ReaderSettingsPanel() {
-  const { t } = useI18n();
+  const { t, errorText } = useI18n();
   const { data: loaded, error, reload } = useResource<LibraryReader>("/api/reader/settings");
   const [reader, setReader] = useState<ReaderSettings>(() => loadSettings(null, null) ?? DEFAULT_SETTINGS);
 
@@ -109,7 +109,7 @@ export function ReaderSettingsPanel() {
             <label className="panel__choice">
               <input type="checkbox" checked={library.remember_per_work} disabled={saving}
                      onChange={() => void write({ remember_per_work: !library.remember_per_work }).catch(error => {
-                       setProblem(t("settings.notSaved", { message: error instanceof ApiError ? error.message : t("state.offline") }));
+                       setProblem(t("settings.notSaved", { message: errorText(error) }));
                      })} />
               <span>{t("settings.reader.rememberPerWork")}</span>
             </label>

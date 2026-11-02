@@ -1,9 +1,13 @@
 import { useLayoutEffect, useRef } from "react";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 
 /** Native modality makes the background inert; lifecycle and keyboard behavior are shared. */
-export function ModalSurface({ title, className, children, onClose }: {
+export function ModalSurface({ title, className, children, onClose, describedBy, initialFocus }: {
   title: string; className: string; children: ReactNode; onClose: () => void;
+  /** The id of the text that explains the dialog, read out with its name. */
+  describedBy?: string;
+  /** Where focus starts; for a destructive question, the safe answer. */
+  initialFocus?: RefObject<HTMLElement | null>;
 }) {
   const panel = useRef<HTMLDialogElement>(null);
   const close = useRef(onClose);
@@ -13,14 +17,15 @@ export function ModalSurface({ title, className, children, onClose }: {
     const dialog = panel.current!;
     const opener = document.activeElement;
     dialog.showModal();
-    dialog.focus();
+    (initialFocus?.current ?? dialog).focus();
     return () => {
       dialog.close();
       if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
     };
-  }, []);
+  }, []);                                       // eslint-disable-line react-hooks/exhaustive-deps
 
   return <dialog ref={panel} className={`modal ${className}`} aria-label={title} aria-modal="true" tabIndex={-1}
+    aria-describedby={describedBy}
     onCancel={event => { event.preventDefault(); close.current(); }}
     onKeyDown={event => {
       if (event.key === "Escape") {

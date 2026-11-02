@@ -148,6 +148,32 @@ def test_hero_prefers_continue_reading_then_pinned_and_never_calls_a_source(db, 
     assert sources.calls == []
 
 
+def test_finishing_a_chapter_keeps_the_work_in_continue_reading_with_the_next_chapter(db, cache):
+    """Chapter 1 read to the end, chapter 2 not started: the work is still being read, half way, and the
+    next thing to open is chapter 2. A work read to its last chapter is not."""
+    work, done = new_id(), new_id()
+    for work_id, title in ((work, "Halfway"), (done, "Finished")):
+        db.execute("INSERT INTO works (id, display_title, created_at, updated_at) VALUES (?,?,?,?)",
+                   (work_id, title, NOW, NOW))
+    units = {}
+    for work_id, count in ((work, 2), (done, 1)):
+        track = new_id()
+        db.execute("INSERT INTO source_tracks (id, work_id, source_id, language, kind, created_at) VALUES (?,?,?,?,?,?)",
+                   (track, work_id, "local", "en", "local", NOW))
+        for order in range(1, count + 1):
+            unit = new_id()
+            db.execute("INSERT INTO reading_units (id, track_id, source_unit_key, unit_type, source_order, first_seen_at)"
+                       " VALUES (?,?,?,?,?,?)", (unit, track, f"u{order}", "chapter", order, NOW))
+            units[(work_id, order)] = unit
+    for work_id in (work, done):
+        db.execute("INSERT INTO reading_state (reading_unit_id, read_state, fraction, updated_at)"
+                   " VALUES (?, 'read', 1.0, ?)", (units[(work_id, 1)], NOW))
+
+    reading = HomeService(db, FakeSources(), cache).continue_reading()
+
+    assert [(i.work_id, i.fraction, i.next_unit_id) for i in reading] == [(work, 0.5, units[(work, 2)])]
+
+
 def test_hero_falls_back_to_cached_discovery_without_network(db, cache):
     sources = FakeSources(capabilities={"s": {"trending"}}, responses={("s", "trending"): trending_result("Cached Hot")})
     asyncio.run(HomeService(db, sources, cache).sections())  # fills the discovery cache

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 
@@ -14,7 +14,7 @@ type NotificationSettings = { source_recovered: boolean };
  * §30.10 says it is optional and silent by default.
  */
 export function NotificationSettingsPanel() {
-  const { t } = useI18n();
+  const { t, errorText } = useI18n();
   const { data, error, reload } = useResource<NotificationSettings>("/api/notifications/settings");
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -34,7 +34,7 @@ export function NotificationSettingsPanel() {
                onChange={() => {
                  setProblem(null);
                  void api.post("/api/notifications/settings", { source_recovered: !data.source_recovered })
-                   .then(reload).catch(error => setProblem(error instanceof ApiError ? error.message : t("state.offline")));
+                   .then(reload).catch(error => setProblem(errorText(error)));
                }} />
         <span>
           <span className="panel__choiceTitle">{t("settings.notifications.recovered")}</span>

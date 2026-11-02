@@ -263,7 +263,7 @@ describe("Settings failure recovery", () => {
     const calls = mockApi([get("/api/downloads/settings", enabled)]);
     const user = userEvent.setup();
     renderWithProviders(<SettingsScreen />, { route: "/settings/downloads" });
-    const input = await screen.findByRole("spinbutton", { name: /how many units ahead/i });
+    const input = await screen.findByRole("spinbutton", { name: /how many chapters ahead/i });
     await user.clear(input);
     if (value) await user.type(input, value);
     await user.tab();
@@ -276,7 +276,7 @@ describe("Settings failure recovery", () => {
     const user = userEvent.setup();
     renderWithProviders(<SettingsScreen />, { route: "/settings/reader" });
     await user.click(screen.getByRole("button", { name: /show advanced/i }));
-    return { user, threshold: await screen.findByRole("spinbutton", { name: /count a unit/i }) };
+    return { user, threshold: await screen.findByRole("spinbutton", { name: /count a chapter/i }) };
   }
 
   it.each(["101", "49", "", "97.5"])("does not save invalid completion percentage %s", async value => {

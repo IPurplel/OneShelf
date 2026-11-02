@@ -1,5 +1,6 @@
 """Master §28.6: session tokens live in HttpOnly cookies and never in Web Storage."""
 import re
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -16,8 +17,11 @@ PATTERNS = [
 
 
 def web_files():
-    for path in ROOT.rglob("*"):
-        if path.suffix.lower() in WEB_SUFFIXES and not SKIP & set(path.parts):
+    """The repository's own files: local scratch folders (saved third-party pages, say) are not OneShelf code."""
+    listed = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z"], capture_output=True, check=True).stdout
+    for name in listed.decode("utf-8").split("\0"):
+        path = ROOT / name
+        if name and path.suffix.lower() in WEB_SUFFIXES and not SKIP & set(path.parts) and path.is_file():
             yield path
 
 

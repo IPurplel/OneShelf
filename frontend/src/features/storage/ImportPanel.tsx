@@ -26,7 +26,7 @@ type Review = {
  * file you picked stays where it is.
  */
 export function ImportPanel() {
-  const { t, language } = useI18n();
+  const { t, language, tn } = useI18n();
   const [review, setReview] = useState<Review | null>(null);
   const [title, setTitle] = useState("");
   const [target, setTarget] = useState<string>("new");
@@ -125,7 +125,7 @@ export function ImportPanel() {
         <div className="import__review">
           <p className="cards__meta">
             <span>{review.format.toUpperCase()}</span>
-            {review.page_count !== null && <span>{t("import.pages", { count: review.page_count })}</span>}
+            {review.page_count !== null && <span>{tn("import.pages", review.page_count)}</span>}
             {review.language && <span>{review.language}</span>}
           </p>
 

@@ -89,7 +89,7 @@ describe("Work Details", () => {
     expect(within(panel).getByText(/Frankenstein.*edition-1831/i)).toBeInTheDocument();
     expect(within(panel).getByText(/Frankenstein.*edition-1797/i)).toBeInTheDocument();
     expect(within(panel).getByText(/Archived source/i)).toBeInTheDocument();
-    expect(within(panel).queryByRole("button", { name: /refresh catalogue/i })).toBeNull();
+    expect(within(panel).queryByRole("button", { name: /refresh chapter list/i })).toBeNull();
   });
 
   it("lets an empty source track open an available translation without replacing its saved track", async () => {
@@ -172,7 +172,7 @@ describe("Work Details", () => {
   it("does not offer a bulk download for a local track", async () => {
     mockApi([get("/api/works/w1", DETAILS)]);
     renderWithProviders(<WorkScreen workId="w1" />);
-    await screen.findByRole("list", { name: /reading units/i });
+    await screen.findByRole("list", { name: /^chapters$/i });
     expect(screen.queryByRole("button", { name: /download all chapters/i })).not.toBeInTheDocument();
   });
 
@@ -251,7 +251,7 @@ describe("Work Details", () => {
   it("does not present actions when the response names a different track", async () => {
     mockApi([get("/api/works/w1", DETAILS)]);
     renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-ar" });
-    expect(await screen.findByRole("alert")).toHaveTextContent(/selected track/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/this source's chapters could not be loaded/i);
     expect(screen.queryByRole("button", { name: /^follow$/i })).toBeNull();
     expect(screen.queryByRole("link", { name: /^continue$/i })).toBeNull();
   });
@@ -391,7 +391,7 @@ describe("Work Details", () => {
       post("/api/downloads", { error: { message: "Download unavailable" } }, 503)]);
     const user = userEvent.setup();
     renderWithProviders(<WorkScreen workId="w1" />);
-    const index = await screen.findByRole("list", { name: /reading units/i });
+    const index = await screen.findByRole("list", { name: /^chapters$/i });
     await user.click(within(index).getByRole("button", { name: /^download$/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Download unavailable");
     expect(within(index).getByText("Chapter 3.5")).toBeInTheDocument();
@@ -406,7 +406,7 @@ describe("Work Details", () => {
     renderWithProviders(<WorkScreen workId="w1" />);
     expect(await screen.findByText(/no readable chapters/i)).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: /sources/i }));
-    await user.click(await screen.findByRole("button", { name: /refresh catalogue/i }));
+    await user.click(await screen.findByRole("button", { name: /refresh chapter list/i }));
     await waitFor(() => expect(calls.filter((c) => c.url === "/api/tracks/t-ar/catalog/refresh"
                                                && c.method === "POST")).toHaveLength(2));
     expect(screen.getByRole("status")).toHaveTextContent(/no readable chapters/i);
@@ -440,9 +440,9 @@ describe("Work Details", () => {
         unit_count: 0, reason: "server_error" })]);
     const user = userEvent.setup();
     renderWithProviders(<WorkScreen workId="w1" />, { route: "/works/w1?track=t-ar" });
-    expect(await screen.findByRole("alert")).toHaveTextContent(/could not finish loading/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/stopped before sending every chapter/i);
     expect(screen.getByRole("heading", { name: "The Irregular Chronicle" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /retry catalogue/i }));
+    await user.click(screen.getByRole("button", { name: /refresh chapter list/i }));
     await waitFor(() => expect(calls.filter(c => c.method === "POST" &&
       c.url === "/api/tracks/t-ar/catalog/refresh")).toHaveLength(2));
   });
@@ -530,7 +530,7 @@ describe("Work Details", () => {
     mockApi([get("/api/works/w1", DETAILS)]);
     renderWithProviders(<WorkScreen workId="w1" />);
 
-    const list = await screen.findByRole("list", { name: /reading units/i });
+    const list = await screen.findByRole("list", { name: /^chapters$/i });
     const items = within(list).getAllByRole("listitem");
     expect(items).toHaveLength(2);
     expect(items[0]).toHaveTextContent("Prologue");
@@ -541,7 +541,7 @@ describe("Work Details", () => {
   it("shows which units are on this device and which are not", async () => {
     mockApi([get("/api/works/w1", DETAILS)]);
     renderWithProviders(<WorkScreen workId="w1" />);
-    const list = await screen.findByRole("list", { name: /reading units/i });
+    const list = await screen.findByRole("list", { name: /^chapters$/i });
     const items = within(list).getAllByRole("listitem");
     expect(within(items[0]!).getByText(/downloaded/i)).toBeInTheDocument();
     expect(within(items[1]!).getByRole("button", { name: /download/i })).toBeInTheDocument();
@@ -589,6 +589,7 @@ describe("Work Details", () => {
     renderWithProviders(<WorkScreen workId="w1" />);
     await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
 
+    await user.click(screen.getByRole("button", { name: /^more$/i }));
     await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
     const dialog = await screen.findByRole("dialog", { name: /remove from shelf/i });
 
@@ -607,6 +608,7 @@ describe("Work Details", () => {
     renderWithProviders(<WorkScreen workId="w1" />);
     await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
 
+    await user.click(screen.getByRole("button", { name: /^more$/i }));
     await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
     const dialog = await screen.findByRole("dialog", { name: /remove from shelf/i });
     await user.click(within(dialog).getByRole("button", { name: /keep the files/i }));
@@ -622,6 +624,7 @@ describe("Work Details", () => {
     renderWithProviders(<WorkScreen workId="w1" />);
     await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
 
+    await user.click(screen.getByRole("button", { name: /^more$/i }));
     await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
     const dialog = await screen.findByRole("dialog", { name: /remove from shelf/i });
     await user.click(within(dialog).getByRole("button", { name: /delete the files/i }));
@@ -641,6 +644,7 @@ describe("Work Details", () => {
     renderWithProviders(<WorkScreen workId="w1" />);
     await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
 
+    await user.click(screen.getByRole("button", { name: /^more$/i }));
     await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
     expect(screen.queryByRole("dialog", { name: /remove from shelf/i })).not.toBeInTheDocument();
     expect(calls.some((call) => call.method === "DELETE" && call.url.startsWith("/api/shelf/w1"))).toBe(true);
@@ -652,13 +656,14 @@ describe("Work Details", () => {
     renderWithProviders(<WorkScreen workId="w1" />);
     await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
 
+    await user.click(screen.getByRole("button", { name: /^more$/i }));
     await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
     const dialog = await screen.findByRole("dialog", { name: /remove from shelf/i });
     await user.click(within(dialog).getByRole("button", { name: /cancel/i }));
 
     expect(screen.queryByRole("dialog", { name: /remove from shelf/i })).not.toBeInTheDocument();
     expect(calls.some((call) => call.method === "DELETE")).toBe(false);
-    expect(screen.getByRole("button", { name: /remove from shelf/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^more$/i })).toBeInTheDocument();
   });
 
   it("marks a work completed, and offers — never performs — deleting its files", async () => {
@@ -676,7 +681,7 @@ describe("Work Details", () => {
       .toEqual({ completed: true });
 
     const offer = await screen.findByRole("dialog", { name: /completed/i });
-    expect(screen.getByRole("button", { name: /not completed after all/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /mark as not completed/i })).toHaveAttribute("aria-pressed", "true");
     expect(offer).toHaveTextContent(/progress/i);
     expect(calls.some((call) => call.method === "DELETE")).toBe(false);
 
@@ -714,7 +719,7 @@ describe("Work Details", () => {
     renderWithProviders(<WorkScreen workId="w1" />);
     await user.click(await screen.findByRole("button", { name: /mark completed/i }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/cleanup information/i);
-    expect(screen.getByRole("button", { name: /not completed after all/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /mark as not completed/i })).toHaveAttribute("aria-pressed", "true");
     expect(calls.filter(call => call === "POST /api/shelf/w1")).toHaveLength(1);
     await user.click(screen.getByRole("button", { name: /retry cleanup information/i }));
     expect(await screen.findByRole("dialog", { name: /completed/i })).toBeInTheDocument();
@@ -739,7 +744,7 @@ describe("Work Details", () => {
     renderWithProviders(<WorkScreen workId="w1" />);
     await user.click(await screen.findByRole("button", { name: /mark completed/i }));
     await waitFor(() => expect(calls).toContain("GET /api/shelf/w1/removal-summary"));
-    await user.click(screen.getByRole("button", { name: /not completed after all/i }));
+    await user.click(screen.getByRole("button", { name: /mark as not completed/i }));
     await waitFor(() => expect(screen.getByRole("button", { name: /mark completed/i }))
       .toHaveAttribute("aria-pressed", "false"));
     await act(async () => { answerSummary(Response.json(SUMMARY)); });
@@ -782,6 +787,7 @@ describe("Work Details", () => {
     renderWithProviders(<WorkScreen workId="w1" />, { language: "ar" });
     await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
 
+    await user.click(screen.getByRole("button", { name: "المزيد" }));
     await user.click(screen.getByRole("button", { name: "أزِل من الرف" }));
     const dialog = await screen.findByRole("dialog", { name: "أزِل من الرف" });
 
@@ -802,6 +808,7 @@ describe("Work Details", () => {
     renderWithProviders(<WorkScreen workId="w1" />);
     await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
 
+    await user.click(screen.getByRole("button", { name: /^more$/i }));
     await user.click(screen.getByRole("button", { name: /remove from shelf/i }));
     const dialog = await screen.findByRole("dialog", { name: /remove from shelf/i });
     await user.click(within(dialog).getByRole("button", { name: /delete the files/i }));
@@ -833,6 +840,7 @@ describe("Work Details", () => {
     renderWithProviders(<WorkScreen workId="w1" />, { language: "ar" });
     await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" });
 
+    await user.click(screen.getByRole("button", { name: "المزيد" }));
     await user.click(screen.getByRole("button", { name: "أزِل من الرف" }));
     const dialog = await screen.findByRole("dialog", { name: "أزِل من الرف" });
 

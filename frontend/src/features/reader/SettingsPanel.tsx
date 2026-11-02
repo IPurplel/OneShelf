@@ -17,7 +17,7 @@ export function SettingsPanel({ settings, onChange, onClose }: {
   const { t } = useI18n();
   return (
     <Drawer title={t("reader.settings")} onClose={onClose}>
-      <fieldset className="panel__group" role="radiogroup" aria-label={t("reader.mode")}>
+      <fieldset className="panel__group panel__group--segmented" role="radiogroup" aria-label={t("reader.mode")}>
         <legend>{t("reader.mode")}</legend>
         {MODES.map((mode) => (
           <label key={mode} className="panel__choice">
@@ -28,7 +28,7 @@ export function SettingsPanel({ settings, onChange, onClose }: {
         ))}
       </fieldset>
 
-      <fieldset className="panel__group" role="radiogroup" aria-label={t("reader.direction")}>
+      <fieldset className="panel__group panel__group--segmented" role="radiogroup" aria-label={t("reader.direction")}>
         <legend>{t("reader.direction")}</legend>
         {DIRECTIONS.map((direction) => (
           <label key={direction} className="panel__choice">
@@ -39,7 +39,7 @@ export function SettingsPanel({ settings, onChange, onClose }: {
         ))}
       </fieldset>
 
-      <fieldset className="panel__group" role="radiogroup" aria-label={t("reader.fit")}>
+      <fieldset className="panel__group panel__group--segmented" role="radiogroup" aria-label={t("reader.fit")}>
         <legend>{t("reader.fit")}</legend>
         {FITS.map((fit) => (
           <label key={fit} className="panel__choice">
@@ -86,7 +86,7 @@ export function SettingsPanel({ settings, onChange, onClose }: {
         ))}
       </fieldset>
 
-      <fieldset className="panel__group" role="radiogroup" aria-label={t("reader.background")}>
+      <fieldset className="panel__group panel__group--segmented" role="radiogroup" aria-label={t("reader.background")}>
         <legend>{t("reader.background")}</legend>
         {(["black", "dark", "white"] as const).map((background) => (
           <label key={background} className="panel__choice">
@@ -98,7 +98,7 @@ export function SettingsPanel({ settings, onChange, onClose }: {
       </fieldset>
 
       {settings.mode !== "long_strip" && (
-        <fieldset className="panel__group" role="radiogroup" aria-label={t("reader.transition")}>
+        <fieldset className="panel__group panel__group--segmented" role="radiogroup" aria-label={t("reader.transition")}>
           <legend>{t("reader.transition")}</legend>
           {TRANSITIONS.map((transition) => (
             <label key={transition} className="panel__choice">

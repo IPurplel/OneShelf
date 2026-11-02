@@ -297,6 +297,11 @@ def test_reader_page_reports_source_failures(api, monkeypatch, failure, status, 
     response = client.get("/api/reader/units/any/pages/1")
     assert response.status_code == status
     assert response.json()["error"]["code"] == code
+    if code == "SOURCE_FAILED":
+        # A sentence for a person; the engine's category travels beside it, never inside it.
+        assert response.json()["error"]["category"] == "transport"
+        assert "transport" not in response.json()["error"]["message"]
+        assert "source failed" not in response.json()["error"]["message"]
 
 
 def test_local_pdf_pages_report_unavailable_instead_of_server_error(api):

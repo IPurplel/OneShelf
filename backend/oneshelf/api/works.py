@@ -39,6 +39,19 @@ def _tracks(conn: sqlite3.Connection, work_id: str) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+_QUEUED = {"QUEUED", "RECOVERING", "RETRY_WAIT", "WAITING_FOR_RATE_LIMIT", "WAITING_FOR_SESSION", "PAUSED"}
+_DOWNLOADING = {"PREPARING", "DOWNLOADING", "VERIFYING", "PACKAGING", "COMMITTING"}
+
+
+def _download_state(engine_state: str | None) -> str | None:
+    """The engine's states as a person would put them: queued, downloading or failed; None otherwise."""
+    if engine_state in _QUEUED:
+        return "queued"
+    if engine_state in _DOWNLOADING:
+        return "downloading"
+    return "failed" if engine_state == "FAILED" else None
+
+
 def _units(conn: sqlite3.Connection, track_id: str) -> list[dict]:
     rows = conn.execute(
         "SELECT u.id, u.raw_title, u.display_title, u.unit_type, u.source_number, u.derived_number, u.user_number,"
@@ -51,16 +64,24 @@ def _units(conn: sqlite3.Connection, track_id: str) -> list[dict]:
         " AND reading_unit_id IS NOT NULL", (track_id,))}
     unit_ids = [row["id"] for row in rows]
     asset_map: dict[str, list[dict]] = {uid: [] for uid in unit_ids}
+    # Each unit's latest download job, so a reload still shows what is on its way or what failed.
+    job_state: dict[str, str] = {}
     if unit_ids:
-        placeholders = ",".join("?" * len(unit_ids))
         for a in conn.execute(
-                f"SELECT reading_unit_id, format, integrity FROM assets"
-                f" WHERE reading_unit_id IN ({placeholders})", unit_ids).fetchall():
+                "SELECT a.reading_unit_id, a.format, a.integrity, a.size_bytes FROM assets a"
+                " JOIN reading_units u ON u.id = a.reading_unit_id WHERE u.track_id = ?", (track_id,)).fetchall():
             asset_map[a["reading_unit_id"]].append(a)
+        for j in conn.execute(
+                "SELECT j.reading_unit_id, j.state FROM download_jobs j JOIN reading_units u ON u.id = j.reading_unit_id"
+                " WHERE u.track_id = ? AND j.rowid = (SELECT j2.rowid FROM download_jobs j2"
+                "   WHERE j2.reading_unit_id = j.reading_unit_id ORDER BY j2.created_at DESC, j2.rowid DESC LIMIT 1)",
+                (track_id,)).fetchall():
+            job_state[j["reading_unit_id"]] = j["state"]
     units = []
     for row in rows:
         assets = asset_map.get(row["id"], [])
         formats = sorted({a["format"] for a in assets if a["integrity"] == "ok"})
+        sound = [a["size_bytes"] for a in assets if a["integrity"] == "ok"]
         states = {a["integrity"] for a in assets}
         integrity = ("ok" if formats else
                      "missing_local_file" if "missing_local_file" in states else
@@ -77,6 +98,8 @@ def _units(conn: sqlite3.Connection, track_id: str) -> list[dict]:
             "availability": row["availability"],
             "url": row["url_hint"],
             "downloaded": bool(formats),
+            "download_state": None if formats else _download_state(job_state.get(row["id"])),
+            "size_bytes": sum(sound) if sound else None,
             "integrity": integrity,
             "is_new": row["id"] in new_units,
             "formats": formats,

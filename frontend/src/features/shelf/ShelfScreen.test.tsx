@@ -86,7 +86,7 @@ describe("My Shelf", () => {
 
     const tabs = screen.getByRole("tablist", { name: /views/i });
     expect(within(tabs).getAllByRole("tab").map((t) => t.textContent)).toEqual(
-      ["All", "Saved", "Downloaded", "Reading", "Completed", "Favorites", "Pinned"]);
+      ["All", "Not started", "Downloaded", "Reading", "Completed", "Favorites", "Pinned"]);
 
     await user.click(within(tabs).getByRole("tab", { name: "Completed" }));
     expect(calls.some((call) => call.url.includes("view=completed"))).toBe(true);
@@ -129,7 +129,7 @@ describe("My Shelf", () => {
     expect(screen.getByRole("tab", { name: "Downloaded" })).toHaveAttribute("aria-selected", "true");
     expect(calls.some((call) => call.url.includes("view=downloaded"))).toBe(true);
     expect(card).toHaveTextContent("Novel");
-    expect(card).toHaveTextContent("Saved offline");
+    expect(card).toHaveTextContent("Downloaded");
     expect(card).toHaveTextContent("50%");
   });
 

@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from oneshelf.plugins.classification import classify, classify_listing, defaults_for
-from oneshelf.api.sources import error, services
+from oneshelf.api.sources import error, services, source_failed
 from oneshelf.catalog.trust import TrustRejected
 from oneshelf.plugins.manager import PluginUnavailable
 from oneshelf.plugins.labels import CATEGORIES
@@ -131,7 +131,7 @@ async def resolve_url(request: Request, body: UrlBody):
     except RateLimited as exc:
         return error(429, "RATE_LIMITED", f"The source is rate limited (retry after {exc.retry_after}s).")
     except CapabilityError as exc:
-        return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
+        return source_failed(exc)
     return {"source_id": preview.resolved.plugin_id, "capability": preview.resolved.capability,
             "identifier": preview.resolved.identifier, "result": _result(preview.result, _cover_previewer(s.plugins)),
             "details": asdict(preview.details) if preview.details else None}
@@ -141,7 +141,7 @@ async def resolve_url(request: Request, body: UrlBody):
 async def home(request: Request):
     s = services(request)
     sections = await s.home.sections()
-    hero = await s.home.hero()
+    hero = await s.home.hero(sections.continue_reading)
     can_preview = _cover_previewer(s.plugins)
     return {"hero": asdict(hero) if hero else None,
             "continue_reading": [asdict(i) for i in sections.continue_reading],
@@ -327,7 +327,7 @@ async def track_languages(request: Request, track_id: str):
     except RateLimited as exc:
         return error(429, "RATE_LIMITED", f"The source is rate limited (retry after {exc.retry_after}s).")
     except CapabilityError as exc:
-        return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
+        return source_failed(exc)
     return {"source_id": row["source_id"], "listing_key": row["source_listing_key"],
             "title": row["display_title"], "content_type": row["content_type"],
             "languages": list(dict.fromkeys(details.available_languages or []))}
@@ -354,7 +354,7 @@ async def refresh_catalog(request: Request, track_id: str):
     except RateLimited as exc:
         return error(429, "RATE_LIMITED", f"The source is rate limited (retry after {exc.retry_after}s).")
     except CapabilityError as exc:
-        return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
+        return source_failed(exc)
     outcome = s.catalog.refresh(track_id, result, plugin_version=package.version)
     return {"track_id": track_id, "state": outcome.state, "unit_count": outcome.unit_count,
             "previous_count": outcome.previous_count, "lost": outcome.lost, "reason": outcome.reason,

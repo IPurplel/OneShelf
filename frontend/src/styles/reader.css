@@ -12,41 +12,125 @@
 .reader__failure { width: min(32rem, calc(100% - 2rem)); margin: auto; }
 .reader__failureActions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-block-start: var(--space-4); }
 
+/* The reader's own chrome: smoked glass over the page, one row, out of the way. White pages get frosted paper. */
+.reader {
+  --reader-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --reader-chrome: rgba(14, 14, 14, 0.82);
+  --reader-chrome-ink: #f2f0ea;
+  --reader-chrome-muted: rgba(242, 240, 234, 0.68);
+  --reader-chrome-hover: rgba(255, 255, 255, 0.12);
+  --reader-chrome-line: rgba(255, 255, 255, 0.1);
+  --reader-accent: #a8cf86;
+  --reader-panel: #181818;
+  --reader-panel-raised: #222;
+}
+.reader--white {
+  --reader-chrome: rgba(250, 249, 245, 0.9);
+  --reader-chrome-ink: #1c1b18;
+  --reader-chrome-muted: rgba(28, 27, 24, 0.66);
+  --reader-chrome-hover: rgba(28, 27, 24, 0.07);
+  --reader-chrome-line: rgba(28, 27, 24, 0.1);
+  --reader-accent: #4c6b3c;
+  --reader-panel: #faf9f5;
+  --reader-panel-raised: #fff;
+}
+
 .reader__bar {
   position: absolute;
   inset-inline: 0;
   z-index: 3;
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  background: rgba(10, 10, 10, 0.78);
-  color: #f4f4f4;
-  backdrop-filter: blur(2px);
-  transition: opacity var(--motion-fast) var(--ease), transform var(--motion-fast) var(--ease);
+  gap: var(--space-1);
+  min-block-size: 56px;
+  padding: var(--space-1) var(--space-2);
+  background: var(--reader-chrome);
+  color: var(--reader-chrome-ink);
+  backdrop-filter: blur(12px) saturate(1.2);
+  transition: opacity 180ms var(--reader-ease-out), transform 180ms var(--reader-ease-out);
 }
-.reader__bar--top { top: 0; padding-block-start: calc(var(--space-3) + env(safe-area-inset-top, 0px)); }
-.reader__bar--bottom { bottom: 0; justify-content: center; padding-block-end: calc(var(--space-3) + env(safe-area-inset-bottom, 0px)); }
-.reader__bar[data-hidden="true"] { opacity: 0; pointer-events: none; transform: translateY(-4px); }
-.reader__bar--bottom[data-hidden="true"] { transform: translateY(4px); }
+.reader__bar--top {
+  top: 0;
+  padding-block-start: calc(var(--space-1) + env(safe-area-inset-top, 0px));
+  border-block-end: 1px solid var(--reader-chrome-line);
+}
+.reader__bar--bottom {
+  bottom: 0;
+  justify-content: center;
+  gap: var(--space-2);
+  padding-block-end: calc(var(--space-1) + env(safe-area-inset-bottom, 0px));
+  border-block-start: 1px solid var(--reader-chrome-line);
+}
+.reader__bar[data-hidden="true"] { opacity: 0; pointer-events: none; transform: translateY(-100%); }
+.reader__bar--bottom[data-hidden="true"] { transform: translateY(100%); }
 
 .reader__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  flex: none;
   min-height: 44px;
+  min-width: 44px;
   padding: 0 var(--space-3);
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: transparent;
   color: inherit;
   font: inherit;
+  font-size: var(--text-sm, 14px);
   text-decoration: none;
   cursor: pointer;
+  transition: background 120ms ease;
 }
-.reader__button:hover { background: rgba(255, 255, 255, 0.12); }
-.reader__button[aria-pressed="true"] { background: rgba(255, 255, 255, 0.2);
-                                       box-shadow: inset 0 -3px #f4f4f4; }
-.reader__title { font-family: var(--font-display); }
-.reader__unit { color: rgba(244, 244, 244, 0.7); }
-.reader__progress { font-variant-numeric: tabular-nums; }
+.reader__button--icon { padding: 0 var(--space-2); }
+.reader__button:disabled { opacity: 0.32; cursor: default; }
+.reader__button:active:not(:disabled) { transform: scale(0.96); }
+@media (hover: hover) and (pointer: fine) {
+  .reader__button:hover:not(:disabled) { background: var(--reader-chrome-hover); }
+}
+.reader__button[aria-pressed="true"] { background: var(--reader-chrome-hover); box-shadow: inset 0 -2px var(--reader-accent); }
+.reader__button:focus-visible { outline: 2px solid var(--reader-accent); outline-offset: 1px; }
+.reader__icon { display: inline-grid; place-items: center; }
+[dir="rtl"] .reader__icon--flip svg { transform: scaleX(-1); }
+.reader__label { white-space: nowrap; }
+
+/* Title over chapter, both cut short rather than wrapped: the bar stays one row on every screen. */
+.reader__heading { flex: 1 1 auto; min-inline-size: 0; display: grid; padding-inline: var(--space-2); line-height: 1.25; }
+.reader__title, .reader__unit { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader__title { font-family: var(--font-display); font-size: var(--text-md, 15px); }
+.reader__unit { color: var(--reader-chrome-muted); font-size: var(--text-xs, 12px); }
+.reader__progress {
+  flex: none;
+  min-inline-size: 7ch;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-sm, 14px);
+  color: var(--reader-chrome-muted);
+}
+.reader__scrubber {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  max-inline-size: 720px;
+  block-size: 44px;
+  accent-color: var(--reader-accent);
+  cursor: pointer;
+}
+.reader__state {
+  flex: none;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--reader-chrome-line);
+  border-radius: var(--radius-pill, 999px);
+  color: var(--reader-chrome-muted);
+  font-size: var(--text-xs, 12px);
+  white-space: nowrap;
+}
+.reader__state--downloaded { color: var(--reader-accent); border-color: color-mix(in srgb, var(--reader-accent) 45%, transparent); }
+
+/* On narrow screens the icons speak for themselves; on wide ones the main actions also carry a word. */
+@media (max-width: 899px) {
+  .reader__label { display: none; }
+}
 
 .reader__stage {
   flex: 1;
@@ -103,9 +187,10 @@
 
 /* §26.16: which source this is, said quietly — it sits beside the unit, not above it. */
 .reader__source {
-  margin-inline-start: auto;
-  color: rgba(244, 244, 244, 0.62);
-  font-size: 0.85rem;
+  flex: none;
+  color: var(--reader-chrome-muted);
+  font-size: var(--text-xs, 12px);
+  padding-inline: var(--space-2);
 }
 
 /*
@@ -144,12 +229,72 @@
 }
 .reader__failed .cards__meta { color: inherit; opacity: 0.8; }
 
+/* The end of a chapter: one quiet note, the chapter's name, and the next one as the obvious step. */
 .reader__end {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
   justify-items: center;
-  padding: var(--space-7) var(--space-5);
+  inline-size: min(100%, 520px);
+  margin-inline: auto;
+  padding: var(--space-7) var(--space-5) calc(var(--space-7) + 56px);
   text-align: center;
+  animation: reader-end-in 240ms var(--reader-ease-out);
+}
+.reader__endNote { margin: 0; color: var(--reader-chrome-muted); font-size: var(--text-sm, 14px); }
+.reader__endTitle { margin: 0 0 var(--space-4); font-size: var(--text-xl, 22px); line-height: 1.3; }
+.reader__endNext {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "label icon" "title icon";
+  align-items: center;
+  gap: 2px var(--space-4);
+  inline-size: 100%;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--reader-accent);
+  color: #10180c;
+  text-align: start;
+  text-decoration: none;
+  transition: transform 160ms var(--reader-ease-out), filter 160ms ease;
+}
+.reader--white .reader__endNext { color: #fbfaf5; }
+.reader__endNext:active { transform: scale(0.98); }
+@media (hover: hover) and (pointer: fine) { .reader__endNext:hover { filter: brightness(1.06); } }
+.reader__endNext:focus-visible { outline: 3px solid var(--reader-chrome-ink); outline-offset: 3px; }
+.reader__endNextLabel { grid-area: label; font-size: var(--text-sm, 14px); opacity: 0.8; }
+.reader__endNextTitle { grid-area: title; font-size: var(--text-lg, 19px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reader__endNext .reader__icon { grid-area: icon; }
+.reader__endBack { color: inherit; border-color: transparent; background: transparent; }
+@keyframes reader-end-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+/* The page's thirds, shown once to a finger: where to tap to go back, on, or for the controls. */
+.reader__zones {
+  position: absolute;
+  inset: 56px 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  pointer-events: none;
+  animation: reader-zones 5s ease forwards;
+}
+.reader__zone { border-inline: 1px dashed rgba(255, 255, 255, 0.28); background: rgba(255, 255, 255, 0.04); }
+.reader__zone--middle {
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(0, 0, 0, 0.55);
+  color: #f2f0ea;
+  font-size: var(--text-sm, 14px);
+  text-align: center;
+}
+@keyframes reader-zones { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+
+/* More: a small dark menu under its button, its status line first. */
+.reader__moreStatus {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  margin: 0 0 var(--space-1); padding: var(--space-2) var(--space-3);
+  border-block-end: 1px solid var(--reader-chrome-line);
+  color: var(--reader-chrome-muted); font-size: var(--text-xs, 12px);
 }
 
 /* Drawers: warm paper even inside the reader (§32.19). */
@@ -196,7 +341,44 @@
 
 .panel__group { border: 0; margin: 0 0 var(--space-5); padding: 0; display: grid; gap: var(--space-2); }
 .panel__group legend { padding: 0 0 var(--space-2); color: var(--ink-500); }
-.panel__choice { display: flex; align-items: center; gap: var(--space-3); min-height: 36px; }
+.panel__choice { display: flex; align-items: center; gap: var(--space-3); min-height: 44px; }
+
+/* A short list of exclusive choices reads as one segmented control: each option a segment, the chosen one lit. */
+.panel__group--segmented { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: var(--radius-md);
+                           background: var(--surface-sunken, rgba(0, 0, 0, 0.06)); }
+.panel__group--segmented legend { inline-size: 100%; float: inline-start; }
+.panel__group--segmented .panel__choice {
+  position: relative; flex: 1 1 auto; justify-content: center; min-height: 40px;
+  padding: 0 var(--space-3); border-radius: var(--radius-sm); cursor: pointer; text-align: center;
+  transition: background 120ms ease, color 120ms ease;
+}
+.panel__group--segmented .panel__choice input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.panel__group--segmented .panel__choice:has(input:checked) { background: var(--paper-raised, #fff); box-shadow: var(--shadow-card); font-weight: 600; }
+.panel__group--segmented .panel__choice:has(input:focus-visible) { outline: 2px solid var(--focus-ring, currentColor); outline-offset: 1px; }
+
+/* Inside the reader its panels take the reader's own colours, never the library's ivory paper (§32.18). */
+.reader .drawer {
+  --paper: var(--reader-panel);
+  --paper-raised: var(--reader-panel-raised);
+  --ink-900: var(--reader-chrome-ink);
+  --ink-700: var(--reader-chrome-ink);
+  --ink-500: var(--reader-chrome-muted);
+  --ivory-100: var(--reader-chrome-hover);
+  --ivory-200: var(--reader-chrome-line);
+  --surface-border: var(--reader-chrome-line);
+  --control-border: var(--reader-chrome-line);
+  --surface-sunken: var(--reader-chrome-hover);
+  --surface-hover: var(--reader-chrome-hover);
+  --primary-bg: var(--reader-accent);
+  --focus-ring: var(--reader-accent);
+  background: var(--reader-panel);
+  color: var(--reader-chrome-ink);
+  border-inline-start: 1px solid var(--reader-chrome-line);
+}
+.reader .drawer .drawer__close { color: inherit; }
+.reader .drawer input { accent-color: var(--reader-accent); }
+.reader:not(.reader--white) .drawer .chip[aria-selected="true"],
+.reader:not(.reader--white) .drawer .chip[aria-pressed="true"] { color: #10180c; }
 
 /* Book readers: the document itself is isolated, the chrome is ours. */
 .book { background: #fffdf8; }
@@ -238,11 +420,19 @@
   align-items: stretch;
   gap: var(--space-1);
   padding: var(--space-2);
-  background: rgba(20, 20, 20, 0.96);
+  min-inline-size: 220px;
+  background: var(--reader-panel);
+  color: var(--reader-chrome-ink);
+  border: 1px solid var(--reader-chrome-line);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-raised);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 45%);
   z-index: 5;
+  transform-origin: top right;
+  animation: reader-more-in 160ms var(--reader-ease-out);
 }
+[dir="rtl"] .reader__more { transform-origin: top left; }
+.reader__more .reader__button { justify-content: flex-start; }
+@keyframes reader-more-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
 .reader__bar { position: relative; }
 
 /* A book's own navigation occupies the full screen; the library's mobile navigation is behind it. */
@@ -252,30 +442,8 @@ body:has(.reader) .bottomnav { display: none; }
 .book .reader__bar--top .reader__title { min-inline-size: 0; overflow-wrap: anywhere; }
 .book__frame { min-block-size: 0; }
 
-@media (max-width: 600px) {
-  .reader:not(.book) .reader__bar--top {
-    flex-wrap: wrap;
-    gap: var(--space-1) var(--space-2);
-  }
-  .reader:not(.book) .reader__bar--top > * {
-    min-inline-size: 0;
-    max-inline-size: 100%;
-    overflow-wrap: anywhere;
-  }
-  .reader:not(.book) .reader__stage { min-block-size: 0; }
-}
-
-.reader:not(.book) .reader__bar--top { flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
-.reader:not(.book) .reader__bar--top > :is(.reader__button, .reader__title, .reader__unit, .reader__source, .reader__state) {
-  min-inline-size: 0;
-  overflow-wrap: anywhere;
-}
-.reader:not(.book) .reader__bar--top > :is(.reader__title, .reader__unit, .reader__source) {
-  max-inline-size: min(32vw, 24rem);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.reader:not(.book) .reader__stage { min-block-size: 0; }
+.reader:not(.book) .reader__source { max-inline-size: min(28vw, 22rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Reading progress indicator: visible even when controls are hidden. */
 .reader__scrollProgress {
   position: absolute;
@@ -283,8 +451,8 @@ body:has(.reader) .bottomnav { display: none; }
   inset-inline-start: 0;
   z-index: 4;
   block-size: 3px;
-  background: var(--olive-600, #7a9e5a);
-  transition: inline-size var(--motion-fast, 120ms) ease-out;
+  background: var(--reader-accent);
+  transition: inline-size 120ms linear;
   pointer-events: none;
 }
 
@@ -305,15 +473,21 @@ body:has(.reader) .bottomnav { display: none; }
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-.reader__stage--slide-forward  { animation: reader-slide-forward 200ms ease-out; }
-.reader__stage--slide-backward { animation: reader-slide-backward 200ms ease-out; }
-.reader__stage--fade-forward   { animation: reader-fade-forward 250ms ease-out; }
-.reader__stage--fade-backward  { animation: reader-fade-backward 250ms ease-out; }
+/* Right-to-left books turn the other way, so the new page arrives from the other side. */
+.reader__stage[data-direction="rtl"].reader__stage--slide-forward { animation-name: reader-slide-backward; }
+.reader__stage[data-direction="rtl"].reader__stage--slide-backward { animation-name: reader-slide-forward; }
+.reader__stage--slide-forward  { animation: reader-slide-forward 200ms var(--reader-ease-out); }
+.reader__stage--slide-backward { animation: reader-slide-backward 200ms var(--reader-ease-out); }
+.reader__stage--fade-forward   { animation: reader-fade-forward 180ms var(--reader-ease-out); }
+.reader__stage--fade-backward  { animation: reader-fade-backward 180ms var(--reader-ease-out); }
+/* Less motion keeps the page change legible as a soft fade, without anything sliding. */
 @media (prefers-reduced-motion: reduce) {
   .reader__stage--slide-forward,
-  .reader__stage--slide-backward,
-  .reader__stage--fade-forward,
-  .reader__stage--fade-backward { animation: none; }
+  .reader__stage--slide-backward { animation: reader-fade-forward 120ms ease; }
+  .reader__stage { scroll-behavior: auto; }
+  .reader__bar, .reader__bar[data-hidden="true"], .reader__bar--bottom[data-hidden="true"] { transform: none; }
+  .reader__end, .reader__more { animation: reader-fade-forward 120ms ease; }
+  .reader__zones { animation: none; }
 }
 
 /* Range input in settings panel. */

@@ -103,6 +103,9 @@ export type Unit = {
   availability: string;
   url: string | null;
   downloaded: boolean;
+  /** The latest download of this chapter, while it has no file yet. */
+  download_state?: "queued" | "downloading" | "failed" | null;
+  size_bytes?: number | null;
   formats: string[];
   read_state: "unread" | "partial" | "read";
   fraction: number;

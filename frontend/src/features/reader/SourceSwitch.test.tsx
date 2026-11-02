@@ -88,7 +88,7 @@ it("offers another source's copy of this unit without ever claiming the same pag
 
   const panel = screen.getByRole("dialog", { name: /change source/i });
   expect(panel).toHaveTextContent(/page layouts may differ/i);
-  expect(within(panel).getByRole("button", { name: /start this unit/i })).toBeInTheDocument();
+  expect(within(panel).getByRole("button", { name: /start this chapter/i })).toBeInTheDocument();
 
   const approximate = within(panel).getByRole("button", { name: /try approximate position/i });
   expect(approximate).toBeInTheDocument();
@@ -106,9 +106,9 @@ it("says so plainly when the other source's copy cannot be found, and offers its
   await u.click(screen.getByRole("button", { name: /change source/i }));
 
   const panel = screen.getByRole("dialog", { name: /change source/i });
-  expect(panel).toHaveTextContent(/could not find this unit/i);
+  expect(panel).toHaveTextContent(/could not find this chapter/i);
   expect(within(panel).queryByRole("button", { name: /try approximate position/i })).toBeNull();
-  expect(within(panel).getByRole("link", { name: /open the source-b track/i }))
+  expect(within(panel).getByRole("link", { name: /open on source-b/i }))
     .toHaveAttribute("href", "/works/w1?track=t2");
 });
 
@@ -144,13 +144,13 @@ it("shows the centre-tap hint once, and never again", async () => {
   await u.click(within(screen.getByRole("dialog", { name: /reader settings/i }))
     .getByRole("radio", { name: /minimal/i }));
   await u.keyboard("{Escape}");
-  expect(screen.getByText(/tap.*centre.*to show the controls/i)).toBeInTheDocument();
+  expect(screen.getByText(/tap.*center.*to show the controls/i)).toBeInTheDocument();
 
   first.unmount();
   stub();
   renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
   await screen.findAllByRole("img", { name: /page \d/i });
-  expect(screen.queryByText(/tap.*centre.*to show the controls/i)).toBeNull();
+  expect(screen.queryByText(/tap.*center.*to show the controls/i)).toBeNull();
 });
 
 it("holds each page's place while it loads, rather than collapsing the strip", async () => {

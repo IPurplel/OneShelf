@@ -23,7 +23,7 @@ a { color: inherit; }
 :lang(ar) h1, :lang(ar) h2, :lang(ar) h3, :lang(ar) .display { font-family: "Noto Naskh Arabic", var(--font-display); }
 
 :focus-visible {
-  outline: 3px solid var(--olive-500);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -68,7 +68,7 @@ input[type="file"]::file-selector-button:hover { background: var(--ivory-50); }
 /* Remove native dialog sizing while retaining its top layer and inert background. */
 .modal { border: 0; margin: 0; padding: 0; max-inline-size: none; max-block-size: none; color: inherit; }
 .modal:not([open]) { display: none; }
-.modal::backdrop { background: rgb(26 32 26 / 38%); }
+.modal::backdrop { background: var(--scrim); backdrop-filter: blur(2px); }
 .modal.drawer { inset-inline-start: auto; block-size: 100dvh; }
 .modal.confirm { inset-block-end: auto; max-block-size: 80dvh; overflow: auto; box-shadow: var(--shadow-raised); }
 
@@ -91,4 +91,26 @@ input[type="file"]::file-selector-button:hover { background: var(--ivory-50); }
   0%, 100% { opacity: 0.25; transform: scale(0.85); }
   50%      { opacity: 0.9;  transform: scale(1); }
 }
-@media (prefers-reduced-motion: reduce) { .loading-state::before { animation: none; opacity: 0.5; } }
+/* Skeletons: the shape of what is coming, shimmering gently in the library's own colours. */
+.loading-state.skeleton { display: grid; gap: var(--space-3); margin-block: var(--space-4); }
+.loading-state.skeleton::before { content: none; }
+.skeleton__shelf {
+  display: flex; gap: var(--space-5); align-items: end; overflow: hidden;
+  padding-block-end: var(--space-3); border-block-end: 14px solid color-mix(in srgb, var(--wood-500) 55%, transparent);
+}
+.skeleton__cover, .skeleton__row {
+  display: block; border-radius: var(--radius-sm);
+  background: linear-gradient(100deg, var(--surface-sunken) 30%, var(--paper-raised) 50%, var(--surface-sunken) 70%);
+  background-size: 300% 100%;
+  animation: skeleton-shimmer 1.6s var(--ease) infinite;
+}
+.skeleton__cover { flex: none; inline-size: 132px; aspect-ratio: 2 / 3; }
+.skeleton__cover:nth-child(2n) { inline-size: 124px; }
+.skeleton__row { block-size: 64px; border-radius: var(--radius-md); }
+@keyframes skeleton-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton__cover, .skeleton__row { animation: none; }
+  .loading-state::before { animation: none; opacity: 0.5; }
+  html, * { scroll-behavior: auto !important; }
+}

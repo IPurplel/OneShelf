@@ -117,7 +117,7 @@ export function BackupPanel() {
 
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
       {message !== null && <p className="notice" role="status">{message}</p>}
-      {loading && <LoadingState />}
+      {loading && data === null && <LoadingState />}
       {data?.location_warning?.same_device_as_library && (
         <p className="notice notice--problem">{language === "en"
           ? data.location_warning.message : t("backup.sameDeviceWarning")}</p>

@@ -31,7 +31,7 @@ type Report = { job_id: string; state: string; copied: number; skipped: number; 
  * is converted.
  */
 export function ExportWizard({ workId, trackId, onClose }: { workId: string; trackId?: string | null; onClose: () => void }) {
-  const { t, language } = useI18n();
+  const { t, language, tn } = useI18n();
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${workId}`,
     trackId ? { track_id: trackId } : undefined);
   const [step, setStep] = useState<Step>("content");
@@ -191,7 +191,7 @@ export function ExportWizard({ workId, trackId, onClose }: { workId: string; tra
             <dt>{t("export.destination")}</dt><dd><bdi className="literal-path" dir="ltr">{destination}</bdi></dd>
             <dt>{t("export.conflict")}</dt><dd>{t(`export.conflict.${conflict}`)}</dd>
           </dl>
-          <p>{t(currentPreview.files === 1 ? "export.summary.one" : "export.summary.other",
+          <p>{tn("export.summary", currentPreview.files,
             { files: currentPreview.files, size: bytes(currentPreview.total_bytes) })}</p>
           {currentPreview.disclosure !== null && (
             <section className="restore__step">

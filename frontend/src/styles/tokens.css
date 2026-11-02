@@ -12,6 +12,7 @@
   --olive-700: #4c6b3c;       /* the same olive, dark enough to read as small text (WCAG AA) */
   --wood-600: #6f5336;        /* the same wood, dark enough to carry ivory text */
   --olive-500: #7d9c62;
+  --olive-400: #8fae74;
   --olive-300: #a8bf8e;
   --ivory-50: #faf6ec;
   --ivory-100: #f3eee5;       /* main canvas */
@@ -41,7 +42,23 @@
   --press-accent: var(--forest-600);
   --primary-bg: var(--forest-600);
   --primary-hover-bg: var(--forest-500);
-
+  /* A control's edge must be seen to be found (WCAG 1.4.11: 3:1 against paper and canvas). */
+  --control-border: #8f816a;
+  --progress-fill: var(--olive-700);
+  --focus-ring: var(--forest-600);
+  /* Status surfaces: a calm tint behind the text colour of the same name. */
+  --danger-surface: #f8e9e4;
+  --danger-border: #d9a99d;
+  --on-danger: #fff8f0;
+  --warning-surface: #f7efd9;
+  --warning-border: #d8c08a;
+  --success-surface: #ebf1e2;
+  --success-border: #b5c9a2;
+  --info-text: var(--forest-600);
+  --info-surface: #e9efe6;
+  --info-border: #b9c9b6;
+  --shadow-overlay: 0 24px 64px rgb(20 26 20 / 28%);
+  --scrim: rgb(26 32 26 / 42%);
   --font-display: "Noto Serif", "Noto Naskh Arabic", "Iowan Old Style", Palatino, Georgia, ui-serif, serif;
   --font-ui: system-ui, -apple-system, "Segoe UI", "Noto Sans", "Noto Naskh Arabic", sans-serif;
 
@@ -63,9 +80,22 @@
   --space-6: 32px;
   --space-7: 48px;
 
+  /* Type scale: 12px is the floor, so Naskh stays legible at its smallest. */
   --text-xs: 12px;
   --text-sm: 14px;
+  --text-md: 15px;
+  --text-base: 16px;
   --text-lg: 19px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-display: clamp(30px, 3.4vw, 46px);
+
+  --z-shelf: 1;
+  --z-raised: 4;
+  --z-sticky: 10;
+  --z-nav: 20;
+  --z-overlay: 50;
+  --z-skip: 100;
   --surface-hover: rgba(31, 29, 26, 0.045);
   --surface-sunken: var(--ivory-200);
 
@@ -94,13 +124,27 @@
   --neutral-chip: #415547;
   --recessed-surface: linear-gradient(180deg, #24372b, #1b2a21);
   --cover-blank-text: #abc39d;
-  --progress-track: #46574a;
   --control-color-scheme: dark;
   --press-accent: #c9e6a7;
   --primary-bg: #557952;
   --primary-hover-bg: #4c6f4b;
   --surface-hover: rgba(255, 255, 255, 0.06);
   --surface-sunken: #1b2a21;
+  --control-border: #6f8a74;
+  --progress-track: #2b3a30;
+  --progress-fill: #a8cf86;
+  --focus-ring: #c9e6a7;
+  --danger-surface: #3a2622;
+  --danger-border: #7a4639;
+  --warning-surface: #3a3220;
+  --warning-border: #7a6533;
+  --success-surface: #26362a;
+  --success-border: #4f6b4a;
+  --info-text: #c9e6a7;
+  --info-surface: #24342a;
+  --info-border: #4a6150;
+  --shadow-overlay: 0 24px 64px rgb(0 0 0 / 50%);
+  --scrim: rgb(0 0 0 / 55%);
   --shadow-card: 0 1px 3px rgb(0 0 0 / 28%), 0 6px 18px rgb(0 0 0 / 20%);
   --shadow-raised: 0 2px 4px rgb(0 0 0 / 28%), 0 12px 28px rgb(0 0 0 / 30%);
 }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 import { languageName } from "@/i18n/language";
@@ -21,14 +21,13 @@ type Follow = {
   last_attempted_at: string | null;
   last_successful_at: string | null;
   unseen_releases: number;
+  source_name?: string | null;
 };
 
 /** Following (Master §20, §32.10): a reading journal on warm paper rows. No charts, ever. */
 export function FollowingScreen() {
-  const { t, language } = useI18n();
+  const { t, language, errorText } = useI18n();
   const { data, error, loading, reload } = useResource<{ follows: Follow[] }>("/api/follows");
-  const { data: installed } = useResource<{ sources: { id: string; name: string }[] }>("/api/sources");
-  const sourceNames = new Map((installed?.sources ?? []).map((source) => [source.id, source.name]));
 
   // §20, §36: a check that finishes elsewhere lands here without waiting for a refresh.
   useLive(["follow.changed", "follow.releases"], reload);
@@ -47,7 +46,7 @@ export function FollowingScreen() {
     try {
       await call;
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
     } finally {
       setBusy(false);
       reload();
@@ -69,7 +68,7 @@ export function FollowingScreen() {
       {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
         <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
-      {loading && <LoadingState />}
+      {loading && data === null && <LoadingState variant="rows" />}
 
       {data !== null && !loading && follows.length === 0 && <div className="empty">
         <p className="empty__body">{t("follow.empty")}</p>
@@ -77,25 +76,24 @@ export function FollowingScreen() {
       </div>}
 
       <Section id="new" title={t("follow.new")} follows={fresh} onCheck={check} language={language}
-               disabled={busy || loading} sourceNames={sourceNames} />
+               disabled={busy || loading} />
       <Section id="attention" title={t("follow.attention")} follows={attention} onCheck={check} language={language}
-               disabled={busy || loading} sourceNames={sourceNames} />
+               disabled={busy || loading} />
       <Section id="current" title={t("follow.current")} follows={current} onCheck={check} language={language}
-               disabled={busy || loading} sourceNames={sourceNames} />
+               disabled={busy || loading} />
     </section>
   );
 }
 
-function Section({ id, title, follows, onCheck, language, disabled, sourceNames }: {
+function Section({ id, title, follows, onCheck, language, disabled }: {
   id: string;
   title: string;
   follows: Follow[];
   onCheck: (call: Promise<unknown>) => void;
   language: "en" | "ar";
   disabled: boolean;
-  sourceNames: Map<string, string>;
 }) {
-  const { t } = useI18n();
+  const { t, tn } = useI18n();
   const reduced = useReducedMotion();
   if (follows.length === 0) return null;
 
@@ -111,16 +109,16 @@ function Section({ id, title, follows, onCheck, language, disabled, sourceNames 
           <li key={`${follow.work_id}:${follow.language}`} className="journal__row">
             <Link className="journal__work" dir="auto" to={workLink(follow.work_id, follow.track_id)}>{follow.work_title}</Link>
             <span className="journal__source">
-              <bdi>{sourceNames.get(follow.source_id) ?? follow.source_id}</bdi> · {languageName(follow.language, language)}
+              <bdi>{follow.source_name ?? follow.source_id}</bdi> · {languageName(follow.language, language)}
             </span>
             {follow.unseen_releases > 0 && (
-              <span className="journal__badge">{t("follow.count", { count: follow.unseen_releases })}</span>
+              <span className="journal__badge">{tn("follow.count", follow.unseen_releases)}</span>
             )}
             {follow.state !== "up_to_date" && follow.unseen_releases === 0 && (
               <span className="journal__state">{t(`follow.state.${follow.state}` as const)}</span>
             )}
             <span className="journal__when">
-              {follow.last_successful_at === null ? t("follow.notAnsweredYet")
+              {follow.state === "checking" ? null : follow.last_successful_at === null ? t("follow.notAnsweredYet")
                 : t("follow.lastAnswered", { when: relative(follow.last_successful_at, language) })}
             </span>
             <button type="button" className="chip" disabled={disabled}

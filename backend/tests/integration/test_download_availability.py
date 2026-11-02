@@ -133,6 +133,42 @@ def test_ui003_unsound_records_are_never_openable(api):
     assert jobs(client, first["batch_id"])[0]["available"] is False
 
 
+def test_a_batch_says_what_it_is_downloading_and_where_each_file_went(api):
+    """The Downloads screen names a batch by its works, and a finished job by its storage location's name."""
+    client, tmp_path = api
+    bound = prepare(client, tmp_path)
+    units = unit_ids(client, tmp_path, ["irr-1", "irr-2"])
+    batch = download(client, units)
+
+    listed = next(b for b in client.get("/api/downloads").json()["batches"] if b["batch_id"] == batch["batch_id"])
+    assert listed["works"] == [{"work_id": bound["work_id"], "title": "The Irregular Chronicle"}]
+    assert listed["works_total"] == 1 and listed["total"] == 2
+    assert listed["created_at"] and "label" in listed
+    assert {job["storage_root_name"] for job in jobs(client, batch["batch_id"])} == {"Library"}
+
+
+def test_each_chapter_says_whether_it_is_queued_failed_or_kept_and_how_big_it_is(api):
+    """After a reload the Work page still knows a chapter is on its way, failed, or on this device, and its size."""
+    client, tmp_path = api
+    bound = prepare(client, tmp_path)
+    done, failed, queued, untouched = [u["id"] for u in client.get(f"/api/works/{bound['work_id']}").json()["units"][:4]]
+    download(client, [done])
+    with db(tmp_path) as conn:
+        conn.execute("UPDATE download_batches SET paused = 1")      # nothing else runs while rows are planted
+        conn.commit()
+    client.post("/api/downloads", json={"unit_ids": [failed, queued]})
+    with db(tmp_path) as conn:
+        conn.execute("UPDATE download_batches SET paused = 1")
+        conn.execute("UPDATE download_jobs SET state = 'FAILED' WHERE reading_unit_id = ?", (failed,))
+        conn.commit()
+
+    units = {u["id"]: u for u in client.get(f"/api/works/{bound['work_id']}").json()["units"]}
+    assert units[done]["download_state"] is None and units[done]["size_bytes"] > 0
+    assert units[failed]["download_state"] == "failed" and units[failed]["size_bytes"] is None
+    assert units[queued]["download_state"] == "queued"
+    assert units[untouched]["download_state"] is None and units[untouched]["size_bytes"] is None
+
+
 def test_ui003_legacy_completed_jobs_without_a_file_reference(api):
     """Jobs finished before files were linked to them, or whose file was deleted, say what the unit has now."""
     client, tmp_path = api

@@ -6,6 +6,8 @@ import { useResource } from "@/api/useApi";
 import type { Unit, WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
 import { languageName } from "@/i18n/language";
+import { Icon } from "@/components/Icon";
+import { MOBILE_QUERY, useMediaQuery } from "@/app/useMediaQuery";
 import { ContentsDrawer } from "./ContentsDrawer";
 import { SettingsPanel } from "./SettingsPanel";
 import { SourceSwitch } from "./SourceSwitch";
@@ -34,21 +36,36 @@ const SWIPE_MIN = 60;
 
 /** §26.24: guidance is one-time. A blocked storage read means it has not been seen, never an error. */
 const HINT_KEY = "oneshelf.reader.hint.centre";
+const ZONES_HINT_KEY = "oneshelf.reader.hint.zones";
+/** A second tap this soon is a double tap (zoom), so a single tap waits this long before acting. */
+const TAP_SETTLE_MS = 240;
 
-function hintSeen(): boolean {
+function hintSeen(key = HINT_KEY): boolean {
   try {
-    return window.localStorage.getItem(HINT_KEY) === "seen";
+    return window.localStorage.getItem(key) === "seen";
   } catch {
     return false;
   }
 }
 
-function rememberHint(): void {
+function rememberHint(key = HINT_KEY): void {
   try {
-    window.localStorage.setItem(HINT_KEY, "seen");
+    window.localStorage.setItem(key, "seen");
   } catch {
     // Remembering is a convenience; the hint simply appears again next time.
   }
+}
+
+/** A finger, not a mouse: only there do the page's thirds become buttons. */
+function coarsePointer(): boolean {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function"
+    && Boolean(window.matchMedia("(pointer: coarse)").matches);
+}
+
+/** Typing into a control is not reading: its keys belong to the control. */
+function typingInto(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement
+    && (target.isContentEditable || ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName));
 }
 
 const clampZoom = (value: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number(value.toFixed(3))));
@@ -95,6 +112,11 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [fullscreen, setFullscreen] = useState(false);
   const [more, setMore] = useState(false);
+  const [zonesHint, setZonesHint] = useState(false);
+  // A phone gets one compact row of icons; the rarer controls move behind More.
+  const compact = useMediaQuery(MOBILE_QUERY);
+  const pointerKind = useRef<string>("mouse");
+  const pendingTap = useRef<ReturnType<typeof setTimeout> | null>(null);
   const indexRef = useRef(0);
   const stage = useRef<HTMLDivElement | null>(null);
   const touch = useRef<{ x: number; y: number; spread: number | null } | null>(null);
@@ -122,6 +144,7 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
   const selectedTrack = details?.tracks.find(candidate => candidate.id === (track ?? details.selected_track_id));
   const canDownload = selectedTrack !== undefined && selectedTrack.can_download !== false;
   const next = nextInSourceOrder(units, id);
+  const previous = previousInSourceOrder(units, id);
 
   useEffect(() => {
     setSettings(loadSettings(details?.work.id ?? null, details?.work.content_type ?? null));
@@ -246,6 +269,24 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
     setHint(false);
   }, []);
 
+  /** Go to one page: the same bookkeeping however the reader got there (keys, taps, scrubber, Home/End). */
+  const goTo = useCallback((slot: number) => {
+    if (pages.length === 0) return;
+    const clamped = Math.min(pages.length - 1, Math.max(0, slot));
+    if (settings.mode !== "long_strip" && clamped !== indexRef.current) {
+      const nextPages = new Set(visiblePages(pages, clamped, settings).map((page) => page.index));
+      setLoaded((current) => new Set([...current].filter((page) => nextPages.has(page))));
+    }
+    // In Long Strip the page is somewhere down the strip: going to it means scrolling there.
+    if (settings.mode === "long_strip" && clamped !== indexRef.current) setScrollTo(clamped);
+    indexRef.current = clamped;
+    setIndex(clamped);
+    setAtEnd(false);
+    const fraction = (clamped + 1) / pages.length;
+    record(fraction, { page: clamped + 1 });
+    engage(fraction);
+  }, [pages, settings, record, engage]);
+
   const step = useCallback((delta: number) => {
     const stride = settings.mode === "double"
       ? Math.max(1, visiblePages(pages, indexRef.current, settings).length) : 1;
@@ -254,18 +295,53 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
       setAtEnd(true);
       return;
     }
-    const clamped = Math.max(0, target);
-    if (settings.mode !== "long_strip" && clamped !== indexRef.current) {
-      const nextPages = new Set(visiblePages(pages, clamped, settings).map((page) => page.index));
-      setLoaded((current) => new Set([...current].filter((page) => nextPages.has(page))));
+    goTo(Math.max(0, target));
+  }, [pages, settings, goTo]);
+
+  const toggleBars = useCallback(() => {
+    if (controlsVisible) {
+      setControlsVisible(false);
+      setSummoned(false);
+    } else {
+      summon();
     }
-    indexRef.current = clamped;
-    setIndex(clamped);
-    setAtEnd(false);
-    const fraction = pages.length === 0 ? 0 : (clamped + 1) / pages.length;
-    record(fraction, { page: clamped + 1 });
-    if (pages.length > 0) engage(fraction);
-  }, [pages, settings, record, engage]);
+  }, [controlsVisible, summon]);
+
+  /**
+   * On a touch screen the page's thirds are its buttons: the outer thirds turn the page the way the book
+   * reads, the middle shows or hides the bars (§26.5). A second tap close behind is a double tap, which
+   * zooms, so a single tap waits a moment before it acts.
+   */
+  const onStageClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
+    if (pointerKind.current === "mouse" || zoom > 1) return;
+    if ((event.target as HTMLElement).closest("button, a, input, label, select, textarea")) return;
+    if (pendingTap.current !== null) {
+      clearTimeout(pendingTap.current);
+      pendingTap.current = null;
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = rect.width > 0 ? (event.clientX - rect.left) / rect.width : 0.5;
+    const side = x < 1 / 3 ? "left" : x > 2 / 3 ? "right" : "middle";
+    pendingTap.current = setTimeout(() => {
+      pendingTap.current = null;
+      setZonesHint(false);
+      if (side === "middle" || settings.mode === "long_strip") { toggleBars(); return; }
+      const forward = settings.direction === "rtl" ? side === "left" : side === "right";
+      step(forward ? 1 : -1);
+    }, TAP_SETTLE_MS);
+  }, [zoom, settings.mode, settings.direction, step, toggleBars]);
+
+  useEffect(() => () => { if (pendingTap.current !== null) clearTimeout(pendingTap.current); }, []);
+
+  // The thirds are invisible, so a finger is told about them once, the first time it could use them.
+  useEffect(() => {
+    if (settings.mode === "long_strip" || !coarsePointer() || hintSeen(ZONES_HINT_KEY)) return;
+    setZonesHint(true);
+    rememberHint(ZONES_HINT_KEY);
+    const timer = setTimeout(() => setZonesHint(false), 5000);
+    return () => clearTimeout(timer);
+  }, [settings.mode]);
 
   const changeZoom = useCallback((factor: number) => {
     setZoom((current) => {
@@ -296,15 +372,32 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
+  /*
+   * One window listener for the reader's whole life, calling whatever handler the latest render made. A
+   * listener re-subscribed in a passive effect can still hold the previous render's closure when a key
+   * arrives right after the pages appear — and that closure has no pages, so the key would do nothing.
+   */
+  const keyHandler = useRef<(event: KeyboardEvent) => void>(() => {});
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
+    const onKey = (event: KeyboardEvent) => keyHandler.current(event);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  useLayoutEffect(() => {
+    keyHandler.current = (event: KeyboardEvent) => {
       if (event.key === "Escape") { setPanel(null); setMore(false); return; }
       if (panel !== null) return;
+      // Tab is looking for a control: the bars come back so there is one to find (WCAG 2.4.7).
+      if (event.key === "Tab") { if (settings.controls !== "minimal") setControlsVisible(true); return; }
+      if (typingInto(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
       const forward = settings.direction === "rtl" ? "ArrowLeft" : "ArrowRight";
       const back = settings.direction === "rtl" ? "ArrowRight" : "ArrowLeft";
       if (event.key === forward || event.key === "ArrowDown") { step(1); event.preventDefault(); }
       else if (event.key === back || event.key === "ArrowUp") { step(-1); event.preventDefault(); }
       else if (event.key === " ") { step(event.shiftKey ? -1 : 1); event.preventDefault(); }
+      else if (event.key === "Home") { goTo(0); event.preventDefault(); }
+      else if (event.key === "End") { goTo(pages.length - 1); event.preventDefault(); }
+      else if (event.key === "F") toggleFullscreen();
       else if (event.key === "t") setPanel("contents");
       else if (event.key === "s") setPanel("settings");
       else if (event.key === "f") toggleFullscreen();
@@ -314,9 +407,7 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
       else if (event.key === "-") { changeZoom(1 / ZOOM_STEP); event.preventDefault(); }
       else if (event.key === "0") { resetZoom(); event.preventDefault(); }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [panel, settings.direction, step, changeZoom, resetZoom, toggleFullscreen, id, canDownload]);
+  });
 
   /**
    * In Long Strip the reader's position is where they have scrolled to (§26.6, §26.11). It drives the
@@ -376,10 +467,10 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
     const last = event.changedTouches[0];
     if (start === null || last === undefined || zoom > 1 || settings.mode === "long_strip") return;
     const travelled = last.clientX - start.x;
-    if (Math.abs(travelled) < SWIPE_MIN) { show(); return; }
+    if (Math.abs(travelled) < SWIPE_MIN) return;          // a tap: the stage's thirds decide what it means
     const forward = settings.direction === "rtl" ? travelled > 0 : travelled < 0;
     step(forward ? 1 : -1);
-  }, [zoom, settings.mode, settings.direction, step, show]);
+  }, [zoom, settings.mode, settings.direction, step]);
 
   /** §26.16: manual, same-language, and never a claim that the pages line up. */
   const openElsewhere = useCallback((alternative: Alternative, position: "start" | "approximate") => {
@@ -411,6 +502,26 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
     const timer = setTimeout(cleanup, 300);
     return () => { clearTimeout(timer); el.removeEventListener("animationend", cleanup); };
   }, [index, settings.mode, settings.transition]);
+
+  // Reaching the end card is finishing the unit: the last page is recorded as read, the same write as any other.
+  useEffect(() => {
+    if (!atEnd || pages.length === 0) return;
+    record(1, { page: pages.length });
+  }, [atEnd, pages.length, record]);
+
+  // Near the end, the next unit's first pages are warmed, so "Read next" opens on a page and not a wait.
+  const nearEnd = pages.length > 0 && (atEnd || index >= pages.length - 2);
+  const warmed = useRef<string | null>(null);
+  const cancelWarm = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (!nearEnd || next === null || warmed.current === next.id) return;
+    const timer = setTimeout(() => {
+      warmed.current = next.id;
+      cancelWarm.current = warmNextUnit(next.id);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [nearEnd, next]);
+  useEffect(() => () => cancelWarm.current?.(), [id]);
 
   const progressPct = pages.length > 0 ? ((index + 1) / pages.length) * 100 : 0;
 
@@ -454,43 +565,82 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
         <div className="reader__scrollProgress" aria-hidden="true"
              style={{ inlineSize: `${progressPct}%` }} />
       )}
+      {/* Hidden bars are inert: the keyboard can never land on a control it cannot see (WCAG 2.4.7). */}
       <div role="toolbar" aria-label={t("reader.controls")} className="reader__bar reader__bar--top"
-           data-hidden={controlsVisible ? "false" : "true"}>
-        <Link className="reader__button" to={workLink(work, track)} onClick={leave}>
-          {t("reader.back")}
+           data-hidden={controlsVisible ? "false" : "true"} inert={!controlsVisible}>
+        <Link className="reader__button reader__button--icon" to={workLink(work, track)} onClick={leave}
+              aria-label={t("reader.back")} title={t("reader.back")}>
+          <span className="reader__icon reader__icon--flip"><Icon name="back" size={20} /></span>
+          <span className="reader__label" aria-hidden="true">{t("reader.back")}</span>
         </Link>
-        <span className="reader__title" dir="auto" title={details?.work.title ?? ""}>{details?.work.title ?? ""}</span>
-        <span className="reader__unit" dir="auto" title={unit?.title ?? ""}>{unit?.title ?? ""}</span>
+        <div className="reader__heading">
+          <span className="reader__title" dir="auto" title={details?.work.title ?? ""}>{details?.work.title ?? ""}</span>
+          <span className="reader__unit" dir="auto" title={unit?.title ?? ""}>{unit?.title ?? ""}</span>
+        </div>
         {/* §26.16: subtle, and about this unit's own track — "English · source-a". */}
-        {offer !== null && (
+        {offer !== null && !compact && (
           <span className="reader__source" data-testid="reader-source" title={t("reader.source")}>
             {languageName(offer.language, language)} · <bdi>{details?.tracks.find((candidate) =>
               candidate.source_id === offer.source_id)?.source_name ?? offer.source_id}</bdi>
           </span>
         )}
-        <button type="button" className="reader__button" onClick={() => setPanel("contents")}>
-          {t("reader.contents")}
-        </button>
-        <button type="button" className="reader__button" onClick={() => setPanel("settings")}>
-          {t("reader.settings")}
-        </button>
-        {unit !== null && (
+        {unit !== null && !compact && (
           <span className={`reader__state reader__state--${unit.downloaded ? "downloaded" : unit.integrity}`}>
             {unit.downloaded ? t("reader.state.downloaded")
               : unit.integrity === "none" ? t("reader.state.notDownloaded")
               : t("reader.state.broken")}
           </span>
         )}
-        <button type="button" className="reader__button" onClick={toggleFullscreen}>
-          {fullscreen ? t("reader.fullscreenExit") : t("reader.fullscreen")}
+        <button type="button" className="reader__button reader__button--icon" onClick={() => setPanel("contents")}
+                aria-label={t("reader.contents")} title={t("reader.contents")}>
+          <span className="reader__icon"><Icon name="contents" size={20} /></span>
+          <span className="reader__label" aria-hidden="true">{t("reader.contents")}</span>
         </button>
+        <button type="button" className="reader__button reader__button--icon" onClick={() => setPanel("settings")}
+                aria-label={t("reader.settings")} title={t("reader.settings")}>
+          <span className="reader__icon"><Icon name="sliders" size={20} /></span>
+          <span className="reader__label" aria-hidden="true">{t("reader.settings")}</span>
+        </button>
+        {!compact && (
+          <button type="button" className="reader__button reader__button--icon" onClick={toggleFullscreen}
+                  aria-label={fullscreen ? t("reader.fullscreenExit") : t("reader.fullscreen")}
+                  title={fullscreen ? t("reader.fullscreenExit") : t("reader.fullscreen")}>
+            <span className="reader__icon"><Icon name={fullscreen ? "fullscreenExit" : "fullscreen"} size={20} /></span>
+          </button>
+        )}
         {/* §26.2: content, reading controls, and everything else behind More. */}
-        <button type="button" className="reader__button" aria-expanded={more} aria-controls="reader-more"
+        <button type="button" className="reader__button reader__button--icon" aria-expanded={more}
+                aria-controls="reader-more" aria-label={t("reader.more")} title={t("reader.more")}
                 onClick={() => setMore((open) => !open)}>
-          {t("reader.more")}
+          <span className="reader__icon"><Icon name="more" size={20} /></span>
         </button>
         {more && (
           <div className="reader__more" id="reader-more">
+            {compact && (
+              <>
+                {(offer !== null || unit !== null) && (
+                  <p className="reader__moreStatus">
+                    {offer !== null && (
+                      <span data-testid="reader-source">
+                        {languageName(offer.language, language)} · <bdi>{details?.tracks.find((candidate) =>
+                          candidate.source_id === offer.source_id)?.source_name ?? offer.source_id}</bdi>
+                      </span>
+                    )}
+                    {unit !== null && (
+                      <span className={`reader__state reader__state--${unit.downloaded ? "downloaded" : unit.integrity}`}>
+                        {unit.downloaded ? t("reader.state.downloaded")
+                          : unit.integrity === "none" ? t("reader.state.notDownloaded")
+                          : t("reader.state.broken")}
+                      </span>
+                    )}
+                  </p>
+                )}
+                <button type="button" className="reader__button"
+                        onClick={() => { toggleFullscreen(); setMore(false); }}>
+                  {fullscreen ? t("reader.fullscreenExit") : t("reader.fullscreen")}
+                </button>
+              </>
+            )}
             <button type="button" className="reader__button"
                     onClick={() => { void api.post(`/api/reader/units/${id}/mark-read`, {}); setMore(false); }}>
               {t("reader.markRead")}
@@ -525,10 +675,11 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
       </div>
 
       {/* The pages scroll, so the keyboard must be able to reach them (WCAG 2.1.1). */}
-      <div className="reader__stage" data-testid="reader-stage" tabIndex={0} aria-label={t("reader.pages")}
+      <div className="reader__stage" data-testid="reader-stage" tabIndex={0} role="region" aria-label={t("reader.pages")}
            data-mode={settings.mode}
            data-direction={settings.direction} data-fit={settings.fit} data-zoom={zoom}
-           ref={stage} onPointerDown={() => { interacted.current = true; }}
+           ref={stage} onPointerDown={(event) => { interacted.current = true; pointerKind.current = event.pointerType || "mouse"; }}
+           onClick={onStageClick}
            onWheel={onWheel} onScroll={onScroll} onDoubleClick={() => (zoom > 1 ? resetZoom() : changeZoom(ZOOM_STEP * 1.6))}
            onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
            style={{ "--reader-zoom": zoom, "--reader-pan-x": `${pan.x}px`,
@@ -628,30 +779,31 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
       </div>
 
       <div role="toolbar" aria-label={t("reader.progressBar")} className="reader__bar reader__bar--bottom"
-           data-hidden={controlsVisible ? "false" : "true"}>
+           data-hidden={controlsVisible ? "false" : "true"} inert={!controlsVisible}>
+        <ChapterLink unit={previous} kind="previous" workId={work} trackId={track} onGo={flush} />
+        {/* Numbers read left to right in every language, so "1 / 3" never turns into "3 / 1" in Arabic. */}
         <span className="reader__progress">
-          {pages.length > 0 ? `${Math.min(index + 1, pages.length)} / ${pages.length}` : ""}
+          {pages.length > 0 && <bdi dir="ltr">{`${Math.min(index + 1, pages.length)} / ${pages.length}`}</bdi>}
         </span>
         {pages.length > 1 && (
+          // The scrubber runs the way the pages run, whatever language the interface is in.
           <input type="range" className="reader__scrubber" aria-label={t("reader.scrubber")}
                  dir={settings.direction === "rtl" ? "rtl" : "ltr"}
                  min={1} max={pages.length} value={Math.min(index + 1, pages.length)}
                  aria-valuemin={1} aria-valuemax={pages.length}
                  aria-valuenow={Math.min(index + 1, pages.length)}
-                 onChange={(event) => {
-                   const slot = Number(event.target.value) - 1;
-                   if (settings.mode !== "long_strip" && slot !== indexRef.current) {
-                     const nextPages = new Set(visiblePages(pages, slot, settings).map((page) => page.index));
-                     setLoaded((current) => new Set([...current].filter((page) => nextPages.has(page))));
-                   }
-                   indexRef.current = slot;
-                   setIndex(slot);
-                   setScrollTo(slot);
-                   record((slot + 1) / pages.length, { page: slot + 1 });
-                   engage((slot + 1) / pages.length);
-                 }} />
+                 onChange={(event) => goTo(Number(event.target.value) - 1)} />
         )}
+        <ChapterLink unit={next} kind="next" workId={work} trackId={track} onGo={flush} />
       </div>
+
+      {zonesHint && panel === null && (
+        <div className="reader__zones" aria-hidden="true">
+          <span className="reader__zone" />
+          <span className="reader__zone reader__zone--middle">{t("reader.zonesHint")}</span>
+          <span className="reader__zone" />
+        </div>
+      )}
 
       {/*
         * §26.3b: in Minimal the bars stay away until they are summoned, so the way back to them is a
@@ -741,17 +893,72 @@ function nextInSourceOrder(units: Unit[], currentId: string): Unit | null {
   return position >= 0 && position + 1 < ordered.length ? ordered[position + 1]! : null;
 }
 
+function previousInSourceOrder(units: Unit[], currentId: string): Unit | null {
+  const ordered = [...units].sort((a, b) => a.order - b.order);
+  const position = ordered.findIndex((unit) => unit.id === currentId);
+  return position > 0 ? ordered[position - 1]! : null;
+}
+
+/** The chapter either side, in Source Track order; a disabled button where there is none, so nothing jumps. */
+function ChapterLink({ unit, kind, workId, trackId, onGo }: {
+  unit: Unit | null; kind: "previous" | "next"; workId: string; trackId?: string | null; onGo: () => void;
+}) {
+  const { t } = useI18n();
+  const icon = <span className="reader__icon reader__icon--flip">
+    <Icon name={kind === "previous" ? "chevronStart" : "chevronEnd"} size={22} /></span>;
+  const plain = kind === "previous" ? t("reader.previousChapter") : t("reader.nextChapter");
+  if (unit === null) {
+    return <button type="button" className="reader__button reader__button--icon" disabled aria-label={plain}
+                   title={plain}>{icon}</button>;
+  }
+  const named = t(kind === "previous" ? "reader.previousChapterNamed" : "reader.nextChapterNamed",
+                  { unit: unit.title ?? unit.id });
+  return <Link className="reader__button reader__button--icon" to={readerLink(unit.id, workId, trackId)}
+               onClick={onGo} aria-label={named} title={named}>{icon}</Link>;
+}
+
+/**
+ * The end of a unit (§26.13): what comes next, said by name and offered first, and the way back. Reaching
+ * it counts as having read the unit, and the next unit's first pages are warmed while this card is read.
+ */
 function EndOfUnit({ unit, next, workId, trackId, onLeave }: { unit: Unit | null; next: Unit | null; workId: string; trackId?: string | null; onLeave: () => void }) {
   const { t } = useI18n();
+  const nextLink = useRef<HTMLAnchorElement>(null);
+  // The card arrives as the result of reading on, so the next step is where focus lands.
+  useEffect(() => { nextLink.current?.focus({ preventScroll: true }); }, []);
   return (
     <section className="reader__end" role="region" aria-label={t("reader.end", { unit: unit?.title ?? "" })}>
-      <h2 className="display">{t("reader.end", { unit: unit?.title ?? "" })}</h2>
-      {next && (
-        <Link className="button button--primary" to={readerLink(next.id, workId, trackId)}>
-          {t("reader.next", { unit: next.title ?? next.id })}
+      <p className="reader__endNote">{t("reader.endFinished")}</p>
+      <h2 className="reader__endTitle display" dir="auto">{unit?.title ?? ""}</h2>
+      {next ? (
+        <Link ref={nextLink} className="reader__endNext" to={readerLink(next.id, workId, trackId)}>
+          <span className="reader__endNextLabel">{t("reader.readNext")}</span>
+          <span className="reader__endNextTitle display" dir="auto">{next.title ?? next.id}</span>
+          <span className="reader__icon reader__icon--flip" aria-hidden="true"><Icon name="chevronEnd" size={26} /></span>
         </Link>
+      ) : (
+        <p className="reader__endNote">{t("reader.endLatest")}</p>
       )}
-      <Link className="button" to={workLink(workId, trackId)} onClick={onLeave}>{t("reader.backToWork")}</Link>
+      <Link className="button button--ghost reader__endBack" to={workLink(workId, trackId)} onClick={onLeave}>
+        {t("reader.backToWork")}
+      </Link>
     </section>
   );
+}
+
+/** Warm the next unit's first pages while this one ends, at the lowest priority the browser offers. */
+function warmNextUnit(unitId: string): () => void {
+  const controller = new AbortController();
+  void fetch(`/api/reader/units/${unitId}/pages`, { signal: controller.signal, credentials: "same-origin",
+                                                    priority: "low" } as RequestInit)
+    .then((response) => (response.ok ? response.json() as Promise<PagesResponse> : null))
+    .then((data) => {
+      for (const page of data?.pages.slice(0, 3) ?? []) {
+        const image = new Image();
+        image.decoding = "async";
+        image.src = `/api/reader/units/${unitId}/pages/${page.index}`;
+      }
+    })
+    .catch(() => {});
+  return () => controller.abort();
 }

@@ -32,7 +32,7 @@ export function BookReader(props: { unitId: string; format: BookFormat; workId: 
 }
 
 function BookDocument({ unitId, format, workId, trackId }: { unitId: string; format: BookFormat; workId: string; trackId?: string }) {
-  const { t } = useI18n();
+  const { t, errorText } = useI18n();
   // The content owns the frame direction; the interface language only controls the surrounding UI.
   const [contentDirection, setContentDirection] = useState<"ltr" | "rtl" | null>(null);
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
@@ -70,7 +70,7 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
         setContentDirection(opened.direction);
         setBook(opened);
       } catch (error) {
-        if (live) setFailure(error instanceof ApiError ? error.message : t("state.offline"));
+        if (live) setFailure(errorText(error));
       }
     })();
     return () => { live = false; };
@@ -90,7 +90,7 @@ function BookDocument({ unitId, format, workId, trackId }: { unitId: string; for
         const data = await response.arrayBuffer();
         if (live) setBytes(data);
       } catch (error) {
-        if (live) setFailure(error instanceof ApiError ? error.message : t("state.offline"));
+        if (live) setFailure(errorText(error));
       }
     })();
     return () => { live = false; };

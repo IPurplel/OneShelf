@@ -39,6 +39,9 @@
 .hero__cover img { inline-size: 100%; block-size: 100%; object-fit: cover; display: block; }
 .hero__blank { display: block; block-size: 100%; }
 .hero__action { align-self: flex-start; gap: var(--space-2); }
+/* The hero panel is itself forest green: its call to action is the warm ivory one, so it never vanishes. */
+.hero .button--primary { background: var(--ivory-50); border-color: var(--ivory-50); color: var(--forest-800); font-weight: 600; }
+.hero .button--primary:hover:not(:disabled) { background: #ffffff; border-color: #ffffff; color: var(--forest-900); }
 .hero__play { display: inline-flex; }
 .hero__art {
   position: absolute;
@@ -52,7 +55,7 @@
 }
 :root[data-resolved-theme="dark"] .hero__art { opacity: 0.35; }
 .hero__body { max-inline-size: 46ch; display: grid; gap: var(--space-3); justify-items: start; }
-.hero__reason { margin: 0; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--olive-300); }
+.hero__reason { margin: 0; font-size: var(--text-sm); font-weight: 500; color: var(--olive-300); }
 .hero__title { margin: 0; font-size: clamp(30px, 3.2vw, 43px); line-height: 1.16; overflow-wrap: anywhere;
                display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .hero__description { margin: 0; color: rgba(250, 246, 236, 0.9); max-inline-size: 44ch; }
@@ -68,6 +71,7 @@
 }
 .hero-carousel__viewport { overflow: hidden; }
 .hero-carousel__container { display: flex; backface-visibility: hidden; }
+.hero-carousel__item { flex: 0 0 100%; min-width: 0; display: flex; }
 .hero-carousel .hero {
   flex: 0 0 100%;
   min-width: 0;
@@ -98,8 +102,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.12);
@@ -160,6 +164,8 @@
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
   scrollbar-width: thin;
+  /* Still a scrollbar for a mouse, but in the shelf's own wood rather than browser grey. */
+  scrollbar-color: color-mix(in srgb, var(--wood-500) 55%, transparent) transparent;
   align-items: end;
   padding-bottom: var(--space-2);
   -webkit-mask-image: linear-gradient(to right, black calc(100% - 32px), transparent);
@@ -178,7 +184,9 @@
   overflow: visible; -webkit-mask-image: none; mask-image: none;
 }
 .shelf__row--wrap > * { inline-size: var(--shelf-card-width); }
-.shelf__row--wrap .workcard { grid-row: auto; grid-template-rows: auto auto; }
+/* Every cover stands on the plank and every title starts on one line, whatever the cover's height. */
+.shelf__row--wrap .workcard { grid-row: auto; grid-template-rows: var(--shelf-cover-height) auto; }
+.shelf__row--wrap .workcard__cover { align-self: end; }
 .shelfview .shelf__case { inline-size: fit-content; max-inline-size: 100%; }
 .shelfview .workcard__title { display: -webkit-box; -webkit-box-orient: vertical;
                                -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
@@ -429,6 +437,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   overflow: hidden;
   color: var(--cover-ink);
   background: radial-gradient(ellipse 95% 60% at 85% 15%, rgba(255, 255, 255, 0.13), transparent), var(--cover-bg);
+  /* The title is sized by the cover it is printed on, so a small cover never splits a word in two. */
+  container-type: inline-size;
 }
 .cover-placeholder[data-tone="olive"] { --cover-bg: #5d7051; }
 .cover-placeholder[data-tone="wood"] { --cover-bg: #6a503a; }
@@ -449,7 +459,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   opacity: 0.09;
   pointer-events: none;
 }
-.cover-placeholder__imprint { grid-row: 1; position: relative; font: 600 10px/1.2 var(--font-ui); letter-spacing: 0.08em; opacity: 0.9; }
+.cover-placeholder__imprint { grid-row: 1; position: relative; font: 600 10px/1.2 var(--font-ui); letter-spacing: 0.08em; opacity: 0.55; }
 .cover-placeholder::after {
   content: attr(data-title);
   grid-row: 2;
@@ -459,9 +469,10 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   -webkit-line-clamp: 4;
   line-clamp: 4;
   overflow: hidden;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  hyphens: auto;
   unicode-bidi: plaintext;
-  font: 600 clamp(14px, 1.4vw, 20px)/1.3 var(--font-display);
+  font: 600 clamp(12px, 12cqi, 20px)/1.3 var(--font-display);
 }
 .cover-placeholder__rule { grid-row: 3; inline-size: 36%; block-size: 1px; background: currentColor; opacity: 0.75; }
 
@@ -473,13 +484,13 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .workcard__saved { display: inline-flex; align-items: center; gap: 4px; color: var(--positive-text); font-size: 13px; }
 /* A title in another script keeps its own reading order but lines up with the page, not against it. */
 [dir="ltr"] :is(.workcard__title, .hero__title, .work__title, .history__workTitle, .history__unitTitle,
-  .cards__name, .batches__jobTitle) { text-align: left; }
+  .cards__name, .batches__jobTitle, .batches__title, .notes__title, .work__next) { text-align: left; }
 [dir="rtl"] :is(.workcard__title, .hero__title, .work__title, .history__workTitle, .history__unitTitle,
-  .cards__name, .batches__jobTitle) { text-align: right; }
+  .cards__name, .batches__jobTitle, .batches__title, .notes__title, .work__next) { text-align: right; }
 
 .workcard__progress { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
 .workcard__track { flex: 1; block-size: 4px; border-radius: 2px; background: var(--progress-track); overflow: hidden; }
-.workcard__track > span { display: block; block-size: 100%; background: var(--olive-600); }
+.workcard__track > span { display: block; block-size: 100%; background: var(--progress-fill); }
 .workcard__percent { color: var(--ink-500); font-size: 12px; font-variant-numeric: tabular-nums; }
 
 .workcard--compact .workcard__title { font-size: 14px; }
@@ -522,7 +533,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   gap: var(--space-2);
   min-height: 44px;
   padding: 0 var(--space-4);
-  border: 1px solid var(--surface-border);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
   background: var(--paper-raised);
   color: var(--ink-900);
@@ -530,14 +541,18 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
-  transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease), box-shadow var(--motion-fast) var(--ease);
+  transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease),
+              box-shadow var(--motion-fast) var(--ease), transform var(--motion-fast) var(--ease);
 }
 .button:hover:not(:disabled) { background: var(--ivory-100); border-color: var(--wood-300); box-shadow: var(--shadow-card); }
+.button:active:not(:disabled), .chip:active:not(:disabled), .iconbutton:active:not(:disabled) { transform: translateY(1px); }
 .button--primary { background: var(--primary-bg); border-color: var(--primary-bg); color: var(--ivory-50); }
 .button--primary:hover:not(:disabled) { background: var(--primary-hover-bg); border-color: var(--primary-hover-bg); }
 .button:disabled, .chip:disabled { opacity: .55; cursor: not-allowed; }
-.button--danger { background: var(--danger-600); border-color: var(--danger-600); color: #fff8f0; }
+.button--danger { background: var(--danger-600); border-color: var(--danger-600); color: var(--on-danger); }
 .button--danger:hover:not(:disabled) { background: #a04535; border-color: #a04535; }
+.button--ghost { background: transparent; border-color: transparent; box-shadow: none; }
+.button--ghost:hover:not(:disabled) { background: var(--surface-hover); border-color: transparent; box-shadow: none; }
 
 /* Deleting downloads: quiet until wanted, plain about what goes and what stays. */
 .files__summary {
@@ -550,8 +565,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .files__summary .button { margin-inline-start: auto; }
 .files__hint { flex: 1 1 100%; margin: 0; color: var(--ink-500); font-size: 14px; }
 .files__quick {
-  position: absolute; z-index: 3; inset-block-start: var(--space-2); inset-inline-end: var(--space-2);
-  display: inline-grid; place-items: center; inline-size: 36px; block-size: 36px;
+  position: absolute; z-index: var(--z-raised); inset-block-start: var(--space-1); inset-inline-end: var(--space-1);
+  display: inline-grid; place-items: center; inline-size: 44px; block-size: 44px;
   border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 50%;
   background: rgba(24, 22, 19, 0.62); color: #fff8f0; cursor: pointer;
   backdrop-filter: blur(2px);
@@ -559,6 +574,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 }
 .files__quick:hover { background: var(--danger-600); transform: scale(1.05); }
 .files__quick:focus-visible { outline: 2px solid var(--press-accent); outline-offset: 2px; }
+.units__badge--busy { color: var(--info-text); }
+.units__action--failed { color: var(--danger-text); }
 .units__trash {
   display: inline-grid; place-items: center; min-inline-size: 44px; min-block-size: 44px;
   border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink-500); cursor: pointer;
@@ -575,7 +592,11 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   background: var(--paper-raised);
   box-shadow: var(--shadow-card);
 }
-.notice--problem { border-inline-start: 4px solid var(--warning-600); }
+/* Status notices: the colour says how serious, the text says what happened and what to do (§46). */
+.notice--problem { border-color: var(--danger-border); border-inline-start: 4px solid var(--danger-text); background: var(--danger-surface); }
+.notice--warning { border-color: var(--warning-border); border-inline-start: 4px solid var(--warning-text); background: var(--warning-surface); }
+.notice--success { border-color: var(--success-border); border-inline-start: 4px solid var(--positive-text); background: var(--success-surface); }
+.notice--info { border-color: var(--info-border); border-inline-start: 4px solid var(--info-text); background: var(--info-surface); }
 .loading-state { min-block-size: 72px; display: flex; align-items: center; color: var(--ink-500); }
 .filepicker { cursor: pointer; }
 .filepicker__control { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); min-inline-size: 0; }
@@ -597,7 +618,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   min-height: 44px;
   padding: 0 var(--space-4);
   text-decoration: none;
-  border: 1px solid var(--surface-border);
+  border: 1px solid var(--control-border);
   border-radius: 999px;
   background: var(--paper-raised);
   color: var(--ink-700);
@@ -606,18 +627,19 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease), box-shadow var(--motion-fast) var(--ease);
 }
 .chip:hover:not(:disabled):not([aria-selected="true"]):not([aria-pressed="true"]) { background: var(--ivory-200); border-color: var(--wood-300); }
-.chip[aria-selected="true"] { background: var(--primary-bg); border-color: var(--primary-bg); color: var(--ivory-50); }
-.button[aria-pressed="true"], .chip[aria-pressed="true"], .iconbutton[aria-pressed="true"] {
-  background: var(--ivory-200);
-  box-shadow: inset 0 -3px var(--press-accent);
+/* One selected-state language: a chosen chip, tab or view toggle is filled forest green, everywhere. */
+.chip[aria-selected="true"], .chip[aria-pressed="true"], .iconbutton[aria-pressed="true"] {
+  background: var(--primary-bg); border-color: var(--primary-bg); color: var(--ivory-50);
 }
+/* A pressed action button (Follow, Mark completed) says "on" quietly: a tint and a firm edge, not a tab. */
+.button[aria-pressed="true"] { background: var(--success-surface); border-color: var(--success-border); }
 .chip--static { cursor: default; color: var(--ink-500); }
 
 .field {
   min-height: 44px;
   min-inline-size: 220px;
   padding: 0 var(--space-3);
-  border: 1px solid var(--surface-border);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
   background: var(--paper-raised);
   color: var(--ink-900);
@@ -629,33 +651,53 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 
 .toolbar__end .field { min-inline-size: 0; max-inline-size: 100%; flex: 1 1 180px; }
 .toolbar__end > .chip, .toolbar__end > .iconbutton { flex: none; white-space: nowrap; }
-.iconbutton { display: inline-grid; place-items: center; color: var(--ink-700); }
 
 .iconbutton {
+  display: inline-grid;
+  place-items: center;
   min-width: 44px; min-height: 44px;
-  border: 1px solid var(--surface-border);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
   background: var(--paper-raised);
+  color: var(--ink-700);
   cursor: pointer;
+  transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease);
 }
+.iconbutton:hover:not(:disabled) { background: var(--ivory-200); border-color: var(--wood-300); }
 
-.shelfview__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-6) var(--space-5); }
 .shelfview__list { display: grid; gap: var(--space-3); }
 /* A list row carries its own actions; the grid stays a shelf, so its covers keep their plank. */
-.shelfview__row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); }
-.shelfview__row .workcard { flex: 1 1 260px; }
-.shelfview__manage { flex: none; max-inline-size: 100%; overflow-wrap: anywhere; }
+/* A list row is a catalogue card: cover, title and progress, the two facts that matter, one menu. */
+.shelfview__row {
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--surface-border); border-radius: var(--radius-md);
+  background: var(--paper-raised); box-shadow: var(--shadow-card);
+  transition: border-color var(--motion-fast) var(--ease), box-shadow var(--motion-fast) var(--ease);
+}
+.shelfview__row:hover { border-color: var(--wood-300); box-shadow: var(--shadow-raised); }
+.shelfview__row .workcard { flex: 1 1 auto; min-inline-size: 0; grid-template-columns: 56px 1fr; }
+.shelfview__facts { flex: none; display: grid; justify-items: end; gap: 2px; color: var(--ink-500); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.shelfview__manage { flex: none; }
+@media (max-width: 540px) { .shelfview__facts { display: none; } }
 .shelf__empty { color: var(--ink-500); }
 
 /* Batch selection mode. */
 .toolbar--batch { flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4);
   background: var(--ivory-100); border-radius: var(--radius-md); margin-block-end: var(--space-4); }
 .toolbar__count { font-variant-numeric: tabular-nums; color: var(--ink-500); margin-inline-end: auto; }
-.chip--danger { color: var(--text-danger, #b91c1c); border-color: currentColor; }
-.shelfview__check { accent-color: var(--olive-600); cursor: pointer; }
-.shelfview__check--grid { position: absolute; inset-block-start: var(--space-2); inset-inline-start: var(--space-2); z-index: 2; }
-.shelfview__selectable { position: relative; cursor: pointer; }
-.shelfview__selectable.is-selected { outline: 2px solid var(--olive-600); outline-offset: 2px; border-radius: var(--radius-sm); }
+.chip--danger { color: var(--danger-text); border-color: var(--danger-border); }
+.chip--danger:hover:not(:disabled) { background: var(--danger-surface) !important; border-color: var(--danger-text) !important; }
+.shelfview__check { accent-color: var(--forest-600); cursor: pointer; inline-size: 20px; block-size: 20px; }
+/* In selection mode the whole card is the checkbox's label: one tap, one toggle, a 44px+ target. */
+.shelfview__check--grid {
+  position: absolute; inset-block-start: var(--space-2); inset-inline-start: var(--space-2); z-index: var(--z-raised);
+  inline-size: 24px; block-size: 24px; margin: 0;
+}
+.shelfview__selectable { position: relative; display: block; cursor: pointer; }
+.shelfview__selectable[data-selecting="true"] .workcard { pointer-events: none; }
+.shelfview__selectable.is-selected { outline: 3px solid var(--focus-ring); outline-offset: 3px; border-radius: var(--radius-sm); }
+.shelfview__selectable.is-selected .workcard__cover { transform: translateY(-4px); }
 .shelfview__row.is-selected { background: var(--ivory-100); border-radius: var(--radius-sm); }
 
 /* Tags and notes. */
@@ -665,8 +707,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .notes__section { margin-block-start: var(--space-5); }
 .notes__textarea { inline-size: 100%; min-block-size: 80px; resize: vertical; font: inherit; }
 .rating__stars { display: flex; gap: 2px; margin-block: var(--space-2); }
-.rating__star { border: 0; background: transparent; cursor: pointer; padding: 2px; color: var(--ink-300); font-size: 20px; }
-.rating__star[aria-pressed="true"] { color: var(--wood-500, #c4943d); }
+.rating__star { display: inline-grid; place-items: center; min-inline-size: 44px; min-block-size: 44px; border: 0; background: transparent; cursor: pointer; padding: 0; color: var(--ink-500); font-size: 22px; border-radius: var(--radius-sm); }
+.rating__star[aria-pressed="true"] { color: var(--warning-text); }
 
 /* Work Details: a smaller hero-like header and an index, not a table (§32.8). */
 .work__header {
@@ -695,11 +737,20 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .work__meta > span:not(:last-child)::after { content: "·"; margin-inline-start: var(--space-3); }
 .work__tabs { margin-block-end: var(--space-4); }
 .work__description { margin: var(--space-5) 0 0; max-inline-size: 70ch; line-height: 1.65; }
-.work__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-.work__toggleMark { inline-size: 1em; flex: none; visibility: hidden; }
-.work__toggleMark svg { display: block; inline-size: 100%; block-size: 1em; }
-.work__toggle[aria-pressed="true"] { background: var(--ivory-200); border-color: var(--olive-700); }
-.work__toggle[aria-pressed="true"] .work__toggleMark { visibility: visible; color: var(--positive-text); }
+.work__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.work__primary { display: inline-flex; align-items: center; gap: var(--space-3); min-inline-size: 0; }
+.work__next { color: var(--ink-500); font-size: var(--text-sm); max-inline-size: 22ch;
+              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.work__toggleMark { display: inline-grid; place-items: center; }
+.work__toggleMark svg { display: block; }
+/* A favourite or pinned work wears it filled: the star and pin read at a glance, without a word. */
+.work__toggle[aria-pressed="true"] svg { fill: currentColor; }
+.work__moreActions { display: grid; gap: var(--space-2); }
+.work__moreActions .button { justify-content: flex-start; }
+@media (max-width: 540px) {
+  .work__primary { flex: 1 1 100%; }
+  .work__primary .button--primary { flex: 1; justify-content: center; }
+}
 
 .units { list-style: none; margin: var(--space-5) 0 0; padding: 0; background: var(--paper);
          border: 1px solid var(--surface-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); overflow: hidden; }
@@ -726,7 +777,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 }
 .units__link:hover .units__title { text-decoration: underline; }
 .units__link:focus-visible { outline: 2px solid var(--press-accent); outline-offset: 2px; }
-.units__number { color: var(--ink-300); font-variant-numeric: tabular-nums; text-align: end; }
+.units__number { color: var(--ink-500); font-variant-numeric: tabular-nums; text-align: end; }
 .units__title { font-family: var(--font-display); font-size: 17px; }
 .units__state { grid-area: 1 / 3; color: var(--ink-500); font-size: 14px; }
 .units__badge { grid-area: 1 / 4; color: var(--positive-text); font-size: 13px; }
@@ -810,6 +861,14 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 
 /* Downloads: operational panels, muted olive progress, no shelves (§32.11). */
 .batches { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.batches__group + .batches__group { margin-block-start: var(--space-6); }
+.batches__heading { font-size: var(--text-lg); margin: 0 0 var(--space-3); }
+/* A batch is named by its works, and dated, before any number is shown. */
+.batches__title { flex: 1 1 100%; min-inline-size: 0; font-family: var(--font-display); font-size: var(--text-lg);
+                  font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.batches__title a { color: inherit; text-decoration: none; }
+.batches__title a:hover { text-decoration: underline; }
+.batches__when { color: var(--ink-500); font-size: var(--text-sm); }
 .batches__row {
   display: flex;
   flex-wrap: wrap;
@@ -828,7 +887,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .batches__state--completed_with_issues { color: var(--warning-text); }
 .batches__counts { display: flex; flex-wrap: wrap; gap: var(--space-3); color: var(--ink-500); font-size: 14px; }
 .batches__progress, .batches__jobProgress {
-  --bar: var(--olive-600);
+  --bar: var(--progress-fill);
   appearance: none;
   flex: 1 1 100%;
   inline-size: 100%;
@@ -845,7 +904,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 /* The bar says how much finished; its colour says whether finishing went well. */
 .batches__progress[data-state="failed"] { --bar: var(--danger-text); }
 .batches__progress[data-state="completed_with_issues"] { --bar: var(--warning-text); }
-.batches__progress[data-state="paused"] { --bar: var(--ink-300); }
+.batches__progress[data-state="paused"] { --bar: var(--ink-500); }
 .batches__note { flex: 1 1 100%; margin: 0; color: var(--ink-500); font-size: 14px; }
 .batches__actions { margin-inline-start: auto; display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .batches__detail { flex: 1 1 100%; min-inline-size: 0; border-block-start: 1px solid var(--surface-border); padding-block-start: var(--space-3); display: grid; gap: var(--space-2); }
@@ -1006,7 +1065,10 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .notes__row[data-seen="false"] { background: var(--ivory-200); }
 .notes__title { font-family: var(--font-display); }
 .notes__count { color: var(--positive-text); font-variant-numeric: tabular-nums; }
-.notes__summary { grid-column: 1 / -1; color: var(--ink-500); font-size: 14px; }
+.notes__summary { grid-column: 1 / -1; color: var(--ink-500); font-size: var(--text-sm); }
+.notes__actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block-start: var(--space-1); }
+.notes__actions .chip { min-height: 36px; padding-inline: var(--space-3); font-size: var(--text-sm); }
+.notes__row[data-class="important"] { border-inline-start: 3px solid var(--warning-text); }
 
 /* First run: a warm welcome, one decision at a time (§32.17). */
 .firstrun { display: grid; place-items: center; min-height: 70vh; }
@@ -1121,8 +1183,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   padding: var(--space-3) 0; border-block-end: 1px solid var(--surface-border);
 }
 .stats__chartCol { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); min-inline-size: 0; block-size: 100%; justify-content: flex-end; }
-.stats__chartBar { inline-size: 100%; max-inline-size: 24px; min-block-size: 2px; background: var(--olive-600); border-radius: var(--radius-sm) var(--radius-sm) 0 0; transition: block-size var(--motion-slow) var(--ease); }
-.stats__chartDay { font-size: 10px; color: var(--ink-300); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-inline-size: 100%; }
+.stats__chartBar { inline-size: 100%; max-inline-size: 24px; min-block-size: 2px; background: var(--progress-fill); border-radius: var(--radius-sm) var(--radius-sm) 0 0; transition: block-size var(--motion-slow) var(--ease); }
+.stats__chartDay { font-size: var(--text-xs); color: var(--ink-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-inline-size: 100%; }
 
 @media (max-width: 540px) {
   .stats__barRow { grid-template-columns: 80px 1fr auto; gap: var(--space-2); }
@@ -1139,7 +1201,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .history__info { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
 .history__workTitle { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history__unitTitle { font-size: var(--text-sm); color: var(--ink-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.history__time { font-size: var(--text-xs); color: var(--ink-300); }
+.history__time { font-size: var(--text-xs); color: var(--ink-500); }
 
 /* Folder Picker */
 .folderpicker { max-inline-size: 480px; }

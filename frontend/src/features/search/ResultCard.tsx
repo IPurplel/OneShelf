@@ -2,7 +2,7 @@ import { createPortal } from "react-dom";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import type { Provenance, ResultWork } from "@/api/types";
 import { useResource } from "@/api/useApi";
 import { Drawer } from "@/components/Drawer";
@@ -22,7 +22,7 @@ type Opened = { listing_id: string; work_id: string; track_id: string; details: 
  * picks a source or language for them because it happened to be listed first.
  */
 export function ResultCard({ result, size }: { result: ResultWork; size?: "compact" | "standard" | "detailed" }) {
-  const { t } = useI18n();
+  const { t, errorText } = useI18n();
   const navigate = useNavigate();
   const [choosing, setChoosing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -46,7 +46,7 @@ export function ResultCard({ result, size }: { result: ResultWork; size?: "compa
       });
     } catch (error) {
       setProblem(t("search.open.failed", {
-        title: result.title, message: error instanceof ApiError ? error.message : t("state.offline"),
+        title: result.title, message: errorText(error),
       }));
       setBusy(false);
     }

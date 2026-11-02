@@ -112,7 +112,7 @@ export function SourcesScreen() {
       {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
         <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
-      {loading && <LoadingState />}
+      {loading && data === null && <LoadingState variant="rows" />}
 
       {data !== null && !loading && sources.length === 0 && <div className="empty"><p className="empty__body">{t("sources.empty")}</p></div>}
       {data !== null && !loading && sources.length > 0 && <>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import { ModalSurface } from "@/components/ModalSurface";
 import { useI18n } from "@/i18n/i18n";
 
@@ -21,7 +21,7 @@ type Completion = { outcome: "connected" | "not_logged_in"; status: string };
 export function LoginSession({ sourceId, sourceName, onClose }: {
   sourceId: string; sourceName: string; onClose: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, errorText } = useI18n();
   const [login, setLogin] = useState<Login | null>(null);
   const [tick, setTick] = useState(0);
   const [outcome, setOutcome] = useState<Completion | null>(null);
@@ -71,7 +71,7 @@ export function LoginSession({ sourceId, sourceName, onClose }: {
   }, [discard]);
 
   const say = (error: unknown) => {
-    if (!closed.current) setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+    if (!closed.current) setProblem(errorText(error));
   };
 
   const open = async () => {

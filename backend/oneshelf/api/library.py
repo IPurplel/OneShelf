@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import sqlite3
 from dataclasses import asdict
 from pathlib import Path
 from typing import Literal
@@ -17,7 +18,7 @@ from oneshelf.diagnostics.redact import redact_text
 from oneshelf.library.copies import PRESENT, copy_state, local_copy
 from oneshelf.downloads.engine import KEEPABLE_FORMATS, NoStorageLocation
 from oneshelf.net.governor import Priority
-from oneshelf.api.sources import error, services
+from oneshelf.api.sources import error, services, source_failed
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.plugins.manager import PluginUnavailable
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, PageTemporarilyRefused, RateLimited
@@ -106,7 +107,7 @@ async def unit_formats(request: Request, unit_id: str):
         except RateLimited as exc:
             return error(429, "RATE_LIMITED", f"The source is rate limited (retry after {exc.retry_after}s).")
         except CapabilityError as exc:
-            return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
+            return source_failed(exc)
     for fmt in sorted(here - {o["format"] for o in offered}):   # local copies the source no longer lists
         offered.append({"format": fmt, "variant": None, "size_bytes": None, "supported": True, "downloaded": True})
     return {"unit_id": unit_id, "formats": offered}
@@ -183,7 +184,16 @@ async def list_batches(request: Request, limit: int = Query(default=20, ge=1, le
     return {"batches": [s.downloads.batch(r[0]) for r in rows]}
 
 
-def _job_available_format(conn, job, roots: dict) -> str | None:
+def _rows_in(conn, sql: str, values: list) -> list:
+    """A query with `IN ({})`, in chunks that stay under SQLite's parameter limit."""
+    found: list = []
+    for start in range(0, len(values), 500):
+        chunk = values[start:start + 500]
+        found += conn.execute(sql.format(",".join("?" * len(chunk))), chunk).fetchall()
+    return found
+
+
+def _job_available_format(conn, job, roots: dict, own: sqlite3.Row | None) -> str | None:
     """Whether a finished job's unit opens from this device now: the copy the Reader opens is there (UI-003).
 
     The job's own file decides the format. A job whose file was deleted, or that finished before jobs were
@@ -191,13 +201,11 @@ def _job_available_format(conn, job, roots: dict) -> str | None:
     """
     if job["state"] != "COMPLETED":
         return None
-    own = conn.execute("SELECT format FROM assets WHERE id = ?", (job["asset_id"],)).fetchone() \
-        if job["asset_id"] else None
     copy = local_copy(conn, job["reading_unit_id"], own["format"] if own else None)
     return copy["format"] if copy is not None and copy_state(conn, copy, roots) == PRESENT else None
 
 
-def _bytes_total(conn, job) -> int | None:
+def _bytes_total(job, own: sqlite3.Row | None) -> int | None:
     """How many bytes the job transfers in all, when that is known (UI-003).
 
     A finished job transferred what `bytes_done` counts. Jobs finished before it was counted fall back to the
@@ -206,9 +214,7 @@ def _bytes_total(conn, job) -> int | None:
     if job["state"] == "COMPLETED":
         if job["bytes_done"]:
             return job["bytes_done"]
-        row = conn.execute("SELECT size_bytes FROM assets WHERE id = ?", (job["asset_id"],)).fetchone() \
-            if job["asset_id"] else None
-        return row[0] if row else None
+        return own["size_bytes"] if own else None
     expected = json.loads(job["manifest_json"] or "{}").get("file", {}).get("expected")
     return expected if isinstance(expected, int) and expected >= 0 else None
 
@@ -230,35 +236,35 @@ async def batch_detail(request: Request, batch_id: str, offset: int = Query(defa
         " LEFT JOIN source_tracks t ON t.id = u.track_id LEFT JOIN works w ON w.id = t.work_id"
         " WHERE j.batch_id = ? ORDER BY j.queue_position, j.id LIMIT ? OFFSET ?",
         (batch_id, limit, offset)).fetchall()
-    roots: dict = {}
+    # The page's files and location names are read once, not once per job: an open batch is re-read on every
+    # job event while it runs.
+    asset_ids = [row["asset_id"] for row in rows if row["asset_id"]]
+    assets = {a["id"]: a for a in _rows_in(s.conn, "SELECT id, format, size_bytes, storage_root_id FROM assets"
+                                                   " WHERE id IN ({})", asset_ids)}
+    root_names = {r["id"]: r["name"] for r in s.conn.execute("SELECT id, name FROM storage_roots")}
+    roots: dict = {}                     # copy_state's per-request memory of each location (objects, not names)
     jobs = []
     for row in rows:
+        own = assets.get(row["asset_id"]) if row["asset_id"] else None
         job = {key: row[key] for key in ("id", "reading_unit_id", "state", "method", "attempts", "error_category",
                                          "queue_position", "bytes_done", "work_id", "work_title", "track_id",
                                          "unit_title")}
         # Errors can quote a URL; whatever it carried (a signed token, a session id) is redacted (§43).
         job["last_error"] = redact_text(row["last_error"]) if row["last_error"] else None
-        job["available_format"] = _job_available_format(s.conn, row, roots)
+        job["available_format"] = _job_available_format(s.conn, row, roots, own)
         job["available"] = job["available_format"] is not None
-        job["bytes_total"] = _bytes_total(s.conn, row)
-        if row["asset_id"] and job["available"]:
-            asset = s.conn.execute("SELECT storage_root_id FROM assets WHERE id = ?", (row["asset_id"],)).fetchone()
-            if asset:
-                rid = asset["storage_root_id"]
-                if rid not in roots:
-                    r = s.conn.execute("SELECT name FROM storage_roots WHERE id = ?", (rid,)).fetchone()
-                    roots[rid] = r["name"] if r else None
-                job["storage_root_name"] = roots[rid]
+        job["bytes_total"] = _bytes_total(row, own)
+        if own is not None and job["available"]:
+            job["storage_root_name"] = root_names.get(own["storage_root_id"])
         jobs.append(job)
     selection = json.loads(batch["selection_json"] or "{}")
     details = selection.get("skipped_details") or [{"reading_unit_id": u, "reason": None}
                                                    for u in selection.get("skipped", [])]
-    skipped_units = []
-    for detail in details[offset:offset + limit]:
-        title = s.conn.execute("SELECT coalesce(display_title, raw_title) FROM reading_units WHERE id = ?",
-                               (detail["reading_unit_id"],)).fetchone()
-        skipped_units.append({"reading_unit_id": detail["reading_unit_id"], "unit_title": title[0] if title else None,
-                              "reason": detail.get("reason")})
+    page = details[offset:offset + limit]
+    titles = {r[0]: r[1] for r in _rows_in(s.conn, "SELECT id, coalesce(display_title, raw_title) FROM reading_units"
+                                                   " WHERE id IN ({})", [d["reading_unit_id"] for d in page])}
+    skipped_units = [{"reading_unit_id": d["reading_unit_id"], "unit_title": titles.get(d["reading_unit_id"]),
+                      "reason": d.get("reason")} for d in page]
     return {**s.downloads.batch(batch_id), "jobs": jobs, "jobs_total": total, "offset": offset, "limit": limit,
             "skipped_units": skipped_units, "skipped_total": len(details)}
 
@@ -370,7 +376,7 @@ async def reader_pages(request: Request, unit_id: str):
     except PageTemporarilyRefused as exc:
         return _temporary_reader_error(exc)
     except CapabilityError as exc:
-        return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
+        return source_failed(exc)
     return {"reading_unit_id": unit_id, "pages": [asdict(p) for p in pages]}
 
 
@@ -410,7 +416,7 @@ async def reader_page(request: Request, unit_id: str, index: int, prefetch: bool
     except PageTemporarilyRefused as exc:
         return _temporary_reader_error(exc)
     except CapabilityError as exc:
-        return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
+        return source_failed(exc)
     cache = _CACHE_BY_ORIGIN.get(page.origin, "no-store")
     return Response(page.data, media_type="application/octet-stream",
                     headers={**_READER_SECURITY, "Cache-Control": cache, "X-OneShelf-Origin": page.origin})
@@ -473,7 +479,7 @@ async def reader_text(request: Request, unit_id: str):
     except PageTemporarilyRefused as exc:
         return _temporary_reader_error(exc)
     except CapabilityError as exc:
-        return error(502, "SOURCE_FAILED", f"{exc.category}: {exc}")
+        return source_failed(exc)
     body = {"reading_unit_id": unit_id, "origin": origin, "title": unit.title, "language": unit.language,
             "direction": unit.direction,
             "sections": [{"title": x.title, "html": x.html, "characters": x.characters} for x in unit.sections]}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { FolderPicker } from "@/components/FolderPicker";
 import { useI18n } from "@/i18n/i18n";
@@ -27,7 +27,7 @@ type FirstRunState = {
  * optional — files you already have need none.
  */
 export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step }) {
-  const { t } = useI18n();
+  const { t, tn, errorText } = useI18n();
   const navigate = useNavigate();
   const { data, reload } = useResource<FirstRunState>("/api/first-run");
   const [step, setStep] = useState<Step>(initialStep);
@@ -51,7 +51,7 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
       setStep(next);
       return true;
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
       return false;
     }
   };
@@ -158,7 +158,7 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
             <h1 className="firstrun__title display">{t("first.sources.title")}</h1>
             <p className="firstrun__lede">
               {data !== null && data.sources_installed > 0
-                ? t("first.sources.included", { count: data.sources_installed })
+                ? tn("first.sources.included", data.sources_installed)
                 : t("first.sources.body")}
             </p>
             <div className="firstrun__actions">

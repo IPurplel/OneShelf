@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useState } from "react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import { Drawer } from "@/components/Drawer";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
@@ -87,7 +87,7 @@ function trustKey(effective: string, claimed: string, basis?: string): StringKey
  * untouched and this section simply says so.
  */
 export function RegistryPanel({ revision, onChanged }: { revision: number; onChanged: () => void }) {
-  const { t, language } = useI18n();
+  const { t, language, errorText } = useI18n();
   const heading = useId();
   const [listing, setListing] = useState<Listing | null>(null);
   const [unavailable, setUnavailable] = useState(false);
@@ -122,7 +122,7 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
     try {
       setReview(await api.post<Review>("/api/registry/review-package", { plugin_id: card.id, version: card.version }));
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -143,7 +143,7 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
       onChanged();
       void load(false);
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
     } finally {
       setBusy(false);
     }

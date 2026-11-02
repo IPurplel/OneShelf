@@ -177,7 +177,7 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--text-xs);
   text-decoration: none;
   border-radius: var(--radius-md);
 }
@@ -210,7 +210,7 @@
     display: block;
     grid-column: 2;
     color: var(--ink-500);
-    font-family: var(--font-body);
+    font-family: var(--font-ui);
     font-size: 12px;
     font-weight: 500;
     line-height: 1.35;
@@ -231,7 +231,7 @@
   border: 1px solid var(--olive-500);
   border-radius: var(--radius-md);
   background: var(--ivory-100);
-  color: var(--forest-800);
+  color: var(--ink-900);
   font-weight: 600;
 }
 .more__currentHint {

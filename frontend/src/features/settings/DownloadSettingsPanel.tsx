@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 import type { StringKey } from "@/i18n/strings";
@@ -24,7 +24,7 @@ const MODES = ["preferred_ask", "strict", "automatic"] as const;
  * method is preferred and what happens when it fails — sit behind Advanced.
  */
 export function DownloadSettingsPanel() {
-  const { t } = useI18n();
+  const { t, errorText } = useI18n();
   const { data, error, loading, reload } = useResource<DownloadSettings>("/api/downloads/settings");
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -34,7 +34,7 @@ export function DownloadSettingsPanel() {
       await api.post("/api/downloads/settings", body);
       reload();
     } catch (error) {
-      setProblem(t("settings.notSaved", { message: error instanceof ApiError ? error.message : t("state.offline") }));
+      setProblem(t("settings.notSaved", { message: errorText(error) }));
     }
   };
 

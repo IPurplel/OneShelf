@@ -99,7 +99,8 @@ describe("Opening a search result", () => {
                            cover_url: COVER });
     expect(await screen.findByRole("heading", { level: 1, name: "One Piece" })).toBeInTheDocument();
     expect(calls.some((c) => c.url === "/api/works/w9?track_id=t9")).toBe(true);
-    expect(screen.getByText("الفصل 1")).toBeInTheDocument();
+    // In the chapter list, and beside the Read button as the chapter it opens.
+    expect(screen.getAllByText("الفصل 1").length).toBeGreaterThan(0);
   });
 
   it("shows an incomplete first catalogue without immediately requesting it twice", async () => {
@@ -114,9 +115,9 @@ describe("Opening a search result", () => {
     renderApp({ route: "/search" });
     const user = await searchFor([result({})]);
     await user.click(await screen.findByRole("button", { name: /one piece/i }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/could not finish loading/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/stopped before sending every chapter/i);
     expect(calls.filter(c => c.url === "/api/tracks/t9/catalog/refresh")).toHaveLength(0);
-    await user.click(screen.getByRole("button", { name: /retry catalogue/i }));
+    await user.click(screen.getByRole("button", { name: /refresh chapter list/i }));
     expect(calls.filter(c => c.url === "/api/tracks/t9/catalog/refresh")).toHaveLength(1);
   });
 
@@ -192,7 +193,7 @@ describe("Opening a search result", () => {
     renderApp({ route: "/search" });
     const user = await searchFor([result({})]);
     await user.click(await screen.findByRole("button", { name: /one piece/i }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("The source is disabled.");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/disabled or not installed/i);
     expect(screen.getByRole("button", { name: /one piece/i })).toBeInTheDocument();
   });
 });

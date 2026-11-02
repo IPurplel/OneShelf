@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
 import { useI18n } from "@/i18n/i18n";
 import { useLive } from "@/app/live";
@@ -23,7 +23,22 @@ type Batch = {
   canceled: number;
   skipped: number;
   counts: Record<string, number>;
+  label?: string | null;
+  created_at?: string;
+  works?: { work_id: string; title: string }[];
+  works_total?: number;
 };
+
+/** What a batch is, in the words of its works: "A", "A, B", or "A, B +3". */
+function batchName(batch: Batch): string | null {
+  const titles = (batch.works ?? []).map((work) => work.title);
+  if (titles.length === 0) return batch.label ?? null;
+  const shown = titles.slice(0, 2);
+  const more = (batch.works_total ?? titles.length) - shown.length;
+  return `${shown.join(" · ")}${more > 0 ? ` +${more}` : ""}`;
+}
+
+const RUNNING = new Set(["active", "paused"]);
 
 type DownloadJob = {
   id: string;
@@ -54,7 +69,7 @@ const JOB_ERROR_KEYS: Record<string, StringKey> = {
 
 /** Downloads (Master §16, §32.11): warm paper panels, real states, no shelves and no analytics. */
 export function DownloadsScreen() {
-  const { t } = useI18n();
+  const { t, tn, errorText, language } = useI18n();
   const { data, error, loading, reload } = useResource<{ batches: Batch[] }>("/api/downloads");
 
   // §36: the queue moves on its own, so the screen follows the library rather than a guess or a refresh.
@@ -68,7 +83,7 @@ export function DownloadsScreen() {
     try {
       await call;
     } catch (error) {
-      setProblem(error instanceof ApiError ? error.message : t("state.offline"));
+      setProblem(errorText(error));
     } finally {
       reload();
     }
@@ -93,7 +108,7 @@ export function DownloadsScreen() {
       {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
         <button type="button" className="button" onClick={reload}>{t("reader.retry")}</button></>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
-      {loading && <LoadingState />}
+      {loading && data === null && <LoadingState variant="rows" />}
 
       {data !== null && !loading && batches.length === 0 && <div className="empty">
         <p className="empty__body">{t("downloads.empty")}</p>
@@ -101,23 +116,44 @@ export function DownloadsScreen() {
         <Link className="button" to="/settings/storage">{t("downloads.storageSettings")}</Link>
       </div>}
 
+      {/* What is still moving comes first, under its own heading; what finished follows. */}
+      {[{ id: "running", key: "downloads.section.active" as const, items: batches.filter((b) => RUNNING.has(b.state)) },
+        { id: "finished", key: "downloads.section.done" as const, items: batches.filter((b) => !RUNNING.has(b.state)) }]
+        .filter((group) => group.items.length > 0)
+        .map((group) => (
+      <section key={group.id} className="batches__group" aria-labelledby={`batches-${group.id}`}>
+      {batches.some((b) => RUNNING.has(b.state)) && (
+        <h2 className="batches__heading display" id={`batches-${group.id}`}>{t(group.key)}</h2>
+      )}
       <ul className="batches">
-        {batches.map((batch, index) => {
+        {group.items.map((batch, index) => {
           const processed = batch.completed + batch.failed + batch.canceled + batch.skipped;
           const total = processed + batch.pending;
+          const name = batchName(batch);
           return (
           <motion.li key={batch.batch_id} className="batches__row"
             initial={reduced ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...TRANSITION_EASE, delay: Math.min(index * 0.05, 0.2) }}
           >
+            {name && (
+              <span className="batches__title" dir="auto">
+                {batch.works?.[0] && batch.works.length === 1
+                  ? <Link to={`/works/${batch.works[0].work_id}`}>{name}</Link> : name}
+              </span>
+            )}
+            {batch.created_at && (
+              <time className="batches__when" dateTime={batch.created_at}>
+                {new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(batch.created_at))}
+              </time>
+            )}
             <span className={`batches__state batches__state--${batch.state}`}>{t(`downloads.state.${batch.state}`)}</span>
             <span className="batches__counts">
-              <span>{t("downloads.done", { count: batch.completed })}</span>
-              {batch.pending > 0 && <span>{t("downloads.waiting", { count: batch.pending })}</span>}
-              {batch.failed > 0 && <span>{t("downloads.failed", { count: batch.failed })}</span>}
-              {batch.skipped > 0 && <span>{t("downloads.skipped", { count: batch.skipped })}</span>}
-              {batch.canceled > 0 && <span>{t("downloads.canceled", { count: batch.canceled })}</span>}
+              <span>{tn("downloads.done", batch.completed)}</span>
+              {batch.pending > 0 && <span>{tn("downloads.waiting", batch.pending)}</span>}
+              {batch.failed > 0 && <span>{tn("downloads.failed", batch.failed)}</span>}
+              {batch.skipped > 0 && <span>{tn("downloads.skipped", batch.skipped)}</span>}
+              {batch.canceled > 0 && <span>{tn("downloads.canceled", batch.canceled)}</span>}
             </span>
             <progress className="batches__progress" data-state={batch.state} value={processed} max={Math.max(1, total)}
                       aria-label={t("downloads.progress", { done: processed, total })} />
@@ -131,25 +167,25 @@ export function DownloadsScreen() {
                 {t("downloads.details")}
               </button>
               {batch.state === "active" && (
-                <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.pause")} · ${batch.batch_id}`}
+                <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.pause")} · ${name ?? batch.batch_id}`}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/pause`))}>
                   {t("downloads.pause")}
                 </button>
               )}
               {batch.state === "paused" && (
-                <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.resume")} · ${batch.batch_id}`}
+                <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.resume")} · ${name ?? batch.batch_id}`}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/resume`))}>
                   {t("downloads.resume")}
                 </button>
               )}
               {batch.failed > 0 && (
-                <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.retry")} · ${batch.batch_id}`}
+                <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.retry")} · ${name ?? batch.batch_id}`}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/retry-failed`))}>
                   {t("downloads.retry")}
                 </button>
               )}
               {(batch.state === "active" || batch.state === "paused") && (
-                <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.cancel")} · ${batch.batch_id}`}
+                <button type="button" className="chip" disabled={loading} aria-label={`${t("downloads.cancel")} · ${name ?? batch.batch_id}`}
                         onClick={() => void act(api.post(`/api/downloads/${batch.batch_id}/cancel`))}>
                   {t("downloads.cancel")}
                 </button>
@@ -160,6 +196,8 @@ export function DownloadsScreen() {
           );
         })}
       </ul>
+      </section>
+        ))}
 
       {confirming && (
         <ConfirmDialog title={t("downloads.clear")} body={t("downloads.clearExplain")}
@@ -175,7 +213,7 @@ export function DownloadsScreen() {
  * Work's files being deleted, since that changes which finished units can still be opened.
  */
 function BatchDetails({ batch }: { batch: Batch }) {
-  const { t, language } = useI18n();
+  const { t, language, tn } = useI18n();
   const [offset, setOffset] = useState(0);
   const { data, error, loading, reload } = useResource<BatchDetail>(`/api/downloads/${batch.batch_id}`, offset ? { offset } : undefined);
   useLive(["download.batch", "download.job", "shelf.changed"], reload);
@@ -230,7 +268,7 @@ function BatchDetails({ batch }: { batch: Batch }) {
       <button type="button" className="chip" disabled={loading || offset + (data?.limit ?? 500) >= (data?.jobs_total ?? 0)}
         onClick={() => setOffset(offset + (data?.limit ?? 500))}>{t("downloads.nextPage")}</button>
     </div>}
-    {batch.skipped > 0 && <p className="cards__meta">{t("downloads.skippedExplanation", { count: batch.skipped })}</p>}
+    {batch.skipped > 0 && <p className="cards__meta">{tn("downloads.skippedExplanation", batch.skipped)}</p>}
     {deletion.dialog}
   </div>;
 }

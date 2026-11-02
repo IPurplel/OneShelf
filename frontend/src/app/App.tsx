@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, Outlet, Route, Routes, useLocation } from "react-router-dom";
-import { motion } from "motion/react";
+import { MotionConfig, motion } from "motion/react";
 
 import { useI18n } from "@/i18n/i18n";
 import { TRANSITION_EASE } from "@/lib/motion";
@@ -90,6 +90,8 @@ function Layout() {
 
 export function App() {
   return (
+    // One switch for every animation: a reader who asked for less motion gets none of the decorative kind.
+    <MotionConfig reducedMotion="user">
     <Routes>
       <Route element={<Layout />}>
         {routes.map((route) => (
@@ -97,5 +99,6 @@ export function App() {
         ))}
       </Route>
     </Routes>
+    </MotionConfig>
   );
 }

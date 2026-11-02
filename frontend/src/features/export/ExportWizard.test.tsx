@@ -138,7 +138,7 @@ describe("Export", () => {
     expect(await within(dialog).findByText("/mnt/archive/my-export")).toBeInTheDocument();
     expect(dialog).toHaveTextContent(language === "en" ? "Keep both" : "احتفظ بالاثنين");
     expect(dialog).toHaveTextContent("ZIP");
-    expect(dialog).toHaveTextContent(language === "en" ? "1 file" : "1 ملف");
+    expect(dialog).toHaveTextContent(language === "en" ? "1 file" : "ملف واحد");
     await user.click(within(dialog).getByRole("button", { name: back }));
     expect(within(dialog).getByRole("textbox")).toHaveValue("/mnt/archive/my-export");
     await user.click(within(dialog).getByRole("button", { name: back }));

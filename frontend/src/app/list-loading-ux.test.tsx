@@ -15,7 +15,7 @@ const cases = [
   { name: "Following", path: "/api/follows", component: FollowingScreen, empty: { follows: [] },
     emptyText: { en: "You are not following anything yet.", ar: "لا تتابع شيئًا بعد." } },
   { name: "Downloads", path: "/api/downloads", component: DownloadsScreen, empty: { batches: [] },
-    emptyText: { en: "Nothing has been downloaded", ar: "لم يُنزَّل" } },
+    emptyText: { en: "Nothing downloaded yet", ar: "لم تنزّل شيئًا" } },
   { name: "Sources", path: "/api/sources", component: SourcesScreen, empty: { sources: [] },
     emptyText: { en: "No sources", ar: "لا مصادر" } },
   { name: "Storage", path: "/api/storage", component: StoragePanel, empty: { roots: [] },

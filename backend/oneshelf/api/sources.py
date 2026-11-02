@@ -25,8 +25,16 @@ UPLOAD_TTL_SECONDS = 3600
 router = APIRouter(prefix="/api")
 
 
-def error(status: int, code: str, message: str) -> JSONResponse:
-    return JSONResponse({"error": {"code": code, "message": message}}, status_code=status)
+def error(status: int, code: str, message: str, **extra) -> JSONResponse:
+    return JSONResponse({"error": {"code": code, "message": message, **extra}}, status_code=status)
+
+
+def source_failed(exc) -> JSONResponse:
+    """A source that failed, said for a person: what happened and that nothing was changed. The engine's own
+    category goes in its own field for the interface to use, never into the sentence."""
+    return error(502, "SOURCE_FAILED",
+                 "The source could not answer right now. Nothing in your library changed; try again in a moment.",
+                 category=getattr(exc, "category", None))
 
 
 def services(request: Request):

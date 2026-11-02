@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
 
-import { ApiError, api } from "@/api/client";
+import { api } from "@/api/client";
 import type { SearchUpdate } from "@/api/types";
 import { useResource } from "@/api/useApi";
 import { ResultCard } from "./ResultCard";
@@ -46,7 +46,7 @@ function useQuickScopes(): { categories: string[]; languages: string[]; names: M
  * no invented relevance score to show.
  */
 export function SearchScreen() {
-  const { t, language } = useI18n();
+  const { t, language, tn, errorText } = useI18n();
   const [params, setParams] = useSearchParams();
   const submitted = (params.get("q") ?? "").trim();
   const isLink = /^https?:\/\//i.test(submitted);
@@ -93,7 +93,7 @@ export function SearchScreen() {
         })
         .catch((error: unknown) => {
           if (generation.current !== current) return;
-          setLinkProblem(error instanceof ApiError ? error.message : t("state.offline"));
+          setLinkProblem(errorText(error));
         });
       return () => { generation.current++; };
     }
@@ -146,7 +146,7 @@ export function SearchScreen() {
     } catch (error) {
       if (current === generation.current) {
         setRetryProblem(t("search.retryFailed", {
-          source: sourceName(sourceId), message: error instanceof ApiError ? error.message : t("state.offline"),
+          source: sourceName(sourceId), message: errorText(error),
         }));
       }
     } finally {
@@ -214,10 +214,10 @@ export function SearchScreen() {
       {update !== null && !streamFailed && !isLink && update.sources_total > 0 && (
         <p className="search__status" role="status">
           {(categories.length > 0 || languages.length > 0) && <>{update.sources_available === undefined
-            ? t("search.scopeActive", { count: update.sources_total })
+            ? tn("search.scopeActive", update.sources_total)
             : t("search.scopeCount", { scoped: update.sources_total, available: update.sources_available })}. </>}
           {update.stage === "complete" && update.sources_failed > 0
-            ? t(update.sources_failed === 1 ? "search.failed" : "search.failedMany", { count: update.sources_failed })
+            ? tn("search.failed", update.sources_failed)
             : t("search.progress", { done: update.sources_done, total: update.sources_total })}
         </p>
       )}

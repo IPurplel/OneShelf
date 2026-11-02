@@ -7,6 +7,7 @@ import { ReaderScreen } from "./ReaderScreen";
 import { renderWithProviders } from "@/test/render";
 import { TestProviders } from "@/test/providers";
 import { get, mockApi, post } from "@/test/http";
+import { setViewport } from "@/test/viewport";
 
 const PAGES = {
   reading_unit_id: "u2",
@@ -954,4 +955,115 @@ it("waits for the selected track's capabilities before enabling the download sho
   await act(async () => release(Response.json({ ...WORK, tracks: WORK.tracks.map(track => ({ ...track, can_download: false })) })));
   fireEvent.keyDown(window, { key: "d" });
   expect(calls.filter(call => call.url === "/api/downloads")).toEqual([]);
+});
+
+describe("Reader chrome", () => {
+  it.each(["en", "ar"] as const)("offers the chapters either side and a counter that reads 1 / 3 in %s", async (language) => {
+    stub();
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />, { language });
+    await screen.findAllByRole("img", { name: /page \d|صفحة/i });
+    const bottom = screen.getByRole("toolbar", { name: language === "en" ? /reading progress/i : /تقدّم القراءة/ });
+    const links = within(bottom).getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("href"))).toEqual(["/read/u1?work=w1", "/read/u3?work=w1"]);
+    expect(links[0]).toHaveAccessibleName(language === "en" ? "Previous chapter: Prologue" : "الفصل السابق: Prologue");
+    expect(links[1]).toHaveAccessibleName(language === "en" ? "Next chapter: Special" : "الفصل التالي: Special");
+    const counter = bottom.querySelector("bdi");
+    expect(counter).toHaveAttribute("dir", "ltr");
+    expect(counter).toHaveTextContent("1 / 3");
+  });
+
+  it("makes hidden bars unreachable, and brings them back when Tab looks for a control", async () => {
+    stub();
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    act(() => { vi.advanceTimersByTime(4000); });
+    const bar = screen.getByRole("toolbar", { name: /reading controls/i });
+    expect(bar).toHaveAttribute("data-hidden", "true");
+    expect(bar).toHaveAttribute("inert");
+    expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveAttribute("inert");
+
+    fireEvent.keyDown(window, { key: "Tab" });
+    expect(screen.getByRole("toolbar", { name: /reading controls/i })).not.toHaveAttribute("inert");
+    expect(screen.getByTestId("reader-stage")).toHaveAttribute("role", "region");
+  });
+
+  it("jumps to the first and last page with Home and End", async () => {
+    stub();
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    const progress = () => screen.getByRole("toolbar", { name: /reading progress/i });
+
+    fireEvent.keyDown(window, { key: "End" });
+    expect(progress()).toHaveTextContent("3 / 3");
+    fireEvent.keyDown(window, { key: "Home" });
+    expect(progress()).toHaveTextContent("1 / 3");
+  });
+
+  it("leaves page keys to a control that is being used", async () => {
+    stub();
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    fireEvent.keyDown(screen.getByRole("slider", { name: /page/i }), { key: "End" });
+    expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("1 / 3");
+  });
+
+  it("keeps the phone's top bar to icons, with full screen and the unit's state behind More", async () => {
+    setViewport("mobile");
+    stub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    const bar = screen.getByRole("toolbar", { name: /reading controls/i });
+    expect(within(bar).queryByRole("button", { name: /full screen/i })).toBeNull();
+    for (const name of [/^back$/i, /contents/i, /reader settings/i, /^more$/i]) {
+      expect(within(bar).getByRole(name.source.includes("back") ? "link" : "button", { name })).toBeInTheDocument();
+    }
+    await user.click(within(bar).getByRole("button", { name: /^more$/i }));
+    expect(within(bar).getByRole("button", { name: /full screen/i })).toBeInTheDocument();
+    expect(within(bar).getByText(/downloaded/i)).toBeInTheDocument();
+  });
+
+  it("turns the page from the outer thirds and shows the bars from the middle, on a touch screen", async () => {
+    stub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    await user.click(screen.getByRole("button", { name: /reader settings/i }));
+    await user.click(within(screen.getByRole("dialog", { name: /reader settings/i })).getByRole("radio", { name: /single/i }));
+    await user.keyboard("{Escape}");
+
+    const stage = screen.getByTestId("reader-stage");
+    Object.defineProperty(stage, "getBoundingClientRect", {
+      value: () => ({ left: 0, top: 0, width: 300, height: 600, right: 300, bottom: 600 }) });
+    const tap = (clientX: number) => {
+      // jsdom has no PointerEvent, so the finger is described on a plain event.
+      const down = new Event("pointerdown", { bubbles: true });
+      Object.defineProperty(down, "pointerType", { value: "touch" });
+      fireEvent(stage, down);
+      fireEvent.click(stage, { clientX, clientY: 300 });
+      act(() => { vi.advanceTimersByTime(300); });
+    };
+    tap(280);
+    expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("2 / 3");
+    tap(20);
+    expect(screen.getByRole("toolbar", { name: /reading progress/i })).toHaveTextContent("1 / 3");
+
+    act(() => { vi.advanceTimersByTime(4000); });
+    expect(screen.getByRole("toolbar", { name: /reading controls/i })).toHaveAttribute("data-hidden", "true");
+    tap(150);
+    expect(screen.getByRole("toolbar", { name: /reading controls/i })).toHaveAttribute("data-hidden", "false");
+  });
+
+  it("ends a unit as read, with the next unit named as the next step", async () => {
+    const calls = stub();
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    for (let i = 0; i < 3; i += 1) fireEvent.keyDown(window, { key: "ArrowRight" });
+    const card = await screen.findByRole("region", { name: /end of/i });
+    const next = within(card).getByRole("link", { name: /read next.*special/i });
+    expect(next).toHaveFocus();
+    act(() => { vi.advanceTimersByTime(1500); });
+    const writes = calls.filter((call) => call.method === "POST" && call.url.endsWith("/progress"));
+    expect((writes.at(-1)!.body as { fraction: number }).fraction).toBe(1);
+  });
 });
