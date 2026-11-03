@@ -7,6 +7,7 @@ import { WorkScreen } from "@/features/work/WorkScreen";
 
 // The everyday screens load with the app; the rest arrive when first opened, so the first page a phone
 // downloads is not every screen at once (the single bundle was 780 kB).
+const DiscoverScreen = lazy(() => import("@/features/discover/DiscoverScreen").then(m => ({ default: m.DiscoverScreen })));
 const DownloadsScreen = lazy(() => import("@/features/downloads/DownloadsScreen").then(m => ({ default: m.DownloadsScreen })));
 const FirstRunScreen = lazy(() => import("@/features/firstrun/FirstRunScreen").then(m => ({ default: m.FirstRunScreen })));
 const FollowingScreen = lazy(() => import("@/features/following/FollowingScreen").then(m => ({ default: m.FollowingScreen })));
@@ -21,6 +22,7 @@ export type AppRoute = { path: string; element: ReactElement };
 export const routes: AppRoute[] = [
   { path: "/", element: <HomeScreen /> },
   { path: "/search", element: <SearchScreen /> },
+  { path: "/discover", element: <DiscoverScreen /> },
   { path: "/shelf", element: <ShelfScreen /> },
   { path: "/following", element: <FollowingScreen /> },
   { path: "/downloads", element: <DownloadsScreen /> },

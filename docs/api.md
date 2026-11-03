@@ -57,6 +57,9 @@ Authority: Master §40; written from the routers in `backend/oneshelf/api/`.
 | `POST /api/listings/bind` | Bind a source listing to a Work (creating one when needed). |
 | `GET /api/tracks/{id}/catalog` · `POST /api/tracks/{id}/catalog/refresh` · `/trust` | Catalogue state, a refresh, and "Trust This Catalog" for a suspicious one. |
 | `POST /api/mappings/{merge,split,unlink,never-match}` | Durable user decisions about identity; they always win over source refreshes. |
+| `GET /api/discover/sources` | Sources that can be browsed, with the lists each offers (`latest`, `trending`). See ADR 0004. |
+| `GET /api/discover/list?source=…&kind=latest\|trending&page=1..50` | One page of a source's own list, grouped into Works like search results, each with `on_shelf`. Returns `has_more` and `cached`. `422 INVALID_FEED`, `404 SOURCE_UNAVAILABLE`, `429 RATE_LIMITED`, `502 SOURCE_FAILED` (with `category`). |
+| `GET /api/discover/random?from=sources[&source=…]` · `?from=library[&content_type=…]` | A surprise: a work from a source's list that is not on the shelf (`reason`: source and list), or a shelf work not started yet (`reason.kind = not_started`). `{"item": null, "reason": null}` when there is none. |
 
 ## Downloads and reading (§16–19, §26–27)
 

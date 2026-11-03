@@ -18,6 +18,7 @@ from oneshelf.api.sources import error as api_error
 from oneshelf.api.guard import RequestGuardMiddleware
 from oneshelf.api.middleware import AccessBoundaryMiddleware
 from oneshelf.api.auth import PUBLIC_REMOTE_PATHS, router as auth_router
+from oneshelf.api.discover import router as discover_router
 from oneshelf.api.discovery import router as discovery_router
 from oneshelf.api.firstrun import router as firstrun_router
 from oneshelf.api.generator import router as generator_router
@@ -52,6 +53,7 @@ from oneshelf.reader.cache import ReaderCache
 from oneshelf.reader.service import ReaderService
 from oneshelf.api.sources import router as sources_router
 from oneshelf.catalog.trust import CatalogTrust
+from oneshelf.discovery.discover import DiscoverService
 from oneshelf.discovery.home import HomeService
 from oneshelf.search.cache import DiscoveryCache
 from oneshelf.search.service import SearchService
@@ -107,6 +109,7 @@ class Services:
     generator: GeneratorService | None = None
     settings: Settings | None = None
     diagnostics: DiagnosticsStore | None = None
+    discover: DiscoverService | None = None
 
 
 @dataclass(frozen=True)
@@ -293,7 +296,8 @@ def create_app(config: AppConfig) -> FastAPI:
             GeneratorService(conn, work_dir=Path(config.data_dir) / "generator", dev_hosts=config.dev_hosts(),
                              dev_test_source=config.dev_test_source),
             settings,
-            diagnostics)
+            diagnostics,
+            DiscoverService(conn, source_service, plugins, cache))
         runner = DownloadRunner(engine)
         await runner.start()
         await follow_runner.start()
@@ -369,6 +373,7 @@ def create_app(config: AppConfig) -> FastAPI:
 
     app.include_router(sources_router)
     app.include_router(discovery_router)
+    app.include_router(discover_router)
     app.include_router(library_router)
     app.include_router(shelf_router)
     app.include_router(storage_router)

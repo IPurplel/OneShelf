@@ -1211,3 +1211,35 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .folderpicker__entry { display: flex; align-items: center; gap: var(--space-2); inline-size: 100%; padding: var(--space-2) var(--space-3); border: 0; background: transparent; cursor: pointer; text-align: start; font: inherit; color: inherit; }
 .folderpicker__entry:hover { background: var(--surface-hover); }
 .folderpicker__icon { flex-shrink: 0; font-size: 16px; }
+
+/* Discover (docs/adr/0004-discover.md): two surprises above, a source's own lists below. */
+.discover__surprises { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-5); margin-block-end: var(--space-7); }
+.discover__surprise {
+  display: grid; gap: var(--space-4); align-content: start; justify-items: start;
+  padding: var(--space-6); border-radius: var(--radius-lg); border: 1px solid var(--surface-border);
+  background: var(--paper-raised); box-shadow: var(--shadow-card);
+}
+.discover__surpriseHead { display: flex; gap: var(--space-4); align-items: flex-start; }
+.discover__surpriseHead h2 { margin: 0 0 var(--space-1); font-size: var(--text-lg, 20px); }
+.discover__surpriseHead p { margin: 0; color: var(--ink-500); }
+.discover__surpriseIcon {
+  flex: none; display: grid; place-items: center; inline-size: 44px; block-size: 44px; border-radius: 50%;
+  background: var(--success-surface); color: var(--positive-text);
+}
+.discover__pick { display: grid; gap: var(--space-2); justify-items: start; }
+.discover__pick .workcard { inline-size: 150px; }
+.discover__reason { margin: 0; color: var(--ink-500); font-size: var(--text-sm, 14px); }
+.discover__heading { margin: 0 0 var(--space-4); font-size: var(--text-xl, 24px); }
+.discover__sources, .discover__feeds { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block-end: var(--space-4); }
+.discover__feeds { margin-block-end: var(--space-6); }
+.discover__item { position: relative; list-style: none; display: grid; gap: var(--space-1); align-content: start; }
+.discover__results { padding: 0; margin: 0; }
+.discover__onShelf { justify-self: start; font-size: var(--text-xs, 12px); color: var(--positive-text); }
+.discover__more { display: flex; justify-content: center; margin-block: var(--space-6); }
+.discover__end { color: var(--ink-500); text-align: center; }
+@media (max-width: 599px) {
+  .discover__surprises { grid-template-columns: minmax(0, 1fr); margin-block-end: var(--space-6); }
+  .discover__surprise { padding: var(--space-5); }
+  .discover__sources { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-block-end: var(--space-1); }
+  .discover__sources > .chip { flex: none; }
+}

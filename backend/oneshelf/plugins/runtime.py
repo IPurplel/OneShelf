@@ -35,6 +35,8 @@ from oneshelf.text.sanitise import TextUnitTooLarge, plain_text, sanitise
 MAX_ITEMS_PER_PAGE = 5000
 MAX_TOTAL_ITEMS = 100_000
 PAGINATION_INPUTS = {"page", "offset"}
+# The furthest page a window may start at: far enough to browse, never a crawl of a whole site.
+MAX_WINDOW_START = 200
 CONTENT_TYPES = {"manga", "manhwa", "manhua", "comic", "book", "novel", "paper", "other"}
 UNIT_TYPES = {"chapter", "special", "extra", "prologue", "epilogue", "one_shot", "other"}
 _LANGUAGE = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
@@ -235,13 +237,19 @@ class RecipeRuntime:
 
     # -- public ---------------------------------------------------------------------------------
 
-    async def run(self, capability: str, inputs: dict[str, Any]):
+    async def run(self, capability: str, inputs: dict[str, Any], *, pages: tuple[int, int] | None = None):
+        """`pages` = (first page index, how many) reads a window of a list instead of the recipe's whole run.
+
+        Core chooses the window, never the source: it is how Discover reads one page at a time. The page
+        numbers still come from the recipe's own `start` and `step`, so no URL is built that the recipe
+        could not have built itself.
+        """
         recipe = self.package.recipes.get(capability)
         if recipe is None:
             raise CapabilityError("unsupported", f"capability {capability!r} is not provided by this plugin")
         values = self._validate_inputs(recipe, inputs)
         if capability in LIST_CAPABILITIES:
-            return await self._run_list(recipe, values)
+            return await self._run_list(recipe, values, window=self._window(recipe, pages))
         try:
             response, document = await self._fetch_page(recipe, self._render(recipe, values), page=None)
         except _PageFailure as failure:
@@ -256,6 +264,20 @@ class RecipeRuntime:
         return self._build_single(capability, fields)
 
     # -- inputs and requests --------------------------------------------------------------------
+
+    @staticmethod
+    def _window(recipe: Recipe, pages: tuple[int, int] | None) -> tuple[int, int] | None:
+        if pages is None:
+            return None
+        first, count = pages
+        pagination = recipe.pagination
+        limit = 1 if pagination.mode == "none" else pagination.max_pages
+        if not (0 <= first <= MAX_WINDOW_START and 1 <= count <= limit):
+            raise CapabilityError("invalid_input", f"page window {pages} is outside what this list allows")
+        if first > 0 and pagination.mode in ("none", "next_link"):
+            # A list that only links forward has no address for its tenth page: it is read from its start.
+            raise CapabilityError("unsupported", "this list can only be read from its first page")
+        return first, count
 
     def _validate_inputs(self, recipe: Recipe, inputs: dict[str, Any]) -> dict[str, Any]:
         extra = set(inputs) - set(recipe.inputs)
@@ -417,7 +439,8 @@ class RecipeRuntime:
 
     # -- list capabilities with pagination ------------------------------------------------------------
 
-    async def _run_list(self, recipe: Recipe, values: dict[str, Any]) -> ListResult:
+    async def _run_list(self, recipe: Recipe, values: dict[str, Any], *,
+                        window: tuple[int, int] | None = None) -> ListResult:
         capability, pagination = recipe.capability, recipe.pagination
         text_units = is_text_reader(recipe)
         key_field = "html" if text_units else KEY_FIELD[capability]
@@ -430,10 +453,11 @@ class RecipeRuntime:
         complete = False
         next_request: RecipeRequest | None = None
         max_pages = 1 if pagination.mode == "none" else pagination.max_pages
+        first_page, max_pages = window if window is not None else (0, max_pages)
         truncated = False
         position = 0  # 1-based place of an item in the whole list, across pages
 
-        for page_index in range(max_pages):
+        for page_index in range(first_page, first_page + max_pages):
             page_values = dict(values)
             if pagination.mode == "page_number":
                 page_values["page"] = pagination.start + page_index

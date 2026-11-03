@@ -7,11 +7,11 @@ import { renderApp } from "@/test/render";
 import { setViewport } from "@/test/viewport";
 
 describe("application shell", () => {
-  it("offers exactly the nine primary destinations", async () => {
+  it("offers exactly the ten primary destinations", async () => {
     renderApp();
     const nav = await screen.findByRole("navigation", { name: /primary/i });
     const names = within(nav).getAllByRole("link").map((link) => link.textContent?.trim());
-    expect(names).toEqual(["Home", "Search", "My Shelf", "Following", "Downloads", "Sources", "Settings", "History", "Statistics"]);
+    expect(names).toEqual(["Home", "Search", "Discover", "My Shelf", "Following", "Downloads", "Sources", "Settings", "History", "Statistics"]);
   });
 
   it("keeps notifications and needs attention in the header, not in the navigation", async () => {
@@ -60,7 +60,7 @@ describe("mobile shell", () => {
     renderApp();
     const nav = await screen.findByRole("navigation", { name: /primary/i });
     expect(within(nav).getAllByRole("link").map((l) => l.textContent?.trim()))
-      .toEqual(["Home", "Search", "My Shelf", "Following"]);
+      .toEqual(["Home", "Search", "Discover", "My Shelf"]);
     expect(within(nav).getByRole("button", { name: /more/i })).toBeInTheDocument();
     expect(screen.queryByText("Downloads")).not.toBeInTheDocument();
   });
@@ -72,7 +72,7 @@ describe("mobile shell", () => {
     expect(screen.getAllByRole("navigation")).toHaveLength(1);
   });
 
-  it.each(["/downloads", "/sources", "/settings/storage"])("marks More active on %s", async (route) => {
+  it.each(["/following", "/downloads", "/sources", "/settings/storage"])("marks More active on %s", async (route) => {
     setViewport("mobile");
     renderApp({ route });
     const more = await screen.findByRole("button", { name: "More" });
@@ -111,7 +111,7 @@ describe("mobile More drawer", () => {
     await user.click(screen.getByRole("button", { name: "More" }));
     const drawer = screen.getByRole("dialog", { name: "More" });
     expect(within(drawer).getAllByRole("link").map(link => link.textContent?.trim()))
-      .toEqual(["Downloads", "Sources", "History", "Statistics"]);
+      .toEqual(["Following", "Downloads", "Sources", "History", "Statistics"]);
     const current = within(drawer).getByText("Settings").closest("[aria-current]");
     expect(current).toHaveAttribute("aria-current", "page");
     expect(current).toHaveTextContent("Current");
@@ -124,7 +124,7 @@ describe("mobile More drawer", () => {
     await user.click(screen.getByRole("button", { name: "More" }));
     const drawer = screen.getByRole("dialog", { name: "More" });
     expect(within(drawer).getAllByRole("link").map(link => link.textContent?.trim()))
-      .toEqual(["Downloads", "Sources", "Settings", "History", "Statistics"]);
+      .toEqual(["Following", "Downloads", "Sources", "Settings", "History", "Statistics"]);
     expect(within(drawer).getByRole("button", { name: "Notifications" })).toBeInTheDocument();
     await user.click(within(drawer).getByRole("link", { name }));
     expect(screen.queryByRole("dialog", { name: "More" })).not.toBeInTheDocument();

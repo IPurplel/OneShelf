@@ -235,7 +235,7 @@ class SourceService:
         return self.sources_with_capability("search")
 
     async def run(self, plugin_id: str, capability: str, inputs: dict[str, Any], *,
-                  priority: Priority = Priority.INTERACTIVE):
+                  priority: Priority = Priority.INTERACTIVE, pages: tuple[int, int] | None = None):
         package = self.plugins.load_active(plugin_id)
         native = None
         if package.manifest.native_profile is not None:
@@ -249,9 +249,11 @@ class SourceService:
             inputs = {name: value for name, value in inputs.items() if name in recipe.inputs}
         try:
             if native is not None:
+                if pages is not None and pages[0] > 0:
+                    raise CapabilityError("unsupported", "this source can only be read from its first page")
                 result = await native.run(capability, inputs)
             else:
-                result = await RecipeRuntime(package, fetcher).run(capability, inputs)
+                result = await RecipeRuntime(package, fetcher).run(capability, inputs, pages=pages)
         except AuthRequired:
             self._auth_failed(plugin_id)
             self._record(package, capability, "failure", "auth_failure")

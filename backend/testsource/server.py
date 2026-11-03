@@ -102,6 +102,7 @@ def png(width=40, height=60, shade=90) -> bytes:
 class Scenario:
     """Mutable server-side state toggled by tests through the control API."""
     big_collapsed: bool = False
+    browse_broken: bool = False   # Discover feeds answer 500
     paged_mode: str = "normal"  # normal | fail_page_3 | repeat_page_2 | short
     rate_limit_remaining: int = 0
     retry_after: int = 2
@@ -183,6 +184,21 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
             items += (f"<li class='result'><a class='title' href='/work/{k}'>{w['title']}</a>"
                       f"<span class='type'>{w['type']}</span><span class='lang'>{w['language']}</span>"
                       f"{image}</li>")
+        return web.Response(text=f"<html><body><ul class='results'>{items}</ul></body></html>", content_type="text/html")
+
+    async def browse(request: web.Request) -> web.Response:
+        """Discover feeds: `latest` is newest first, `popular` a fixed ranking; four to a page."""
+        if scenario.browse_broken:
+            return web.Response(status=500, text="broken")
+        page = int(request.query.get("page", "1"))
+        keys = [k for k in WORKS if k not in ("private", "broken", "malformed")]
+        order = list(reversed(keys)) if request.query.get("sort") == "latest" else sorted(keys)
+        items = ""
+        for k in order[(page - 1) * 4: page * 4]:
+            w = WORKS[k]
+            items += (f"<li class='result'><a class='title' href='/work/{k}'>{w['title']}</a>"
+                      f"<span class='type'>{w['type']}</span><span class='lang'>{w['language']}</span>"
+                      f"<img class='cover' src='//{CDN_HOST}/covers/{k}.png'></li>")
         return web.Response(text=f"<html><body><ul class='results'>{items}</ul></body></html>", content_type="text/html")
 
     async def work(request: web.Request) -> web.Response:
@@ -387,7 +403,7 @@ def create_app(scenario: Scenario | None = None) -> web.Application:
         return web.json_response({"ok": True})
 
     app.add_routes([
-        web.get("/search", search), web.get("/work/{work}", work), web.get("/api/works/{work}/units", catalog),
+        web.get("/search", search), web.get("/browse", browse), web.get("/work/{work}", work), web.get("/api/works/{work}/units", catalog),
         web.get("/api/units/{unit}/pages", pages), web.get("/api/units/{unit}/pages-split", pages_split),
         web.get("/api/units/{unit}/text", text), web.get("/api/units/{unit}/files", files), web.get("/img/{unit}/{page}.png", image),
         web.get("/covers/{work}.png", image), web.get("/media/html-as-image.png", html_as_image),

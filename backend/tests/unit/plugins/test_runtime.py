@@ -539,3 +539,37 @@ def test_a_form_value_is_sent_as_it_is_and_encoded_once_by_the_client(tmp_path):
     rt = RecipeRuntime(package(tmp_path, recipes=recipes), fetcher)
     assert [i.title for i in run(rt, "search", query="Egri csillagok").items] == ["Egri csillagok"]
     assert fetcher.requests[0].form == {"q": "Egri csillagok", "exact": "Egri%20csillagok", "size": "50"}
+
+
+# -- a window of pages (Discover reads a list one page at a time) ------------------------------------------
+
+def test_a_page_window_reads_only_those_pages(tmp_path):
+    routes = {S + str(p): (200, search_page((f"T{p}", p))) for p in range(1, 6)}
+    fetcher = MemoryFetcher(routes)
+    result = asyncio.run(RecipeRuntime(package(tmp_path), fetcher).run("search", {"query": "moon"}, pages=(2, 1)))
+    assert [r.url for r in fetcher.requests] == [S + "3"]
+    assert [i.listing_key for i in result.items] == ["3"]
+
+
+def test_a_page_window_without_a_page_number_keeps_the_recipe_s_own_paging(tmp_path):
+    routes = {S + str(p): (200, search_page((f"T{p}", p))) for p in range(1, 6)}
+    fetcher = MemoryFetcher(routes)
+    asyncio.run(RecipeRuntime(package(tmp_path), fetcher).run("search", {"query": "moon"}))
+    assert len(fetcher.requests) == 5
+
+
+@pytest.mark.parametrize("pages", [(-1, 1), (0, 0), (0, 99), (10_000, 1)])
+def test_a_page_window_is_bounded(tmp_path, pages):
+    runtime = RecipeRuntime(package(tmp_path), MemoryFetcher({}))
+    with pytest.raises(CapabilityError) as raised:
+        asyncio.run(runtime.run("search", {"query": "moon"}, pages=pages))
+    assert raised.value.category == "invalid_input"
+
+
+def test_a_list_that_only_links_forward_cannot_start_in_the_middle(tmp_path):
+    recipes = copy.deepcopy(RECIPES)
+    recipes["search"]["pagination"] = {"mode": "next_link", "max_pages": 3, "next": {"css": "a.next::attr(href)"}}
+    runtime = RecipeRuntime(package(tmp_path, recipes=recipes), MemoryFetcher({}))
+    with pytest.raises(CapabilityError) as raised:
+        asyncio.run(runtime.run("search", {"query": "moon"}, pages=(1, 1)))
+    assert raised.value.category == "unsupported"
