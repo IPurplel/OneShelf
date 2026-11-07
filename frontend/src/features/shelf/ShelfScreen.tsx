@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useResource } from "@/api/useApi";
@@ -51,6 +51,7 @@ export function ShelfScreen() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchBusy, setBatchBusy] = useState(false);
+  const [batchRemoveConfirm, setBatchRemoveConfirm] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const searchTerm = query.trim();
   const activeView = searchTerm ? "all" : view;
@@ -73,6 +74,15 @@ export function ShelfScreen() {
     if (sort === "size") return sorted.sort((a, b) => b.total_bytes - a.total_bytes);
     return rows;
   }, [data, sort, language]);
+
+  const visibleWorkIds = useMemo(() => new Set(entries.map((e) => e.work_id)), [entries]);
+
+  useEffect(() => {
+    setSelected((prev) => {
+      const next = new Set([...prev].filter((id) => visibleWorkIds.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [activeView, searchTerm, visibleWorkIds]);
 
   const toggleSelect = useCallback((workId: string) => {
     setSelected((prev) => {
@@ -215,7 +225,7 @@ export function ShelfScreen() {
             <Icon name="trash" size={16} />{t("files.delete.workAction")}
           </button>
           <button type="button" className="chip chip--danger" disabled={batchBusy || selected.size === 0}
-                  onClick={() => void batchAction("remove")}>{t("shelf.batch.remove")}</button>
+                  onClick={() => setBatchRemoveConfirm(true)}>{t("shelf.batch.remove")}</button>
           <button type="button" className="chip" onClick={exitBatch}>{t("common.cancel")}</button>
         </div>
       )}
@@ -337,6 +347,20 @@ export function ShelfScreen() {
                          onKeep={() => void remove(removing.summary, false)}
                          onDelete={() => void remove(removing.summary, true)}
                          onCancel={() => setRemoving(null)} />
+      )}
+
+      {batchRemoveConfirm && (
+        <ModalSurface className="confirm" title={t("shelf.batch.removeTitle", { count: selected.size })}
+                      onClose={() => setBatchRemoveConfirm(false)}>
+          <p className="confirm__body">{t("shelf.batch.removeBody", { count: selected.size })}</p>
+          <div className="confirm__actions">
+            <button type="button" className="button" onClick={() => setBatchRemoveConfirm(false)}>{t("common.cancel")}</button>
+            <button type="button" className="button button--danger" disabled={batchBusy}
+                    onClick={() => { setBatchRemoveConfirm(false); void batchAction("remove"); }}>
+              {t("shelf.batch.remove")}
+            </button>
+          </div>
+        </ModalSurface>
       )}
 
       {tagsOpen && <TagsDrawer onClose={() => setTagsOpen(false)} />}

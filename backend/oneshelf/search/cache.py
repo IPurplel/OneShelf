@@ -54,18 +54,39 @@ class DiscoveryCache:
     def get(self, source_id: str, plugin_version: str, kind: str, key: str) -> dict | None:
         namespace, key_hash, now = self.namespace(source_id, plugin_version), self._hash(key), self.clock()
         with self._lock:
-            row = self._conn.execute(
-                "SELECT payload, created_at FROM entries WHERE namespace = ? AND kind = ? AND key_hash = ?",
-                (namespace, kind, key_hash)).fetchone()
+            try:
+                row = self._conn.execute(
+                    "SELECT payload, created_at FROM entries WHERE namespace = ? AND kind = ? AND key_hash = ?",
+                    (namespace, kind, key_hash)).fetchone()
+            except Exception:
+                return None
             if row is None:
                 return None
-            if now - row[1] > self.ttl:
-                self._conn.execute("DELETE FROM entries WHERE namespace = ? AND kind = ? AND key_hash = ?",
-                                   (namespace, kind, key_hash))
+            try:
+                if now - row[1] > self.ttl:
+                    try:
+                        self._conn.execute("DELETE FROM entries WHERE namespace = ? AND kind = ? AND key_hash = ?",
+                                           (namespace, kind, key_hash))
+                    except Exception:
+                        pass
+                    return None
+            except Exception:
                 return None
-            self._conn.execute("UPDATE entries SET last_used_at = ? WHERE namespace = ? AND kind = ? AND key_hash = ?",
-                               (now, namespace, kind, key_hash))
-            return json.loads(row[0])
+            try:
+                try:
+                    self._conn.execute("UPDATE entries SET last_used_at = ? WHERE namespace = ? AND kind = ? AND key_hash = ?",
+                                       (now, namespace, kind, key_hash))
+                except Exception:
+                    pass
+                payload = row[0]
+                return json.loads(payload)
+            except Exception:
+                try:
+                    self._conn.execute("DELETE FROM entries WHERE namespace = ? AND kind = ? AND key_hash = ?",
+                                       (namespace, kind, key_hash))
+                except Exception:
+                    pass
+                return None
 
     def _evict(self) -> None:
         total = self._conn.execute("SELECT coalesce(sum(size), 0) FROM entries").fetchone()[0]

@@ -24,7 +24,7 @@ function ResolveUnit({ unitId, workId, trackId }: { unitId: string; workId: stri
   const { data, error, reload } = useResource<UnitContext>(`/api/reader/units/${unitId}/context`);
   if (error !== null) return <Unavailable message={error} back={workLink(workId ?? "", trackId)} retry={reload} />;
   // A reload keeps what is shown (a download finishing, say) instead of blanking the reader.
-  if (data === null) return <p className="screen__subtitle">{t("state.loading")}</p>;
+  if (data === null) return <p className="screen__subtitle" role="status">{t("state.loading")}</p>;
   // The source lists this book but lets OneShelf neither show nor download it: its own page is the offer.
   if (data.kind === "external") return <ExternalOnly url={data.url ?? null} back={workLink(workId ?? data.work_id, trackId ?? data.track_id)} />;
   const download = data.kind === "download" ? data.download ?? { state: null, error: null } : null;
@@ -40,7 +40,7 @@ function OpenUnit({ unitId, workId, trackId, formats, text, download, onChange }
   const requestedFormat = search.get("format");
   const { data, error, loading, reload } = useResource<WorkDetails>(`/api/works/${workId}`, { track_id: trackId });
   if (error !== null) return <Unavailable message={error} back={workLink(workId, trackId)} retry={reload} />;
-  if (loading || data === null) return <p className="screen__subtitle">{t("state.loading")}</p>;
+  if (loading || data === null) return <p className="screen__subtitle" role="status">{t("state.loading")}</p>;
   if (!data.units.some(unit => unit.id === unitId)) {
     return <Unavailable message={t("reader.unitUnavailable")} back={workLink(workId, trackId)} retry={reload} />;
   }

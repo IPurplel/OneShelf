@@ -170,7 +170,7 @@ export function SourcesScreen() {
             {source.session_state === "expired" && <span className="cards__warn">{t("sources.reconnect")}</span>}
             {source.session_state === "connected" && <span className="cards__ok">{t("sources.connected")}</span>}
             <button type="button" className="chip" aria-label={t("sources.moreFor", { name: source.name })}
-              disabled={loading} onClick={() => setOpen(source)}>{t("sources.more")}</button>
+              onClick={() => setOpen(source)}>{t("sources.more")}</button>
           </motion.li>
         ))}
       </ul>

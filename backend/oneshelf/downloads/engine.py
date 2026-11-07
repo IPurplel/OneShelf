@@ -566,7 +566,8 @@ class DownloadEngine:
         except (AuthRequired, RateLimited, CapabilityError, MediaInvalid, FetchFailed, DisallowedTarget,
                 BlockedDestination, OSError, CommitError, ResponseTooLarge, TooManyRedirects) as exc:
             category = self._category(exc)
-            self._handle_failure(job_id, contract, context, attempts, category, str(exc), report, started_at)
+            retry_after = getattr(exc, "retry_after", None)
+            self._handle_failure(job_id, contract, context, attempts, category, str(exc), report, started_at, retry_after=retry_after)
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001 — anything unforeseen still ends the job, never strands it (I-95)
@@ -790,7 +791,7 @@ class DownloadEngine:
         self._notify_failure(job_id, self._unit_context(job["reading_unit_id"]), category)
 
     def _handle_failure(self, job_id: str, contract: ExtractionContract, context: sqlite3.Row, attempts: int,
-                        category: str, message: str, report: RunReport, started_at: str) -> None:
+                        category: str, message: str, report: RunReport, started_at: str, *, retry_after: float | None = None) -> None:
         decision = next_method(contract, attempts=attempts, retry_budget=self.retry_budget, category=category)
         job = self.job(job_id)
         if decision.action == "retry":
@@ -803,7 +804,15 @@ class DownloadEngine:
                             next_attempt_at=None, attempts=0)
             report.waiting += 1
         elif decision.action == "wait_for_rate_limit":
-            delay = 1.0
+            try:
+                if retry_after is not None:
+                    delay = float(retry_after)
+                    if delay <= 0:
+                        delay = 1.0
+                else:
+                    delay = 1.0
+            except (TypeError, ValueError):
+                delay = 1.0
             self._set_state(job_id, "WAITING_FOR_RATE_LIMIT", last_error=message, error_category=category, attempts=0,
                             next_attempt_at=(datetime.now(UTC) + timedelta(seconds=delay)).isoformat())
             report.waiting += 1

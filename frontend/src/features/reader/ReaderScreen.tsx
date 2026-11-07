@@ -7,6 +7,7 @@ import type { Unit, WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
 import { languageName } from "@/i18n/language";
 import { Icon } from "@/components/Icon";
+import { LoadingState } from "@/components/LoadingState";
 import { MOBILE_QUERY, useMediaQuery } from "@/app/useMediaQuery";
 import { ContentsDrawer } from "./ContentsDrawer";
 import { SettingsPanel } from "./SettingsPanel";
@@ -685,6 +686,8 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
            style={{ "--reader-zoom": zoom, "--reader-pan-x": `${pan.x}px`,
                     "--reader-pan-y": `${pan.y}px`,
                     ...(settings.mode === "long_strip" ? { gap: `${settings.gap}px` } : {}) } as React.CSSProperties}>
+        {/* The stage is empty only until the pages arrive; say so instead of showing a blank page. */}
+        {pageData === null && pageError === null && <LoadingState />}
         {pageError !== null && <>
           <p className="notice notice--problem" role="alert">{pageError === "offline" ? t("state.offline") : pageError}</p>
           <button type="button" className="button" onClick={reloadPages}>{t("reader.retry")}</button>

@@ -100,7 +100,7 @@ export function DownloadsScreen() {
           <Link className="button" to="/shelf?view=downloaded">{t("shelf.view.downloaded")}</Link>
           <Link className="button" to="/settings/storage">{t("downloads.storageSettings")}</Link>
           {batches.length > 0 && (
-            <button type="button" className="button" disabled={loading} onClick={() => setConfirming(true)}>{t("downloads.clear")}</button>
+            <button type="button" className="button" onClick={() => setConfirming(true)}>{t("downloads.clear")}</button>
           )}
         </div>
       </div>
@@ -122,9 +122,8 @@ export function DownloadsScreen() {
         .filter((group) => group.items.length > 0)
         .map((group) => (
       <section key={group.id} className="batches__group" aria-labelledby={`batches-${group.id}`}>
-      {batches.some((b) => RUNNING.has(b.state)) && (
-        <h2 className="batches__heading display" id={`batches-${group.id}`}>{t(group.key)}</h2>
-      )}
+      {/* Every rendered group names itself, or its aria-labelledby points at an id that does not exist. */}
+      <h2 className="batches__heading display" id={`batches-${group.id}`}>{t(group.key)}</h2>
       <ul className="batches">
         {group.items.map((batch, index) => {
           const processed = batch.completed + batch.failed + batch.canceled + batch.skipped;

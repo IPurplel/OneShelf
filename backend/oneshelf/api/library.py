@@ -5,6 +5,7 @@ import asyncio
 import json
 import math
 import sqlite3
+import zipfile
 from dataclasses import asdict
 from pathlib import Path
 from typing import Literal
@@ -449,6 +450,8 @@ async def reader_file(request: Request, unit_id: str, format: Literal["epub", "p
         return error(404, "FILE_NOT_AVAILABLE", str(exc))
     except ValueError as exc:
         return error(404, "UNIT_NOT_FOUND", str(exc))
+    except zipfile.BadZipFile:
+        return error(404, "FILE_NOT_AVAILABLE", "The file is not a valid archive.")
     media_type = MEDIA_TYPES.get(artefact.format, "application/octet-stream")
     # Streamed from disk with Range support, so pdf.js can fetch what it shows (§56, I-101).
     return FileResponse(artefact.path, media_type=media_type, content_disposition_type="inline",
