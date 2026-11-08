@@ -1,4 +1,5 @@
 """Master §34; INV-20, INV-21: export is a resumable copy that never modifies the library."""
+import os
 import asyncio
 import hashlib
 import json
@@ -104,6 +105,8 @@ def test_destination_preflight_rejects_missing_or_unwritable_targets(library, ex
     readonly.mkdir()
     readonly.chmod(0o500)
     try:
+        if os.access(readonly, os.W_OK):                                         # Windows/root: chmod does not make it read-only
+            pytest.skip("chmod does not enforce read-only on this platform/user")
         with pytest.raises(ExportError, match="writable"):
             service.plan(contract(library, "Solo Leveling", readonly))
     finally:

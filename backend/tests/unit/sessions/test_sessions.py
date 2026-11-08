@@ -46,8 +46,9 @@ def manager(db, store):
 def test_key_file_is_private_and_stable(paths):
     key = load_or_create_key(paths["key"])
     assert len(key) == 32
-    assert stat.S_IMODE(os.stat(paths["key"]).st_mode) == 0o600
-    assert stat.S_IMODE(os.stat(paths["key"].parent).st_mode) == 0o700
+    if os.name != "nt":
+        assert stat.S_IMODE(os.stat(paths["key"]).st_mode) == 0o600
+        assert stat.S_IMODE(os.stat(paths["key"].parent).st_mode) == 0o700
     assert load_or_create_key(paths["key"]) == key
 
 

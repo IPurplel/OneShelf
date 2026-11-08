@@ -11,6 +11,11 @@ python3 -m venv .venv
 .venv/bin/pytest                                     # full suite; warnings are errors
 .venv/bin/pytest -m "not browser"                    # skip real-Chromium tests
 ```
+```
+
+Tests needing a real Chromium or symlink privileges skip themselves when those are
+unavailable (for example on Windows without Developer Mode), so the suite stays green
+without `-m "not browser"`; use the marker only to run the fast subset.
 
 Never install `scrapling[fetchers]` (or any stealth/fingerprint package): OneShelf uses Scrapling's parser only,
 and `tests/unit/test_no_stealth.py` fails if stealth tooling appears. The one exception is `curl_cffi`, used

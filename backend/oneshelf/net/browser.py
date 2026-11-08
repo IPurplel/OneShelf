@@ -62,9 +62,16 @@ class BrowserManager:
 
     async def __aenter__(self) -> BrowserManager:
         self._playwright = await async_playwright().start()
-        self._browser = await self._playwright.chromium.launch(headless=self.headless, args=CHROMIUM_ARGS)
+        try:
+            self._browser = await self._playwright.chromium.launch(headless=self.headless, args=CHROMIUM_ARGS)
+        except BaseException:
+            try:
+                if self._playwright is not None:
+                    await self._playwright.stop()
+            finally:
+                self._playwright = None
+            raise
         return self
-
     async def __aexit__(self, *exc) -> None:
         if self._browser is not None:
             await self._browser.close()

@@ -1,6 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 import { beforeEach } from "vitest";
-
+// jsdom does not implement window.scrollTo (it only logs "Not implemented"); the app scrolls
+// to top on route changes, so stub it for tests.
+window.scrollTo = () => {};
 import { setViewport } from "./viewport";
 
 // jsdom has no object URLs; the reader creates them for book resources, so give it a simple stand-in.

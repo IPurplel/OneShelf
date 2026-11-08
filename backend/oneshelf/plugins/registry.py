@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Protocol
 from urllib.parse import unquote, urlsplit, urlunsplit
+from urllib.request import url2pathname
 
 from oneshelf.net.http import HttpClient
 from oneshelf.net.policy import EgressPolicy
@@ -309,6 +310,8 @@ class UnavailableRegistry:
         pass
 
 
+
+
 def registry_from_config(url: str | None):
     """None (no registry), a local mirror (file://directory) or an HTTPS static index URL.
 
@@ -321,7 +324,11 @@ def registry_from_config(url: str | None):
     if parts.username or parts.password:
         raise RegistryError("registry URLs must not contain credentials")
     if parts.scheme == "file":
-        return CachedRegistry(DirectoryRegistry(unquote(parts.path)))
+        if parts.hostname and parts.hostname.lower() not in ("localhost", "127.0.0.1", "::1", ""):
+            raw = "\\\\\\\\" + unquote(parts.hostname) + unquote(parts.path).replace("/", "\\\\")
+        else:
+            raw = url2pathname(parts.path)
+        return CachedRegistry(DirectoryRegistry(raw))
     if parts.scheme == "https" and parts.hostname:
         try:
             return CachedRegistry(ConfiguredHttpRegistry(url))
@@ -329,13 +336,7 @@ def registry_from_config(url: str | None):
             raise RegistryError(f"invalid registry host: {exc}") from exc
     raise RegistryError("registry URL must be https:// or a local file:// mirror")
 
-
 def parse_trusted_keys(value: str | None) -> dict[str, bytes]:
-    """"key-id:base64-ed25519-public-key,..." from local configuration (never from a registry index).
-
-    More than one key may be listed, which is how a signing key is rotated: trust old and new together,
-    re-sign the registry with the new one, then remove the old.
-    """
     import base64
 
     keys: dict[str, bytes] = {}

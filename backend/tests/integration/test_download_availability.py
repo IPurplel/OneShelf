@@ -5,6 +5,8 @@ Storage Location connected and its own, the file in it. A deleted, missing or di
 as openable, a copy that went missing can be downloaded again, and deleting a downloaded Work's files works
 (I-110: it failed on the job's reference to the file, after the file itself was already gone).
 """
+import pytest
+
 import os
 import sqlite3
 from contextlib import closing
@@ -112,6 +114,8 @@ def test_ui003_a_read_only_location_still_opens(api):
         staging.chmod(0o700)
 
 
+
+@pytest.mark.requires_symlink
 def test_ui003_unsound_records_are_never_openable(api):
     client, tmp_path = api
     prepare(client, tmp_path)
@@ -129,7 +133,10 @@ def test_ui003_unsound_records_are_never_openable(api):
     path = stored_file(tmp_path, unit)
     outside = tmp_path / "elsewhere.cbz"
     path.rename(outside)
-    path.symlink_to(outside)                                                 # a link out of the location
+    try:
+        path.symlink_to(outside)                                                 # a link out of the location
+    except OSError:
+        pytest.skip("symlinks not available (Windows privilege)")
     assert jobs(client, first["batch_id"])[0]["available"] is False
 
 

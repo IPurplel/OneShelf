@@ -37,13 +37,19 @@ def load_or_create_key(path: str | Path) -> bytes:
         if len(key) != KEY_BYTES:
             raise ValueError("session key file is invalid")
         return key
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
     try:
         key = os.urandom(KEY_BYTES)
-        os.write(fd, key)
+        written = 0
+        while written < len(key):
+            written += os.write(fd, key[written:])
         os.fsync(fd)
     finally:
         os.close(fd)
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
     return key
 
 

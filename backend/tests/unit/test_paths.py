@@ -3,6 +3,18 @@ import os
 import unicodedata
 
 import pytest
+import tempfile
+def _symlink_works():
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            target = os.path.join(td, "t")
+            os.mkdir(target)
+            os.symlink(target, os.path.join(td, "l"))
+        return True
+    except OSError:
+        return False
+
+_can_symlink = _symlink_works()
 
 from oneshelf.storage.layout import asset_relative_path, family_for
 from oneshelf.storage.paths import PathSafetyError, delete_managed_file, resolve_within, safe_component
@@ -68,7 +80,8 @@ def test_resolve_within_rejects_escapes(tmp_path, bad):
     with pytest.raises(PathSafetyError):
         resolve_within(tmp_path, bad)
 
-
+@pytest.mark.requires_symlink
+@pytest.mark.skipif(not _can_symlink, reason="symlinks not available")
 def test_resolve_within_rejects_symlinked_directory_escape(tmp_path):
     root, outside = tmp_path / "root", tmp_path / "outside"
     root.mkdir()
@@ -78,6 +91,9 @@ def test_resolve_within_rejects_symlinked_directory_escape(tmp_path):
         resolve_within(root, "Books/a.pdf")
 
 
+
+@pytest.mark.requires_symlink
+@pytest.mark.skipif(not _can_symlink, reason="symlinks not available")
 def test_resolve_within_rejects_symlinked_file_even_inside_root(tmp_path):
     (tmp_path / "real.pdf").write_bytes(b"x")
     os.symlink(tmp_path / "real.pdf", tmp_path / "link.pdf")
@@ -85,6 +101,8 @@ def test_resolve_within_rejects_symlinked_file_even_inside_root(tmp_path):
         resolve_within(tmp_path, "link.pdf")
 
 
+@pytest.mark.skipif(not _can_symlink, reason="symlinks not available")
+@pytest.mark.requires_symlink
 def test_delete_managed_file_only_deletes_regular_files_inside_root(tmp_path):
     root = tmp_path / "root"
     (root / "Books").mkdir(parents=True)

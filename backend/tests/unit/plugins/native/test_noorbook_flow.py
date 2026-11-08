@@ -12,6 +12,21 @@ from oneshelf.plugins.runtime import AuthRequired, CapabilityError
 from tests.unit.plugins.native.test_noorbook import work_html, group_html, HASH, TOKEN, URL
 
 
+import os
+
+def _browser_available():
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            return os.path.exists(p.chromium.executable_path)
+    except Exception:
+        return False
+
+@pytest.fixture(autouse=True)
+def _skip_without_browser(request):
+    if request.node.get_closest_marker("browser") and not _browser_available():
+        pytest.skip("Playwright Chromium is not installed")
+
 class Source:
     def __init__(self, *, broken=False, readable=True):
         self.broken, self.readable = broken, readable
