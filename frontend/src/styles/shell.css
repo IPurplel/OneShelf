@@ -7,18 +7,28 @@
 .layout__sidebar { grid-row: 1 / -1; }
 .layout__body { display: flex; flex-direction: column; min-width: 0; }
 
+/* The canvas is a cloth-bound cover: a faint woven grain, and over it the blind-tooled ornament of an old
+   binding — an eight-point star (khatam) tied to its neighbours. Both are tiny inline tiles, drawn once and
+   repeated, so they cost nothing to load; the light pool above stays where the eye starts. */
 .layout__main {
+  --binding-tooling: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%238a6a43' stroke-opacity='0.12' stroke-width='1' stroke-linejoin='round'%3E%3Cpath d='M48.0 22.0L55.6 29.6L66.4 29.6L66.4 40.4L74.0 48.0L66.4 55.6L66.4 66.4L55.6 66.4L48.0 74.0L40.4 66.4L29.6 66.4L29.6 55.6L22.0 48.0L29.6 40.4L29.6 29.6L40.4 29.6z'/%3E%3Cpath d='M48.0 35.0L51.8 38.8L57.2 38.8L57.2 44.2L61.0 48.0L57.2 51.8L57.2 57.2L51.8 57.2L48.0 61.0L44.2 57.2L38.8 57.2L38.8 51.8L35.0 48.0L38.8 44.2L38.8 38.8L44.2 38.8z'/%3E%3Cpath d='M48 0v22M48 74v22M0 48h22M74 48h22'/%3E%3Cpath d='M0 0l10 10M96 0l-10 10M0 96l10-10M96 96l-10-10'/%3E%3C/g%3E%3C/svg%3E");
+  --binding-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url%28%23g%29'/%3E%3C/svg%3E");
   flex: 1;
   padding: var(--space-6) var(--space-7) var(--space-7);
   background:
     radial-gradient(950px 430px at 72% -170px, var(--canvas-spot), transparent 78%),
     radial-gradient(ellipse 120% 80% at 50% 100%, rgba(168, 191, 142, 0.04), transparent 60%),
+    var(--binding-tooling) center top / 96px 96px repeat,
+    var(--binding-grain) 0 0 / 160px 160px repeat,
     var(--ivory-100);
 }
 :root[data-resolved-theme="dark"] .layout__main {
+  --binding-tooling: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23c9a86a' stroke-opacity='0.08' stroke-width='1' stroke-linejoin='round'%3E%3Cpath d='M48.0 22.0L55.6 29.6L66.4 29.6L66.4 40.4L74.0 48.0L66.4 55.6L66.4 66.4L55.6 66.4L48.0 74.0L40.4 66.4L29.6 66.4L29.6 55.6L22.0 48.0L29.6 40.4L29.6 29.6L40.4 29.6z'/%3E%3Cpath d='M48.0 35.0L51.8 38.8L57.2 38.8L57.2 44.2L61.0 48.0L57.2 51.8L57.2 57.2L51.8 57.2L48.0 61.0L44.2 57.2L38.8 57.2L38.8 51.8L35.0 48.0L38.8 44.2L38.8 38.8L44.2 38.8z'/%3E%3Cpath d='M48 0v22M48 74v22M0 48h22M74 48h22'/%3E%3Cpath d='M0 0l10 10M96 0l-10 10M0 96l10-10M96 96l-10-10'/%3E%3C/g%3E%3C/svg%3E");
   background:
     radial-gradient(950px 430px at 72% -170px, rgba(45, 67, 51, 0.3), transparent 78%),
-    radial-gradient(ellipse 120% 80% at 50% 100%, rgba(168, 191, 142, 0.03), transparent 60%),
+    radial-gradient(ellipse 120% 80% at 50% 100%, rgba(201, 168, 106, 0.05), transparent 60%),
+    var(--binding-tooling) center top / 96px 96px repeat,
+    var(--binding-grain) 0 0 / 160px 160px repeat,
     var(--ivory-100);
 }
 .layout__main:focus { outline: none; }
@@ -32,8 +42,10 @@
   flex-direction: column;
   gap: var(--space-6);
   padding: var(--space-6) var(--space-4) var(--space-5);
+  /* The spine: the same tooling in gilt, fainter, over the deep green. */
   background:
     radial-gradient(360px 340px at -100px -110px, rgba(168, 191, 142, 0.12), transparent 76%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23d9bf86' stroke-opacity='0.07' stroke-width='1' stroke-linejoin='round'%3E%3Cpath d='M48.0 22.0L55.6 29.6L66.4 29.6L66.4 40.4L74.0 48.0L66.4 55.6L66.4 66.4L55.6 66.4L48.0 74.0L40.4 66.4L29.6 66.4L29.6 55.6L22.0 48.0L29.6 40.4L29.6 29.6L40.4 29.6z'/%3E%3Cpath d='M48.0 35.0L51.8 38.8L57.2 38.8L57.2 44.2L61.0 48.0L57.2 51.8L57.2 57.2L51.8 57.2L48.0 61.0L44.2 57.2L38.8 57.2L38.8 51.8L35.0 48.0L38.8 44.2L38.8 38.8L44.2 38.8z'/%3E%3Cpath d='M48 0v22M48 74v22M0 48h22M74 48h22'/%3E%3Cpath d='M0 0l10 10M96 0l-10 10M0 96l10-10M96 96l-10-10'/%3E%3C/g%3E%3C/svg%3E") center top / 96px 96px repeat,
     linear-gradient(165deg, var(--forest-800), var(--forest-900) 82%);
   color: var(--ivory-50);
   border-inline-end: 1px solid rgba(233, 226, 204, 0.08);
@@ -83,6 +95,22 @@
 }
 .sidebar__link:hover { background: rgba(255, 255, 255, 0.065); color: var(--ivory-50); }
 .sidebar__link.is-active { color: var(--ivory-50); }
+/* How many downloads are on their way: arrives small and settles, each time the count changes (feedback
+   that a download started anywhere landed here). Gone when nothing is waiting. */
+.sidebar__badge {
+  margin-inline-start: auto;
+  min-inline-size: 22px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: #d9bf86;
+  color: var(--forest-900);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  transition: transform var(--motion-slow) var(--ease-out), opacity var(--motion-slow) var(--ease-out);
+}
+@starting-style { .sidebar__badge { transform: scale(0.9); opacity: 0; } }
 .sidebar__indicator {
   position: absolute;
   inset: 0;

@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, Outlet, Route, Routes, useLocation } from "react-router-dom";
-import { MotionConfig, motion } from "motion/react";
+import { LazyMotion, MotionConfig } from "motion/react";
+import * as m from "motion/react-m";
 
 import { useI18n } from "@/i18n/i18n";
 import { TRANSITION_EASE } from "@/lib/motion";
@@ -47,7 +48,7 @@ function Layout() {
       <div className="layout__body">
         <Header onOpenNotifications={() => setPanel("notifications")} onOpenAttention={() => setPanel("attention")} />
         <main id="main" ref={mainRef} className="layout__main" tabIndex={-1}>
-          <motion.div
+          <m.div
             key={location.pathname}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -56,7 +57,7 @@ function Layout() {
             <Suspense fallback={<LoadingState />}>
               <Outlet />
             </Suspense>
-          </motion.div>
+          </m.div>
         </main>
       </div>
       {mobile && <BottomNav moreOpen={panel === "more"} onOpenMore={() => setPanel("more")} />}
@@ -88,10 +89,15 @@ function Layout() {
   );
 }
 
+const loadMotionFeatures = () => import("@/lib/motionFeatures").then((module) => module.default);
+
 export function App() {
   return (
     // One switch for every animation: a reader who asked for less motion gets none of the decorative kind.
+    // The engine arrives after the first paint; `strict` refuses a full `motion` component that would bring it
+    // back into the first download.
     <MotionConfig reducedMotion="user">
+    <LazyMotion features={loadMotionFeatures} strict>
     <Routes>
       <Route element={<Layout />}>
         {routes.map((route) => (
@@ -99,6 +105,7 @@ export function App() {
         ))}
       </Route>
     </Routes>
+    </LazyMotion>
     </MotionConfig>
   );
 }

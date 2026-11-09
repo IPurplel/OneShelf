@@ -12,11 +12,12 @@ from oneshelf.net.domains import DomainRuleError, normalize_rule
 from oneshelf.plugins import jsonpath
 from oneshelf.plugins.transforms import TransformError, _compile, validate_pipeline
 
-API_MAJOR, API_MINOR = 1, 3
+API_MAJOR, API_MINOR = 1, 4
 NATIVE_PROFILE_API = (1, 3)
 # Features and the plugin API that introduced them; a package using one must declare at least that API.
 TEXT_UNITS_API = (1, 2)
 COUNT_ITEMS_API = (1, 3)
+RATE_BURST_API = (1, 4)
 MAX_SELECTOR = 512
 MAX_TEMPLATE = 512
 MAX_PAGES_CAP = 1000
@@ -136,6 +137,10 @@ class UrlPattern(Strict):
 class RateLimit(Strict):
     requests_per_minute: int = Field(default=60, ge=1, le=600)
     concurrency: int = Field(default=2, ge=1, le=4)
+    # How many requests may start together before the rate's gap applies (a token bucket). 1 keeps a full gap
+    # before every request, which some sites require (arXiv: one request every three seconds); a site that
+    # tolerates a short burst lets opening a work and its first pages start at once.
+    burst: int = Field(default=1, ge=1, le=4)
 
 
 class Timeouts(Strict):

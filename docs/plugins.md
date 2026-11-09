@@ -55,6 +55,22 @@ API 1.2 adds **text reading units** (section 3a) and the `{position}` template n
 that extracts a reader `html` field, sets `markup` on any field, or uses the `text_contains` /
 `min_text_chars` test checks is refused unless it declares `api: '1.2'` or newer.
 
+API 1.4 adds `rate_limit.burst` in `source.yaml` (1–4, default 1). Core paces each source with a token bucket
+of that size refilled at `requests_per_minute`: with the default, every request waits a full gap (60/rpm
+seconds), which some sites require (arXiv's API terms: one request every three seconds). A site that
+tolerates a short burst may declare one, so opening a work (its details and catalogue) and its first pages
+start together instead of three seconds apart; over any stretch of time the source still gets at most its
+declared rate plus that burst. Background work (read-ahead, Follow, health) never takes the last token, so
+the page a person turns to is not left waiting behind it. A package declaring a burst above 1 must declare
+`api: '1.4'` or newer.
+
+```yaml
+rate_limit:
+  requests_per_minute: 20
+  concurrency: 1
+  burst: 3          # API 1.4; omit on a site that asks for a fixed gap between requests
+```
+
 ## 3. Recipes
 
 One file per capability. A recipe is a request plus an extraction:

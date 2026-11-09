@@ -289,6 +289,18 @@ describe("Sources", () => {
     expect(screen.getByRole("heading", { name: /install from file/i })).toBeInTheDocument();
   });
 
+  it("jumps straight to adding a source, or to any of its sections", async () => {
+    mockApi([get("/api/sources", SOURCES), get("/api/registry", { configured: false, plugins: [] })]);
+    renderWithProviders(<SourcesScreen />);
+    const nav = await screen.findByRole("navigation", { name: /source sections/i });
+    const links = within(nav).getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("href"))).toEqual(["#sources-installed", "#sources-add", "#sources-file"]);
+    expect(within(nav).getByRole("link", { name: /add sources/i })).toBeInTheDocument();
+    for (const target of ["sources-installed", "sources-add", "sources-file"]) {
+      expect(document.getElementById(target)).not.toBeNull();
+    }
+  });
+
   it("keeps the installed list usable when the Registry cannot be reached", async () => {
     mockApi([get("/api/sources", SOURCES), get("/api/registry",
       { error: { code: "REGISTRY_UNAVAILABLE", message: "registry unavailable" } }, 502)]);

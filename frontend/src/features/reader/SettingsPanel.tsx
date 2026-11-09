@@ -97,6 +97,17 @@ export function SettingsPanel({ settings, onChange, onClose }: {
         ))}
       </fieldset>
 
+      <fieldset className="panel__group panel__group--segmented" role="radiogroup" aria-label={t("reader.pageColors")}>
+        <legend>{t("reader.pageColors")}</legend>
+        {(["original", "inverted"] as const).map((pageColors) => (
+          <label key={pageColors} className="panel__choice">
+            <input type="radio" name="pageColors" value={pageColors} checked={settings.pageColors === pageColors}
+                   onChange={() => onChange({ pageColors })} />
+            <span>{t(`reader.pageColors.${pageColors}` as const)}</span>
+          </label>
+        ))}
+      </fieldset>
+
       {settings.mode !== "long_strip" && (
         <fieldset className="panel__group panel__group--segmented" role="radiogroup" aria-label={t("reader.transition")}>
           <legend>{t("reader.transition")}</legend>

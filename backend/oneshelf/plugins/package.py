@@ -19,7 +19,7 @@ from pydantic import ValidationError
 from oneshelf.integrity.validators import _unsafe_entry_name
 from oneshelf.net.domains import host_allowed
 from oneshelf.plugins.schema import (
-    COUNT_ITEMS_API, FIELDS, LIST_CAPABILITIES, NATIVE_PROFILE_API, TEXT_UNITS_API, Manifest, Recipe, SourceConfig,
+    COUNT_ITEMS_API, FIELDS, LIST_CAPABILITIES, NATIVE_PROFILE_API, RATE_BURST_API, TEXT_UNITS_API, Manifest, Recipe, SourceConfig,
     TestSuite, is_text_reader,
 )
 from oneshelf.plugins.templates import TemplateError, placeholders, validate_url_template
@@ -173,6 +173,9 @@ def _api_12_features(recipe: Recipe) -> list[str]:
 def _cross_validate(manifest: Manifest, source: SourceConfig, recipes: dict[str, Recipe], tests: TestSuite,
                     files: dict[str, bytes]) -> None:
     declared = set(manifest.capabilities)
+    if source.rate_limit.burst > 1 and not _api_at_least(manifest.api, RATE_BURST_API):
+        raise PackageError(f"source.yaml: rate_limit.burst needs api '{RATE_BURST_API[0]}.{RATE_BURST_API[1]}'"
+                           " or newer in manifest.yaml")
     if not _url_allowed(source.base_url, manifest, include_cdn=False):
         raise PackageError("source.yaml: base_url must use https (or declared http) on an allowlisted domain")
     native_caps = set()

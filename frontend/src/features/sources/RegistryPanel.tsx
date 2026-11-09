@@ -55,6 +55,9 @@ type Review = {
 type Outcome = { plugin_id: string; version: string; state: string };
 
 /** What a card offers. Installed, newer-installed and incompatible cards offer nothing at all. */
+/** States with something to press: they come first, and are what "Not installed yet" shows. */
+const ADDABLE = new Set<RegistryState>(["available", "update_available", "pending_review"]);
+
 const ACTION: Partial<Record<RegistryState, StringKey>> = {
   available: "registry.action.install",
   update_available: "registry.action.update",
@@ -86,7 +89,7 @@ function trustKey(effective: string, claimed: string, basis?: string): StringKey
  * refused. Reading the Registry changes nothing; if it cannot be reached, installed sources are
  * untouched and this section simply says so.
  */
-export function RegistryPanel({ revision, onChanged }: { revision: number; onChanged: () => void }) {
+export function RegistryPanel({ revision, onChanged, id }: { revision: number; onChanged: () => void; id?: string }) {
   const { t, language, errorText } = useI18n();
   const heading = useId();
   const [listing, setListing] = useState<Listing | null>(null);
@@ -99,6 +102,7 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
   const [category, setCategory] = useState<string | null>(null);
   const [sourceLanguage, setSourceLanguage] = useState<string | null>(null);
   const [nameQuery, setNameQuery] = useState("");
+  const [onlyAddable, setOnlyAddable] = useState(false);
 
   const load = useCallback(async (refresh: boolean) => {
     try {
@@ -183,7 +187,9 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
     const normalized = value.toUpperCase();
     return normalized === code || normalized === "MULTI";
   });
+  const addable = allPlugins.filter(card => ADDABLE.has(card.state)).length;
   const plugins = allPlugins.filter(card =>
+    (!onlyAddable || ADDABLE.has(card.state)) &&
     (category === null || card.category === category) &&
     (sourceLanguage === null || supportsLanguage(card, sourceLanguage)) &&
     card.name.toLocaleLowerCase().includes(nameQuery.trim().toLocaleLowerCase()),
@@ -193,7 +199,7 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
     : review?.state === "pending_review" ? "registry.review.approve" : "install.action";
 
   return (
-    <section className="paper" aria-labelledby={heading}>
+    <section className="paper sources__section" aria-labelledby={heading} id={id}>
       <h2 className="display" id={heading}>{t("registry.title")}</h2>
       <p className="firstrun__lede">{t("registry.help")}</p>
 
@@ -208,6 +214,12 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
       {listing !== null && !listing.configured && <p className="cards__meta">{t("registry.notConfigured")}</p>}
 
       {allPlugins.length > 0 && <div className="registry__filters">
+        {addable > 0 && <div className="registry__filter-group">
+          <button type="button" className="chip chip--accent" aria-pressed={onlyAddable}
+                  onClick={() => setOnlyAddable(!onlyAddable)}>
+            {t("registry.onlyAddable")} · {addable}
+          </button>
+        </div>}
         <div className="registry__filter-group" role="group" aria-label={t("registry.categories")}>
           <button type="button" className="chip" aria-pressed={category === null} onClick={() => setCategory(null)}>
             {t("registry.allCategories")} · {allPlugins.length}
@@ -232,18 +244,21 @@ export function RegistryPanel({ revision, onChanged }: { revision: number; onCha
       {grouped.map(group => (
         <div className="registry__group" key={group}>
           {group && <h3 className="display registry__group-title">{categoryLabel(group, language)}</h3>}
-          <ul className="cards">
-          {plugins.filter(card => (card.category ?? "") === group).sort((a, b) => a.name.localeCompare(b.name, language)).map((card) => {
+          <ul className="cards registry__cards">
+          {plugins.filter(card => (card.category ?? "") === group)
+            .sort((a, b) => Number(ADDABLE.has(b.state)) - Number(ADDABLE.has(a.state))
+              || a.name.localeCompare(b.name, language)).map((card) => {
             const action = ACTION[card.state];
             return (
-              <li key={card.id} className="cards__row">
+              <li key={card.id} className={`cards__row registry__card${action !== undefined ? " registry__card--addable" : ""}`}>
                 <span className="cards__name display" dir="auto">{card.name}</span>
                 {card.languages?.length ? <span className="cards__meta" dir="auto">{card.languages.join(", ")}</span> : null}
                 <span className="cards__meta">{card.version}</span>
                 <span className="chip chip--static">{t(trustKey(card.effective_trust, card.trust_label, card.trust_basis))}</span>
                 <span className={`cards__state cards__state--${card.state}`}>{status(card)}</span>
                 {action !== undefined && (
-                  <button type="button" className="chip" disabled={busy} onClick={() => void open(card)}>
+                  <button type="button" className="button button--primary registry__add" disabled={busy}
+                          onClick={() => void open(card)}>
                     {t(action)}
                   </button>
                 )}

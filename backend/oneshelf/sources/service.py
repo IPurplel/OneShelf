@@ -104,7 +104,8 @@ class SourceService:
 
         limits = package.source.rate_limit
         self.governor.configure_source(package.id, concurrency=limits.concurrency,
-                                       requests_per_minute=limits.requests_per_minute)
+                                       requests_per_minute=limits.requests_per_minute,
+                                       burst=limits.burst)
         key = (package.id, package.sha256)
         policy = self.policy_for(package)
         async with self._ech_lock:
@@ -121,7 +122,8 @@ class SourceService:
         package = self.plugins.load_active(plugin_id)
         limits = package.source.rate_limit
         self.governor.configure_source(plugin_id, concurrency=limits.concurrency,
-                                       requests_per_minute=limits.requests_per_minute)
+                                       requests_per_minute=limits.requests_per_minute,
+                                       burst=limits.burst)
         return package, self._make_fetcher(package, await self._client(package), self.sessions, priority)
 
     def _make_fetcher(self, package: PluginPackage, client: HttpClient, sessions, priority: Priority) -> SourceFetcher:

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 
 import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
@@ -59,7 +59,7 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
   const reduced = useReducedMotion();
   return (
     <section className="firstrun">
-      <motion.div className="firstrun__panel paper"
+      <m.div className="firstrun__panel paper"
         initial={reduced ? false : { opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={TRANSITION_SLOW}
@@ -196,7 +196,7 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
             </div>
           </>
         )}
-      </motion.div>
+      </m.div>
     </section>
   );
 }

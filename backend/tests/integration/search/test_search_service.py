@@ -32,8 +32,9 @@ class FakeSources:
     def searchable_sources(self):
         return [(source, "1.0.0") for source in self.behaviours]
 
-    async def run(self, plugin_id, capability, inputs, *, priority=None):
+    async def run(self, plugin_id, capability, inputs, *, priority=None, pages=None):
         self.calls.append((plugin_id, inputs.get("query")))
+        self.windows = getattr(self, "windows", []) + [pages]
         behaviour = self.behaviours[plugin_id]
         if callable(behaviour):
             return await behaviour(inputs)
@@ -223,6 +224,21 @@ def test_cached_results_are_reused_and_invalidated_by_plugin_version(db, cache):
     sources.searchable_sources = lambda: [("mangadex", "2.0.0")]
     final = asyncio.run(collect(service, "cached work"))[-1]
     assert len(sources.calls) == 2 and {r.title for r in final.results} == {"Fresh Work"}
+
+
+def test_search_reads_only_each_sources_first_page_and_keeps_that_answer(db, cache):
+    # A source read to its last page made the person wait for pages nobody sees: search shows its fifty best
+    # across every source, and arXiv's five pages took 13 s of the 16 s a search took (measured 2026-11-09).
+    first_page = ListResult("search", [Listing(listing_key="p-1", title="Paper One", url="https://p/1",
+                                               content_type="paper", language="en")],
+                            False, Evidence(pages=1, stop_reason="page_cap_reached"))
+    sources = FakeSources({"papers": first_page})
+    service = SearchService(db, sources, cache)
+    final = asyncio.run(collect(service, "paper"))[-1]
+    assert sources.windows == [(0, 1)]
+    assert final.source_status["papers"]["state"] == "done" and {r.title for r in final.results} == {"Paper One"}
+    again = asyncio.run(collect(service, "paper"))[-1]
+    assert len(sources.calls) == 1 and again.source_status["papers"]["state"] == "cached"
 
 
 def test_cached_and_live_copies_of_one_listing_stay_one_record(db, cache):

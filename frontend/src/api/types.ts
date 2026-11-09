@@ -1,7 +1,9 @@
 /** Shapes the API actually returns; kept close to the backend rather than re-modelled. */
 /** `cover_url` is always a same-origin /api/covers path: presentation only, never identity (INV-28). */
 export type Provenance = { source_id: string; listing_key: string; language: string; title: string; url: string | null;
-                           cover_url?: string | null };
+                           cover_url?: string | null;
+                           /** This listing can be kept in one tap (its source offers downloads). */
+                           downloadable?: boolean };
 
 export type ResultWork = {
   work_id: string | null;

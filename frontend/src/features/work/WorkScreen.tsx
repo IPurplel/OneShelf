@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 
 import { ApiError, api } from "@/api/client";
 import { CoverPlaceholder } from "@/components/CoverPlaceholder";
@@ -17,9 +17,11 @@ import { ModalSurface } from "@/components/ModalSurface";
 import { RemoveFromShelf } from "@/features/shelf/RemoveFromShelf";
 import type { RemovalSummary } from "@/features/shelf/RemoveFromShelf";
 import { readerLink } from "@/features/reader/links";
+import { preloadReader } from "@/features/reader/preload";
 import { bytes, isolate } from "@/lib/format";
 import { typeLabel } from "@/lib/contentType";
 import { WorkNotes } from "./WorkNotes";
+import { type BulkDownload, useBulkDownload } from "./useBulkDownload";
 import { Icon } from "@/components/Icon";
 import { useLive } from "@/app/live";
 import { type Deleted, useFileDeletion } from "@/features/files/useFileDeletion";
@@ -67,11 +69,13 @@ export function WorkScreen({ workId }: { workId?: string }) {
     setCompletedOffer(null);
     setSummaryProblem(null);
   }, [id]);
+  // Reading is what a Work page is for: its code is fetched while the person looks at the chapters.
+  useEffect(() => { preloadReader(); }, []);
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${id}`,
     trackId ? { track_id: trackId } : undefined);
   // Chapters turn "Downloaded" as they finish. A batch sends many job events, so they are gathered into one re-read.
   const refreshSoon = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useLive(["download.job", "shelf.changed"], () => {
+  useLive(["download.job", "shelf.changed", "work.changed"], () => {
     if (refreshSoon.current !== null) return;
     refreshSoon.current = setTimeout(() => { refreshSoon.current = null; reload(); }, 800);
   });
@@ -83,6 +87,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const openedAttempt = (location.state as { catalogAttempt?: CatalogAttempt } | null)?.catalogAttempt ?? null;
   const [catalogAttempt, setCatalogAttempt] = useState<CatalogAttempt | null>(null);
   const selectedTrackId = data?.selected_track_id ?? null;
+  const bulk = useBulkDownload(id, selectedTrackId, data?.units ?? []);
   const selectedAttempt = catalogAttempt?.trackId === selectedTrackId ? catalogAttempt
     : openedAttempt?.trackId === selectedTrackId ? openedAttempt : null;
 
@@ -138,6 +143,9 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const nextUnit = units.find((unit) => unit.id === continueUnit);
   const nextTitle = nextUnit?.title ?? null;
   const current = tracks.find((track) => track.id === data.selected_track_id) ?? null;
+  // Whether this track's units can be kept here: a source track that still delivers files.
+  const canDownload = current !== null && !archivedTrack(current) && !listingOnly(current)
+    && current.can_download !== false;
   const selectedFollowing = current !== null && follow.following && follow.track_id === current.id;
 
   const toggle = async (call: Promise<unknown>) => {
@@ -232,7 +240,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
 
   return (
     <article className="screen work">
-      <motion.header className="work__header"
+      <m.header className="work__header"
         initial={reduced ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={TRANSITION_EASE}
@@ -260,6 +268,12 @@ export function WorkScreen({ workId }: { workId?: string }) {
               <a className="button button--primary" href={current.listing_url} target="_blank" rel="noopener noreferrer">
                 {t("work.openOnSource", { source: sourceLabel(current) })}
               </a>
+            )}
+            {canDownload && current?.kind !== "local" && bulk.eligible.length > 0 && (
+              <button type="button" className="button" disabled={bulk.queueing} aria-busy={bulk.queueing || undefined}
+                      onClick={() => void bulk.queueAll()}>
+                <Icon name="downloads" size={16} />{t("work.downloadAll")}
+              </button>
             )}
             {shelf.on_shelf ? (
               <button type="button" className="button" aria-pressed={completed}
@@ -323,7 +337,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
             <p className="work__listingOnly">{t("work.listingOnly", { source: sourceLabel(current) })}</p>
           )}
         </div>
-      </motion.header>
+      </m.header>
 
       <div className="toolbar__tabs work__tabs" role="tablist" aria-label={t("work.sections")} onKeyDown={handleTabKeys}>
         {(["read", "details", "sources"] as Tab[]).map((candidate) => (
@@ -382,8 +396,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
       <div role="tabpanel" id="work-tabpanel" aria-labelledby={`work-tab-${tab}`} tabIndex={-1}>
         <div hidden={tab !== "read"}>
           <UnitIndex units={units} workId={id} trackId={data.selected_track_id}
-            downloadable={current !== null && !archivedTrack(current) && !listingOnly(current)
-                          && current.can_download !== false} track={current}
+            downloadable={canDownload} track={current} bulk={bulk}
             attempt={selectedAttempt} onRetry={() => { if (current) void refreshCatalog(current); }}
             onLanguages={() => setTab("sources")} workTitle={work.title} onFilesChanged={reload} />
         </div>
@@ -409,8 +422,8 @@ export function WorkScreen({ workId }: { workId?: string }) {
 }
 
 function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRetry, onLanguages, workTitle,
-                     onFilesChanged }: {
-  units: Unit[]; workId: string; trackId: string | null; downloadable: boolean;
+                     onFilesChanged, bulk }: {
+  units: Unit[]; workId: string; trackId: string | null; downloadable: boolean; bulk: BulkDownload;
   track: Track | null; attempt: CatalogAttempt | null; onRetry: () => void; onLanguages: () => void;
   workTitle: string; onFilesChanged: () => void;
 }) {
@@ -441,29 +454,7 @@ function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRet
       setProblem(errorText(error));
     }
   };
-  const [problem, setProblem] = useState<string | null>(null);
-  const [queueing, setQueueing] = useState(false);
-  const [requested, setRequested] = useState<string[]>([]);
-  useEffect(() => { setRequested([]); setProblem(null); }, [workId, trackId]);
-  const eligible = units.filter(unit => unit.availability !== "unavailable" && !unit.downloaded && !requested.includes(unit.id));
-  const queueAll = async () => {
-    const ids = eligible.map(unit => unit.id);
-    if (ids.length === 0) return;
-    setProblem(null);
-    setQueueing(true);
-    try {
-      // A download batch accepts at most 2,000 unit IDs. One click can queue larger catalogues.
-      for (let start = 0; start < ids.length; start += 2000) {
-        const batch = ids.slice(start, start + 2000);
-        await api.post("/api/downloads", { unit_ids: batch });
-        setRequested(current => [...current, ...batch]);
-      }
-    } catch (error) {
-      setProblem(errorText(error));
-    } finally {
-      setQueueing(false);
-    }
-  };
+  const { requested, setRequested, problem, setProblem } = bulk;
   if (units.length === 0) return <CatalogStatus track={track} attempt={attempt}
     onRetry={onRetry} onLanguages={onLanguages} />;
 
@@ -471,8 +462,6 @@ function UnitIndex({ units, workId, trackId, downloadable, track, attempt, onRet
     <>
     {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
     <div className="units__bulk">
-      {downloadable && track?.kind !== "local" && eligible.length > 0 && <button type="button" className="button" disabled={queueing}
-        aria-busy={queueing} onClick={() => void queueAll()}>{t("work.downloadAll")}</button>}
       {requested.length > 0 && <p role="status" className="cards__meta">{tn("work.downloadRequested", requested.length)}</p>}
       {saved.length > 0 && (
         <button type="button" className="button" onClick={() => void askDeleteAll()}>

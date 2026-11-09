@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f3eee5" />
     <script>
       try {
         const saved = localStorage.getItem("oneshelf.theme");
@@ -11,6 +12,8 @@
         document.documentElement.dataset.theme = choice;
         document.documentElement.dataset.resolvedTheme = choice === "system"
           ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : choice;
+        if (document.documentElement.dataset.resolvedTheme === "dark")
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#111b15");
       } catch {
         document.documentElement.dataset.theme = "system";
         document.documentElement.dataset.resolvedTheme = matchMedia("(prefers-color-scheme: dark)").matches

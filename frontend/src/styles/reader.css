@@ -153,6 +153,11 @@
 .reader__stage[data-direction="vertical"] { flex-direction: column; }
 
 .reader__page { display: block; max-inline-size: 100%; }
+/* A page with no background of its own (Noor Book's SVG pages arrive transparent) lies on paper: only the
+   margins take the reader's background, so black text never disappears into a black reader. */
+img.reader__page { background: #fff; }
+/* Inverted: light text on black, for reading in the dark. Hue is turned back so colours keep their hue. */
+.reader__stage[data-page-colors="inverted"] img.reader__page { filter: invert(1) hue-rotate(180deg); }
 /* Smart fit is one rule for every page, so it cannot oscillate from page to page (§26.9). */
 .reader__stage[data-fit="smart"] .reader__page { inline-size: min(100%, 900px); block-size: auto; }
 .reader__stage[data-mode="single"][data-fit="smart"] .reader__page,

@@ -16,6 +16,14 @@ function storedTheme(): ThemeChoice {
   }
 }
 
+// The browser's own bar (phones, installed apps) takes the page's canvas colour (--ivory-100 in tokens.css).
+const THEME_COLOR = { light: "#f3eee5", dark: "#111b15" } as const;
+
+function applyResolved(resolved: "light" | "dark"): void {
+  document.documentElement.dataset.resolvedTheme = resolved;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLOR[resolved]);
+}
+
 function resolveTheme(theme: ThemeChoice): "light" | "dark" {
   if (theme !== "system") return theme;
   return typeof window.matchMedia === "function" && window.matchMedia(DARK_QUERY).matches ? "dark" : "light";
@@ -26,7 +34,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme;
-    document.documentElement.dataset.resolvedTheme = resolveTheme(theme);
+    applyResolved(resolveTheme(theme));
     try {
       window.localStorage.setItem(STORAGE_KEY, theme);
     } catch {
@@ -37,7 +45,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (theme !== "system" || typeof window.matchMedia !== "function") return;
     const media = window.matchMedia(DARK_QUERY);
-    const update = () => { document.documentElement.dataset.resolvedTheme = media.matches ? "dark" : "light"; };
+    const update = () => applyResolved(media.matches ? "dark" : "light");
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, [theme]);

@@ -8,6 +8,8 @@ export type PdfFit = "width" | "page" | "custom";
 export type ReaderDirection = "ltr" | "rtl" | "vertical";
 export type ReaderFit = "smart" | "width" | "height" | "original";
 export type ReaderBackground = "black" | "dark" | "white";
+/** A page as delivered, or with its colours inverted (light text on black) for reading in the dark. */
+export type PageColors = "original" | "inverted";
 export type ReaderControls = "smart" | "minimal";
 export type ReaderTransition = "instant" | "slide" | "fade";
 
@@ -16,6 +18,7 @@ export type ReaderSettings = {
   direction: ReaderDirection;
   fit: ReaderFit;
   background: ReaderBackground;
+  pageColors: PageColors;
   /** §26.3: Smart shows the controls on interaction; Minimal keeps them away until summoned. */
   controls: ReaderControls;
   transition: ReaderTransition;
@@ -36,7 +39,7 @@ export type ReaderSettings = {
 };
 
 export const DEFAULT_SETTINGS: ReaderSettings = {
-  mode: "long_strip", direction: "ltr", fit: "smart", background: "black", controls: "smart", transition: "slide", gap: 8,
+  mode: "long_strip", direction: "ltr", fit: "smart", background: "black", pageColors: "original", controls: "smart", transition: "slide", gap: 8,
   coverAlone: true, shiftPairing: false,
   bookFont: "serif", bookSize: "normal", bookSpacing: "normal", bookMargins: "normal", bookTheme: "paper",
   pdfFit: "width", pdfZoom: 1,

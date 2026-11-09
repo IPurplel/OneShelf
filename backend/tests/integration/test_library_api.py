@@ -154,6 +154,9 @@ def test_batch_controls_and_history_clearing(api):
 
     removed = client.delete("/api/downloads/history").json()["removed"]
     assert removed == 3
+    # The finished batch leaves the Downloads list too: clearing used to empty a table that list never read,
+    # so every finished download stayed on screen (found 2026-11-09).
+    assert client.get("/api/downloads").json()["batches"] == []
     page = client.get(f"/api/reader/units/{units[0]}/pages/1")
     assert page.status_code == 200 and page.headers["x-oneshelf-origin"] == "local"  # content survived (INV-23)
 
@@ -237,3 +240,59 @@ def test_i107_a_disabled_source_is_reported_as_unavailable_not_as_download_only(
     pages = client.get(f"/api/reader/units/{unit}/pages")
     assert pages.status_code == 409 and pages.json()["error"]["code"] == "SOURCE_UNAVAILABLE"
     assert client.get(f"/api/reader/units/{unit}/pages/1").json()["error"]["code"] == "SOURCE_UNAVAILABLE"
+
+
+
+def test_clearing_history_keeps_a_batch_that_is_still_working(api):
+    client, tmp_path = api
+    prepare(client, tmp_path)
+    units = unit_ids(client, tmp_path, ["irr-1", "irr-2"])
+    batch = client.post("/api/downloads", json={"unit_ids": units}).json()
+    client.post(f"/api/downloads/{batch['batch_id']}/pause")
+    client.delete("/api/downloads/history")
+    assert [b["batch_id"] for b in client.get("/api/downloads").json()["batches"]] == [batch["batch_id"]]
+
+
+def _register_root(tmp_path):
+    from oneshelf.db.connection import open_database
+    from oneshelf.storage.roots import list_roots, register_root
+
+    library = tmp_path / "library"
+    library.mkdir(exist_ok=True)
+    with open_database(tmp_path / "data" / "oneshelf.db") as conn:
+        if not list_roots(conn):
+            register_root(conn, "Library", library)
+
+
+def _search_result(client, q, title):
+    import json as _json
+    raw = client.get("/api/search", params={"q": q}).text
+    final = _json.loads([l for l in raw.splitlines() if l.startswith("data: ")][-1][6:])
+    return next(r for r in final["results"] if r["title"] == title)
+
+
+def test_a_search_result_downloads_whole_in_one_tap(api):
+    # A result could only be downloaded after opening it and finding the chapters (asked for 2026-11-09):
+    # one tap now binds the listing, brings its catalogue and queues everything not already here.
+    client, tmp_path = api
+    _register_root(tmp_path)
+    result = _search_result(client, "chronicle", "The Irregular Chronicle")
+    provenance = result["provenance"][0]
+    assert provenance["downloadable"] is True
+    body = {k: provenance[k] for k in ("source_id", "listing_key", "title", "url", "language")}
+    first = client.post("/api/listings/download", json=body)
+    assert first.status_code == 200, first.text
+    queued = first.json()
+    assert queued["work_id"] and queued["track_id"] and queued["queued"] == 9 and len(queued["batch_ids"]) == 1
+    done = wait_for_state(client, queued["batch_ids"][0], "completed")
+    assert done["completed"] == 9
+    again = client.post("/api/listings/download", json=body).json()
+    assert again["queued"] == 0 and again["batch_ids"] == []      # nothing downloaded twice
+
+
+def test_one_tap_download_says_when_there_is_nowhere_to_keep_files(api):
+    client, _ = api
+    provenance = _search_result(client, "chronicle", "The Irregular Chronicle")["provenance"][0]
+    body = {k: provenance[k] for k in ("source_id", "listing_key", "title", "url", "language")}
+    response = client.post("/api/listings/download", json=body)
+    assert response.status_code == 409 and response.json()["error"]["code"] == "NO_STORAGE_LOCATION"

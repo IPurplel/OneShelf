@@ -5,7 +5,7 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, Query, Request
 
-from oneshelf.api.discovery import _cover_previewer, _result
+from oneshelf.api.discovery import _cover_previewer, _download_checker, _result
 from oneshelf.api.shelf import _entry
 from oneshelf.api.sources import error, services, source_failed
 from oneshelf.discovery.discover import FEEDS, MAX_PAGE, FeedUnavailable, UnknownSource
@@ -17,8 +17,9 @@ router = APIRouter(prefix="/api/discover")
 def _items(request: Request, items) -> list[dict]:
     s = services(request)
     can_preview = _cover_previewer(s.plugins)
+    can_download = _download_checker(s.source_service)
     on_shelf = s.discover.shelf_ids()
-    return [{**_result(item, can_preview), "on_shelf": item.work_id in on_shelf} for item in items]
+    return [{**_result(item, can_preview, can_download), "on_shelf": item.work_id in on_shelf} for item in items]
 
 
 @router.get("/sources")

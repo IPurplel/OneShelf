@@ -374,13 +374,45 @@
 }
 .shelf__row .workcard:focus-visible { position: relative; z-index: 4; outline-offset: -2px; }
 .workcard__cover { transition: transform var(--motion-fast) var(--ease); }
-a.workcard:hover .workcard__cover { transform: translateY(-4px) rotate(-0.5deg); }   /* a 2–4px lift, nothing more (§32.20) */
+/* A 2–4px lift, nothing more (§32.20); only for a real pointer, so a tap on a phone does not leave it lifted. */
+@media (hover: hover) and (pointer: fine) {
+  a.workcard:hover .workcard__cover { transform: translateY(-4px) rotate(-0.5deg); }
+}
 /* A result with no Work yet opens as a button: it must look and lift exactly like a linked card. */
 button.workcard { background: none; border: 0; padding: 0; font: inherit; text-align: start; cursor: pointer; inline-size: 100%; }
-button.workcard:hover:not(:disabled) .workcard__cover { transform: translateY(-4px) rotate(-0.5deg); }
+@media (hover: hover) and (pointer: fine) {
+  button.workcard:hover:not(:disabled) .workcard__cover { transform: translateY(-4px) rotate(-0.5deg); }
+}
+/* Pressing a cover gives under the finger, so a tap on a phone is felt before the next screen arrives. */
+a.workcard:active .workcard__cover, button.workcard:active:not(:disabled) .workcard__cover { transform: scale(0.98); }
 button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .workcard:focus-visible { outline: 2px solid var(--press-accent); outline-offset: 4px; border-radius: 4px; }
 .resultcard__problem { margin-top: var(--space-2); font-size: 14px; }
+/* A result with its one-tap download beside it. In a shelf row the wrapper takes the card's place in the
+   grid and hands the rows on, so covers and captions still line up across the shelf. */
+.resultcard { position: relative; display: grid; min-inline-size: 0; }
+.shelf__row > .resultcard { grid-row: 1 / -1; grid-template-rows: subgrid; align-self: stretch; }
+.shelf__row--wrap > .resultcard { grid-row: auto; grid-template-rows: var(--shelf-cover-height) auto; }
+.resultcard__download {
+  position: absolute; inset-block-start: var(--space-2); inset-inline-end: var(--space-2); z-index: 2;
+  display: grid; place-items: center; inline-size: 40px; block-size: 40px; padding: 0;
+  border: 1px solid var(--surface-border); border-radius: var(--radius-pill);
+  background: var(--paper); color: var(--ink-900); box-shadow: var(--shadow-card); cursor: pointer;
+  transition: transform var(--motion-fast) var(--ease), background-color var(--motion-fast) var(--ease);
+}
+@media (hover: hover) and (pointer: fine) { .resultcard__download:hover { background: var(--ivory-100); } }
+.resultcard__download:active:not(:disabled) { transform: scale(0.96); }
+.resultcard__download:focus-visible { outline: 2px solid var(--press-accent); outline-offset: 2px; }
+.resultcard__download:disabled { cursor: progress; opacity: 0.7; }
+/* The icon is keyed by its state: the check that replaces the arrow arrives instead of blinking in. */
+.resultcard__icon { display: grid; place-items: center;
+  transition: transform var(--motion-fast) var(--ease-out), opacity var(--motion-fast) var(--ease-out); }
+@starting-style { .resultcard__icon { transform: scale(0.9); opacity: 0; } }
+/* While the source lists what to download (seconds on a slow source), the arrow breathes: it is working. */
+.resultcard__download[aria-busy="true"] .resultcard__icon { animation: resultcard-busy 900ms ease-in-out infinite alternate; }
+@keyframes resultcard-busy { from { opacity: 1; } to { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .resultcard__download[aria-busy="true"] .resultcard__icon { animation: none; } }
+.resultcard__status { margin-top: var(--space-2); font-size: 14px; color: var(--positive-text); }
 .choice { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: grid; gap: var(--space-2); }
 .choice__option { inline-size: 100%; justify-content: flex-start; display: grid; gap: 2px; text-align: start; }
 .choice__title { font-size: 13px; color: var(--ink-500); }
@@ -490,7 +522,11 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 
 .workcard__progress { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
 .workcard__track { flex: 1; block-size: 4px; border-radius: 2px; background: var(--progress-track); overflow: hidden; }
-.workcard__track > span { display: block; block-size: 100%; background: var(--progress-fill); }
+.workcard__track > span { display: block; block-size: 100%; background: var(--progress-fill);
+  /* Reading progress fills from where reading starts when it first appears, so the eye reads it as progress. */
+  transform-origin: left; transition: transform var(--motion-slow) var(--ease-out); }
+@starting-style { .workcard__track > span { transform: scaleX(0); } }
+[dir="rtl"] .workcard__track > span { transform-origin: right; }
 .workcard__percent { color: var(--ink-500); font-size: 12px; font-variant-numeric: tabular-nums; }
 
 .workcard--compact .workcard__title { font-size: 14px; }
@@ -761,6 +797,10 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   align-items: center;
   padding: var(--space-4);
   border-bottom: 1px solid var(--ivory-200);
+  /* A long series lists hundreds of chapters (572 for One Piece on 3asq): rows off screen are neither laid
+     out nor painted until they come near. `auto` keeps each row's last measured height, so scrolling holds. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 77px;
 }
 .units__row:last-child { border-bottom: 0; }
 .units__link {
@@ -961,6 +1001,20 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .registry__name-search { display: grid; gap: var(--space-2); max-inline-size: 360px; color: var(--ink-700); }
 .registry__group { margin-top: var(--space-5); }
 .registry__group-title { font-size: 18px; margin: 0 0 var(--space-3); }
+/* Registry entries as tiles: name first, then what it covers and how far it is trusted, the Add button last.
+   Entries that can be added are marked, so a glance down the grid finds them. */
+.registry__cards { grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: var(--space-3); }
+.registry__card { flex-direction: column; align-items: stretch; gap: var(--space-2); }
+.registry__card .cards__name { overflow-wrap: anywhere; }
+.registry__card--addable { border-color: var(--press-accent); }
+.registry__card .registry__add { margin-block-start: auto; justify-content: center; }
+.registry__card .chip { margin-inline-start: 0; align-self: start; }
+/* Sources holds three jobs; the jump links reach each, and its heading stays clear of the top edge. */
+.sources__nav { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block: var(--space-2) var(--space-5); }
+.sources__nav .chip { text-decoration: none; }
+.sources__section { scroll-margin-block-start: var(--space-6); }
+.chip--accent { border-color: var(--press-accent); color: var(--link-text); font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) { html:has(.sources__nav) { scroll-behavior: smooth; } }
 .units__bulk { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-4); }
 .units__bulk .cards__meta { margin: 0; }
 .drawer__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }

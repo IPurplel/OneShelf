@@ -4,7 +4,12 @@ Leases are per request. Grant order: priority, then least-served source (fairnes
 - HTTP capacity is global; background priorities (read-ahead, Follow, Health) never take the last slot.
 - Browser capacity is independent; background browser leases are preempted (their task cancelled)
   when Reader, interactive or direct user work needs the browser.
-- Per-source concurrency, minimum request spacing and Retry-After windows apply to every priority.
+- Per-source concurrency, the declared request rate and Retry-After windows apply to every priority.
+
+The declared rate is a token bucket. By default its size is one, a full gap before every request (some sites
+require exactly that). An adapter whose site tolerates it may declare a small burst: that many requests start
+at once (opening a work asks for its details, catalogue and first pages together), and after that one request
+per 60/rpm seconds, so over any stretch of time a source gets at most its declared rate plus that burst.
 """
 from __future__ import annotations
 
@@ -32,16 +37,35 @@ class Priority(IntEnum):
 
 BACKGROUND = Priority.READ_AHEAD  # priorities >= this are background work
 DEFAULT_SOURCE_CONCURRENCY = 2
+MAX_BURST = 4  # the most an adapter may declare (plugins.schema.RateLimit)
 
 
 @dataclass
 class _SourceState:
     concurrency: int = DEFAULT_SOURCE_CONCURRENCY
-    min_interval: float = 0.0
+    min_interval: float = 0.0      # seconds per token; 0 means the source declared no rate
+    burst: int = 1
+    tokens: float = 1.0
+    refilled_at: float = field(default_factory=time.monotonic)
     in_use: int = 0
     served: int = 0
-    next_start: float = 0.0
     retry_until: float = 0.0
+
+    def refill(self, now: float) -> None:
+        if self.min_interval <= 0:
+            return
+        if now > self.refilled_at:
+            self.tokens = min(float(self.burst), self.tokens + (now - self.refilled_at) / self.min_interval)
+        self.refilled_at = now
+
+    def rate_ready_at(self, now: float, *, background: bool = False) -> float:
+        """When a request may start. Background work leaves the last token of a burst for the person, as it
+        leaves them the last HTTP slot, so a page they turn to does not wait out a refill behind read-ahead."""
+        if self.min_interval <= 0:
+            return now
+        self.refill(now)
+        needed = 2.0 if background and self.burst >= 2 else 1.0
+        return now if self.tokens >= needed else now + (needed - self.tokens) * self.min_interval
 
 
 @dataclass(eq=False)
@@ -105,10 +129,21 @@ class TrafficGovernor:
     def _source(self, source: str) -> _SourceState:
         return self._sources.setdefault(source, _SourceState())
 
-    def configure_source(self, source: str, *, concurrency: int, requests_per_minute: int | None) -> None:
+    def configure_source(self, source: str, *, concurrency: int, requests_per_minute: int | None,
+                         burst: int | None = None) -> None:
+        """Called before every request with the adapter's declared limits: it changes the limits, never the
+        tokens a source has already earned or spent."""
         state = self._source(source)
+        now = time.monotonic()
+        state.refill(now)
         state.concurrency = max(1, concurrency)
-        state.min_interval = 60.0 / requests_per_minute if requests_per_minute else 0.0
+        interval = 60.0 / requests_per_minute if requests_per_minute else 0.0
+        size = min(MAX_BURST, max(1, burst)) if burst is not None else 1
+        if interval != state.min_interval or size != state.burst:
+            first = state.min_interval == 0.0 and state.served == 0 and state.in_use == 0
+            state.min_interval, state.burst = interval, size
+            state.tokens = float(size) if first else min(state.tokens, float(size))
+            state.refilled_at = now
         self._dispatch()
 
     def set_retry_after(self, source: str, seconds: float) -> None:
@@ -175,7 +210,7 @@ class TrafficGovernor:
         state = self._source(waiter.source)
         if state.in_use >= state.concurrency:
             return None
-        return max(state.next_start, state.retry_until)
+        return max(state.rate_ready_at(now, background=waiter.priority >= BACKGROUND), state.retry_until)
 
     def _dispatch(self) -> None:
         now = time.monotonic()
@@ -205,7 +240,9 @@ class TrafficGovernor:
         state = self._source(waiter.source)
         state.in_use += 1
         state.served += 1
-        state.next_start = now + state.min_interval
+        if state.min_interval > 0:
+            state.refill(now)
+            state.tokens -= 1.0
         if waiter.kind == "http":
             self._http_in_use += 1
         else:
