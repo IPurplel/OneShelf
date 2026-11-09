@@ -158,6 +158,12 @@
 img.reader__page { background: #fff; }
 /* Inverted: light text on black, for reading in the dark. Hue is turned back so colours keep their hue. */
 .reader__stage[data-page-colors="inverted"] img.reader__page { filter: invert(1) hue-rotate(180deg); }
+/* Night light (the reader's choice, never the clock's): warmer and dimmer, with less blue in the light. */
+.reader__stage[data-night="on"] img.reader__page { filter: sepia(0.35) saturate(0.85) brightness(0.82); }
+.reader__stage[data-night="on"][data-page-colors="inverted"] img.reader__page {
+  filter: invert(1) hue-rotate(180deg) sepia(0.35) saturate(0.85) brightness(0.9); }
+.reader__endCountdown { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: 0;
+                        color: var(--reader-chrome-muted, #c9c6bd); font-variant-numeric: tabular-nums; }
 /* Smart fit is one rule for every page, so it cannot oscillate from page to page (§26.9). */
 .reader__stage[data-fit="smart"] .reader__page { inline-size: min(100%, 900px); block-size: auto; }
 .reader__stage[data-mode="single"][data-fit="smart"] .reader__page,

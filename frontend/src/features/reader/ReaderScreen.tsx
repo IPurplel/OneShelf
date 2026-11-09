@@ -31,6 +31,8 @@ const ESTIMATED_PAGE = 1200;
 
 const IDLE_MS = 3000;
 const ZOOM_STEP = 1.25;
+/** How long the end of a chapter waits before going on by itself, when the reader turned that on. */
+const AUTO_NEXT_SECONDS = 5;
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 4;
 const SWIPE_MIN = 60;
@@ -678,6 +680,7 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
       {/* The pages scroll, so the keyboard must be able to reach them (WCAG 2.1.1). */}
       <div className="reader__stage" data-testid="reader-stage" tabIndex={0} role="region" aria-label={t("reader.pages")}
            data-mode={settings.mode} data-page-colors={settings.pageColors}
+           data-night={settings.nightLight ? "on" : "off"}
            data-direction={settings.direction} data-fit={settings.fit} data-zoom={zoom}
            ref={stage} onPointerDown={(event) => { interacted.current = true; pointerKind.current = event.pointerType || "mouse"; }}
            onClick={onStageClick}
@@ -778,7 +781,8 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
           <div className="reader__spacer" data-spacer="after" data-pages={after} aria-hidden="true"
                style={{ blockSize: `${after * pageHeight}px` }} />
         )}
-        {atEnd && <EndOfUnit unit={unit} next={next} workId={work} trackId={track} onLeave={leave} />}
+        {atEnd && <EndOfUnit unit={unit} next={next} workId={work} trackId={track} onLeave={leave}
+                             autoNext={settings.autoNext} />}
       </div>
 
       <div role="toolbar" aria-label={t("reader.progressBar")} className="reader__bar reader__bar--bottom"
@@ -924,11 +928,25 @@ function ChapterLink({ unit, kind, workId, trackId, onGo }: {
  * The end of a unit (§26.13): what comes next, said by name and offered first, and the way back. Reaching
  * it counts as having read the unit, and the next unit's first pages are warmed while this card is read.
  */
-function EndOfUnit({ unit, next, workId, trackId, onLeave }: { unit: Unit | null; next: Unit | null; workId: string; trackId?: string | null; onLeave: () => void }) {
+export function EndOfUnit({ unit, next, workId, trackId, onLeave, autoNext = false }: {
+  unit: Unit | null; next: Unit | null; workId: string; trackId?: string | null; onLeave: () => void; autoNext?: boolean;
+}) {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const nextLink = useRef<HTMLAnchorElement>(null);
   // The card arrives as the result of reading on, so the next step is where focus lands.
   useEffect(() => { nextLink.current?.focus({ preventScroll: true }); }, []);
+  // Carrying on by itself is the reader's choice (Settings): a countdown they can stop, never a surprise.
+  const [countdown, setCountdown] = useState<number | null>(autoNext && next ? AUTO_NEXT_SECONDS : null);
+  useEffect(() => {
+    if (countdown === null || next === null) return;
+    if (countdown === 0) {
+      navigate(readerLink(next.id, workId, trackId));
+      return;
+    }
+    const tick = setTimeout(() => setCountdown(countdown - 1), 1000);
+    return () => clearTimeout(tick);
+  }, [countdown, next, navigate, workId, trackId]);
   return (
     <section className="reader__end" role="region" aria-label={t("reader.end", { unit: unit?.title ?? "" })}>
       <p className="reader__endNote">{t("reader.endFinished")}</p>
@@ -941,6 +959,14 @@ function EndOfUnit({ unit, next, workId, trackId, onLeave }: { unit: Unit | null
         </Link>
       ) : (
         <p className="reader__endNote">{t("reader.endLatest")}</p>
+      )}
+      {next && countdown !== null && countdown > 0 && (
+        <p className="reader__endCountdown" role="status">
+          {t("reader.autoNextIn", { seconds: countdown })}
+          <button type="button" className="button button--ghost" onClick={() => setCountdown(null)}>
+            {t("reader.autoNextStay")}
+          </button>
+        </p>
       )}
       <Link className="button button--ghost reader__endBack" to={workLink(workId, trackId)} onClick={onLeave}>
         {t("reader.backToWork")}
