@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { languageName } from "@/i18n/language";
 import { useI18n } from "@/i18n/i18n";
 import { CoverPlaceholder } from "@/components/CoverPlaceholder";
+import { useCoverSlot } from "@/components/coverSlots";
 import { Icon } from "@/components/Icon";
 import { typeLabel } from "@/lib/contentType";
 import { bytes } from "@/lib/format";
@@ -67,6 +68,8 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
     return () => observer.disconnect();
   }, [work.cover_url, nearViewport]);
   const showCover = work.cover_url && failed !== work.cover_url;
+  // At most a few covers load at once, so they never take every connection the person's taps need.
+  const slot = useCoverSlot(Boolean(showCover && nearViewport));
   const languages = Object.entries(work.availability ?? {});
   const sources = work.source_count ?? languages.reduce((total, [, count]) => total + count, 0);
   const shownLanguages = languages.slice(0, SHOWN_LANGUAGES).map(([code]) => languageName(code, language));
@@ -80,11 +83,14 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
       <span className="workcard__pages" aria-hidden="true" />
       <span className="workcard__face">
         <CoverPlaceholder title={work.title} className="workcard__blank" />
-        {showCover && nearViewport &&
+        {showCover && nearViewport && slot.granted &&
           <img src={work.cover_url!} alt="" loading="lazy" decoding="async" fetchPriority="high"
-               onError={() => setFailed(work.cover_url ?? null)}
+               onError={() => { slot.release(); setFailed(work.cover_url ?? null); }}
                // A lazy-loading placeholder (a 1×1 pixel) is not a cover: show the designed placeholder.
-               onLoad={(event) => { if (event.currentTarget.naturalWidth <= 1) setFailed(work.cover_url ?? null); }} />}
+               onLoad={(event) => {
+                 slot.release();
+                 if (event.currentTarget.naturalWidth <= 1) setFailed(work.cover_url ?? null);
+               }} />}
       </span>
     </span>
   );

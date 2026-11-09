@@ -248,7 +248,8 @@ def _source_problem(exc: Exception) -> str:
     return "failed"
 
 
-async def _open_details(s, package, work_id: str, body: OpenBody) -> str:
+async def _open_details(s, package, work_id: str, body: OpenBody, *,
+                        priority: Priority = Priority.INTERACTIVE) -> str:
     """What the source says about the work, kept only where the library knows nothing yet. The title, aliases
     and type are identity and matching evidence, so they are never rewritten here."""
     if "work" not in package.manifest.capabilities:
@@ -256,7 +257,7 @@ async def _open_details(s, package, work_id: str, body: OpenBody) -> str:
     try:
         details = await s.source_service.run(body.source_id, "work",
                                              {"listing_key": body.listing_key, "language": body.language},
-                                             priority=Priority.INTERACTIVE)
+                                             priority=priority)
     except (AuthRequired, RateLimited, CapabilityError) as exc:
         return _source_problem(exc)
     except Exception:           # transport failures and the like: the Work opens anyway, and says so
@@ -299,8 +300,9 @@ async def _open_catalog(s, package, track_id: str, body: OpenBody) -> tuple[str,
     return "refreshed", None
 
 
-async def _details_then_announce(s, package, work_id: str, body: OpenBody, bus) -> None:
-    if await _open_details(s, package, work_id, body) == "fetched":
+async def _details_then_announce(s, package, work_id: str, body: OpenBody, bus, *,
+                                 priority: Priority = Priority.INTERACTIVE) -> None:
+    if await _open_details(s, package, work_id, body, priority=priority) == "fetched":
         bus.publish("work.changed", {"work_id": work_id})
 
 
@@ -362,7 +364,10 @@ async def download_listing(request: Request, body: OpenBody):
         return error(409, "NO_STORAGE_LOCATION", "Choose where OneShelf keeps your library before downloading.")
     binding = _bind(s, BindBody(**body.model_dump(exclude={"defer"}), decided_by="user"))
     if "work" in package.manifest.capabilities:
-        task = asyncio.create_task(_details_then_announce(s, package, binding.work_id, body, request.app.state.bus))
+        # In the background: the catalogue is what this request waits for, and on a slow source the details
+        # asked first would hold it back a whole request gap (measured 12 s in the browser, 2026-11-09).
+        task = asyncio.create_task(_details_then_announce(s, package, binding.work_id, body, request.app.state.bus,
+                                                          priority=Priority.READ_AHEAD))
         _DEFERRED_DETAILS.add(task)
         task.add_done_callback(_DEFERRED_DETAILS.discard)
     catalog, catalog_reason = await _open_catalog(s, package, binding.track_id, body)

@@ -5,10 +5,12 @@ import { Icon } from "@/components/Icon";
 import { useI18n } from "@/i18n/i18n";
 import { TRANSITION_SPRING } from "@/lib/motion";
 import { DESTINATIONS } from "./navigation";
+import { useActiveDownloads } from "./useActiveDownloads";
 
 /** The fixed forest-green sidebar with the logo at the top (Master §32.1). */
 export function Sidebar() {
   const { t } = useI18n();
+  const downloading = useActiveDownloads();
   return (
     <div className="sidebar">
       <div className="sidebar__brand">
@@ -37,6 +39,13 @@ export function Sidebar() {
                     )}
                     <Icon name={destination.icon} />
                     <span>{t(destination.labelKey)}</span>
+                    {destination.path === "/downloads" && downloading > 0 && (
+                      // Keyed by the count, so each change replays its small arrival (sidebar__badge).
+                      <span className="sidebar__badge" key={downloading}>
+                        <span aria-hidden="true">{downloading}</span>
+                        <span className="visually-hidden">{t("nav.downloadsActive", { count: downloading })}</span>
+                      </span>
+                    )}
                   </>
                 )}
               </NavLink>

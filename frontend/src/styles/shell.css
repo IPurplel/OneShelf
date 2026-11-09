@@ -95,6 +95,22 @@
 }
 .sidebar__link:hover { background: rgba(255, 255, 255, 0.065); color: var(--ivory-50); }
 .sidebar__link.is-active { color: var(--ivory-50); }
+/* How many downloads are on their way: arrives small and settles, each time the count changes (feedback
+   that a download started anywhere landed here). Gone when nothing is waiting. */
+.sidebar__badge {
+  margin-inline-start: auto;
+  min-inline-size: 22px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: #d9bf86;
+  color: var(--forest-900);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  transition: transform var(--motion-slow) var(--ease-out), opacity var(--motion-slow) var(--ease-out);
+}
+@starting-style { .sidebar__badge { transform: scale(0.9); opacity: 0; } }
 .sidebar__indicator {
   position: absolute;
   inset: 0;

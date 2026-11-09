@@ -99,14 +99,18 @@ export function ResultCard({ result, size }: { result: ResultWork; size?: "compa
     <div className="resultcard">
       <WorkCard work={{ ...result, work_id: null, source_count: new Set(listings.map((p) => p.source_id)).size }}
                 size={size} onOpen={onOpen} busy={busy} problem={problem}
-                status={queued === null ? null : queued > 0 ? tn("search.download.queued", queued)
+                status={downloading ? t("search.download.preparing")
+                  : queued === null ? null : queued > 0 ? tn("search.download.queued", queued)
                   : t("search.download.none", { title: result.title })} />
       {keepable.length > 0 && (
         // Beside the card, never inside it: the card is itself a button that opens the result.
         <button type="button" className="resultcard__download" onClick={onDownload} disabled={downloading}
                 aria-busy={downloading || undefined} aria-label={t("search.download.aria", { title: result.title })}
                 title={t("search.download.action")}>
-          <Icon name="downloads" size={18} />
+          {/* The icon turns to a check once the download is queued: the tap was heard, and it worked. */}
+          <span className="resultcard__icon" key={queued !== null && queued > 0 ? "done" : "idle"}>
+            <Icon name={queued !== null && queued > 0 ? "check" : "downloads"} size={18} />
+          </span>
         </button>
       )}
       {choosing !== null && createPortal(

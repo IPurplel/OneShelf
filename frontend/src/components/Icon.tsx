@@ -3,7 +3,7 @@ import {
   Home, Search, BookOpen, Bookmark, Download, Globe, Settings,
   Bell, AlertTriangle, MoreHorizontal, X, LayoutGrid, List,
   BarChart3, Tag, Star, History, FolderUp, Trash2, HardDrive,
-  ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Minimize2, SlidersHorizontal, ListOrdered, Pin, Compass,
+  ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Minimize2, SlidersHorizontal, ListOrdered, Pin, Compass, Check,
 } from "lucide-react";
 
 const ICONS: Record<string, ComponentType<{ size?: number; strokeWidth?: number }>> = {
@@ -36,6 +36,7 @@ const ICONS: Record<string, ComponentType<{ size?: number; strokeWidth?: number 
   contents: ListOrdered,
   pin: Pin,
   discover: Compass,
+  check: Check,
 };
 
 export function Icon({ name, size = 22 }: { name: string; size?: number }) {

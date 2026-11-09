@@ -263,9 +263,13 @@ function SearchResults({ results, layout }: { results: SearchUpdate["results"]; 
       {results.map((result, i) => (
         <m.div
           key={result.work_id ?? `${result.title}:${result.provenance[0]?.listing_key ?? ""}`}
+          // Each source that answers re-orders the results by how plainly they match; `layout` lets a card
+          // glide to its new place instead of jumping there, so the eye can follow what moved.
+          layout={reduced ? false : "position"}
           initial={reduced ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...TRANSITION_EASE, delay: Math.min(i * 0.04, 0.3) }}
+          transition={{ ...TRANSITION_EASE, delay: Math.min(i * 0.03, 0.15),
+                        layout: { duration: 0.24, ease: [0.77, 0, 0.175, 1] } }}
         >
           <ResultCard result={result} size={layout === "list" ? "detailed" : "standard"} />
         </m.div>
