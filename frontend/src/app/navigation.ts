@@ -12,6 +12,7 @@ export const DESTINATIONS: Destination[] = [
   { path: "/downloads", labelKey: "nav.downloads", icon: "downloads", mobile: false },
   { path: "/sources", labelKey: "nav.sources", icon: "sources", mobile: false },
   { path: "/settings", labelKey: "nav.settings", icon: "settings", mobile: false },
+  { path: "/quotes", labelKey: "nav.quotes", icon: "quote", mobile: false },
   { path: "/history", labelKey: "nav.history", icon: "history", mobile: false },
   { path: "/stats", labelKey: "nav.stats", icon: "stats", mobile: false },
 ];

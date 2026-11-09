@@ -1350,3 +1350,18 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .goals__edit { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2); }
 .goals__edit label { display: grid; gap: var(--space-1); }
 .goals__edit .field { inline-size: 120px; }
+
+
+/* Quotes: each sentence large, in the serif of a book page, marked at its side in the colour it was highlighted. */
+.quotes__books { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block: var(--space-4); }
+.quotes__list { display: grid; gap: var(--space-4); max-inline-size: 760px; }
+.quote { --quote-rule: #d9bf86; padding: var(--space-5); padding-inline-start: calc(var(--space-5) + 4px);
+         border: 1px solid var(--surface-border); border-inline-start: 4px solid var(--quote-rule);
+         border-radius: var(--radius-md); background: var(--paper); box-shadow: var(--shadow-card); }
+.quote--green { --quote-rule: #8fb878; }
+.quote--blue { --quote-rule: #7fa7c9; }
+.quote--pink { --quote-rule: #d99aa8; }
+.quote__text { margin: 0; font-family: var(--font-display); font-size: 20px; line-height: 1.75; overflow-wrap: anywhere; }
+.quote__source { margin: var(--space-3) 0 0; color: var(--ink-500); font-size: 14px; }
+.quote__source a { color: var(--link-text); }
+.quote__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block-start: var(--space-3); }

@@ -635,6 +635,23 @@ async def add_highlight(request: Request, unit_id: str, body: HighlightBody):
         return error(404, "UNIT_NOT_FOUND", str(exc))
 
 
+@router.get("/highlights")
+async def all_highlights(request: Request):
+    """Every highlight in every book, newest first, with the book it came from: the Quotes page."""
+    from oneshelf.search.presentation import work_covers
+
+    conn = services(request).conn
+    rows = conn.execute(
+        "SELECT h.id, h.text, h.colour, h.created_at, h.reading_unit_id, coalesce(u.display_title, u.raw_title) AS unit_title,"
+        " w.id AS work_id, w.display_title AS work_title FROM reading_highlights h"
+        " JOIN reading_units u ON u.id = h.reading_unit_id JOIN source_tracks t ON t.id = u.track_id"
+        " JOIN works w ON w.id = t.work_id ORDER BY h.created_at DESC, h.rowid DESC").fetchall()
+    covers = work_covers(conn, list(dict.fromkeys(r["work_id"] for r in rows)))
+    return {"highlights": [{"id": r["id"], "text": r["text"], "colour": r["colour"], "created_at": r["created_at"],
+                            "unit_id": r["reading_unit_id"], "unit_title": r["unit_title"], "work_id": r["work_id"],
+                            "work_title": r["work_title"], "cover_url": covers.get(r["work_id"])} for r in rows]}
+
+
 @router.delete("/reader/bookmarks/{mark_id}")
 async def remove_bookmark(request: Request, mark_id: str):
     return {"removed": services(request).reader.remove_mark("bookmark", mark_id)}

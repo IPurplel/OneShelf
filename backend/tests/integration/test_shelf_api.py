@@ -460,3 +460,19 @@ def test_reading_counts_toward_the_streak_and_a_yearly_goal_can_be_set(api):
     assert client.put("/api/goals", json={"books_per_year": 20}).json()["books"]["goal"] == 20
     assert client.put("/api/goals", json={"books_per_year": 0}).status_code == 422
     assert client.put("/api/goals", json={"books_per_year": None}).json()["books"]["goal"] is None
+
+
+def test_every_highlight_gathers_on_one_quotes_page(api):
+    # Quotes (asked for 2026-11-10): what you highlighted in any book, newest first, with where it came from.
+    client, _, _ = api
+    work = bind(client, "irregular", "The Irregular Chronicle")
+    client.post(f"/api/tracks/{work['track_id']}/catalog/refresh")
+    units = client.get(f"/api/works/{work['work_id']}", params={"track_id": work["track_id"]}).json()["units"]
+    first = client.post(f"/api/reader/units/{units[0]['id']}/highlights",
+                        json={"locator": {"chapter": 0}, "text": "The quiet begins.", "colour": "green"}).json()
+    client.post(f"/api/reader/units/{units[1]['id']}/highlights", json={"locator": {"chapter": 1}, "text": "Later words."})
+    quotes = client.get("/api/highlights").json()["highlights"]
+    assert [q["text"] for q in quotes] == ["Later words.", "The quiet begins."]
+    assert quotes[1]["id"] == first["id"] and quotes[1]["colour"] == "green"
+    assert quotes[1]["work_id"] == work["work_id"] and quotes[1]["work_title"] == "The Irregular Chronicle"
+    assert quotes[1]["unit_id"] == units[0]["id"] and "cover_url" in quotes[1]

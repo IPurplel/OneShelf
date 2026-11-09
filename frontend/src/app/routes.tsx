@@ -17,6 +17,7 @@ const SourcesScreen = lazy(() => import("@/features/sources/SourcesScreen").then
 const ReadRoute = lazy(() => loadReader().then(m => ({ default: m.ReadRoute })));
 const StatsScreen = lazy(() => import("@/features/stats/StatsScreen").then(m => ({ default: m.StatsScreen })));
 const CollectionScreen = lazy(() => import("@/features/shelf/CollectionScreen").then(m => ({ default: m.CollectionScreen })));
+const QuotesScreen = lazy(() => import("@/features/quotes/QuotesScreen").then(m => ({ default: m.QuotesScreen })));
 const HistoryScreen = lazy(() => import("@/features/history/HistoryScreen").then(m => ({ default: m.HistoryScreen })));
 
 export type AppRoute = { path: string; element: ReactElement };
@@ -33,6 +34,7 @@ export const routes: AppRoute[] = [
   { path: "/settings", element: <SettingsScreen /> },
   { path: "/settings/:section", element: <SettingsScreen /> },
   { path: "/first-run", element: <FirstRunScreen /> },
+  { path: "/quotes", element: <QuotesScreen /> },
   { path: "/history", element: <HistoryScreen /> },
   { path: "/stats", element: <StatsScreen /> },
   { path: "/works/:workId", element: <WorkScreen /> },
