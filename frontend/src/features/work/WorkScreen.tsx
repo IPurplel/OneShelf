@@ -88,6 +88,9 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const [catalogAttempt, setCatalogAttempt] = useState<CatalogAttempt | null>(null);
   const selectedTrackId = data?.selected_track_id ?? null;
   const bulk = useBulkDownload(id, selectedTrackId, data?.units ?? []);
+  // Shown at once and kept if the library agrees; a refusal puts it back (the reload reads the truth).
+  const [autoDownload, setAutoDownload] = useState<boolean | null>(null);
+  useEffect(() => { setAutoDownload(null); }, [id, data?.follow.auto_download]);
   const selectedAttempt = catalogAttempt?.trackId === selectedTrackId ? catalogAttempt
     : openedAttempt?.trackId === selectedTrackId ? openedAttempt : null;
 
@@ -147,6 +150,13 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const canDownload = current !== null && !archivedTrack(current) && !listingOnly(current)
     && current.can_download !== false;
   const selectedFollowing = current !== null && follow.following && follow.track_id === current.id;
+
+  const autoDownloadShown = autoDownload ?? Boolean(follow.auto_download);
+  const setFollowDownload = (enabled: boolean) => {
+    setAutoDownload(enabled);
+    void toggle(api.post(`/api/follows/${id}/auto-download`, { enabled, language: current?.language })
+      .catch((error: unknown) => { setAutoDownload(null); throw error; }));
+  };
 
   const toggle = async (call: Promise<unknown>) => {
     setProblem(null);
@@ -314,6 +324,16 @@ export function WorkScreen({ workId }: { workId?: string }) {
               <Icon name="more" size={20} />
             </button>
           </div>
+          {selectedFollowing && canDownload && current?.kind !== "local" && (
+            <label className="work__autoDownload">
+              <input type="checkbox" checked={autoDownloadShown}
+                     onChange={(event) => setFollowDownload(event.target.checked)} />
+              <span>
+                <span className="work__autoDownloadTitle">{t("work.follow.autoDownload")}</span>
+                <span className="cards__meta">{t("work.follow.autoDownloadHelp")}</span>
+              </span>
+            </label>
+          )}
           {moreOpen && (
             <ModalSurface className="confirm work__more" title={t("nav.more")} onClose={() => setMoreOpen(false)}>
               <h2 className="display">{work.title}</h2>

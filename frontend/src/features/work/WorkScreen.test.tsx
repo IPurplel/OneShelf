@@ -880,3 +880,29 @@ describe("Details that arrive after opening", () => {
                   { timeout: 2000 });
   });
 });
+
+describe("Following that downloads", () => {
+  const followed = { ...DETAILS, selected_track_id: "t-ar",
+    follow: { following: true, preferred_source_id: "mangadex", track_id: "t-ar", language: "ar",
+              last_successful_at: null, auto_download: false } };
+
+  it("offers to download new chapters by themselves while the work is followed", async () => {
+    const calls = mockApi([get("/api/works/w1", followed),
+      post("/api/follows/w1/auto-download", { work_id: "w1", auto_download: true })]);
+    const user = userEvent.setup();
+    renderWithProviders(<WorkScreen workId="w1" />);
+    const toggle = await screen.findByRole("checkbox", { name: /download new chapters automatically/i });
+    expect(toggle).not.toBeChecked();
+    await user.click(toggle);
+    expect(calls.find((call) => call.url === "/api/follows/w1/auto-download")?.body)
+      .toEqual({ enabled: true, language: "ar" });
+    expect(toggle).toBeChecked();
+  });
+
+  it("does not offer it for a work that is not followed", async () => {
+    mockApi([get("/api/works/w1", { ...DETAILS, selected_track_id: "t-ar" })]);
+    renderWithProviders(<WorkScreen workId="w1" />);
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.queryByRole("checkbox", { name: /download new chapters automatically/i })).toBeNull();
+  });
+});

@@ -283,7 +283,7 @@ def create_app(config: AppConfig) -> FastAPI:
                                                         notifications=notifications)
         shelf = ShelfService(conn, events=app.state.bus)
         follows = FollowService(conn, catalog, events=app.state.bus)
-        follow_runner = FollowRunner(conn, follows, source_service, plugins, catalog, notifications)
+        follow_runner = FollowRunner(conn, follows, source_service, plugins, catalog, notifications, downloads=engine)
         engine.notifications = notifications
         app.state.services = Services(
             conn, plugins, sessions, governor, source_service, logins, registry, cache,

@@ -13,13 +13,14 @@ logger = logging.getLogger(__name__)
 
 class FollowRunner:
     def __init__(self, conn, follows, sources, plugins, catalog: CatalogTrust, notifications=None, *,
-                 interval_seconds: float = 300) -> None:
+                 interval_seconds: float = 300, downloads=None) -> None:
         self.conn = conn
         self.follows = follows
         self.sources = sources
         self.plugins = plugins
         self.catalog = catalog
         self.notifications = notifications
+        self.downloads = downloads
         self.interval_seconds = interval_seconds
         self._task: asyncio.Task | None = None
 
@@ -59,11 +60,26 @@ class FollowRunner:
             title = self.conn.execute("SELECT display_title FROM works WHERE id = ?", (work_id,)).fetchone()[0]
             self.notifications.catalog_suspicious(row["preferred_source_id"], title)
         check = self.follows.check(work_id, language=row["language"])
-        if check.new_units and self.notifications:
+        if check.new_units:
             title = self.conn.execute("SELECT display_title FROM works WHERE id = ?", (work_id,)).fetchone()[0]
-            self.notifications.new_releases(work_id, title, check.new_units)
+            if self.notifications:
+                self.notifications.new_releases(work_id, title, check.new_units)
+            if row["auto_download"]:
+                self._download_new(work_id, title, check.new_units)
         return {"work_id": work_id, "state": check.state, "new_units": check.new_units,
                 "catalog_state": outcome.state}
+
+    def _download_new(self, work_id: str, title: str, new_units: list[dict]) -> None:
+        """Queue exactly the releases this check reported, in catalogue order, labelled with the Work (ADR 0005).
+        A download that cannot be queued (no storage location yet, a source that is read-only) leaves the
+        release reported as usual; it is recorded, never raised into the check."""
+        unit_ids = [unit["reading_unit_id"] for unit in new_units if unit.get("reading_unit_id")]
+        if not unit_ids or self.downloads is None:
+            return
+        try:
+            self.downloads.enqueue(unit_ids, label=title)
+        except Exception as exc:
+            logger.warning("follow auto-download for %s could not be queued: %s", work_id, type(exc).__name__)
 
     def _failed(self, work_id: str, category: str, source_id: str, *, language: str | None = None) -> None:
         """A check that did not work is worth keeping: Follow's own record, and a local diagnostic (§20, §43).

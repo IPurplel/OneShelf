@@ -136,6 +136,8 @@ export type WorkDetails = {
     track_id: string | null;
     language: string | null;
     last_successful_at: string | null;
+    /** New chapters download by themselves (ADR 0005). */
+    auto_download?: boolean;
   };
   tracks: Track[];
   selected_track_id: string | null;

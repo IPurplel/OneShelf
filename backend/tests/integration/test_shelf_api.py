@@ -410,3 +410,16 @@ def test_batch_delete_files_frees_space_and_keeps_shelf_and_progress(api):
     assert done == {"action": "delete_files", "affected": 2, "deleted_files": 4, "freed_bytes": 400}
     assert client.get("/api/shelf?view=downloaded").json()["entries"] == []
     assert len(client.get("/api/shelf").json()["entries"]) == 2
+
+
+def test_a_follow_can_be_set_to_download_its_new_chapters(api):
+    client, _, _ = api
+    work = bind(client, "irregular", "First")
+    client.post(f"/api/tracks/{work['track_id']}/catalog/refresh")
+    client.post(f"/api/follows/{work['work_id']}", json={"language": "en", "source_id": TS, "track_id": work["track_id"]})
+    turned_on = client.post(f"/api/follows/{work['work_id']}/auto-download", json={"enabled": True, "language": "en"})
+    assert turned_on.status_code == 200 and turned_on.json()["auto_download"] is True
+    listed = client.get("/api/follows").json()["follows"]
+    assert [f["auto_download"] for f in listed if f["work_id"] == work["work_id"]] == [True]
+    missing = client.post("/api/follows/nope/auto-download", json={"enabled": True})
+    assert missing.status_code == 404 and missing.json()["error"]["code"] == "NOT_FOLLOWED"
