@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 
 import { api } from "@/api/client";
 import { apiErrorText } from "@/i18n/apiErrors";
@@ -142,7 +142,7 @@ export function SourcesScreen() {
 
       <ul className="cards">
         {filtered.map((source, i) => (
-          <motion.li key={source.id} className="cards__row sources__row"
+          <m.li key={source.id} className="cards__row sources__row"
             initial={reduced ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...TRANSITION_EASE, delay: Math.min(i * 0.04, 0.3) }}
@@ -171,7 +171,7 @@ export function SourcesScreen() {
             {source.session_state === "connected" && <span className="cards__ok">{t("sources.connected")}</span>}
             <button type="button" className="chip" aria-label={t("sources.moreFor", { name: source.name })}
               onClick={() => setOpen(source)}>{t("sources.more")}</button>
-          </motion.li>
+          </m.li>
         ))}
       </ul>
       </section>

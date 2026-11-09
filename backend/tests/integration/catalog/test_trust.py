@@ -165,10 +165,20 @@ def test_trust_this_catalog_accepts_only_complete_snapshots(db, trust, track):
 def test_previous_trusted_catalog_is_retained_and_history_is_bounded(db, trust, track):
     for count in (5, 6, 7, 8):
         trust.refresh(track, complete(units(count)), plugin_version="1.0.0")
-    trusted = db.execute("SELECT trust, unit_count FROM catalog_snapshots WHERE track_id = ? AND trust IN"
-                         " ('trusted_current','trusted_previous') ORDER BY fetched_at", (track,)).fetchall()
-    assert [(r["trust"], r["unit_count"]) for r in trusted] == [("trusted_previous", 7), ("trusted_current", 8)]
+    assert trust.trusted_catalog(track).unit_count == 8 and trust.previous_catalog(track).unit_count == 7
     assert db.execute("SELECT count(*) FROM catalog_snapshots WHERE track_id = ?", (track,)).fetchone()[0] <= 6
+
+
+def test_snapshots_taken_in_one_clock_tick_keep_their_order(db, trust, track, monkeypatch):
+    # Windows' clock gave 17 distinct times in 20,000 reads (measured 2026-11-09): refreshes that share a
+    # timestamp must still be told apart by the order they were taken in, or pruning may keep an older one.
+    from oneshelf.catalog import trust as trust_module
+    monkeypatch.setattr(trust_module, "utcnow_iso", lambda: "2026-11-09T19:25:14.830915+00:00")
+    for count in (3, 4, 5, 6, 7, 8, 9):
+        trust.refresh(track, complete(units(count)), plugin_version="1.0.0")
+    assert trust.trusted_catalog(track).unit_count == 9 and trust.previous_catalog(track).unit_count == 8
+    kept = {r[0] for r in db.execute("SELECT unit_count FROM catalog_snapshots WHERE track_id = ?", (track,))}
+    assert {8, 9} <= kept and 3 not in kept
 
 
 def test_local_content_survives_a_catalog_collapse(db, trust, track):

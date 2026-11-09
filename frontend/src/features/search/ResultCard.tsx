@@ -39,11 +39,15 @@ export function ResultCard({ result, size }: { result: ResultWork; size?: "compa
         source_id: listing.source_id, listing_key: listing.listing_key, title: listing.title, url: listing.url,
         language: listing.language, content_type: result.content_type, cover_url: listing.cover_url ?? null,
         ...(result.work_id ? { work_id: result.work_id } : {}),
+        // Land on the Work as soon as the listing is bound: it asks for its own chapters, and its details
+        // arrive with `work.changed`. Waiting here kept the card busy for the source's every request.
+        defer: true,
       });
-      navigate(`/works/${opened.work_id}?track=${encodeURIComponent(opened.track_id)}`, {
-        state: { catalogAttempt: { trackId: opened.track_id, status: opened.catalog,
-                                   reason: opened.catalog_reason ?? null } },
-      });
+      navigate(`/works/${opened.work_id}?track=${encodeURIComponent(opened.track_id)}`,
+        opened.catalog === "deferred" ? undefined : {
+          state: { catalogAttempt: { trackId: opened.track_id, status: opened.catalog,
+                                     reason: opened.catalog_reason ?? null } },
+        });
     } catch (error) {
       setProblem(t("search.open.failed", {
         title: result.title, message: errorText(error),

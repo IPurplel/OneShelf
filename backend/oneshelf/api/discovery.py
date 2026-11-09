@@ -1,6 +1,7 @@
 """Discovery API: search (streamed), direct URL entry, Home sections, catalog trust and mappings."""
 from __future__ import annotations
 
+import asyncio
 import json
 from contextlib import aclosing
 from dataclasses import asdict
@@ -209,6 +210,13 @@ class OpenBody(BaseModel):
     content_type: str | None = Field(default=None, max_length=32)
     cover_url: str | None = Field(default=None, max_length=4096)
     work_id: str | None = Field(default=None, min_length=1, max_length=64)
+    # Bind and return at once: the details are fetched in the background and announced with `work.changed`,
+    # and the catalogue is left to the Work page, which asks for it when a track has no units.
+    defer: bool = False
+
+
+# Details fetched after a deferred open, held here so a running task is never garbage-collected.
+_DEFERRED_DETAILS: set[asyncio.Task] = set()
 
 
 def _source_problem(exc: Exception) -> str:
@@ -270,11 +278,17 @@ async def _open_catalog(s, package, track_id: str, body: OpenBody) -> tuple[str,
     return "refreshed", None
 
 
+async def _details_then_announce(s, package, work_id: str, body: OpenBody, bus) -> None:
+    if await _open_details(s, package, work_id, body) == "fetched":
+        bus.publish("work.changed", {"work_id": work_id})
+
+
 @router.post("/listings/open")
 async def open_listing(request: Request, body: OpenBody):
     """Open one concrete search result: the person chose this listing, so it is bound — it alone, never the
     other listings it was shown with — and given its details and catalogue so the Work can be read at once.
-    A source that cannot answer right now still leaves an openable Work; the response says what happened."""
+    A source that cannot answer right now still leaves an openable Work; the response says what happened.
+    With `defer`, the person reaches the Work without waiting for the source (see OpenBody.defer)."""
     s = services(request)
     if body.work_id is not None and s.conn.execute(
             "SELECT 1 FROM works WHERE id = ?", (body.work_id,)).fetchone() is None:
@@ -283,9 +297,21 @@ async def open_listing(request: Request, body: OpenBody):
         package = s.plugins.load_active(body.source_id)
     except PluginUnavailable as exc:
         return error(409, "SOURCE_UNAVAILABLE", str(exc))
-    binding = _bind(s, BindBody(**body.model_dump(), decided_by="user"))
-    details = await _open_details(s, package, binding.work_id, body)
-    catalog, catalog_reason = await _open_catalog(s, package, binding.track_id, body)
+    binding = _bind(s, BindBody(**body.model_dump(exclude={"defer"}), decided_by="user"))
+    if body.defer:
+        details = "unsupported"
+        if "work" in package.manifest.capabilities:
+            details = "pending"
+            task = asyncio.create_task(_details_then_announce(s, package, binding.work_id, body,
+                                                              request.app.state.bus))
+            _DEFERRED_DETAILS.add(task)
+            task.add_done_callback(_DEFERRED_DETAILS.discard)
+        return {"listing_id": binding.listing_id, "work_id": binding.work_id, "track_id": binding.track_id,
+                "details": details, "catalog": "deferred", "catalog_reason": None}
+    # Asked together: the catalogue no longer waits for the details (and for the source's rate in between).
+    # Each writes only its own rows, and neither raises — a source problem comes back as a state.
+    details, (catalog, catalog_reason) = await asyncio.gather(
+        _open_details(s, package, binding.work_id, body), _open_catalog(s, package, binding.track_id, body))
     return {"listing_id": binding.listing_id, "work_id": binding.work_id, "track_id": binding.track_id,
             "details": details, "catalog": catalog, "catalog_reason": catalog_reason}
 

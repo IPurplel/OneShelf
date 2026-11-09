@@ -488,7 +488,9 @@ Chromium (Playwright) يبدأ فقط عند الحاجة (`LazyBrowser`). كل 
 - `group_results()`: يعرض **عملًا منطقيًا واحدًا** لكل مجموعة نتائج متشابهة (Soft Group)، مع إبقاء كل
   مصدر قابلًا للاختيار. **لا يكتب شيئًا**.
 - `persist_listing()`: عند فعل دائم (رف، متابعة، تنزيل، فتح) يربط Listing محددًا بمسار ويحترم قرارات الربط.
-  نقطة الدخول من الواجهة: `POST /api/listings/bind` و`POST /api/listings/open`.
+  نقطة الدخول من الواجهة: `POST /api/listings/bind` و`POST /api/listings/open`. مع `defer: true` يربط
+  `open` القائمة ويعود فورًا: التفاصيل تُجلب في الخلفية ويُعلَن عنها بـ `work.changed`، والفهرس تطلبه صفحة
+  العمل بنفسها.
 - الأغلفة **للعرض فقط**، وليست دليل هوية أبدًا. والمتصفح لا يرى رابط المصدر، فكل غلاف يمر عبر
   `/api/covers` (بسياسة شبكة المصدر نفسه).
 
@@ -793,7 +795,7 @@ pending → moved → verified → registered → done    (أو aborted)
   يتلقى `resync` ثم يُفصل، فيعيد عميله القراءة.
 - **الأحداث:** `download.batch`، و`download.job`، و`notifications.changed`، و`reader.progress`،
   و`follow.changed`، و`follow.releases`، و`shelf.changed`، و`source.session`، و`source.health`،
-  و`task.finished`.
+  و`task.finished`، و`work.changed` (وصلت تفاصيل عمل فُتح مؤجَّلًا).
 - **الواجهة:** `app/live.tsx` → `LiveProvider` بث واحد للتطبيق كله. وإذا انقطع البث تتحول الشاشات المشتركة إلى
   polling كل 15 ثانية تلقائيًا. والشاشة تستخدم `useLive([...events], reload)`، والحدث يعني «أعد القراءة»
   فقط ولا يحمل حالة.

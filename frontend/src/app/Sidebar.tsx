@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 
 import { Icon } from "@/components/Icon";
 import { useI18n } from "@/i18n/i18n";
@@ -28,7 +28,7 @@ export function Sidebar() {
                 {({ isActive }) => (
                   <>
                     {isActive && (
-                      <motion.span
+                      <m.span
                         className="sidebar__indicator"
                         layoutId="sidebar-active"
                         transition={TRANSITION_SPRING}

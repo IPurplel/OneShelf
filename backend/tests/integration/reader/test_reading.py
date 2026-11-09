@@ -886,3 +886,41 @@ def test_public_cooldown_prevents_expired_or_evicted_descriptor_reload(reading, 
             with pytest.raises(PageTemporarilyRefused): await reader.page(unit,2)
             assert not calls
     run(scenario())
+
+
+def test_checking_a_page_image_does_not_hold_up_other_requests(reading, monkeypatch):
+    # Every page is fully decoded to prove it is an image (10-17 ms for a real 1-2 MB manga page, measured
+    # 2026-11-09). On the event loop that stalled every request while the reader preloaded fifteen pages.
+    from oneshelf.reader import service as reader_service
+
+    real_validate = reader_service._validate_image
+
+    def slow_validate(data):
+        time.sleep(0.3)
+        return real_validate(data)
+
+    monkeypatch.setattr(reader_service, "_validate_image", slow_validate)
+
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await reader.pages(unit)
+            gaps, done = [], asyncio.Event()
+
+            async def ticker():
+                last = time.monotonic()
+                while not done.is_set():
+                    await asyncio.sleep(0.01)
+                    now = time.monotonic()
+                    gaps.append(now - last)
+                    last = now
+
+            tick = asyncio.create_task(ticker())
+            page = await reader.page(unit, 1)
+            done.set()
+            await tick
+            return page, max(gaps)
+
+    page, worst_gap = run(scenario())
+    assert page.data[:8] == b"\x89PNG\r\n\x1a\n" and worst_gap < 0.15

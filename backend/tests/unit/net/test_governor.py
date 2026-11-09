@@ -257,10 +257,10 @@ def test_fairness_across_sources_at_same_priority():
     assert log.index("small") <= 2 and log[:5].count("small") == 2
 
 
-def test_source_rate_limit_spaces_request_starts():
+def test_source_rate_limit_spaces_request_starts_once_the_burst_is_spent():
     async def scenario():
         gov = TrafficGovernor()
-        gov.configure_source("polite", concurrency=4, requests_per_minute=600)  # 0.1 s spacing
+        gov.configure_source("polite", concurrency=4, requests_per_minute=600, burst=1)  # 0.1 s spacing
         starts = []
         for _ in range(3):
             async with gov.acquire("polite", Priority.READER):
@@ -268,6 +268,54 @@ def test_source_rate_limit_spaces_request_starts():
         return starts
     starts = run(scenario())
     assert starts[2] - starts[0] >= 0.19
+
+
+def test_a_small_burst_starts_at_once_and_the_rest_keep_the_declared_rate():
+    # A person opening a work asks for its details, its catalogue and its first pages together; a fixed gap
+    # before every request made each of them wait (3 s apiece at 20 requests a minute).
+    async def scenario():
+        gov = TrafficGovernor()
+        gov.configure_source("polite", concurrency=4, requests_per_minute=600, burst=3)  # 0.1 s refill
+        t0 = time.monotonic()
+        starts = []
+        for _ in range(5):
+            async with gov.acquire("polite", Priority.READER):
+                starts.append(time.monotonic() - t0)
+        return starts
+    starts = run(scenario())
+    assert starts[2] < 0.05                      # the burst: three starts without waiting
+    assert starts[3] >= 0.08 and starts[4] - starts[3] >= 0.08   # then one start per refill
+
+
+def test_without_a_declared_burst_every_request_waits_its_full_gap():
+    # Some sites ask for exactly that: arXiv's API terms allow "no more than one request every three seconds".
+    # A burst is therefore something an adapter declares for its site, never a default Core assumes.
+    async def scenario():
+        gov = TrafficGovernor()
+        gov.configure_source("strict", concurrency=4, requests_per_minute=600)  # 0.1 s spacing
+        t0 = time.monotonic()
+        starts = []
+        for _ in range(3):
+            async with gov.acquire("strict", Priority.READER):
+                starts.append(time.monotonic() - t0)
+        return starts
+    starts = run(scenario())
+    assert starts[0] < 0.05 and starts[1] >= 0.08 and starts[2] >= 0.18
+
+
+def test_an_idle_source_refills_only_up_to_its_burst():
+    async def scenario():
+        gov = TrafficGovernor()
+        gov.configure_source("polite", concurrency=4, requests_per_minute=600, burst=2)
+        await asyncio.sleep(0.5)                 # long enough to earn five tokens, if they were not capped
+        t0 = time.monotonic()
+        starts = []
+        for _ in range(3):
+            async with gov.acquire("polite", Priority.READER):
+                starts.append(time.monotonic() - t0)
+        return starts
+    starts = run(scenario())
+    assert starts[1] < 0.05 and starts[2] >= 0.08
 
 
 def test_retry_after_blocks_only_that_source():
@@ -307,3 +355,23 @@ def test_cancelled_waiters_do_not_leak_slots():
         return gov.snapshot()
     snap = run(scenario())
     assert snap["http_in_use"] == 0 and snap["waiting"] == 0 and snap["browser_in_use"] == 0
+
+
+def test_background_work_leaves_the_last_token_for_the_person():
+    # Read-ahead spending the whole burst made the page a person turned to wait a full refill (3 s at 20 rpm);
+    # like the last HTTP slot, the last token of a source is kept for foreground work.
+    async def scenario():
+        gov = TrafficGovernor()
+        gov.configure_source("polite", concurrency=4, requests_per_minute=600, burst=3)  # 0.1 s refill
+        t0 = time.monotonic()
+        background = []
+        for _ in range(3):
+            async with gov.acquire("polite", Priority.READ_AHEAD):
+                background.append(time.monotonic() - t0)
+        reader_start = time.monotonic()
+        async with gov.acquire("polite", Priority.READER):
+            reader_wait = time.monotonic() - reader_start
+        return background, reader_wait
+    background, reader_wait = run(scenario())
+    assert background[1] < 0.05 and background[2] >= 0.08   # two at once, the third waited for a refill
+    assert reader_wait < 0.05

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Link, useSearchParams } from "react-router-dom";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 
 import { api } from "@/api/client";
 import type { SearchUpdate } from "@/api/types";
@@ -261,14 +261,14 @@ function SearchResults({ results, layout }: { results: SearchUpdate["results"]; 
   return (
     <div className="search__results" data-layout={layout}>
       {results.map((result, i) => (
-        <motion.div
+        <m.div
           key={result.work_id ?? `${result.title}:${result.provenance[0]?.listing_key ?? ""}`}
           initial={reduced ? false : { opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...TRANSITION_EASE, delay: Math.min(i * 0.04, 0.3) }}
         >
           <ResultCard result={result} size={layout === "list" ? "detailed" : "standard"} />
-        </motion.div>
+        </m.div>
       ))}
     </div>
   );

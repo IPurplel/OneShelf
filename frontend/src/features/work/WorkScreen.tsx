@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 
 import { ApiError, api } from "@/api/client";
 import { CoverPlaceholder } from "@/components/CoverPlaceholder";
@@ -17,6 +17,7 @@ import { ModalSurface } from "@/components/ModalSurface";
 import { RemoveFromShelf } from "@/features/shelf/RemoveFromShelf";
 import type { RemovalSummary } from "@/features/shelf/RemoveFromShelf";
 import { readerLink } from "@/features/reader/links";
+import { preloadReader } from "@/features/reader/preload";
 import { bytes, isolate } from "@/lib/format";
 import { typeLabel } from "@/lib/contentType";
 import { WorkNotes } from "./WorkNotes";
@@ -67,11 +68,13 @@ export function WorkScreen({ workId }: { workId?: string }) {
     setCompletedOffer(null);
     setSummaryProblem(null);
   }, [id]);
+  // Reading is what a Work page is for: its code is fetched while the person looks at the chapters.
+  useEffect(() => { preloadReader(); }, []);
   const { data, error, reload } = useResource<WorkDetails>(`/api/works/${id}`,
     trackId ? { track_id: trackId } : undefined);
   // Chapters turn "Downloaded" as they finish. A batch sends many job events, so they are gathered into one re-read.
   const refreshSoon = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useLive(["download.job", "shelf.changed"], () => {
+  useLive(["download.job", "shelf.changed", "work.changed"], () => {
     if (refreshSoon.current !== null) return;
     refreshSoon.current = setTimeout(() => { refreshSoon.current = null; reload(); }, 800);
   });
@@ -232,7 +235,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
 
   return (
     <article className="screen work">
-      <motion.header className="work__header"
+      <m.header className="work__header"
         initial={reduced ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={TRANSITION_EASE}
@@ -323,7 +326,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
             <p className="work__listingOnly">{t("work.listingOnly", { source: sourceLabel(current) })}</p>
           )}
         </div>
-      </motion.header>
+      </m.header>
 
       <div className="toolbar__tabs work__tabs" role="tablist" aria-label={t("work.sections")} onKeyDown={handleTabKeys}>
         {(["read", "details", "sources"] as Tab[]).map((candidate) => (

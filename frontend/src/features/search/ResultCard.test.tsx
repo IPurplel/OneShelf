@@ -64,7 +64,7 @@ async function searchFor(results: unknown[]) {
   return user;
 }
 
-const opened = { listing_id: "l9", work_id: "w9", track_id: "t9", details: "fetched", catalog: "refreshed" };
+const opened = { listing_id: "l9", work_id: "w9", track_id: "t9", details: "pending", catalog: "deferred" };
 
 describe("Opening a search result", () => {
   it("opens a live listing on its existing Work and selected source track", async () => {
@@ -96,18 +96,20 @@ describe("Opening a search result", () => {
     const body = calls.find((c) => c.url === "/api/listings/open")?.body;
     expect(body).toEqual({ source_id: "oneshelf.3asq", listing_key: "one-piece", title: "ون بيس",
                            url: "https://3asq.online/manga/one-piece/", language: "ar", content_type: "manga",
-                           cover_url: COVER });
+                           cover_url: COVER, defer: true });
     expect(await screen.findByRole("heading", { level: 1, name: "One Piece" })).toBeInTheDocument();
     expect(calls.some((c) => c.url === "/api/works/w9?track_id=t9")).toBe(true);
     // In the chapter list, and beside the Read button as the chapter it opens.
     expect(screen.getAllByText("الفصل 1").length).toBeGreaterThan(0);
   });
 
-  it("shows an incomplete first catalogue without immediately requesting it twice", async () => {
+  it("lands on the Work at once and asks for its chapters there, once", async () => {
+    // Opening used to wait for the source's chapter list before leaving the results (13 s on 3asq,
+    // measured 2026-11-09). Now the Work appears as soon as the listing is bound, and asks for its chapters.
     const empty = { ...DETAILS, units: [], continue_unit_id: null,
       tracks: [{ ...DETAILS.tracks[0], unit_count: 0 }] };
     const calls = mockApi([
-      post("/api/listings/open", { ...opened, catalog: "incomplete", catalog_reason: "server_error" }),
+      post("/api/listings/open", opened),
       get("/api/works/w9", empty),
       post("/api/tracks/t9/catalog/refresh", { track_id: "t9", state: "incomplete", unit_count: 0,
         reason: "server_error" }),
@@ -115,10 +117,11 @@ describe("Opening a search result", () => {
     renderApp({ route: "/search" });
     const user = await searchFor([result({})]);
     await user.click(await screen.findByRole("button", { name: /one piece/i }));
+    expect(await screen.findByRole("heading", { level: 1, name: "One Piece" })).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toHaveTextContent(/stopped before sending every chapter/i);
-    expect(calls.filter(c => c.url === "/api/tracks/t9/catalog/refresh")).toHaveLength(0);
-    await user.click(screen.getByRole("button", { name: /refresh chapter list/i }));
     expect(calls.filter(c => c.url === "/api/tracks/t9/catalog/refresh")).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: /refresh chapter list/i }));
+    expect(calls.filter(c => c.url === "/api/tracks/t9/catalog/refresh")).toHaveLength(2);
   });
 
   it("opens with the keyboard as well", async () => {

@@ -517,3 +517,73 @@ def test_a_single_document_capability_reports_page_failures_as_capability_errors
     response = client.post("/api/resolve-url", json={"url": "http://testsource.example/work/no-such-work"})
     assert response.status_code == 502, response.text
     assert response.json()["error"]["category"] == "not_found"          # the reason, beside the sentence
+
+
+def test_opening_asks_for_details_and_catalogue_together(api, monkeypatch):
+    # Asked one after the other, the catalogue waited for the details and then for the source's rate: opening
+    # a 3asq manga took 12 s (measured 2026-11-09). Asked together, the slower of the two sets the wait.
+    import asyncio
+    import time
+
+    client, _ = api
+    provenance = result_for(search(client, "chronicle"), "The Irregular Chronicle")["provenance"][0]
+    service = client.app.state.services.source_service
+    real_run = service.run
+    running = {"now": 0, "peak": 0}
+
+    async def slow_run(plugin_id, capability, inputs, **kw):
+        if capability not in ("work", "catalog"):
+            return await real_run(plugin_id, capability, inputs, **kw)
+        running["now"] += 1
+        running["peak"] = max(running["peak"], running["now"])
+        try:
+            await asyncio.sleep(0.3)
+            return await real_run(plugin_id, capability, inputs, **kw)
+        finally:
+            running["now"] -= 1
+
+    monkeypatch.setattr(service, "run", slow_run)
+    started = time.monotonic()
+    opened = open_listing(client, provenance).json()
+    assert opened["details"] == "fetched" and opened["catalog"] == "refreshed"
+    assert running["peak"] == 2 and time.monotonic() - started < 0.55
+
+
+def test_a_deferred_open_returns_before_the_source_answers_and_says_when_details_arrive(api, monkeypatch):
+    # Even asked together, a source that wants three seconds between requests kept the card busy for 13 s
+    # (3asq, measured 2026-11-09). Deferred, opening binds the listing and returns at once; the Work page then
+    # asks for the catalogue itself, and the details announce themselves when they are saved.
+    import asyncio
+    import time
+
+    client, _ = api
+    provenance = result_for(search(client, "chronicle"), "The Irregular Chronicle")["provenance"][0]
+    service = client.app.state.services.source_service
+    real_run = service.run
+    asked = []
+
+    async def slow_run(plugin_id, capability, inputs, **kw):
+        if capability in ("work", "catalog"):
+            asked.append(capability)
+            await asyncio.sleep(0.5)
+        return await real_run(plugin_id, capability, inputs, **kw)
+
+    published = []
+    bus = client.app.state.bus
+    real_publish = bus.publish
+    monkeypatch.setattr(service, "run", slow_run)
+    monkeypatch.setattr(bus, "publish", lambda kind, data: (published.append((kind, data)), real_publish(kind, data))[1])
+
+    started = time.monotonic()
+    opened = open_listing(client, provenance, defer=True)
+    assert opened.status_code == 200, opened.text
+    body = opened.json()
+    assert time.monotonic() - started < 0.3
+    assert body["details"] == "pending" and body["catalog"] == "deferred"
+    assert client.get(f"/api/works/{body['work_id']}", params={"track_id": body["track_id"]}).json()["units"] == []
+
+    deadline = time.monotonic() + 5
+    while ("work.changed", {"work_id": body["work_id"]}) not in published and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert ("work.changed", {"work_id": body["work_id"]}) in published
+    assert asked == ["work"]          # the catalogue is the Work page's to ask for, not the open's

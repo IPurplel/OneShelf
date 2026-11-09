@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { WorkScreen } from "./WorkScreen";
-import { renderWithProviders } from "@/test/render";
+import { renderLive, renderWithProviders } from "@/test/render";
 import { del, get, mockApi, post } from "@/test/http";
 
 const DETAILS = {
@@ -863,4 +863,18 @@ it("keeps online-only source reading available without offering downloads", asyn
   expect(await screen.findByRole("link", { name: "Continue" })).toBeInTheDocument();
   // Deleting a file already on the device is still offered; fetching one is not.
   expect(screen.queryByRole("button", { name: /^download/i })).not.toBeInTheDocument();
+});
+
+
+describe("Details that arrive after opening", () => {
+  it("re-reads the Work when its details are saved", async () => {
+    // A deferred open lands here before the source has described the work; `work.changed` says it now has.
+    const calls = mockApi([get("/api/works/w1", DETAILS)]);
+    const { emit } = renderLive(<WorkScreen workId="w1" />);
+    expect(await screen.findByRole("heading", { level: 1, name: "The Irregular Chronicle" })).toBeInTheDocument();
+    const before = calls.filter(c => c.url.startsWith("/api/works/w1")).length;
+    act(() => { emit("work.changed", { work_id: "w1" }); });
+    await waitFor(() => expect(calls.filter(c => c.url.startsWith("/api/works/w1")).length).toBe(before + 1),
+                  { timeout: 2000 });
+  });
 });

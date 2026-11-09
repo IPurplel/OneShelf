@@ -54,7 +54,7 @@ class CatalogTrust:
 
     def _snapshot(self, track_id: str, trust: str) -> sqlite3.Row | None:
         return self.conn.execute(
-            "SELECT * FROM catalog_snapshots WHERE track_id = ? AND trust = ? ORDER BY fetched_at DESC LIMIT 1",
+            "SELECT * FROM catalog_snapshots WHERE track_id = ? AND trust = ? ORDER BY fetched_at DESC, rowid DESC LIMIT 1",
             (track_id, trust)).fetchone()
 
     def _keys(self, snapshot_id: str) -> list[str]:
@@ -160,7 +160,7 @@ class CatalogTrust:
     def _prune(self, track_id: str, trust_or_completeness: str, keep: int) -> None:
         column = "trust" if trust_or_completeness == "suspicious" else "completeness"
         rows = self.conn.execute(
-            f"SELECT id FROM catalog_snapshots WHERE track_id = ? AND {column} = ? ORDER BY fetched_at DESC",
+            f"SELECT id FROM catalog_snapshots WHERE track_id = ? AND {column} = ? ORDER BY fetched_at DESC, rowid DESC",
             (track_id, trust_or_completeness)).fetchall()
         for row in rows[keep:]:
             self.conn.execute("DELETE FROM snapshot_units WHERE snapshot_id = ?", (row["id"],))

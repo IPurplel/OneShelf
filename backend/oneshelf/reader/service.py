@@ -448,7 +448,9 @@ class ReaderService:
             self._record(source, "content_missing" if category == "not_found" else "failure", category)
             raise CapabilityError(category, f"page {index}: the source answered HTTP {status}")
         data = await normalize_page_image(response.body)
-        problem = _validate_image(data)
+        # A full decode proves the page is an image; in a worker thread, so a preloading reader does not stall
+        # every other request while it decodes (Pillow releases the GIL while decoding).
+        problem = await asyncio.to_thread(_validate_image, data)
         if problem:
             raise ValueError(f"page {index}: {problem}")
         self.cache.put(source, unit["source_unit_key"], url, data)
