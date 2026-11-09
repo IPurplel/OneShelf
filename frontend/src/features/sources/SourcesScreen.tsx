@@ -106,7 +106,13 @@ export function SourcesScreen() {
   return (
     <section className="screen">
       <h1 className="screen__title">{t("sources.title")}</h1>
-      <section className="sources__installed" aria-labelledby={installedHeading}>
+      {/* The page holds three jobs; these jump straight to the one wanted, adding a source above all. */}
+      <nav className="sources__nav" aria-label={t("sources.nav.label")}>
+        <a className="chip" href="#sources-installed">{t("sources.nav.installed")}{data !== null && ` · ${sources.length}`}</a>
+        <a className="chip chip--accent" href="#sources-add">{t("sources.nav.add")}</a>
+        <a className="chip" href="#sources-file">{t("sources.nav.file")}</a>
+      </nav>
+      <section className="sources__installed sources__section" aria-labelledby={installedHeading} id="sources-installed">
       <h2 className="display" id={installedHeading}>{t("sources.installed")}</h2>
 
       {error !== null && <><p className="notice notice--problem" role="alert">{error === "offline" ? t("state.offline") : error}</p>
@@ -238,9 +244,9 @@ export function SourcesScreen() {
                        }} />
       )}
 
-      <RegistryPanel revision={revision} onChanged={changed} />
+      <RegistryPanel revision={revision} onChanged={changed} id="sources-add" />
 
-      <InstallPanel onInstalled={changed} />
+      <InstallPanel onInstalled={changed} id="sources-file" />
     </section>
   );
 }

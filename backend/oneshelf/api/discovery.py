@@ -27,8 +27,26 @@ from oneshelf.search.url_resolve import UnsupportedUrl
 router = APIRouter(prefix="/api")
 
 
-def _provenance(p) -> dict:
-    return {**asdict(p), "cover_url": cover_path(p.source_id, p.cover_url)}
+def _provenance(p, can_download: Callable[[str], bool]) -> dict:
+    # `downloadable`: whether this listing can be kept in one tap (a source with a download or reader recipe).
+    return {**asdict(p), "cover_url": cover_path(p.source_id, p.cover_url), "downloadable": can_download(p.source_id)}
+
+
+def _download_checker(source_service) -> Callable[[str], bool]:
+    @lru_cache(maxsize=None)
+    def can_download(source_id: str) -> bool:
+        if source_id == "local":
+            return False
+        try:
+            return bool(source_service.supports_download(source_id))
+        except Exception:
+            return False
+
+    return can_download
+
+
+def _no_download(_source_id: str) -> bool:
+    return False
 
 
 def _cover_previewer(plugins) -> Callable[[str], bool]:
@@ -43,7 +61,7 @@ def _cover_previewer(plugins) -> Callable[[str], bool]:
     return can_preview
 
 
-def _result(result, can_preview: Callable[[str], bool]) -> dict:
+def _result(result, can_preview: Callable[[str], bool], can_download: Callable[[str], bool] = _no_download) -> dict:
     cover = result.cover_url
     if cover is None:
         candidates = [p for p in result.provenance if p.listing_key and can_preview(p.source_id)][:5]
@@ -53,11 +71,11 @@ def _result(result, can_preview: Callable[[str], bool]) -> dict:
             cover = cover_lookup_path(first.source_id, first.listing_key, first.language, alternates)
     return {"work_id": result.work_id, "title": result.title, "content_type": result.content_type,
             "soft": result.soft, "availability": result.availability, "cover_url": cover,
-            "provenance": [_provenance(p) for p in result.provenance]}
+            "provenance": [_provenance(p, can_download) for p in result.provenance]}
 
 
-def _update(update, can_preview: Callable[[str], bool]) -> dict:
-    return {"stage": update.stage, "results": [_result(r, can_preview) for r in update.results],
+def _update(update, can_preview: Callable[[str], bool], can_download: Callable[[str], bool] = _no_download) -> dict:
+    return {"stage": update.stage, "results": [_result(r, can_preview, can_download) for r in update.results],
             "source_status": update.source_status, "sources_total": update.sources_total,
             "sources_available": update.sources_available,
             "sources_done": update.sources_done, "sources_failed": update.sources_failed}
@@ -81,6 +99,7 @@ async def search(request: Request, q: str, refresh: bool = False,
     s = services(request)
     service = s.search
     can_preview = _cover_previewer(s.plugins)
+    can_download = _download_checker(s.source_service)
     categories = _categories(category or [])
     if categories is None:
         return error(422, "INVALID_SEARCH_SCOPE", "Unknown search category.")
@@ -89,7 +108,7 @@ async def search(request: Request, q: str, refresh: bool = False,
         async with aclosing(service.search(q, refresh=refresh, categories=categories,
                                            languages=set(language or ()))) as updates:
             async for update in updates:
-                yield _sse(_update(update, can_preview))
+                yield _sse(_update(update, can_preview, can_download))
 
     return StreamingResponse(stream(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
@@ -113,7 +132,7 @@ async def retry_source(request: Request, body: RetryBody):
     async for update in service.retry_source(body.query, body.source_id,
                                              categories=categories, languages=set(body.languages)):
         last = update
-    return _update(last, _cover_previewer(s.plugins))
+    return _update(last, _cover_previewer(s.plugins), _download_checker(s.source_service))
 
 
 class UrlBody(BaseModel):
@@ -134,7 +153,8 @@ async def resolve_url(request: Request, body: UrlBody):
     except CapabilityError as exc:
         return source_failed(exc)
     return {"source_id": preview.resolved.plugin_id, "capability": preview.resolved.capability,
-            "identifier": preview.resolved.identifier, "result": _result(preview.result, _cover_previewer(s.plugins)),
+            "identifier": preview.resolved.identifier, "result": _result(preview.result, _cover_previewer(s.plugins),
+                                                                     _download_checker(s.source_service)),
             "details": asdict(preview.details) if preview.details else None}
 
 
@@ -144,10 +164,11 @@ async def home(request: Request):
     sections = await s.home.sections()
     hero = await s.home.hero(sections.continue_reading)
     can_preview = _cover_previewer(s.plugins)
+    can_download = _download_checker(s.source_service)
     return {"hero": asdict(hero) if hero else None,
             "continue_reading": [asdict(i) for i in sections.continue_reading],
-            "trending": [_result(r, can_preview) for r in sections.trending],
-            "latest": [_result(r, can_preview) for r in sections.latest],
+            "trending": [_result(r, can_preview, can_download) for r in sections.trending],
+            "latest": [_result(r, can_preview, can_download) for r in sections.latest],
             "recently_added": [asdict(i) for i in sections.recently_added]}
 
 
@@ -314,6 +335,58 @@ async def open_listing(request: Request, body: OpenBody):
         _open_details(s, package, binding.work_id, body), _open_catalog(s, package, binding.track_id, body))
     return {"listing_id": binding.listing_id, "work_id": binding.work_id, "track_id": binding.track_id,
             "details": details, "catalog": catalog, "catalog_reason": catalog_reason}
+
+
+# The most unit IDs one download batch accepts (EnqueueBody); a longer catalogue is queued in several batches.
+BATCH_UNITS = 2000
+
+
+@router.post("/listings/download")
+async def download_listing(request: Request, body: OpenBody):
+    """Keep a search result in one tap: bind exactly this listing, bring its catalogue when the library has
+    none yet, and queue every unit that is available and not already here. Its details follow in the
+    background (announced with `work.changed`), as after a deferred open."""
+    from oneshelf.downloads.engine import NoStorageLocation
+
+    s = services(request)
+    if body.work_id is not None and s.conn.execute(
+            "SELECT 1 FROM works WHERE id = ?", (body.work_id,)).fetchone() is None:
+        return error(404, "WORK_NOT_FOUND", "This work is not in your library.")
+    try:
+        package = s.plugins.load_active(body.source_id)
+    except PluginUnavailable as exc:
+        return error(409, "SOURCE_UNAVAILABLE", str(exc))
+    if not s.source_service.supports_download(body.source_id):
+        return error(409, "DOWNLOAD_UNSUPPORTED", "This source can be read online, but not downloaded.")
+    if not s.conn.execute("SELECT 1 FROM storage_roots LIMIT 1").fetchone():
+        return error(409, "NO_STORAGE_LOCATION", "Choose where OneShelf keeps your library before downloading.")
+    binding = _bind(s, BindBody(**body.model_dump(exclude={"defer"}), decided_by="user"))
+    if "work" in package.manifest.capabilities:
+        task = asyncio.create_task(_details_then_announce(s, package, binding.work_id, body, request.app.state.bus))
+        _DEFERRED_DETAILS.add(task)
+        task.add_done_callback(_DEFERRED_DETAILS.discard)
+    catalog, catalog_reason = await _open_catalog(s, package, binding.track_id, body)
+    if catalog not in ("present", "refreshed"):
+        return error(502, "CATALOG_UNAVAILABLE", f"The source did not list this work's units ({catalog}"
+                     + (f": {catalog_reason}" if catalog_reason else "") + ").")
+    unit_ids = [row[0] for row in s.conn.execute(
+        "SELECT u.id FROM reading_units u WHERE u.track_id = ? AND u.availability != 'unavailable'"
+        " AND NOT EXISTS (SELECT 1 FROM assets a WHERE a.reading_unit_id = u.id AND a.integrity = 'ok')"
+        " ORDER BY u.source_order", (binding.track_id,))]
+    batch_ids, queued = [], 0
+    try:
+        for start in range(0, len(unit_ids), BATCH_UNITS):
+            batch_id = s.downloads.enqueue(unit_ids[start:start + BATCH_UNITS])
+            jobs = s.downloads.batch(batch_id)["total"]
+            if jobs:
+                batch_ids.append(batch_id)
+                queued += jobs
+    except NoStorageLocation as exc:
+        return error(409, "NO_STORAGE_LOCATION", str(exc))
+    except (ValueError, PluginUnavailable) as exc:
+        return error(422, "CANNOT_ENQUEUE", str(exc))
+    return {"listing_id": binding.listing_id, "work_id": binding.work_id, "track_id": binding.track_id,
+            "queued": queued, "batch_ids": batch_ids}
 
 
 @router.get("/tracks/{track_id}/catalog")

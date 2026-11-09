@@ -149,7 +149,9 @@ describe("Work Details", () => {
     const calls = mockApi([get("/api/works/w1", details), post("/api/downloads", { batch_id: "b1", pending: 1, skipped: 1 })]);
     const user = userEvent.setup();
     renderWithProviders(<WorkScreen workId="w1" />);
-    await user.click(await screen.findByRole("button", { name: /download all chapters/i }));
+    // Beside the title with the other actions, so a whole series or book is one tap from the top (2026-11-09).
+    const header = (await screen.findByRole("heading", { level: 1 })).closest(".work__intro") as HTMLElement;
+    await user.click(within(header).getByRole("button", { name: /^download all$/i }));
     expect(calls.find(call => call.url === "/api/downloads" && call.method === "POST")?.body)
       .toEqual({ unit_ids: ["u2", "u3"] });
     expect(await screen.findByRole("status")).toHaveTextContent(/2 chapters requested/i);
@@ -160,12 +162,12 @@ describe("Work Details", () => {
     const calls = mockApi([get("/api/works/w1", details), post("/api/downloads", { batch_id: "b1", pending: 1 })]);
     const user = userEvent.setup();
     renderWithProviders(<WorkScreen workId="w1" />);
-    await user.click(await screen.findByRole("button", { name: /download all chapters/i }));
+    await user.click(await screen.findByRole("button", { name: /^download all$/i }));
     expect(await screen.findByText(/1 chapter requested/i)).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: /details/i }));
     await user.click(screen.getByRole("tab", { name: /read/i }));
     expect(screen.getByText(/1 chapter requested/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /download all chapters/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^download all$/i })).toBeNull();
     expect(calls.filter(call => call.url === "/api/downloads" && call.method === "POST")).toHaveLength(1);
   });
 
@@ -173,7 +175,7 @@ describe("Work Details", () => {
     mockApi([get("/api/works/w1", DETAILS)]);
     renderWithProviders(<WorkScreen workId="w1" />);
     await screen.findByRole("list", { name: /^chapters$/i });
-    expect(screen.queryByRole("button", { name: /download all chapters/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^download all$/i })).not.toBeInTheDocument();
   });
 
   it.each(["en", "ar"] as const)("moves horizontal tab focus and selection by keyboard in %s", async (language) => {

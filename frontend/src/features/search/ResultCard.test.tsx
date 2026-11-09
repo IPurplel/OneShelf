@@ -167,6 +167,43 @@ describe("Opening a search result", () => {
     });
   });
 
+  it("downloads a result in one tap, without opening it", async () => {
+    // A found novel could only be kept by opening it and finding its chapters (asked for 2026-11-09).
+    const calls = mockApi([post("/api/listings/download",
+      { listing_id: "l9", work_id: "w9", track_id: "t9", queued: 3, batch_ids: ["b1"] })]);
+    renderApp({ route: "/search" });
+    const user = await searchFor([result({ provenance: [{ ...P_AR, downloadable: true }] })]);
+    await user.click(await screen.findByRole("button", { name: /download “one piece”/i }));
+    expect(calls.find((c) => c.url === "/api/listings/download")?.body).toMatchObject({
+      source_id: P_AR.source_id, listing_key: P_AR.listing_key, language: "ar",
+    });
+    expect(calls.some((c) => c.url === "/api/listings/open")).toBe(false);      // still on the results
+    expect(await screen.findByText(/3 .*downloads/i)).toBeInTheDocument();
+  });
+
+  it("offers no download button for a source that can only be read online", async () => {
+    mockApi([]);
+    renderApp({ route: "/search" });
+    await searchFor([result({ provenance: [{ ...P_AR, downloadable: false }] })]);
+    await screen.findByRole("button", { name: /one piece/i });
+    expect(screen.queryByRole("button", { name: /download “one piece”/i })).toBeNull();
+  });
+
+  it("asks which source to download from when several can", async () => {
+    const calls = mockApi([post("/api/listings/download",
+      { listing_id: "l9", work_id: "w9", track_id: "t9", queued: 1, batch_ids: ["b1"] }),
+      get("/api/sources", { sources: [{ id: "oneshelf.3asq", name: "3asq (Al-Aasheq)" },
+                                      { id: "oneshelf.mangadex", name: "MangaDex" }] })]);
+    renderApp({ route: "/search" });
+    const user = await searchFor([result({ availability: { ar: 1, en: 1 },
+      provenance: [{ ...P_AR, downloadable: true }, { ...P_EN, downloadable: true }] })]);
+    await user.click(await screen.findByRole("button", { name: /download “one piece”/i }));
+    const chooser = await screen.findByRole("dialog", { name: /download “one piece”/i });
+    await user.click(within(chooser).getByRole("button", { name: /mangadex/i }));
+    expect(calls.filter((c) => c.url === "/api/listings/download")).toHaveLength(1);
+    expect(calls.find((c) => c.url === "/api/listings/download")?.body).toMatchObject({ source_id: "oneshelf.mangadex" });
+  });
+
   it("tells apart several listings from the same source by their own titles", async () => {
     const a = { ...P_EN, listing_key: "84", title: "Frankenstein; Or, The Modern Prometheus" };
     const b = { ...P_EN, listing_key: "41445", title: "Frankenstein (1831 edition)" };

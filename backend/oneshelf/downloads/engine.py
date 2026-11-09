@@ -428,11 +428,42 @@ class DownloadEngine:
         return len(jobs)
 
     def clear_history(self, *, before: str | None = None) -> int:
-        """Clearing history never deletes content or progress (§16.7, INV-23)."""
+        """Clearing history never deletes content or progress (§16.7, INV-23).
+
+        The Downloads list is drawn from batches, so a batch whose every job has finished (completed, failed or
+        cancelled) is cleared with its jobs: emptying `download_history` alone left every finished download on
+        screen (found 2026-11-09). A batch with anything still to do is kept whole, and so is a job whose worker
+        is still stopping. What a cleared job kept for resuming goes with it, as a cancel would remove it.
+        """
+        finished = self.conn.execute(
+            "SELECT b.id FROM download_batches b WHERE NOT EXISTS (SELECT 1 FROM download_jobs j"
+            " WHERE j.batch_id = b.id AND (j.state NOT IN ('COMPLETED','FAILED','CANCELED')"
+            + (" OR j.finished_at IS NULL OR j.finished_at >= ?" if before else "") + "))",
+            (before,) if before else ()).fetchall()
+        batches = []
+        for row in finished:
+            jobs = self.conn.execute("SELECT id, staging_relpath, storage_root_id FROM download_jobs WHERE batch_id = ?",
+                                     (row["id"],)).fetchall()
+            if any(job["id"] in self._tasks for job in jobs):
+                continue
+            batches.append((row["id"], jobs))
         with transaction(self.conn):
             cursor = (self.conn.execute("DELETE FROM download_history WHERE finished_at < ?", (before,)) if before
                       else self.conn.execute("DELETE FROM download_history"))
-        return cursor.rowcount
+            removed = cursor.rowcount
+            for batch_id, _jobs in batches:
+                self.conn.execute("DELETE FROM download_jobs WHERE batch_id = ?", (batch_id,))
+                self.conn.execute("DELETE FROM download_batches WHERE id = ?", (batch_id,))
+        for _batch_id, jobs in batches:
+            for job in jobs:
+                if job["staging_relpath"] and job["storage_root_id"]:
+                    try:
+                        area = Path(get_root(self.conn, job["storage_root_id"]).path) / job["staging_relpath"]
+                    except Exception:   # a root that is gone has nothing left to remove
+                        continue
+                    if area.is_dir():
+                        shutil.rmtree(area, ignore_errors=True)
+        return removed
 
     def job(self, job_id: str) -> sqlite3.Row:
         return self.conn.execute("SELECT * FROM download_jobs WHERE id = ?", (job_id,)).fetchone()

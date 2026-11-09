@@ -33,13 +33,15 @@ const SHOWN_LANGUAGES = 3;
  * and — when there is progress — a slim olive bar with its percentage. Availability stays concise: a
  * language and a source count, never every internal state.
  */
-export function WorkCard({ work, size = "standard", onOpen, busy = false, problem }: {
+export function WorkCard({ work, size = "standard", onOpen, busy = false, problem, status }: {
   work: CardWork;
   size?: "compact" | "standard" | "detailed";
   /** For a result with no Work yet: the card is a button that opens it (see ResultCard). */
   onOpen?: () => void;
   busy?: boolean;
   problem?: string | null;
+  /** What just happened to it (a download queued from Search, say), said politely. */
+  status?: string | null;
 }) {
   const { t, language, tn } = useI18n();
   // A cover that fails to load becomes the placeholder; the card itself never becomes unusable (INV-28).
@@ -108,6 +110,7 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
         </span>
       )}
       {problem && <span className="notice notice--problem resultcard__problem" role="alert">{problem}</span>}
+      {status && <span className="resultcard__status" role="status">{status}</span>}
       {percent !== null && (
         <span className="workcard__progress">
           <span className="workcard__track"><span style={{ inlineSize: `${percent}%` }} /></span>

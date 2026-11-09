@@ -31,7 +31,7 @@ type Outcome = { plugin_id: string; version: string; state: string; added_permis
  * failed cannot be installed from here at all, and permissions are granted only as shown — the install
  * request carries exactly the list on screen.
  */
-export function InstallPanel({ onInstalled }: { onInstalled: () => void }) {
+export function InstallPanel({ onInstalled, id }: { onInstalled: () => void; id?: string }) {
   const { t, language } = useI18n();
   const [review, setReview] = useState<Review | null>(null);
   const [installed, setInstalled] = useState<string | null>(null);
@@ -80,7 +80,7 @@ export function InstallPanel({ onInstalled }: { onInstalled: () => void }) {
   };
 
   return (
-    <section className="paper">
+    <section className="paper sources__section" id={id}>
       <h2 className="display">{t("install.title")}</h2>
       <p className="firstrun__lede">{t("install.help")}</p>
 

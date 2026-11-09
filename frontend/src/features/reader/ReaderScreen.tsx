@@ -677,7 +677,7 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
 
       {/* The pages scroll, so the keyboard must be able to reach them (WCAG 2.1.1). */}
       <div className="reader__stage" data-testid="reader-stage" tabIndex={0} role="region" aria-label={t("reader.pages")}
-           data-mode={settings.mode}
+           data-mode={settings.mode} data-page-colors={settings.pageColors}
            data-direction={settings.direction} data-fit={settings.fit} data-zoom={zoom}
            ref={stage} onPointerDown={(event) => { interacted.current = true; pointerKind.current = event.pointerType || "mouse"; }}
            onClick={onStageClick}
