@@ -423,3 +423,25 @@ def test_a_follow_can_be_set_to_download_its_new_chapters(api):
     assert [f["auto_download"] for f in listed if f["work_id"] == work["work_id"]] == [True]
     missing = client.post("/api/follows/nope/auto-download", json={"enabled": True})
     assert missing.status_code == 404 and missing.json()["error"]["code"] == "NOT_FOLLOWED"
+
+
+def test_shelves_of_your_own_hold_works_with_their_covers(api):
+    # Custom shelves (asked for 2026-11-10): "Novels", "Manga", "Summer"... built on collections.
+    client, _, _ = api
+    work = bind(client, "irregular", "The Irregular Chronicle")["work_id"]
+    summer = client.post("/api/collections", json={"name": "Summer"}).json()["id"]
+    renamed = client.patch(f"/api/collections/{summer}", json={"name": "Summer reading"})
+    assert renamed.status_code == 200 and renamed.json()["name"] == "Summer reading"
+    assert client.post(f"/api/collections/{summer}/works/{work}").status_code == 200
+    # Putting a work on one of your shelves puts it in your library.
+    assert work in {e["work_id"] for e in client.get("/api/shelf").json()["entries"]}
+    listed = client.get("/api/collections").json()["collections"]
+    assert [(c["name"], c["work_count"], len(c["covers"])) for c in listed] == [("Summer reading", 1, 1)]
+    shelf = client.get(f"/api/collections/{summer}").json()
+    assert shelf["name"] == "Summer reading" and [w["work_id"] for w in shelf["works"]] == [work]
+    assert {"title", "cover_url", "content_type"} <= set(shelf["works"][0])
+    assert client.get(f"/api/works/{work}/collections").json() == {"collection_ids": [summer]}
+    client.delete(f"/api/collections/{summer}/works/{work}")
+    assert client.get(f"/api/works/{work}/collections").json() == {"collection_ids": []}
+    assert client.get("/api/collections/nope").status_code == 404
+    assert client.patch("/api/collections/nope", json={"name": "x"}).status_code == 404

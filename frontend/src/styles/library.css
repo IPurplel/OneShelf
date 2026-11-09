@@ -1303,3 +1303,21 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   .discover__sources { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-block-end: var(--space-1); }
   .discover__sources > .chip { flex: none; }
 }
+
+
+/* Your own shelves (asked for 2026-11-10): drawn with the same wooden Shelf as Home, above My Shelf's list. */
+.myshelves { display: grid; gap: var(--space-4); margin-block: var(--space-2) var(--space-7); }
+.myshelves__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.myshelves__head h2 { margin: 0; font-size: 22px; }
+.myshelves__new { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.myshelves__new .field { min-inline-size: min(100%, 260px); }
+.myshelves__empty { max-inline-size: 60ch; margin: 0; }
+.collection__back { display: inline-flex; gap: var(--space-2); color: var(--link-text); text-decoration: none;
+                    margin-block-end: var(--space-3); }
+.collection__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.collection__head .screen__title { margin: 0; margin-inline-end: auto; }
+.collection__works { list-style: none; margin: var(--space-5) 0 0; padding: 0; display: grid; gap: var(--space-6);
+                     grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); }
+.collection__item { position: relative; min-inline-size: 0; }
+.shelvespicker__row { display: flex; align-items: center; gap: var(--space-3); min-block-size: 44px; cursor: pointer; }
+.shelvespicker__row input { inline-size: 18px; block-size: 18px; accent-color: var(--press-accent); }

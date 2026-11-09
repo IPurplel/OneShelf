@@ -22,6 +22,7 @@ import { bytes, isolate } from "@/lib/format";
 import { typeLabel } from "@/lib/contentType";
 import { WorkNotes } from "./WorkNotes";
 import { type BulkDownload, useBulkDownload } from "./useBulkDownload";
+import { ShelvesPicker } from "@/features/shelf/ShelvesPicker";
 import { Icon } from "@/components/Icon";
 import { useLive } from "@/app/live";
 import { type Deleted, useFileDeletion } from "@/features/files/useFileDeletion";
@@ -53,6 +54,7 @@ export function WorkScreen({ workId }: { workId?: string }) {
   const trackId = search.get("track");
   const [exporting, setExporting] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [pickingShelves, setPickingShelves] = useState(false);
   const [removing, setRemoving] = useState<RemovalSummary | null>(null);
   const [completedOffer, setCompletedOffer] = useState<{
     workId: string; generation: number; summary: RemovalSummary;
@@ -338,6 +340,9 @@ export function WorkScreen({ workId }: { workId?: string }) {
             <ModalSurface className="confirm work__more" title={t("nav.more")} onClose={() => setMoreOpen(false)}>
               <h2 className="display">{work.title}</h2>
               <div className="work__moreActions">
+                <button type="button" className="button" onClick={() => { setMoreOpen(false); setPickingShelves(true); }}>
+                  {t("shelves.addTo")}
+                </button>
                 <button type="button" className="button" onClick={() => { setMoreOpen(false); setExporting(true); }}>
                   {t("export.open")}
                 </button>
@@ -435,6 +440,8 @@ export function WorkScreen({ workId }: { workId?: string }) {
                    attempt={selectedAttempt} onRefresh={refreshCatalog} onRefreshed={reload} />
         )}
       </div>
+      {pickingShelves && <ShelvesPicker workId={id} title={data.work.title}
+                                        onClose={() => { setPickingShelves(false); reload(); }} />}
       {exporting && <ExportWizard workId={id} trackId={data.selected_track_id}
                                    onClose={() => setExporting(false)} />}
     </article>

@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from oneshelf.api.sources import error, services
 from oneshelf.domain.ids import new_id
 from oneshelf.domain.clock import utcnow_iso
+from oneshelf.search.presentation import work_covers
 
 router = APIRouter(prefix="/api")
 
@@ -101,16 +102,66 @@ class CollectionBody(BaseModel):
     filter_json: str | None = None
 
 
+# How many covers a shelf shows standing on it in My Shelf; the rest are counted.
+SHELF_COVERS = 6
+
+
+class RenameBody(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
+def _shelf_works(conn, collection_id: str, limit: int | None = None) -> list[dict]:
+    """A shelf's works, most recently placed first, as cards: title, kind and cover (INV-28: presentation)."""
+    rows = conn.execute(
+        "SELECT w.id, w.display_title, w.content_type FROM works w JOIN collection_works cw ON cw.work_id = w.id"
+        " WHERE cw.collection_id = ? ORDER BY cw.added_at DESC, w.display_title"
+        + (" LIMIT ?" if limit else ""), (collection_id, limit) if limit else (collection_id,)).fetchall()
+    covers = work_covers(conn, [r["id"] for r in rows])
+    return [{"work_id": r["id"], "title": r["display_title"], "content_type": r["content_type"],
+             "cover_url": covers.get(r["id"])} for r in rows]
+
+
 @router.get("/collections")
 async def list_collections(request: Request):
+    """Your own shelves ("Novels", "Summer"...), each with its first covers so it can be drawn as a shelf."""
     conn = services(request).conn
-    rows = conn.execute("SELECT * FROM collections ORDER BY name").fetchall()
+    rows = conn.execute("SELECT * FROM collections ORDER BY name COLLATE NOCASE").fetchall()
     result = []
     for r in rows:
         count = conn.execute("SELECT count(*) FROM collection_works WHERE collection_id = ?", (r["id"],)).fetchone()[0]
+        shown = _shelf_works(conn, r["id"], SHELF_COVERS)
         result.append({"id": r["id"], "name": r["name"], "is_smart": bool(r["is_smart"]),
-                        "filter_json": r["filter_json"], "work_count": count})
+                        "filter_json": r["filter_json"], "work_count": count,
+                        "works": shown, "covers": [w["cover_url"] for w in shown]})
     return {"collections": result}
+
+
+@router.get("/collections/{collection_id}")
+async def get_collection(request: Request, collection_id: str):
+    conn = services(request).conn
+    row = conn.execute("SELECT * FROM collections WHERE id = ?", (collection_id,)).fetchone()
+    if row is None:
+        return error(404, "COLLECTION_NOT_FOUND", "This shelf does not exist.")
+    return {"id": row["id"], "name": row["name"], "works": _shelf_works(conn, collection_id)}
+
+
+@router.patch("/collections/{collection_id}")
+async def rename_collection(request: Request, collection_id: str, body: RenameBody):
+    conn = services(request).conn
+    cursor = conn.execute("UPDATE collections SET name = ?, updated_at = ? WHERE id = ?",
+                          (body.name.strip(), utcnow_iso(), collection_id))
+    conn.commit()
+    if cursor.rowcount == 0:
+        return error(404, "COLLECTION_NOT_FOUND", "This shelf does not exist.")
+    return {"id": collection_id, "name": body.name.strip()}
+
+
+@router.get("/works/{work_id}/collections")
+async def work_collections(request: Request, work_id: str):
+    """Which of your shelves hold this work, for the picker on its page."""
+    conn = services(request).conn
+    return {"collection_ids": [r[0] for r in conn.execute(
+        "SELECT collection_id FROM collection_works WHERE work_id = ? ORDER BY added_at", (work_id,))]}
 
 
 @router.post("/collections")
@@ -141,6 +192,8 @@ async def add_to_collection(request: Request, collection_id: str, work_id: str):
     conn.execute("INSERT OR IGNORE INTO collection_works (collection_id, work_id, added_at) VALUES (?, ?, ?)",
                  (collection_id, work_id, utcnow_iso()))
     conn.commit()
+    # A work on one of your shelves is in your library: it joins My Shelf too (already there, nothing changes).
+    services(request).shelf.add(work_id)
     return {"collection_id": collection_id, "work_id": work_id}
 
 

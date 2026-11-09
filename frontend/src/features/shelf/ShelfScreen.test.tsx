@@ -141,12 +141,17 @@ describe("My Shelf", () => {
 
     await user.type(screen.getByRole("searchbox", { name: /search your shelf/i }), "irregular");
     expect(calls.some((call) => call.url.includes("q=irregular"))).toBe(true);
-    expect(calls.every((call) => call.url.startsWith("/api/shelf"))).toBe(true);
+    // Local only: the shelf itself, and the list of your own shelves above it.
+    expect(calls.every((call) => call.url.startsWith("/api/shelf") || call.url === "/api/collections")).toBe(true);
   });
 
   it("keeps search focused and editable while slower shelf responses arrive out of order", async () => {
     const requests: { url: string; respond: (entries: typeof ENTRY[]) => void }[] = [];
     vi.stubGlobal("fetch", vi.fn((input: string) => new Promise<Response>((resolve) => {
+      if (input === "/api/collections") {          // your own shelves: answered at once, not under test here
+        resolve(new Response(JSON.stringify({ collections: [] }), { headers: { "Content-Type": "application/json" } }));
+        return;
+      }
       requests.push({
         url: input,
         respond: (entries) => resolve(new Response(JSON.stringify({ view: "search", entries }), {

@@ -16,6 +16,7 @@ const SettingsScreen = lazy(() => import("@/features/settings/SettingsScreen").t
 const SourcesScreen = lazy(() => import("@/features/sources/SourcesScreen").then(m => ({ default: m.SourcesScreen })));
 const ReadRoute = lazy(() => loadReader().then(m => ({ default: m.ReadRoute })));
 const StatsScreen = lazy(() => import("@/features/stats/StatsScreen").then(m => ({ default: m.StatsScreen })));
+const CollectionScreen = lazy(() => import("@/features/shelf/CollectionScreen").then(m => ({ default: m.CollectionScreen })));
 const HistoryScreen = lazy(() => import("@/features/history/HistoryScreen").then(m => ({ default: m.HistoryScreen })));
 
 export type AppRoute = { path: string; element: ReactElement };
@@ -25,6 +26,7 @@ export const routes: AppRoute[] = [
   { path: "/search", element: <SearchScreen /> },
   { path: "/discover", element: <DiscoverScreen /> },
   { path: "/shelf", element: <ShelfScreen /> },
+  { path: "/shelves/:collectionId", element: <CollectionScreen /> },
   { path: "/following", element: <FollowingScreen /> },
   { path: "/downloads", element: <DownloadsScreen /> },
   { path: "/sources", element: <SourcesScreen /> },
