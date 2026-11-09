@@ -36,7 +36,7 @@ describe("Reading goals", () => {
   it("keeps the streak alive with a nudge before today's reading", async () => {
     mockApi([get("/api/goals", summary())]);
     renderWithProviders(<GoalsCard />);
-    expect(await screen.findByText(/5-day streak/i)).toBeInTheDocument();
+    expect(await screen.findByText(/5 days in a row/i)).toBeInTheDocument();
     expect(screen.getByText(/read a page today to make it 6/i)).toBeInTheDocument();
   });
 
