@@ -27,6 +27,7 @@ from oneshelf.api.shelf import router as shelf_router
 from oneshelf.api.storage import router as storage_router
 from oneshelf.api.covers import router as covers_router
 from oneshelf.api.stats import router as stats_router
+from oneshelf.api.goals import router as goals_router
 from oneshelf.api.tags import router as tags_router
 from oneshelf.api.history import router as history_router
 from oneshelf.api.works import router as works_router
@@ -383,6 +384,7 @@ def create_app(config: AppConfig) -> FastAPI:
     app.include_router(firstrun_router)
     app.include_router(generator_router)
     app.include_router(stats_router)
+    app.include_router(goals_router)
     app.include_router(tags_router)
     app.include_router(history_router)
     _mount_web_interface(app, config.web_root)

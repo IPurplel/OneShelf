@@ -25,6 +25,7 @@ from oneshelf.library.copies import local_copy
 from oneshelf.net.governor import Priority
 from oneshelf.plugins.results import ResourceDescriptor
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, PageTemporarilyRefused, PublicReaderExpired, RateLimited
+from oneshelf.goals.service import record_reading
 from oneshelf.reader.cache import ReaderCache
 from oneshelf.reader.page_image import normalize_page_image
 from oneshelf.settings.defaults import DEFAULTS
@@ -499,6 +500,8 @@ class ReaderService:
                 " updated_at=excluded.updated_at",
                 (unit_id, read_state, json.dumps(locator) if locator is not None else None, fraction, new_revision,
                  utcnow_iso()))
+            if read_state in ("partial", "read"):
+                record_reading(self.conn)          # a reading day for the streak (goals)
         if self.events is not None:
             self.events.publish("reader.progress", {"reading_unit_id": unit_id, "read_state": read_state,
                                                     "fraction": fraction, "revision": new_revision})

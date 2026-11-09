@@ -1321,3 +1321,32 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .collection__item { position: relative; min-inline-size: 0; }
 .shelvespicker__row { display: flex; align-items: center; gap: var(--space-3); min-block-size: 44px; cursor: pointer; }
 .shelvespicker__row input { inline-size: 18px; block-size: 18px; accent-color: var(--press-accent); }
+
+
+/* Reading goals on Home: the year's books and the daily streak, side by side (one column on a phone). */
+.goals { margin-block: var(--space-6); padding: var(--space-5); border: 1px solid var(--surface-border);
+         border-radius: var(--radius-lg); background: var(--paper); box-shadow: var(--shadow-card); }
+.goals__title { margin: 0 0 var(--space-4); font-size: 22px; }
+.goals__panels { display: grid; gap: var(--space-5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.goals__panel { display: grid; gap: var(--space-2); align-content: start; justify-items: start; }
+.goals__figure { margin: 0; font-family: var(--font-display); font-size: 20px; font-variant-numeric: tabular-nums; }
+.goals__note { margin: 0; color: var(--ink-700); max-inline-size: 42ch; }
+.goals__streak { display: inline-flex; align-items: center; gap: var(--space-2); color: #b8862f; }
+:root[data-resolved-theme="dark"] .goals__streak { color: #d9bf86; }
+.goals__bar { inline-size: 100%; max-inline-size: 420px; block-size: 8px; border-radius: 4px; background: var(--progress-track);
+              overflow: hidden; }
+.goals__bar > span { display: block; block-size: 100%; background: var(--progress-fill); transform-origin: left;
+                     transition: transform var(--motion-slow) var(--ease-out); }
+[dir="rtl"] .goals__bar > span { transform-origin: right; }
+@starting-style { .goals__bar > span { transform: scaleX(0); } }
+.goals__week { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.goals__day { inline-size: 18px; block-size: 18px; border-radius: 50%; border: 1px solid var(--surface-border);
+              background: var(--surface-sunken); }
+.goals__day--read { background: #d9bf86; border-color: #b8862f; }
+/* Today, once read, settles in with a soft gold glow: the streak noticed you. */
+.goals__day--read:last-child { box-shadow: 0 0 0 3px rgba(217, 191, 134, 0.28);
+  transition: transform var(--motion-slow) var(--ease-out), opacity var(--motion-slow) var(--ease-out); }
+@starting-style { .goals__day--read:last-child { transform: scale(0.9); opacity: 0; } }
+.goals__edit { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-2); }
+.goals__edit label { display: grid; gap: var(--space-1); }
+.goals__edit .field { inline-size: 120px; }

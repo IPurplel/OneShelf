@@ -35,12 +35,12 @@ RESTORE_TABLES = ("storage_roots", "works", "tags", "collections", "work_tags", 
                   "work_aliases", "source_listings", "source_tracks", "reading_units",
                   "assets", "shelf_entries", "follows", "follow_baselines", "follow_baseline_units", "release_events",
                   "work_mappings", "user_overrides", "settings", "imports", "download_history",
-                  "reading_bookmarks", "reading_highlights")
+                  "reading_bookmarks", "reading_highlights", "reading_activity")
 DELETE_ORDER = ("work_notes", "work_tags", "collection_works", "reading_bookmarks", "reading_highlights",
                 "reading_state", "release_events", "follow_baseline_units", "follow_baselines", "follows",
                 "shelf_entries", "assets", "reading_units", "source_tracks", "source_listings", "work_aliases",
                 "work_mappings", "user_overrides", "settings", "imports", "download_history", "works",
-                "tags", "collections")
+                "tags", "collections", "reading_activity")
 
 
 class RestoreError(RuntimeError):

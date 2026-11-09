@@ -445,3 +445,18 @@ def test_shelves_of_your_own_hold_works_with_their_covers(api):
     assert client.get(f"/api/works/{work}/collections").json() == {"collection_ids": []}
     assert client.get("/api/collections/nope").status_code == 404
     assert client.patch("/api/collections/nope", json={"name": "x"}).status_code == 404
+
+
+def test_reading_counts_toward_the_streak_and_a_yearly_goal_can_be_set(api):
+    # Reading goals (asked for 2026-11-10): a yearly book goal and a daily streak.
+    client, _, _ = api
+    work = bind(client, "irregular", "First")
+    client.post(f"/api/tracks/{work['track_id']}/catalog/refresh")
+    unit = client.get(f"/api/works/{work['work_id']}", params={"track_id": work["track_id"]}).json()["units"][0]["id"]
+    assert client.get("/api/goals", params={"offset": -180}).json()["streak"]["read_today"] is False
+    client.post(f"/api/reader/units/{unit}/progress", json={"fraction": 0.3})
+    goals = client.get("/api/goals", params={"offset": -180}).json()
+    assert goals["streak"]["read_today"] is True and goals["streak"]["current"] == 1
+    assert client.put("/api/goals", json={"books_per_year": 20}).json()["books"]["goal"] == 20
+    assert client.put("/api/goals", json={"books_per_year": 0}).status_code == 422
+    assert client.put("/api/goals", json={"books_per_year": None}).json()["books"]["goal"] is None
