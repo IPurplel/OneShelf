@@ -7,7 +7,9 @@ Authority: Master §40; written from the routers in `backend/oneshelf/api/`.
 
 - JSON in, JSON out. Errors are `{"error": {"code": "UPPER_SNAKE", "message": "a sentence for a person"}}`
   with a meaningful status: 401 unauthenticated, 403 refused, 404 unknown, 409 conflicting state,
-  422 rejected input, 429 rate limited by a source, 502 the source failed. `SOURCE_FAILED` adds `"category"`
+  422 rejected input, 429 rate limited by a source, 502 the source failed. A cover or page prefetch that Core held
+  back because the source's host is under pressure answers 503 with `Retry-After` (`SOURCE_BUSY`,
+  `SOURCE_TEMPORARILY_UNAVAILABLE`). `SOURCE_FAILED` adds `"category"`
   (the engine's reason) beside the sentence, never inside it.
 - `GET /api/works/{id}` units carry `download_state` (`queued` | `downloading` | `failed` | null, from the unit's
   latest job) and `size_bytes` (its files on this device, or null). `GET /api/home` Continue Reading items and a
@@ -32,6 +34,7 @@ Authority: Master §40; written from the routers in `backend/oneshelf/api/`.
 |---|---|
 | `GET /api/health` | Liveness: status, schema version, how this client was classified. |
 | `GET /api/ready` | Readiness: migrations applied, startup recovery finished, storage locations seen. Used by the container healthcheck. |
+| `GET /api/diagnostics/traffic` | Requests sent to each source and host since start, what they answered (`ok`, `throttled`, `refused`…), time spent queueing, requests shed, and each host's current backoff penalty and circuit. Counters only: no URL, header or body. |
 | `GET /api/events` | Server-sent events. One stream for progress and domain changes: downloads, catalogue refreshes, shelf, follows, notifications, health. Clients render from these rather than polling. |
 
 ## Sources and sessions (§9–13)
