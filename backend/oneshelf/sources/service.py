@@ -14,7 +14,7 @@ from oneshelf.plugins.manager import PluginManager, PluginUnavailable
 from oneshelf.plugins.package import PluginPackage
 from oneshelf.plugins.schema import is_text_reader
 from oneshelf.plugins.results import ListResult
-from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited, RecipeRuntime
+from oneshelf.plugins.runtime import AuthRequired, CapabilityError, RateLimited, RecipeRuntime, TrafficDeferred
 from oneshelf.sessions.manager import SessionManager
 from oneshelf.sources.fetcher import DevHostsResolver, SourceFetcher, raise_for_rate_limit
 from oneshelf.sources.health import record_signal
@@ -98,14 +98,22 @@ class SourceService:
             self._clients[key] = await client.__aenter__()
         return self._clients[key]
 
+    def _configure_governor(self, package: PluginPackage) -> None:
+        """What the package declares, handed to the governor before every request: its rate and burst for the
+        site's own pages, and (plugin API 1.4) an optional separate budget for images and files."""
+        limits = package.source.rate_limit
+        resources = limits.resources
+        self.governor.configure_source(
+            package.id, concurrency=limits.concurrency, requests_per_minute=limits.requests_per_minute,
+            burst=limits.burst,
+            resource_concurrency=resources.concurrency if resources is not None else None,
+            resource_requests_per_minute=resources.requests_per_minute if resources is not None else None)
+
     async def _native_provider(self, package, priority):
         from oneshelf.net.ech import EchClient
         from oneshelf.plugins.native.noorbook import NoorBookProvider
 
-        limits = package.source.rate_limit
-        self.governor.configure_source(package.id, concurrency=limits.concurrency,
-                                       requests_per_minute=limits.requests_per_minute,
-                                       burst=limits.burst)
+        self._configure_governor(package)
         key = (package.id, package.sha256)
         policy = self.policy_for(package)
         async with self._ech_lock:
@@ -120,10 +128,7 @@ class SourceService:
 
     async def _fetcher(self, plugin_id: str, priority: Priority) -> tuple[PluginPackage, SourceFetcher]:
         package = self.plugins.load_active(plugin_id)
-        limits = package.source.rate_limit
-        self.governor.configure_source(plugin_id, concurrency=limits.concurrency,
-                                       requests_per_minute=limits.requests_per_minute,
-                                       burst=limits.burst)
+        self._configure_governor(package)
         return package, self._make_fetcher(package, await self._client(package), self.sessions, priority)
 
     def _make_fetcher(self, package: PluginPackage, client: HttpClient, sessions, priority: Priority) -> SourceFetcher:
@@ -260,6 +265,8 @@ class SourceService:
             self._auth_failed(plugin_id)
             self._record(package, capability, "failure", "auth_failure")
             raise
+        except TrafficDeferred:
+            raise                 # Core held it back itself: nothing the source did (see TrafficDeferred)
         except RateLimited as exc:
             self._record(package, capability, "failure", "rate_limit")
             raise
@@ -319,7 +326,7 @@ class SourceService:
         declared = dict(recipe.resource_headers) if recipe is not None else {}
         declared.update(headers or {})
         response = await fetcher.request(url, capability=capability, auth_mode=auth_mode, max_bytes=max_bytes,
-                                         headers=declared or None)
+                                         headers=declared or None, lane="resource")
         if response.status == 429:
             self._record(package, capability, "failure", "rate_limit")
             raise_for_rate_limit(response)

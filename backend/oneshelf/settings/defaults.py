@@ -51,6 +51,16 @@ class DownloadDefaults:
 
 
 @dataclass(frozen=True)
+class TrafficDefaults:
+    """The Source Traffic Governor's global capacity (Master §15). Per-source limits are unchanged by these:
+    every source still gets only what its package declares, so a larger pool means less queueing between
+    sources, never more requests to any one of them."""
+    http_capacity: int = 12
+    reserved_for_foreground: int = 4     # never taken by covers, read-ahead, Follow or Health
+    reserved_for_reader: int = 2         # never taken by anything but the Reader
+
+
+@dataclass(frozen=True)
 class FollowDefaults:
     check_interval: timedelta = timedelta(hours=12)
     jitter: timedelta = timedelta(minutes=45)
@@ -119,6 +129,7 @@ class Defaults:
     auto_download: AutoDownloadDefaults = field(default_factory=AutoDownloadDefaults)
     reader: ReaderDefaults = field(default_factory=ReaderDefaults)
     downloads: DownloadDefaults = field(default_factory=DownloadDefaults)
+    traffic: TrafficDefaults = field(default_factory=TrafficDefaults)
     follow: FollowDefaults = field(default_factory=FollowDefaults)
     notifications: NotificationDefaults = field(default_factory=NotificationDefaults)
     export: ExportDefaults = field(default_factory=ExportDefaults)

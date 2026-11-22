@@ -60,6 +60,7 @@ from oneshelf.search.cache import DiscoveryCache
 from oneshelf.search.service import SearchService
 from oneshelf.search.url_resolve import UrlResolver
 from oneshelf.net.governor import TrafficGovernor
+from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.net.lazy_browser import LazyBrowser
 from oneshelf.plugins.bundled import sync_bundled
 from oneshelf.plugins.manager import PluginManager
@@ -258,7 +259,9 @@ def create_app(config: AppConfig) -> FastAPI:
         plugins.reconcile_store()
         store = SecretsStore(Path(config.data_dir) / "secrets.db", load_or_create_key(config.session_key_file))
         sessions = SessionManager(conn, store, events=app.state.bus)
-        governor = TrafficGovernor()
+        governor = TrafficGovernor(http_capacity=DEFAULTS.traffic.http_capacity,
+                                   reserved_for_foreground=DEFAULTS.traffic.reserved_for_foreground,
+                                   reserved_for_reader=DEFAULTS.traffic.reserved_for_reader)
         browser = LazyBrowser()
         source_service = SourceService(conn, plugins, governor, sessions, events=app.state.bus,
                                        dev_test_source=config.dev_test_source,

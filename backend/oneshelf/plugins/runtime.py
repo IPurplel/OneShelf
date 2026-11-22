@@ -77,6 +77,14 @@ class RateLimited(CapabilityError):
         self.retry_after = retry_after
 
 
+class TrafficDeferred(RateLimited):
+    """Core itself held back background work (a cover, a prefetch) because the host is under pressure.
+
+    It is a rate limit to the caller, but it is not the source's answer, so it is never recorded against
+    the source's health.
+    """
+
+
 @dataclass(frozen=True)
 class RecipeRequest:
     capability: str

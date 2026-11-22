@@ -22,14 +22,14 @@ from oneshelf.net.governor import Priority
 from oneshelf.api.sources import error, services, source_failed
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.plugins.manager import PluginUnavailable
-from oneshelf.plugins.runtime import AuthRequired, CapabilityError, PageTemporarilyRefused, RateLimited
+from oneshelf.plugins.runtime import AuthRequired, CapabilityError, PageTemporarilyRefused, RateLimited, TrafficDeferred
 from oneshelf.reader.alternatives import alternatives
 from oneshelf.reader.service import DownloadRequired, MarkOperationConflict, SourceUnavailable, StaleProgress
 
 router = APIRouter(prefix="/api")
 
 
-def _temporary_reader_error(exc: PageTemporarilyRefused) -> JSONResponse:
+def _temporary_reader_error(exc: PageTemporarilyRefused | TrafficDeferred) -> JSONResponse:
     return JSONResponse({"error": {"code": "SOURCE_TEMPORARILY_UNAVAILABLE", "message": str(exc)}},
                         status_code=503, headers={"Retry-After": str(max(1, math.ceil(exc.retry_after))),
                                                   "Cache-Control": "no-store"})
@@ -402,6 +402,10 @@ async def reader_page(request: Request, unit_id: str, index: int, prefetch: bool
                         pass
         else:
             page = await s.reader.page(unit_id, index, prefetch=False)
+    except TrafficDeferred as exc:
+        # A prefetch held back because the source's host is under pressure: the page loop waits and tries
+        # again later (pagePreloads.ts honours Retry-After on a 503), instead of adding to the pressure.
+        return _temporary_reader_error(exc)
     except DownloadRequired:
         return error(409, "DOWNLOAD_REQUIRED", DOWNLOAD_REQUIRED)
     except SourceUnavailable as exc:

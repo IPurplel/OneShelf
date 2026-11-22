@@ -272,14 +272,15 @@ def test_source_rate_limit_spaces_request_starts_once_the_burst_is_spent():
 
 def test_a_small_burst_starts_at_once_and_the_rest_keep_the_declared_rate():
     # A person opening a work asks for its details, its catalogue and its first pages together; a fixed gap
-    # before every request made each of them wait (3 s apiece at 20 requests a minute).
+    # before every request made each of them wait (3 s apiece at 20 requests a minute). Each request goes to
+    # its own host here, so it is the lane's bucket that is tested, not the per-host ceiling (below).
     async def scenario():
         gov = TrafficGovernor()
         gov.configure_source("polite", concurrency=4, requests_per_minute=600, burst=3)  # 0.1 s refill
         t0 = time.monotonic()
         starts = []
-        for _ in range(5):
-            async with gov.acquire("polite", Priority.READER):
+        for i in range(5):
+            async with gov.acquire("polite", Priority.READER, host=f"h{i}"):
                 starts.append(time.monotonic() - t0)
         return starts
     starts = run(scenario())
@@ -310,12 +311,45 @@ def test_an_idle_source_refills_only_up_to_its_burst():
         await asyncio.sleep(0.5)                 # long enough to earn five tokens, if they were not capped
         t0 = time.monotonic()
         starts = []
-        for _ in range(3):
-            async with gov.acquire("polite", Priority.READER):
+        for i in range(3):
+            async with gov.acquire("polite", Priority.READER, host=f"h{i}"):
                 starts.append(time.monotonic() - t0)
         return starts
     starts = run(scenario())
     assert starts[1] < 0.05 and starts[2] >= 0.08
+
+
+def test_a_burst_to_one_host_still_starts_no_faster_than_the_core_ceiling():
+    # However much a package's burst allows, no host is asked more than ten times a second (net/governor.py).
+    async def scenario():
+        gov = TrafficGovernor()
+        gov.configure_source("polite", concurrency=4, requests_per_minute=60, burst=4)   # 1 s refill
+        t0 = time.monotonic()
+        starts = []
+        for _ in range(4):
+            async with gov.acquire("polite", Priority.READER, host="one"):
+                starts.append(time.monotonic() - t0)
+        return starts
+    starts = run(scenario())
+    assert starts[3] - starts[0] >= 3 * 0.1 - 0.01      # the ceiling, not "at once"
+    assert starts[3] < 0.6                               # but a burst: far inside the 1 s spacing
+
+
+def test_a_burst_never_carries_past_a_host_that_has_answered_429():
+    # Tokens saved up while a host was calm must not let a burst through once it asks us to slow down.
+    async def scenario():
+        gov = TrafficGovernor(rng=lambda: 0.0)
+        gov.configure_source("polite", concurrency=4, requests_per_minute=6000, burst=4)  # 0.01 s refill
+        await asyncio.sleep(0.05)
+        gov.observe("polite", "slow", "throttled")           # penalty 2: spacing 0.25 * 2 = 0.5 s
+        t0 = time.monotonic()
+        starts = []
+        for _ in range(2):
+            async with gov.acquire("polite", Priority.READER, host="slow"):
+                starts.append(time.monotonic() - t0)
+        return starts
+    starts = run(scenario())
+    assert starts[1] - starts[0] >= 0.45
 
 
 def test_retry_after_blocks_only_that_source():
@@ -365,11 +399,11 @@ def test_background_work_leaves_the_last_token_for_the_person():
         gov.configure_source("polite", concurrency=4, requests_per_minute=600, burst=3)  # 0.1 s refill
         t0 = time.monotonic()
         background = []
-        for _ in range(3):
-            async with gov.acquire("polite", Priority.READ_AHEAD):
+        for i in range(3):
+            async with gov.acquire("polite", Priority.READ_AHEAD, host=f"h{i}"):
                 background.append(time.monotonic() - t0)
         reader_start = time.monotonic()
-        async with gov.acquire("polite", Priority.READER):
+        async with gov.acquire("polite", Priority.READER, host="reader"):
             reader_wait = time.monotonic() - reader_start
         return background, reader_wait
     background, reader_wait = run(scenario())

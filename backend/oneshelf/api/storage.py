@@ -302,6 +302,13 @@ async def diagnostics_summary(request: Request):
     return services(request).diagnostics.summary()
 
 
+@router.get("/diagnostics/traffic")
+async def diagnostics_traffic(request: Request):
+    """Requests sent to each source and host since start, what they answered, the time spent queueing,
+    and each host's current backoff. Counters only: never a URL, a header or a body (§43)."""
+    return services(request).governor.snapshot()
+
+
 @router.get("/diagnostics/recent")
 async def diagnostics_recent(request: Request, limit: int = Query(default=100, ge=1, le=500)):
     return {"entries": services(request).diagnostics.recent(limit=limit)}

@@ -18,6 +18,7 @@ NATIVE_PROFILE_API = (1, 3)
 TEXT_UNITS_API = (1, 2)
 COUNT_ITEMS_API = (1, 3)
 RATE_BURST_API = (1, 4)
+RESOURCE_BUDGET_API = (1, 4)
 MAX_SELECTOR = 512
 MAX_TEMPLATE = 512
 MAX_PAGES_CAP = 1000
@@ -134,6 +135,17 @@ class UrlPattern(Strict):
         return value
 
 
+class ResourceRateLimit(Strict):
+    """A separate budget for the source's resources: page images, covers and files (plugin API 1.4).
+
+    For CDNs that serve far more than the site's own pages can bear. It must be justified in review against
+    what the CDN actually allows. Core still never starts more than ten requests a second to any one host,
+    and slows down on its own when a host answers 429 or 503 (net/governor.py).
+    """
+    requests_per_minute: int = Field(ge=1, le=600)
+    concurrency: int = Field(default=2, ge=1, le=6)
+
+
 class RateLimit(Strict):
     requests_per_minute: int = Field(default=60, ge=1, le=600)
     concurrency: int = Field(default=2, ge=1, le=4)
@@ -141,6 +153,7 @@ class RateLimit(Strict):
     # before every request, which some sites require (arXiv: one request every three seconds); a site that
     # tolerates a short burst lets opening a work and its first pages start at once.
     burst: int = Field(default=1, ge=1, le=4)
+    resources: ResourceRateLimit | None = None
 
 
 class Timeouts(Strict):
