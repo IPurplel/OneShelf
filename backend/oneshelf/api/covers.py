@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, Query, Request, Response
 
 from oneshelf.downloads.engine import detect_image_suffix
-from oneshelf.integrity.validators import _validate_image
+from oneshelf.integrity.validators import validate_image_off_loop
 from oneshelf.net.governor import Priority
 from oneshelf.net.http import ResponseTooLarge
 from oneshelf.plugins.manager import PluginUnavailable
@@ -68,7 +68,7 @@ async def _image_response(s, source: str, package, url: str, *, headers: dict[st
     if response.status != 200:
         return _error(404, "COVER_UNAVAILABLE", f"The source answered {response.status}.")
     media_type = MEDIA_TYPES.get(detect_image_suffix(response.body))
-    if media_type is None or _validate_image(response.body):
+    if media_type is None or await validate_image_off_loop(response.body):
         return _error(415, "NOT_AN_IMAGE", "The source did not return an image.")
     return Response(response.body, media_type=media_type, headers=headers)
 

@@ -1,6 +1,6 @@
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
-import { useResource } from "@/api/useApi";
+import { type Resource, useResource } from "@/api/useApi";
 import type { WorkDetails } from "@/api/types";
 import { useI18n } from "@/i18n/i18n";
 import { BookReader } from "./BookReader";
@@ -22,23 +22,30 @@ export function ReadRoute() {
 function ResolveUnit({ unitId, workId, trackId }: { unitId: string; workId: string | null; trackId: string | null }) {
   const { t } = useI18n();
   const { data, error, reload } = useResource<UnitContext>(`/api/reader/units/${unitId}/context`);
+  // A link that names its Work (every link the app makes) lets the Work be read alongside the unit's context
+  // instead of after it: one round trip less before the first page is even asked for.
+  const works = useResource<WorkDetails>(`/api/works/${workId ?? ""}`, trackId ? { track_id: trackId } : undefined,
+                                         { skip: workId === null || trackId === null });
   if (error !== null) return <Unavailable message={error} back={workLink(workId ?? "", trackId)} retry={reload} />;
   // A reload keeps what is shown (a download finishing, say) instead of blanking the reader.
   if (data === null) return <p className="screen__subtitle" role="status">{t("state.loading")}</p>;
   // The source lists this book but lets OneShelf neither show nor download it: its own page is the offer.
   if (data.kind === "external") return <ExternalOnly url={data.url ?? null} back={workLink(workId ?? data.work_id, trackId ?? data.track_id)} />;
   const download = data.kind === "download" ? data.download ?? { state: null, error: null } : null;
+  // Only when the link named the track too is the Work read here the one the reader needs.
+  const preloaded = workId !== null && trackId !== null ? works : undefined;
   return <OpenUnit unitId={unitId} workId={workId ?? data.work_id} trackId={trackId ?? data.track_id} formats={data.formats}
-                   text={data.kind === "text"} download={download} onChange={reload} />;
+                   text={data.kind === "text"} download={download} onChange={reload} works={preloaded} />;
 }
-function OpenUnit({ unitId, workId, trackId, formats, text, download, onChange }: {
+function OpenUnit({ unitId, workId, trackId, formats, text, download, onChange, works }: {
   unitId: string; workId: string; trackId: string; formats: string[]; text: boolean;
-  download: DownloadState | null; onChange: () => void;
+  download: DownloadState | null; onChange: () => void; works?: Resource<WorkDetails>;
 }) {
   const { t } = useI18n();
   const [search] = useSearchParams();
   const requestedFormat = search.get("format");
-  const { data, error, loading, reload } = useResource<WorkDetails>(`/api/works/${workId}`, { track_id: trackId });
+  const own = useResource<WorkDetails>(`/api/works/${workId}`, { track_id: trackId }, { skip: works !== undefined });
+  const { data, error, loading, reload } = works ?? own;
   if (error !== null) return <Unavailable message={error} back={workLink(workId, trackId)} retry={reload} />;
   if (loading || data === null) return <p className="screen__subtitle" role="status">{t("state.loading")}</p>;
   if (!data.units.some(unit => unit.id === unitId)) {
@@ -54,7 +61,7 @@ function OpenUnit({ unitId, workId, trackId, formats, text, download, onChange }
   if (requestedFormat && formats.includes(requestedFormat)) {
     if (requestedFormat === "epub" || requestedFormat === "pdf" || requestedFormat === "text")
       return <BookReader unitId={unitId} format={requestedFormat} workId={workId} trackId={trackId} />;
-    if (requestedFormat === "cbz") return <ReaderScreen unitId={unitId} workId={workId} trackId={trackId} />;
+    if (requestedFormat === "cbz") return <ReaderScreen unitId={unitId} workId={workId} trackId={trackId} details={data} />;
   }
   if (formats.includes("epub")) return <BookReader unitId={unitId} format="epub" workId={workId} trackId={trackId} />;
   if (formats.includes("pdf")) return <BookReader unitId={unitId} format="pdf" workId={workId} trackId={trackId} />;
@@ -64,7 +71,7 @@ function OpenUnit({ unitId, workId, trackId, formats, text, download, onChange }
   if (download !== null) {
     return <DownloadToRead unitId={unitId} workId={workId} trackId={trackId} download={download} onChange={onChange} />;
   }
-  return <ReaderScreen unitId={unitId} workId={workId} trackId={trackId} />;
+  return <ReaderScreen unitId={unitId} workId={workId} trackId={trackId} details={data} />;
 }
 function ExternalOnly({ url, back }: { url: string | null; back: string }) {
   const { t } = useI18n();

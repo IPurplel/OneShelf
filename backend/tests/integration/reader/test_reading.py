@@ -891,15 +891,15 @@ def test_public_cooldown_prevents_expired_or_evicted_descriptor_reload(reading, 
 def test_checking_a_page_image_does_not_hold_up_other_requests(reading, monkeypatch):
     # Every page is fully decoded to prove it is an image (10-17 ms for a real 1-2 MB manga page, measured
     # 2026-11-09). On the event loop that stalled every request while the reader preloaded fifteen pages.
-    from oneshelf.reader import service as reader_service
+    from oneshelf.integrity import validators
 
-    real_validate = reader_service._validate_image
+    real_validate = validators._validate_image
 
     def slow_validate(data):
         time.sleep(0.3)
         return real_validate(data)
 
-    monkeypatch.setattr(reader_service, "_validate_image", slow_validate)
+    monkeypatch.setattr(validators, "_validate_image", slow_validate)
 
     async def scenario():
         async with reading() as (env, reader, cache):

@@ -95,8 +95,9 @@ class CatalogTrust:
                 return RefreshOutcome("trusted", snapshot_id, len(units), evidence=evidence)
 
             current_keys = self._keys(current["id"])
-            lost = [k for k in current_keys if k not in set(new_keys)]
-            if set(current_keys) == set(new_keys):
+            new_set = set(new_keys)           # built once: per key it made a 6,000-unit check take over a second
+            lost = [k for k in current_keys if k not in new_set]
+            if set(current_keys) == new_set:
                 self._materialize(track_id, units)
                 self.conn.execute("DELETE FROM catalog_snapshots WHERE id = ?", (snapshot_id,))
                 self.conn.execute("UPDATE catalog_snapshots SET fetched_at = ?, plugin_version = ?, evidence_json = ?"
@@ -183,8 +184,7 @@ class CatalogTrust:
     def _materialize(self, track_id: str, units: list[UnitDescriptor]) -> None:
         """Reading Units reflect the trusted catalog; missing units are retained, never deleted (§5.5)."""
         now = utcnow_iso()
-        for unit in units:
-            self.conn.execute(
+        self.conn.executemany(
                 "INSERT INTO reading_units (id, track_id, source_unit_key, raw_title, display_title, unit_type,"
                 " source_number, volume, source_order, url_hint, release_date, availability, first_seen_at, last_seen_at,"
                 " missing_since) VALUES (?,?,?,?,?,?,?,?,?,?,?, 'available', ?, ?, NULL)"
@@ -193,12 +193,14 @@ class CatalogTrust:
                 " volume=excluded.volume, source_order=excluded.source_order, url_hint=excluded.url_hint,"
                 " release_date=excluded.release_date, availability='available', last_seen_at=excluded.last_seen_at,"
                 " missing_since=NULL",
-                (new_id(), track_id, unit.unit_key, unit.raw_title, unit.raw_title, unit.unit_type, unit.number,
-                 unit.volume, unit.order_index, unit.url, unit.release_date, now, now))
-        keys = [u.unit_key for u in units]
-        placeholders = ",".join("?" * len(keys)) or "NULL"
-        self.conn.execute(
-            f"UPDATE reading_units SET availability = 'unavailable', missing_since = coalesce(missing_since, ?)"
-            f" WHERE track_id = ? AND source_unit_key NOT IN ({placeholders})", (now, track_id, *keys))
+                [(new_id(), track_id, unit.unit_key, unit.raw_title, unit.raw_title, unit.unit_type, unit.number,
+                  unit.volume, unit.order_index, unit.url, unit.release_date, now, now) for unit in units])
+        # One bound value however long the catalogue is (a placeholder per key hit SQLite's variable limit).
+        # An empty catalogue marks nothing unavailable, exactly as the former `NOT IN (NULL)` did.
+        if units:
+            self.conn.execute(
+                "UPDATE reading_units SET availability = 'unavailable', missing_since = coalesce(missing_since, ?)"
+                " WHERE track_id = ? AND source_unit_key NOT IN (SELECT value FROM json_each(?))",
+                (now, track_id, json.dumps([u.unit_key for u in units])))
         # The source rewrote its own columns; the user's corrections still win (INV-04, I-102).
         apply_unit_overrides(self.conn, track_id)

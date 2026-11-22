@@ -803,8 +803,9 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
   align-items: center;
   padding: var(--space-4);
   border-bottom: 1px solid var(--ivory-200);
-  /* A long series lists hundreds of chapters (572 for One Piece on 3asq): rows off screen are neither laid
-     out nor painted until they come near. `auto` keeps each row's last measured height, so scrolling holds. */
+  /* A long series lists hundreds of chapters (572 for One Piece on 3asq): rows off screen are skipped for
+     layout and paint, yet stay in the document, so find-in-page, screen readers and links keep working.
+     `auto` keeps each row's last measured height, so scrolling holds (77px is what a row measures). */
   content-visibility: auto;
   contain-intrinsic-size: auto 77px;
 }

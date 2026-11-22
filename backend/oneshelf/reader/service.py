@@ -20,7 +20,7 @@ from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.downloads.contract import Settings
 from oneshelf.downloads.engine import NoStorageLocation
-from oneshelf.integrity.validators import _is_image_entry, _natural_key, _validate_image
+from oneshelf.integrity.validators import _is_image_entry, _natural_key, validate_image_off_loop
 from oneshelf.library.copies import local_copy
 from oneshelf.net.governor import Priority
 from oneshelf.plugins.results import ResourceDescriptor
@@ -214,6 +214,14 @@ class ReaderService:
             entries = [info for info in archive.infolist() if _is_image_entry(info)]
         return sorted(entries, key=lambda info: _natural_key(info.filename))
 
+    @classmethod
+    def _archive_page(cls, path: Path, index: int) -> bytes:
+        names = cls._archive_pages(path)
+        if index > len(names):
+            raise IndexError("page index exceeds page count")
+        with zipfile.ZipFile(path) as archive:
+            return archive.read(names[index - 1])
+
     # -- pages -------------------------------------------------------------------------------------
 
     # -- text units ----------------------------------------------------------------------------------
@@ -244,7 +252,7 @@ class ReaderService:
     async def pages(self, unit_id: str) -> list[PageInfo]:
         asset = self._local_asset(unit_id, "cbz")
         if asset is not None:
-            names = self._archive_pages(self._local_path(asset))
+            names = await asyncio.to_thread(self._archive_pages, self._local_path(asset))
             return [PageInfo(index=i, label=str(i)) for i, _ in enumerate(names, start=1)]
         if self._unit(unit_id)["source_id"] == "local":
             raise FileNotFoundError("this local reading unit has no image pages; open its file instead")
@@ -346,12 +354,9 @@ class ReaderService:
             raise IndexError("page index must be at least 1")
         asset = self._local_asset(unit_id, "cbz")
         if asset is not None:
-            path = self._local_path(asset)
-            names = self._archive_pages(path)
-            if index > len(names):
-                raise IndexError("page index exceeds page count")
-            with zipfile.ZipFile(path) as archive:
-                return PageData(index, archive.read(names[index - 1]), "local")
+            # Opening, listing and inflating the archive is disk and CPU work: off the event loop.
+            return PageData(index, await asyncio.to_thread(self._archive_page, self._local_path(asset), index),
+                            "local")
         unit = self._unit(unit_id)
         if unit["source_id"] == "local":
             raise FileNotFoundError("this local reading unit has no image pages; open its file instead")
@@ -449,9 +454,9 @@ class ReaderService:
             self._record(source, "content_missing" if category == "not_found" else "failure", category)
             raise CapabilityError(category, f"page {index}: the source answered HTTP {status}")
         data = await normalize_page_image(response.body)
-        # A full decode proves the page is an image; in a worker thread, so a preloading reader does not stall
-        # every other request while it decodes (Pillow releases the GIL while decoding).
-        problem = await asyncio.to_thread(_validate_image, data)
+        # A full decode proves the page is an image, on a worker thread (at most four at once), so a
+        # preloading reader does not stall every other request while it decodes.
+        problem = await validate_image_off_loop(data)
         if problem:
             raise ValueError(f"page {index}: {problem}")
         self.cache.put(source, unit["source_unit_key"], url, data)

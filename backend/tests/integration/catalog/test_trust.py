@@ -193,3 +193,23 @@ def test_local_content_survives_a_catalog_collapse(db, trust, track):
     trust.refresh(track, complete(units(2)), plugin_version="1.0.0")
     assert db.execute("SELECT count(*) FROM assets WHERE integrity = 'ok'").fetchone()[0] == 1
     assert db.execute("SELECT missing_since IS NOT NULL FROM reading_units WHERE id = ?", (unit_id,)).fetchone()[0] == 1
+
+
+def test_a_long_catalogue_refreshes_in_linear_time(db, trust, track):
+    """PERFORMANCE_STUDY §3.2: the unchanged check was quadratic (1.5 s for 6,000 units, holding the write lock)."""
+    import time
+
+    trust.refresh(track, complete(units(6000)), plugin_version="1.0.0")
+    started = time.perf_counter()
+    outcome = trust.refresh(track, complete(units(6000)), plugin_version="1.0.0")
+    assert outcome.state == "unchanged"
+    assert time.perf_counter() - started < 0.8
+
+
+def test_losing_units_from_a_catalogue_larger_than_sqlites_variable_limit(db, trust, track):
+    trust.refresh(track, complete(units(33000)), plugin_version="1.0.0")
+    outcome = trust.refresh(track, complete(units(32990)), plugin_version="1.0.0")
+    assert outcome.state == "trusted" and outcome.lost == 10
+    gone = db.execute("SELECT count(*) FROM reading_units WHERE track_id = ? AND availability = 'unavailable'",
+                      (track,)).fetchone()[0]
+    assert gone == 10

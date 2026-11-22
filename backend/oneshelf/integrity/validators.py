@@ -5,9 +5,11 @@ extraction and with bomb/zip-slip guards. XML is parsed with defusedxml.
 """
 from __future__ import annotations
 
+import asyncio
 import io
 import posixpath
 import re
+import threading
 import warnings
 import zipfile
 from dataclasses import dataclass, field
@@ -148,6 +150,20 @@ def _validate_image(data: bytes) -> str | None:
     if width < 1 or height < 1:
         return "image has no dimensions"
     return None
+
+
+_IMAGE_SLOTS = threading.BoundedSemaphore(4)
+
+
+def _validate_image_bounded(data: bytes) -> str | None:
+    with _IMAGE_SLOTS:          # at most four full decodes at once, whatever asks for them
+        return _validate_image(data)
+
+
+async def validate_image_off_loop(data: bytes) -> str | None:
+    """`_validate_image` on a worker thread. A full decode takes from milliseconds to a third of a second
+    (a long WebP strip), and on the event loop it holds up every other request meanwhile."""
+    return await asyncio.to_thread(_validate_image_bounded, data)
 
 
 def _validate_cbz(path: Path) -> ValidationResult:
