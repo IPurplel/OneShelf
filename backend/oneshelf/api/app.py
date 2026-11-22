@@ -59,6 +59,7 @@ from oneshelf.discovery.home import HomeService
 from oneshelf.search.cache import DiscoveryCache
 from oneshelf.search.service import SearchService
 from oneshelf.search.url_resolve import UrlResolver
+from oneshelf.covers.cache import CoverCache
 from oneshelf.net.governor import TrafficGovernor
 from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.net.lazy_browser import LazyBrowser
@@ -112,6 +113,7 @@ class Services:
     settings: Settings | None = None
     diagnostics: DiagnosticsStore | None = None
     discover: DiscoverService | None = None
+    cover_cache: CoverCache | None = None
 
 
 @dataclass(frozen=True)
@@ -277,6 +279,7 @@ def create_app(config: AppConfig) -> FastAPI:
         logging.getLogger("oneshelf").addHandler(diagnostics_handler)
         engine = DownloadEngine(conn, source_service, plugins, governor, settings=settings, events=app.state.bus)
         reader_cache = ReaderCache(Path(config.data_dir) / "reader-cache", Path(config.data_dir) / "cache.db")
+        cover_cache = CoverCache(Path(config.data_dir) / "cover-cache", Path(config.data_dir) / "cache.db")
         reader = ReaderService(conn, source_service, reader_cache, engine, settings=settings, events=app.state.bus)
         catalog = CatalogTrust(conn)
         backups = BackupService(conn, config.db_path, backup_dir=Path(config.data_dir) / "backups")
@@ -301,7 +304,8 @@ def create_app(config: AppConfig) -> FastAPI:
                              dev_test_source=config.dev_test_source),
             settings,
             diagnostics,
-            DiscoverService(conn, source_service, plugins, cache))
+            DiscoverService(conn, source_service, plugins, cache),
+            cover_cache)
         runner = DownloadRunner(engine)
         await runner.start()
         await follow_runner.start()
@@ -320,6 +324,7 @@ def create_app(config: AppConfig) -> FastAPI:
             await browser.aclose()
             cache.close()
             reader_cache.close()
+            cover_cache.close()
             store.close()
             logging.getLogger("oneshelf").removeHandler(diagnostics_handler)
             conn.close()

@@ -138,6 +138,8 @@ class ReaderService:
         self._public_refusals: OrderedDict[str, float] = OrderedDict()
         self._refusal_clock = time.monotonic
         self._page_fetches: dict[tuple[str, str, str], _PageFlight] = {}
+        self._revalidated: dict[str, float] = {}             # unit -> when its page list was last re-asked for
+        self._background: set[asyncio.Task] = set()
 
     # -- unit context ------------------------------------------------------------------------------
 
@@ -326,10 +328,59 @@ class ReaderService:
                                  or (stale is not None and held[1] is not stale)):
             self._descriptors.move_to_end(unit_id)
             return held[1]
+        if stale is None and self.cache is not None:
+            # Stale-while-revalidate: a unit read before opens at once from the page list kept with its cached
+            # pages, and the source is asked for a fresh list in the background, at read-ahead priority (so a
+            # host under pressure is not asked at all). A link that has since expired still comes back here
+            # with `stale` set, which goes to the source in the foreground as before (I-107).
+            stored = held[1] if held is not None else None
+            if stored is None:
+                kept = self.cache.get_descriptors(unit["source_id"], unit["source_unit_key"])
+                stored = [ResourceDescriptor(**d) for d in kept] if kept else None
+            if stored:
+                self._descriptors[unit_id] = (time.monotonic(), stored)
+                self._descriptors.move_to_end(unit_id)
+                self._revalidate_later(unit_id, unit)
+                return stored
+        entries = await self._fetch_descriptors(unit, Priority.READER)
+        self._remember_descriptors(unit_id, unit, entries)
+        return entries
+
+    def _revalidate_later(self, unit_id: str, unit: sqlite3.Row) -> None:
+        """Ask the source for a fresh page list once, in the background; at most once per TTL per unit."""
+        now = time.monotonic()
+        last = self._revalidated.get(unit_id)
+        if last is not None and now - last < DESCRIPTOR_TTL_SECONDS:
+            return
+        self._revalidated[unit_id] = now
+        while len(self._revalidated) > DESCRIPTOR_CACHE_UNITS:
+            self._revalidated.pop(next(iter(self._revalidated)))
+
+        async def revalidate() -> None:
+            try:
+                entries = await self._fetch_descriptors(unit, Priority.READ_AHEAD)
+            except Exception:        # deferred, rate limited, offline: the kept list stays, and is tried again later
+                self._revalidated.pop(unit_id, None)
+                return
+            self._remember_descriptors(unit_id, unit, entries)
+
+        task = asyncio.create_task(revalidate())
+        self._background.add(task)
+        task.add_done_callback(self._background.discard)
+
+    def _remember_descriptors(self, unit_id: str, unit: sqlite3.Row, entries: list) -> None:
+        self._descriptors[unit_id] = (time.monotonic(), entries)
+        self._descriptors.move_to_end(unit_id)
+        while len(self._descriptors) > DESCRIPTOR_CACHE_UNITS:
+            self._descriptors.popitem(last=False)
+        if self.cache is not None:
+            self.cache.put_descriptors(unit["source_id"], unit["source_unit_key"], [asdict(e) for e in entries])
+
+    async def _fetch_descriptors(self, unit: sqlite3.Row, priority: Priority) -> list:
         result = await self.sources.run(unit["source_id"], "reader",
                                         {"unit_key": unit["source_unit_key"], "url": unit["url_hint"],
                                          "language": unit["language"]},
-                                        priority=Priority.READER)
+                                        priority=priority)
         entries = list(result.entries)
         if not entries:
             # Never remembered: the next request asks again rather than showing an empty unit until restart.
@@ -340,12 +391,6 @@ class ReaderService:
             raise CapabilityError("incomplete_result",
                                   f"the source returned {len(entries)} entries but could not confirm completeness "
                                   f"({result.evidence.stop_reason})")
-        self._descriptors[unit_id] = (time.monotonic(), entries)
-        self._descriptors.move_to_end(unit_id)
-        while len(self._descriptors) > DESCRIPTOR_CACHE_UNITS:
-            self._descriptors.popitem(last=False)
-        if self.cache is not None:
-            self.cache.put_descriptors(unit["source_id"], unit["source_unit_key"], [asdict(e) for e in entries])
         return entries
 
     async def page(self, unit_id: str, index: int, *, timeout: float | None = None,
