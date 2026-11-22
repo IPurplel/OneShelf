@@ -84,7 +84,7 @@ export function WorkCard({ work, size = "standard", onOpen, busy = false, proble
       <span className="workcard__face">
         <CoverPlaceholder title={work.title} className="workcard__blank" />
         {showCover && nearViewport && slot.granted &&
-          <img src={work.cover_url!} alt="" loading="lazy" decoding="async" fetchPriority="high"
+          <img src={work.cover_url!} alt="" loading="lazy" decoding="async"
                onError={() => { slot.release(); setFailed(work.cover_url ?? null); }}
                // A lazy-loading placeholder (a 1×1 pixel) is not a cover: show the designed placeholder.
                onLoad={(event) => {

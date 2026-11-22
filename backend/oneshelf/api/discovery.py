@@ -331,8 +331,10 @@ async def open_listing(request: Request, body: OpenBody):
             task.add_done_callback(_DEFERRED_DETAILS.discard)
         return {"listing_id": binding.listing_id, "work_id": binding.work_id, "track_id": binding.track_id,
                 "details": details, "catalog": "deferred", "catalog_reason": None}
-    # Asked together: the catalogue no longer waits for the details (and for the source's rate in between).
-    # Each writes only its own rows, and neither raises — a source problem comes back as a state.
+    # Asked together: the catalogue no longer waits for the details, so the governor can start the second as soon as
+    # the source's own limits allow (PERFORMANCE_STUDY §3.2). Each writes only its own rows in a short transaction
+    # with no await inside it, so they never interleave in the database, and neither raises: a source problem
+    # comes back as a state.
     details, (catalog, catalog_reason) = await asyncio.gather(
         _open_details(s, package, binding.work_id, body), _open_catalog(s, package, binding.track_id, body))
     return {"listing_id": binding.listing_id, "work_id": binding.work_id, "track_id": binding.track_id,
