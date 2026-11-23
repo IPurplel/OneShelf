@@ -15,7 +15,7 @@ Authority: Master §2.1, §13, §18, §24–25, §33–34, §42; Meta Prompt §C
 | Mount | Holds | Notes |
 |---|---|---|
 | `/data` | `oneshelf.db` (authoritative), `cache.db` (rebuildable), `secrets.db` (encrypted source sessions), staging, snapshots, diagnostics | Back this up. Losing `cache.db` costs nothing. |
-| `/data/plugins` | installed `.osp` packages, including the eight official sources installed on first run | Rebuildable by reinstalling, but keeping it avoids re-approving permissions. Recreating the container does **not** reinstall a source you removed. |
+| `/data/plugins` | installed `.osp` packages, including the nine official sources installed on first run | Rebuildable by reinstalling, but keeping it avoids re-approving permissions. Recreating the container does **not** reinstall a source you removed. |
 | `/keys` | `session.key`, the key for `secrets.db` | **Its own volume.** It is deliberately excluded from every backup (§33.3), so store it where you store passwords. Lose it and source logins must be redone; nothing else is affected. |
 | `/content` | a storage location for downloaded and imported files | Add more locations in Settings → Storage; OneShelf never writes outside a registered location. |
 | `/data/backups` | `.osbackup` archives | Prefer a different physical disk: OneShelf warns when backups sit on the same device as the library (§33.9). |
@@ -136,3 +136,92 @@ somewhere and point `ONESHELF_REGISTRY_URL` at `file:///that/directory`. It is r
 opens (cached 5 minutes, failures 60 seconds) — never polled in the background. Its Official and Verified
 Community entries are trusted as such because it is the configured first-party Registry (`plugins.md` §7);
 a mirror keeps that trust only if `ONESHELF_FIRST_PARTY_REGISTRY_URL` names the mirror too.
+
+## 10. Choosing your own storage folders
+
+Everything persistent lives outside the container in five directories (`deploy/volumes/data`, `content`, `plugins`,
+`keys`, `backups`). To keep your library somewhere else (a bigger disk, a different mount), set the matching
+`ONESHELF_*_PATH` in `.env` to an absolute path **dedicated to OneShelf**.
+
+- The installer may change ownership of those directories and label them for SELinux, so never select shared ones.
+- Paths may not overlap or contain symlinks.
+- A non-empty custom directory must already contain the `.oneshelf-managed` marker from a previous install,
+  otherwise the installer stops before relabelling or changing ownership. When migrating existing OneShelf-only
+  storage by hand, review its contents, back it up, and create that empty marker yourself to designate it for OneShelf.
+- Changing a path does not move existing content: copy it while OneShelf is stopped, change `.env`, then run
+  `./install.sh` again. The old copy is yours to keep.
+
+`.env` is a literal `KEY=value` file at the repository root. Quotes and inline comments are supported; multiline
+values, variable interpolation and escapes are rejected by the scripts. Exported `ONESHELF_*` deployment values
+override `.env` consistently for Compose and the readiness probes.
+
+## 11. Updating with `update.sh`
+
+`./update.sh` pulls the latest version, rebuilds and restarts. Your library, settings and `.env` are left alone, and
+database migrations run the same way as on any normal start.
+
+- Automatic Git updates need `main` and `origin/main`, a clean tracked tree, no unfinished Git operation, and no local
+  commits ahead of or diverged from the remote. A checkout without an upstream, or an archive without Git metadata,
+  rebuilds locally with an explicit notice. Untracked files are preserved; Git refuses an update that would overwrite them.
+- Back up before updating. Migrations run on startup and are forward-only: a failed health check does not mean the
+  database is unchanged. Do not check out an older commit against a newer database; see [§7](#7-upgrades) and restore
+  a compatible backup or pre-migration snapshot if you must go back.
+
+## 12. Uninstalling
+
+`./uninstall.sh` stops and removes the containers and **keeps every byte of your library**; `./install.sh` brings it
+back. `./uninstall.sh --delete-data` also deletes the data: it lists exactly which directories it will remove and only
+proceeds if you type the confirmation sentence in full. Automatic deletion is limited to the five default
+`deploy/volumes/` directories. Custom, symlinked and overlapping paths are refused; review and remove custom storage
+yourself. A failure to remove a directory is reported as a failure, never as success.
+
+## 13. Running Compose yourself
+
+The scripts are a convenience, not a requirement. The Compose file is `deploy/compose.yaml`. After the first
+`./install.sh` has prepared configuration, directories and ownership, from the repository root:
+
+```sh
+# Podman
+podman compose --env-file .env -f deploy/compose.yaml build
+podman compose --env-file .env -f deploy/compose.yaml up -d
+podman compose --env-file .env -f deploy/compose.yaml logs -f
+podman compose --env-file .env -f deploy/compose.yaml down          # keeps volumes
+
+# Docker
+docker compose --env-file .env -f deploy/compose.yaml build
+docker compose --env-file .env -f deploy/compose.yaml up -d
+docker compose --env-file .env -f deploy/compose.yaml logs -f
+docker compose --env-file .env -f deploy/compose.yaml down
+```
+
+Standalone `podman-compose` and `docker-compose` providers implementing the current Compose specification are detected
+too. Legacy Docker Compose v1 is not a supported target. Configuration lives in `.env` at the repository root, not in
+`deploy/`: always pass `--env-file .env`. Relative bind paths resolve relative to `deploy/`. The container runs as an
+unprivileged user (uid 10001) and exposes a healthcheck on `/api/ready`.
+
+The scripts prefer Podman when both are present; choose Docker with `ONESHELF_RUNTIME=docker ./install.sh` (use the same
+prefix for update and uninstall). The Linux deployment uses host networking so the application sees the real client IP;
+it binds only to loopback by default and shares the host network namespace. Docker Desktop is not a verified path.
+
+## 14. Legacy deployment storage
+
+Pre-release images stored plugins and backups inside the data directory, despite exposing separate mounts. The scripts
+stop before new mounts could hide those files. If that check fails, inspect the runtime error first. For an actual
+legacy install: stop it with `./uninstall.sh`, back up all five host directories, and copy the contents of
+`<data-path>/plugins` and `<data-path>/backups` into the configured plugin and backup host directories **only when
+those destinations are empty**. Use `podman unshare` for rootless-owned files. Never merge or overwrite populated
+destinations. Rename the original subdirectories to `plugins.pre-release` and `backups.pre-release` to keep them, then
+rerun `./install.sh`. These are file-location changes; database migrations still run only on startup. If unsure which
+copies are authoritative, keep both and stop before moving anything.
+
+## 15. Troubleshooting
+
+- **`podman` or `docker` is installed but nothing happens.** Its service may not be running:
+  `systemctl --user start podman.socket`, or `sudo systemctl start docker`.
+- **OneShelf cannot write to its directories.** `install.sh` corrects ownership of its own directories through the
+  runtime. If you moved them somewhere the container user cannot reach, point `ONESHELF_*_PATH` at a directory you own.
+- **Something else is on port 8420.** Change `ONESHELF_PORT` in `.env` and run `./install.sh` again.
+- **Look at the log.** `podman compose --env-file .env -f deploy/compose.yaml logs --tail=50`
+- **It feels slow with one source.** `GET /api/diagnostics/traffic` shows, per source and host, what was sent, what came
+  back, how long requests queued, and whether OneShelf has slowed itself down because a host answered 429 or 503.
+

@@ -27,6 +27,14 @@ describe("Quotes", () => {
       .toHaveAttribute("href", "/read/u2?work=w1");
   });
 
+  it("names the chapter only when it says something the book's title does not", async () => {
+    // A book that is one file has one "chapter" named like itself: the source line said the title twice.
+    mockApi([get("/api/highlights", { highlights: [{ ...QUOTES.highlights[0]!, unit_title: "The Stranger" }] })]);
+    renderWithProviders(<QuotesScreen />);
+    const quote = (await screen.findAllByRole("article"))[0]!;
+    expect(within(quote).getAllByText("The Stranger")).toHaveLength(1);
+  });
+
   it("narrows to one book", async () => {
     mockApi([get("/api/highlights", QUOTES)]);
     const user = userEvent.setup();

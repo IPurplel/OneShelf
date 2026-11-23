@@ -76,7 +76,7 @@ export function QuotesScreen() {
             <blockquote className="quote__text" dir={directionFromText(quote.text) ?? "auto"}>{quote.text}</blockquote>
             <p className="quote__source">
               <Link to={readerLink(quote.unit_id, quote.work_id)}><bdi>{quote.work_title}</bdi></Link>
-              {quote.unit_title && <> · <bdi>{quote.unit_title}</bdi></>}
+              {quote.unit_title && quote.unit_title !== quote.work_title && <> · <bdi>{quote.unit_title}</bdi></>}
               {" · "}<time dateTime={quote.created_at}>{dates.format(new Date(quote.created_at))}</time>
             </p>
             <div className="quote__actions">

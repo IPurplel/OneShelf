@@ -1004,6 +1004,7 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 .sources__identity { display: grid; gap: var(--space-1); flex: 1 1 26ch; min-inline-size: 0; }
 .sources__row .sources__lastCheck { flex: 0 1 auto; }
 .registry__filters, .sources__filters { display: grid; gap: var(--space-3); margin-bottom: var(--space-5); }
+.registry__filters { margin-top: var(--space-4); }
 .registry__filter-group, .sources__filter-group { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .registry__name-search { display: grid; gap: var(--space-2); max-inline-size: 360px; color: var(--ink-700); }
 .registry__group { margin-top: var(--space-5); }
