@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <title>OneShelf</title>
+    <style>
+      :root { --paper: #f3eee5; --ink: #1d2a21; --soft: #5b665e; --accent: #24402c; --on-accent: #faf6ec; }
+      @media (prefers-color-scheme: dark) {
+        :root { --paper: #111b15; --ink: #ece6d8; --soft: #a9b3aa; --accent: #cfe0c2; --on-accent: #14231a; }
+      }
+      body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px; box-sizing: border-box;
+             background: var(--paper); color: var(--ink); font: 17px/1.6 system-ui, sans-serif; text-align: center; }
+      main { max-width: 26rem; }
+      h1 { font: 600 28px/1.2 Georgia, serif; margin: 0 0 12px; }
+      p { margin: 0 0 12px; color: var(--soft); }
+      button { margin-top: 12px; padding: 12px 24px; border: 0; border-radius: 999px; cursor: pointer;
+               background: var(--accent); color: var(--on-accent); font: inherit; }
+      [lang="ar"] { direction: rtl; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--soft); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>OneShelf can't be reached</h1>
+      <p>Your library lives on your own computer. Make sure it is switched on and that this device is on the same Wi-Fi.</p>
+      <div lang="ar">
+        <p>تعذّر الوصول إلى وَن شِلْف. مكتبتك على حاسوبك الشخصي، تأكد أنه يعمل وأن هذا الجهاز على شبكة الواي فاي نفسها.</p>
+      </div>
+      <button type="button" onclick="location.reload()">Try again · حاول مرة أخرى</button>
+    </main>
+  </body>
+</html>

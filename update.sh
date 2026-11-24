@@ -55,6 +55,8 @@ fi
 
 validate_custom_directories
 
+PREVIOUS_IMAGE="$(image_id "${ONESHELF_IMAGE:-oneshelf:local}")"
+
 step "Rebuilding the image"
 compose_cmd build || die "image build failed; current deployment and data are preserved"
 
@@ -77,6 +79,7 @@ else
 fi
 verify_health "$URL" || { diagnose "$URL"; die "health check failed"; }
 ok "health check passed"
+cleanup_old_images "$PREVIOUS_IMAGE"
 say ""
 say "${_b}OneShelf is up to date and running at ${URL}${_r}"
 say_lan_access

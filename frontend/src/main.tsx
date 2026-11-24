@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { App } from "@/app/App";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LiveProvider } from "@/app/live";
+import { registerOfflinePage } from "@/app/pwa";
 import { NotificationProvider } from "@/app/notifications";
 import { ThemeProvider } from "@/app/theme";
 import { I18nProvider } from "@/i18n/i18n";
@@ -24,6 +25,7 @@ import "@/styles/reader.css";
 
 const container = document.getElementById("root");
 if (container === null) throw new Error("missing #root");
+void registerOfflinePage();
 
 createRoot(container).render(
   <StrictMode>

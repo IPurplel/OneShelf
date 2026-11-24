@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 
 import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
@@ -130,7 +130,7 @@ export function DownloadsScreen() {
           const total = processed + batch.pending;
           const name = batchName(batch);
           return (
-          <motion.li key={batch.batch_id} className="batches__row"
+          <m.li key={batch.batch_id} className="batches__row"
             initial={reduced ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...TRANSITION_EASE, delay: Math.min(index * 0.05, 0.2) }}
@@ -191,7 +191,7 @@ export function DownloadsScreen() {
               )}
             </span>
             {expanded === batch.batch_id && <BatchDetails batch={batch} />}
-          </motion.li>
+          </m.li>
           );
         })}
       </ul>

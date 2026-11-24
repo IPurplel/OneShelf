@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 
 import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
@@ -38,6 +38,8 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
   const [hostname, setHostname] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [browsing, setBrowsing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const existing = data?.storage ?? [];
 
   useEffect(() => {
     if (data?.access_mode) setMode(data.access_mode);
@@ -59,7 +61,7 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
   const reduced = useReducedMotion();
   return (
     <section className="firstrun">
-      <motion.div className="firstrun__panel paper"
+      <m.div className="firstrun__panel paper"
         initial={reduced ? false : { opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={TRANSITION_SLOW}
@@ -79,7 +81,21 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
           </>
         )}
 
-        {step === "storage" && (
+        {step === "storage" && existing.length > 0 && !adding && (
+          <>
+            <h1 className="firstrun__title display">{t("first.storage.title")}</h1>
+            <p className="firstrun__lede">{t("first.storage.ready", { path: existing.find((r) => r.default)?.path ?? existing[0]!.path })}</p>
+            <div className="firstrun__actions">
+              <button type="button" className="button" onClick={() => setStep("welcome")}>{t("first.back")}</button>
+              <button type="button" className="button button--primary" onClick={() => setStep("access_mode")}>
+                {t("first.continue")}
+              </button>
+              <button type="button" className="button" onClick={() => setAdding(true)}>{t("first.storage.another")}</button>
+            </div>
+          </>
+        )}
+
+        {step === "storage" && (existing.length === 0 || adding) && (
           <>
             <h1 className="firstrun__title display">{t("first.storage.title")}</h1>
             <p className="firstrun__lede">{t("first.storage.help")}</p>
@@ -196,7 +212,7 @@ export function FirstRunScreen({ initialStep = "welcome" }: { initialStep?: Step
             </div>
           </>
         )}
-      </motion.div>
+      </m.div>
     </section>
   );
 }

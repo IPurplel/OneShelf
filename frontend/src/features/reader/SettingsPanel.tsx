@@ -50,6 +50,26 @@ export function SettingsPanel({ settings, onChange, onClose }: {
         ))}
       </fieldset>
 
+      <fieldset className="panel__group" aria-label={t("reader.comfort")}>
+        <legend>{t("reader.comfort")}</legend>
+        <label className="panel__choice">
+          <input type="checkbox" checked={settings.nightLight}
+                 onChange={() => onChange({ nightLight: !settings.nightLight })} />
+          <span>
+            <span className="panel__choiceTitle">{t("reader.nightLight")}</span>
+            <span className="panel__choiceHelp">{t("reader.nightLightHelp")}</span>
+          </span>
+        </label>
+        <label className="panel__choice">
+          <input type="checkbox" checked={settings.autoNext}
+                 onChange={() => onChange({ autoNext: !settings.autoNext })} />
+          <span>
+            <span className="panel__choiceTitle">{t("reader.autoNext")}</span>
+            <span className="panel__choiceHelp">{t("reader.autoNextHelp")}</span>
+          </span>
+        </label>
+      </fieldset>
+
       {settings.mode === "double" && (
         <fieldset className="panel__group" aria-label={t("reader.pairing")}>
           <legend>{t("reader.pairing")}</legend>
@@ -93,6 +113,17 @@ export function SettingsPanel({ settings, onChange, onClose }: {
             <input type="radio" name="background" value={background} checked={settings.background === background}
                    onChange={() => onChange({ background })} />
             <span>{t(`reader.background.${background}` as const)}</span>
+          </label>
+        ))}
+      </fieldset>
+
+      <fieldset className="panel__group panel__group--segmented" role="radiogroup" aria-label={t("reader.pageColors")}>
+        <legend>{t("reader.pageColors")}</legend>
+        {(["original", "inverted"] as const).map((pageColors) => (
+          <label key={pageColors} className="panel__choice">
+            <input type="radio" name="pageColors" value={pageColors} checked={settings.pageColors === pageColors}
+                   onChange={() => onChange({ pageColors })} />
+            <span>{t(`reader.pageColors.${pageColors}` as const)}</span>
           </label>
         ))}
       </fieldset>

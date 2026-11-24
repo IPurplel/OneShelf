@@ -2,7 +2,8 @@
 
 Follow binds Work + Language + Preferred Source + Source Track. Detection compares the last Trusted
 Catalog with the follow baseline: never max numbers, never numeric gaps. Metadata changes, reordering
-and a unit disappearing and returning are not new releases, and nothing is ever downloaded automatically.
+and a unit disappearing and returning are not new releases. Nothing is downloaded automatically unless the
+person turns that on for a Follow (ADR 0005); the runner then queues exactly the new releases it reported.
 """
 from __future__ import annotations
 
@@ -48,6 +49,7 @@ class FollowStatus:
     last_successful_at: str | None
     unseen_releases: int
     baseline_pending: bool = False
+    auto_download: bool = False
 
 
 @dataclass(frozen=True)
@@ -167,9 +169,10 @@ class FollowService:
         with transaction(self.conn):
             self.conn.execute(
                 "INSERT INTO follows (id, work_id, language, preferred_source_id, track_id, last_attempted_at,"
-                " last_successful_at, next_check_at, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                " last_successful_at, next_check_at, created_at, auto_download) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 (row["id"], row["work_id"], row["language"], row["preferred_source_id"], row["track_id"],
-                 row["last_attempted_at"], row["last_successful_at"], row["next_check_at"], row["created_at"]))
+                 row["last_attempted_at"], row["last_successful_at"], row["next_check_at"], row["created_at"],
+                 row.get("auto_download", 0)))
             if saved["kind"] != PENDING:          # a pending baseline is restored as pending: no row
                 baseline_id = new_id()
                 self.conn.execute("INSERT INTO follow_baselines (id, follow_id, kind, track_id, created_at)"
@@ -273,7 +276,19 @@ class FollowService:
             state = "up_to_date"
         return FollowStatus(work_id, row["track_id"], row["preferred_source_id"], row["language"], state,
                             row["last_attempted_at"], row["last_successful_at"], unseen,
-                            baseline_pending=self._baseline_kind(row["id"]) == PENDING)
+                            baseline_pending=self._baseline_kind(row["id"]) == PENDING,
+                            auto_download=bool(row["auto_download"]))
+
+    def set_auto_download(self, work_id: str, *, language: str | None = None, enabled: bool) -> FollowStatus:
+        """Whether this Follow downloads its new releases by itself (ADR 0005). Only what it reports from now
+        on is downloaded: turning it on never downloads the catalogue that is already there."""
+        row = self._row(work_id, language)
+        if row is None:
+            raise ValueError("this work is not followed")
+        with transaction(self.conn):
+            self.conn.execute("UPDATE follows SET auto_download = ? WHERE id = ?", (int(enabled), row["id"]))
+        self._emit("follow.changed", {"work_id": work_id, "action": "auto_download"})
+        return self.status(work_id, language=row["language"])
 
     def due_follow_keys(self, *, now: str | None = None) -> list[tuple[str, str]]:
         return [(r[0], r[1]) for r in self.conn.execute(

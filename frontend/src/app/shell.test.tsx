@@ -4,14 +4,38 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { renderApp } from "@/test/render";
+import { get, mockApi } from "@/test/http";
 import { setViewport } from "@/test/viewport";
 
 describe("application shell", () => {
-  it("offers exactly the ten primary destinations", async () => {
+  it("offers exactly the eleven primary destinations", async () => {
     renderApp();
     const nav = await screen.findByRole("navigation", { name: /primary/i });
     const names = within(nav).getAllByRole("link").map((link) => link.textContent?.trim());
-    expect(names).toEqual(["Home", "Search", "Discover", "My Shelf", "Following", "Downloads", "Sources", "Settings", "History", "Statistics"]);
+    expect(names).toEqual(["Home", "Search", "Discover", "My Shelf", "Following", "Downloads", "Sources", "Settings", "Quotes", "History", "Statistics"]);
+  });
+
+  it("shows how many downloads are on their way beside Downloads, and nothing when none are", async () => {
+    // A download started from Search used to vanish from view; the count says where it went (2026-11-09).
+    mockApi([get("/api/downloads", { batches: [
+      { batch_id: "b1", state: "active", pending: 2, completed: 1, failed: 0, canceled: 0, skipped: 0, counts: {} },
+      { batch_id: "b2", state: "paused", pending: 1, completed: 0, failed: 0, canceled: 0, skipped: 0, counts: {} },
+      { batch_id: "b3", state: "completed", pending: 0, completed: 4, failed: 0, canceled: 0, skipped: 0, counts: {} },
+    ] })]);
+    renderApp();
+    const nav = await screen.findByRole("navigation", { name: /primary/i });
+    const downloads = within(nav).getByRole("link", { name: /downloads/i });
+    expect(await within(downloads).findByText("3")).toBeInTheDocument();
+    expect(downloads).toHaveAccessibleName(/downloads.*3 on their way/i);
+  });
+
+  it("shows no download count when nothing is waiting", async () => {
+    mockApi([get("/api/downloads", { batches: [{ batch_id: "b3", state: "completed", pending: 0, completed: 4, failed: 0, canceled: 0, skipped: 0, counts: {} }] })]);
+    renderApp();
+    const nav = await screen.findByRole("navigation", { name: /primary/i });
+    const downloads = within(nav).getByRole("link", { name: /downloads/i });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(downloads.querySelector(".sidebar__badge")).toBeNull();
   });
 
   it("keeps notifications and needs attention in the header, not in the navigation", async () => {
@@ -111,7 +135,7 @@ describe("mobile More drawer", () => {
     await user.click(screen.getByRole("button", { name: "More" }));
     const drawer = screen.getByRole("dialog", { name: "More" });
     expect(within(drawer).getAllByRole("link").map(link => link.textContent?.trim()))
-      .toEqual(["Following", "Downloads", "Sources", "History", "Statistics"]);
+      .toEqual(["Following", "Downloads", "Sources", "Quotes", "History", "Statistics"]);
     const current = within(drawer).getByText("Settings").closest("[aria-current]");
     expect(current).toHaveAttribute("aria-current", "page");
     expect(current).toHaveTextContent("Current");
@@ -124,7 +148,7 @@ describe("mobile More drawer", () => {
     await user.click(screen.getByRole("button", { name: "More" }));
     const drawer = screen.getByRole("dialog", { name: "More" });
     expect(within(drawer).getAllByRole("link").map(link => link.textContent?.trim()))
-      .toEqual(["Following", "Downloads", "Sources", "Settings", "History", "Statistics"]);
+      .toEqual(["Following", "Downloads", "Sources", "Settings", "Quotes", "History", "Statistics"]);
     expect(within(drawer).getByRole("button", { name: "Notifications" })).toBeInTheDocument();
     await user.click(within(drawer).getByRole("link", { name }));
     expect(screen.queryByRole("dialog", { name: "More" })).not.toBeInTheDocument();

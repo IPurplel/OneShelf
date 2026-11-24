@@ -181,6 +181,21 @@ async def unfollow(request: Request, work_id: str, language: str | None = None):
     return {"work_id": work_id, "undo_token": token}
 
 
+class AutoDownloadFollowBody(BaseModel):
+    enabled: bool
+    language: str | None = Field(default=None, max_length=35)
+
+
+@router.post("/follows/{work_id}/auto-download")
+async def set_follow_auto_download(request: Request, work_id: str, body: AutoDownloadFollowBody):
+    """Download this Follow's new releases by itself, or only report them (ADR 0005)."""
+    try:
+        return asdict(services(request).follows.set_auto_download(work_id, language=body.language,
+                                                                  enabled=body.enabled))
+    except ValueError as exc:
+        return error(404, "NOT_FOLLOWED", str(exc))
+
+
 @router.post("/follows/{work_id}/seen")
 async def mark_releases_seen(request: Request, work_id: str, language: str | None = None):
     """§20, §26.12: acknowledging releases is what makes "new" stop being new."""

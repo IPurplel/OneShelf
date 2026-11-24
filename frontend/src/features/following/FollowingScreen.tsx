@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 
 import { api } from "@/api/client";
 import { useResource } from "@/api/useApi";
@@ -98,7 +98,7 @@ function Section({ id, title, follows, onCheck, language, disabled }: {
   if (follows.length === 0) return null;
 
   return (
-    <motion.section className="journal" role="region" aria-label={title}
+    <m.section className="journal" role="region" aria-label={title}
       initial={reduced ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={TRANSITION_EASE}
@@ -129,7 +129,7 @@ function Section({ id, title, follows, onCheck, language, disabled }: {
           </li>
         ))}
       </ul>
-    </motion.section>
+    </m.section>
   );
 }
 

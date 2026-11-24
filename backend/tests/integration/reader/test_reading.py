@@ -886,3 +886,92 @@ def test_public_cooldown_prevents_expired_or_evicted_descriptor_reload(reading, 
             with pytest.raises(PageTemporarilyRefused): await reader.page(unit,2)
             assert not calls
     run(scenario())
+
+
+def test_checking_a_page_image_does_not_hold_up_other_requests(reading, monkeypatch):
+    # Every page is fully decoded to prove it is an image (10-17 ms for a real 1-2 MB manga page, measured
+    # 2026-11-09). On the event loop that stalled every request while the reader preloaded fifteen pages.
+    from oneshelf.integrity import validators
+
+    real_validate = validators._validate_image
+
+    def slow_validate(data):
+        time.sleep(0.3)
+        return real_validate(data)
+
+    monkeypatch.setattr(validators, "_validate_image", slow_validate)
+
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await reader.pages(unit)
+            gaps, done = [], asyncio.Event()
+
+            async def ticker():
+                last = time.monotonic()
+                while not done.is_set():
+                    await asyncio.sleep(0.01)
+                    now = time.monotonic()
+                    gaps.append(now - last)
+                    last = now
+
+            tick = asyncio.create_task(ticker())
+            page = await reader.page(unit, 1)
+            done.set()
+            await tick
+            return page, max(gaps)
+
+    page, worst_gap = run(scenario())
+    assert page.data[:8] == b"\x89PNG\r\n\x1a\n" and worst_gap < 0.15
+
+
+def test_a_unit_read_before_reopens_from_its_kept_page_list_and_refreshes_in_the_background(reading, monkeypatch):
+    """PERFORMANCE_STUDY §3.3: after the in-memory list expires, the kept list opens the unit at once."""
+    from oneshelf.net.governor import Priority
+
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            await reader.page(unit, 1)
+            reader._descriptors.clear()                    # a restart, or the 30-minute memory running out
+            reader._revalidated.clear()
+            original = env.service.run
+            priorities = []
+            gate = asyncio.Event()
+
+            async def watched(source, capability, inputs, *, priority, **kwargs):
+                priorities.append(priority)
+                await gate.wait()                          # the source is slow: the reader must not wait for it
+                return await original(source, capability, inputs, priority=priority, **kwargs)
+
+            monkeypatch.setattr(env.service, "run", watched)
+            page = await asyncio.wait_for(reader.page(unit, 1), timeout=1)
+            gate.set()
+            await asyncio.gather(*reader._background)
+            again = await reader.page(unit, 1)              # within the TTL: no second background request
+            return page.origin, again.origin, priorities
+    origin, again, priorities = run(scenario())
+    assert origin == again == "cache"
+    assert priorities == [Priority.READ_AHEAD]
+
+
+def test_an_expired_link_still_renews_the_page_list_in_the_foreground(reading, monkeypatch):
+    async def scenario():
+        async with reading() as (env, reader, cache):
+            await env.add_work("irregular", "The Irregular Chronicle")
+            unit = env.unit_id("irr-1")
+            listed = await reader._online_descriptors(unit)
+            calls = []
+            original = env.service.run
+
+            async def watched(source, capability, inputs, *, priority, **kwargs):
+                calls.append(priority)
+                return await original(source, capability, inputs, priority=priority, **kwargs)
+
+            monkeypatch.setattr(env.service, "run", watched)
+            await reader._online_descriptors(unit, stale=listed)
+            return calls
+    from oneshelf.net.governor import Priority
+    assert run(scenario()) == [Priority.READER]

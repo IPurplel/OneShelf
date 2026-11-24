@@ -45,9 +45,23 @@ class ReaderDefaults:
 @dataclass(frozen=True)
 class DownloadDefaults:
     http_concurrency: int = 4
+    # Pages of one chapter fetched at once. The Traffic Governor still gives a source only what its package
+    # declares, so this never means more requests to a site, only no waiting for one page before asking for
+    # the next when the source allows more than one.
+    page_concurrency: int = 4
     browser_concurrency: int = 1
     max_retries: int = 3
     fallback_mode: Literal["preferred_ask", "strict", "automatic"] = "preferred_ask"
+
+
+@dataclass(frozen=True)
+class TrafficDefaults:
+    """The Source Traffic Governor's global capacity (Master §15). Per-source limits are unchanged by these:
+    every source still gets only what its package declares, so a larger pool means less queueing between
+    sources, never more requests to any one of them."""
+    http_capacity: int = 12
+    reserved_for_foreground: int = 4     # never taken by covers, read-ahead, Follow or Health
+    reserved_for_reader: int = 2         # never taken by anything but the Reader
 
 
 @dataclass(frozen=True)
@@ -119,6 +133,7 @@ class Defaults:
     auto_download: AutoDownloadDefaults = field(default_factory=AutoDownloadDefaults)
     reader: ReaderDefaults = field(default_factory=ReaderDefaults)
     downloads: DownloadDefaults = field(default_factory=DownloadDefaults)
+    traffic: TrafficDefaults = field(default_factory=TrafficDefaults)
     follow: FollowDefaults = field(default_factory=FollowDefaults)
     notifications: NotificationDefaults = field(default_factory=NotificationDefaults)
     export: ExportDefaults = field(default_factory=ExportDefaults)

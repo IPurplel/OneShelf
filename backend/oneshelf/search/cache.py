@@ -27,6 +27,8 @@ class DiscoveryCache:
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(str(path), isolation_level=None, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode = WAL")
+        # Rebuildable: a crash may lose the last few entries, never the library, so no fsync per write.
+        self._conn.execute("PRAGMA synchronous = NORMAL")
         self._conn.execute(
             "CREATE TABLE IF NOT EXISTS entries (namespace TEXT NOT NULL, kind TEXT NOT NULL, key_hash TEXT NOT NULL,"
             " payload BLOB NOT NULL, size INTEGER NOT NULL, created_at REAL NOT NULL, last_used_at REAL NOT NULL,"

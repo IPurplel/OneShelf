@@ -31,6 +31,8 @@ const ESTIMATED_PAGE = 1200;
 
 const IDLE_MS = 3000;
 const ZOOM_STEP = 1.25;
+/** How long the end of a chapter waits before going on by itself, when the reader turned that on. */
+const AUTO_NEXT_SECONDS = 5;
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 4;
 const SWIPE_MIN = 60;
@@ -79,7 +81,11 @@ const clampZoom = (value: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Numbe
  * this tab last saw, and the end of a unit offers the *next unit in Source Track order*, never
  * "chapter + 1" (INV-24).
  */
-export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; workId?: string; trackId?: string }) {
+export function ReaderScreen({ unitId, workId, trackId, details: givenDetails }: {
+  unitId?: string; workId?: string; trackId?: string;
+  /** The Work as the route already read it: passed down so it is not asked for a second time. */
+  details?: WorkDetails;
+}) {
   const params = useParams();
   const [search] = useSearchParams();
   const id = unitId ?? params.unitId ?? "";
@@ -88,7 +94,9 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
   const { t, language } = useI18n();
 
   const { data: pageData, error: pageError, reload: reloadPages } = useResource<PagesResponse>(`/api/reader/units/${id}/pages`);
-  const { data: details } = useResource<WorkDetails>(`/api/works/${work}`, track ? { track_id: track } : undefined);
+  const { data: fetchedDetails } = useResource<WorkDetails>(`/api/works/${work}`, track ? { track_id: track } : undefined,
+                                                            { skip: givenDetails !== undefined });
+  const details = givenDetails ?? fetchedDetails;
   const { data: offer } = useResource<Alternatives>(`/api/reader/units/${id}/alternatives`);
   const { data: readerDefaults } = useResource<ReaderDefaults>("/api/reader/settings");
   const pages = useMemo(() => pageData?.pages ?? [], [pageData]);
@@ -510,18 +518,24 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
     record(1, { page: pages.length });
   }, [atEnd, pages.length, record]);
 
-  // Near the end, the next unit's first pages are warmed, so "Read next" opens on a page and not a wait.
+  // The next unit is warmed in two steps, so "Read next" opens on a page and not a wait: its page list two
+  // thirds of the way through (one request to the source, which reading on would make anyway), and its first
+  // pages near the end, as prefetches the server holds back while the source is under pressure.
   const nearEnd = pages.length > 0 && (atEnd || index >= pages.length - 2);
-  const warmed = useRef<string | null>(null);
+  const pastTwoThirds = pages.length > 0 && (nearEnd || index + 1 >= Math.ceil((pages.length * 2) / 3));
+  const warmed = useRef<{ list: string | null; pages: string | null }>({ list: null, pages: null });
   const cancelWarm = useRef<(() => void) | null>(null);
   useEffect(() => {
-    if (!nearEnd || next === null || warmed.current === next.id) return;
+    if (next === null) return;
+    const stage = nearEnd ? "pages" : pastTwoThirds ? "list" : null;
+    if (stage === null || warmed.current[stage] === next.id) return;
     const timer = setTimeout(() => {
-      warmed.current = next.id;
-      cancelWarm.current = warmNextUnit(next.id);
+      warmed.current = { list: next.id, pages: stage === "pages" ? next.id : warmed.current.pages };
+      cancelWarm.current?.();
+      cancelWarm.current = warmNextUnit(next.id, stage === "pages" ? 3 : 0);
     }, 1200);
     return () => clearTimeout(timer);
-  }, [nearEnd, next]);
+  }, [nearEnd, pastTwoThirds, next]);
   useEffect(() => () => cancelWarm.current?.(), [id]);
 
   const progressPct = pages.length > 0 ? ((index + 1) / pages.length) * 100 : 0;
@@ -677,7 +691,8 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
 
       {/* The pages scroll, so the keyboard must be able to reach them (WCAG 2.1.1). */}
       <div className="reader__stage" data-testid="reader-stage" tabIndex={0} role="region" aria-label={t("reader.pages")}
-           data-mode={settings.mode}
+           data-mode={settings.mode} data-page-colors={settings.pageColors}
+           data-night={settings.nightLight ? "on" : "off"}
            data-direction={settings.direction} data-fit={settings.fit} data-zoom={zoom}
            ref={stage} onPointerDown={(event) => { interacted.current = true; pointerKind.current = event.pointerType || "mouse"; }}
            onClick={onStageClick}
@@ -778,7 +793,8 @@ export function ReaderScreen({ unitId, workId, trackId }: { unitId?: string; wor
           <div className="reader__spacer" data-spacer="after" data-pages={after} aria-hidden="true"
                style={{ blockSize: `${after * pageHeight}px` }} />
         )}
-        {atEnd && <EndOfUnit unit={unit} next={next} workId={work} trackId={track} onLeave={leave} />}
+        {atEnd && <EndOfUnit unit={unit} next={next} workId={work} trackId={track} onLeave={leave}
+                             autoNext={settings.autoNext} />}
       </div>
 
       <div role="toolbar" aria-label={t("reader.progressBar")} className="reader__bar reader__bar--bottom"
@@ -924,11 +940,25 @@ function ChapterLink({ unit, kind, workId, trackId, onGo }: {
  * The end of a unit (§26.13): what comes next, said by name and offered first, and the way back. Reaching
  * it counts as having read the unit, and the next unit's first pages are warmed while this card is read.
  */
-function EndOfUnit({ unit, next, workId, trackId, onLeave }: { unit: Unit | null; next: Unit | null; workId: string; trackId?: string | null; onLeave: () => void }) {
+export function EndOfUnit({ unit, next, workId, trackId, onLeave, autoNext = false }: {
+  unit: Unit | null; next: Unit | null; workId: string; trackId?: string | null; onLeave: () => void; autoNext?: boolean;
+}) {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const nextLink = useRef<HTMLAnchorElement>(null);
   // The card arrives as the result of reading on, so the next step is where focus lands.
   useEffect(() => { nextLink.current?.focus({ preventScroll: true }); }, []);
+  // Carrying on by itself is the reader's choice (Settings): a countdown they can stop, never a surprise.
+  const [countdown, setCountdown] = useState<number | null>(autoNext && next ? AUTO_NEXT_SECONDS : null);
+  useEffect(() => {
+    if (countdown === null || next === null) return;
+    if (countdown === 0) {
+      navigate(readerLink(next.id, workId, trackId));
+      return;
+    }
+    const tick = setTimeout(() => setCountdown(countdown - 1), 1000);
+    return () => clearTimeout(tick);
+  }, [countdown, next, navigate, workId, trackId]);
   return (
     <section className="reader__end" role="region" aria-label={t("reader.end", { unit: unit?.title ?? "" })}>
       <p className="reader__endNote">{t("reader.endFinished")}</p>
@@ -942,6 +972,14 @@ function EndOfUnit({ unit, next, workId, trackId, onLeave }: { unit: Unit | null
       ) : (
         <p className="reader__endNote">{t("reader.endLatest")}</p>
       )}
+      {next && countdown !== null && countdown > 0 && (
+        <p className="reader__endCountdown" role="status">
+          {t("reader.autoNextIn", { seconds: countdown })}
+          <button type="button" className="button button--ghost" onClick={() => setCountdown(null)}>
+            {t("reader.autoNextStay")}
+          </button>
+        </p>
+      )}
       <Link className="button button--ghost reader__endBack" to={workLink(workId, trackId)} onClick={onLeave}>
         {t("reader.backToWork")}
       </Link>
@@ -949,17 +987,24 @@ function EndOfUnit({ unit, next, workId, trackId, onLeave }: { unit: Unit | null
   );
 }
 
-/** Warm the next unit's first pages while this one ends, at the lowest priority the browser offers. */
-function warmNextUnit(unitId: string): () => void {
+/**
+ * Warm the next unit at the lowest priority the browser offers: its page list, and then `pages` of its first
+ * pages. Those go as prefetches (`?prefetch=1`): the server keeps them in its Reader Cache, counts them as
+ * read-ahead, and drops them while the source is under pressure, so warming never adds to a throttled host.
+ */
+function warmNextUnit(unitId: string, pages: number): () => void {
   const controller = new AbortController();
   void fetch(`/api/reader/units/${unitId}/pages`, { signal: controller.signal, credentials: "same-origin",
                                                     priority: "low" } as RequestInit)
     .then((response) => (response.ok ? response.json() as Promise<PagesResponse> : null))
-    .then((data) => {
-      for (const page of data?.pages.slice(0, 3) ?? []) {
-        const image = new Image();
-        image.decoding = "async";
-        image.src = `/api/reader/units/${unitId}/pages/${page.index}`;
+    .then(async (data) => {
+      for (const page of data?.pages.slice(0, pages) ?? []) {
+        if (controller.signal.aborted) return;
+        // One at a time: the bytes land in the server's cache, which is what the real page request reads.
+        await fetch(`/api/reader/units/${unitId}/pages/${page.index}?prefetch=1`,
+                    { signal: controller.signal, credentials: "same-origin", priority: "low" } as RequestInit)
+          .then((response) => response.blob())
+          .catch(() => null);
       }
     })
     .catch(() => {});

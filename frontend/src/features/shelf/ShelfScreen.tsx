@@ -19,6 +19,7 @@ import { handleTabKeys } from "@/components/tabKeyboard";
 import { TagsDrawer } from "./TagsDrawer";
 import { type Deleted, useFileDeletion } from "@/features/files/useFileDeletion";
 import { bytes, isolate } from "@/lib/format";
+import { MyShelves } from "./MyShelves";
 
 const VIEWS: { id: string; labelKey: StringKey }[] = [
   { id: "all", labelKey: "shelf.view.all" },
@@ -167,6 +168,7 @@ export function ShelfScreen() {
   return (
     <section className="screen">
       <h1 className="screen__title">{t("shelf.title")}</h1>
+      <MyShelves />
 
       <div className="toolbar">
         <div className="toolbar__tabs toolbar__tabs--scroll" role="tablist" aria-label={t("shelf.views")} onKeyDown={handleTabKeys}>

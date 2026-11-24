@@ -55,6 +55,48 @@ API 1.2 adds **text reading units** (section 3a) and the `{position}` template n
 that extracts a reader `html` field, sets `markup` on any field, or uses the `text_contains` /
 `min_text_chars` test checks is refused unless it declares `api: '1.2'` or newer.
 
+### Rate limits, a burst, and a separate budget for resources (API 1.4)
+
+`source.yaml` declares how hard the source may be asked. API 1.4 adds two optional fields, `burst` and `resources`;
+a package that uses either must declare `api: '1.4'` or newer.
+
+```yaml
+rate_limit:
+  requests_per_minute: 20        # 1..600; the spacing between any two requests is 60 / this
+  concurrency: 1                 # 1..4 at once
+  burst: 3                       # optional, API 1.4: 1..4, default 1
+  resources:                     # optional, API 1.4: images and files (covers, pages, downloads)
+    requests_per_minute: 120     # 1..600
+    concurrency: 3               # 1..6
+```
+
+- **`burst`** sizes a token bucket for the site's own pages, refilled at `requests_per_minute`. With the default of 1
+  every request waits a full spacing (60 / rpm seconds), which some sites require (arXiv's API terms: one request
+  every three seconds). A site that tolerates a short burst may declare one, so opening a work (its details and
+  catalogue) and its first pages start together instead of three seconds apart. The long-run rate stays the declared
+  one. Background work (read-ahead, Follow, health) never takes the last token, so the page a person turns to is not
+  left waiting behind it. A burst never starts faster than the host ceiling below, and a host that has answered 429
+  or 503 gets one start per (lengthened) spacing whatever the burst.
+- **`resources`** is a budget of its own for images and files. Without it, a source's images and files share its one
+  budget, exactly as before API 1.4: a reader page on a CDN waits behind the spacing chosen for the site's own pages.
+
+Both make a source faster, so both need evidence in review of what the site or its CDN allows
+(`docs/review-policy.md` in OneShelf-Adapters, "Honest rate limits").
+
+What Core does whatever a package declares (`backend/oneshelf/net/governor.py`), so that reading never costs the
+person their address:
+
+- never more than ten request starts a second to any one host, and every spacing carries a small random
+  lengthening (never a shortening);
+- each host has its own backoff: a 429 or 503 doubles that host's spacing (up to 32 times) and a 403 adds half
+  again; successes win it back a little at a time. A `Retry-After` stops the whole source until it has passed;
+- five failures in a row open a circuit for the host: nothing is sent to it for 30 seconds, doubling on each
+  reopening up to ten minutes;
+- while a host is under pressure, read-ahead work for it (covers, page prefetch, next-chapter warming) is held
+  back at once instead of queued, and never counts against the source's health.
+
+`GET /api/diagnostics/traffic` shows the counters per source and host.
+
 ## 3. Recipes
 
 One file per capability. A recipe is a request plus an extraction:

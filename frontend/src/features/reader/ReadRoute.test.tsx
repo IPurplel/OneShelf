@@ -46,6 +46,27 @@ it('opens a downloaded text unit as text', async () => {
   open('/read/u');
   expect(await screen.findByText('text reader u')).toBeInTheDocument();
 });
+it('asks for the Work once, alongside the unit context, when the link names its work and track', async () => {
+  let answerContext: (() => void) | null = null;
+  const urls: string[] = [];
+  const json = (payload: unknown) => new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } });
+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+    const url = input.toString();
+    urls.push(url);
+    if (url.startsWith('/api/reader/units/u/context')) {
+      await new Promise<void>(resolve => { answerContext = resolve; });
+      return json({ ...context, formats: [], kind: 'images' });
+    }
+    return json(details);
+  }));
+  open('/read/u?work=w&track=second');
+  // The Work is asked for while the unit's context is still on its way, not after it.
+  await vi.waitFor(() => expect(urls.some(url => url.startsWith('/api/works/w'))).toBe(true));
+  expect(answerContext).not.toBeNull();
+  await act(async () => { answerContext!(); });
+  expect(await screen.findByText('page reader')).toBeInTheDocument();
+  expect(urls.filter(url => url.startsWith('/api/works/w'))).toHaveLength(1);
+});
 it('keeps image units in the page reader', async () => {
   mockApi([get('/api/reader/units/u/context', { ...context, formats: [], kind: 'images' }), get('/api/works/w', details)]);
   open('/read/u');

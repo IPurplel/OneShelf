@@ -6,6 +6,7 @@ filesystem paths or raw session material.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from collections.abc import Mapping
@@ -37,6 +38,7 @@ MAX_TOTAL_ITEMS = 100_000
 PAGINATION_INPUTS = {"page", "offset"}
 # The furthest page a window may start at: far enough to browse, never a crawl of a whole site.
 MAX_WINDOW_START = 200
+PARSE_OFF_LOOP_BYTES = 64 * 1024
 CONTENT_TYPES = {"manga", "manhwa", "manhua", "comic", "book", "novel", "paper", "other"}
 UNIT_TYPES = {"chapter", "special", "extra", "prologue", "epilogue", "one_shot", "other"}
 _LANGUAGE = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
@@ -75,6 +77,14 @@ class RateLimited(CapabilityError):
     def __init__(self, retry_after: float | None) -> None:
         super().__init__("rate_limit", "source rate limit reached")
         self.retry_after = retry_after
+
+
+class TrafficDeferred(RateLimited):
+    """Core itself held back background work (a cover, a prefetch) because the host is under pressure.
+
+    It is a rate limit to the caller, but it is not the source's answer, so it is never recorded against
+    the source's health.
+    """
 
 
 @dataclass(frozen=True)
@@ -324,6 +334,15 @@ class RecipeRuntime:
             category = ("server_error" if response.status >= 500 else "not_found" if response.status in (404, 410)
                         else "unexpected_response")
             raise _PageFailure(category, f"HTTP {response.status}")
+        if len(response.body) >= PARSE_OFF_LOOP_BYTES:
+            # A large page takes tens of milliseconds to parse; on a worker thread the server keeps answering.
+            document = await asyncio.to_thread(self._parse, recipe, response)
+        else:
+            document = self._parse(recipe, response)
+        return response, document
+
+    @staticmethod
+    def _parse(recipe: Recipe, response: FetchedResponse) -> Any:
         try:
             if recipe.response.format == "json":
                 document: Any = json.loads(response.body)
@@ -339,7 +358,7 @@ class RecipeRuntime:
                 document = parse_document(response.body.decode("utf-8", errors="replace"), url=response.url)
         except (ValueError, UnicodeDecodeError) as exc:
             raise _PageFailure("parser_failure", f"could not parse {recipe.response.format}: {exc}") from exc
-        return response, document
+        return document
 
     # -- extraction -----------------------------------------------------------------------------
 

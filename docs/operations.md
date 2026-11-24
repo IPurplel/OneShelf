@@ -15,7 +15,7 @@ Authority: Master §2.1, §13, §18, §24–25, §33–34, §42; Meta Prompt §C
 | Mount | Holds | Notes |
 |---|---|---|
 | `/data` | `oneshelf.db` (authoritative), `cache.db` (rebuildable), `secrets.db` (encrypted source sessions), staging, snapshots, diagnostics | Back this up. Losing `cache.db` costs nothing. |
-| `/data/plugins` | installed `.osp` packages, including the eight official sources installed on first run | Rebuildable by reinstalling, but keeping it avoids re-approving permissions. Recreating the container does **not** reinstall a source you removed. |
+| `/data/plugins` | installed `.osp` packages, including the nine official sources installed on first run | Rebuildable by reinstalling, but keeping it avoids re-approving permissions. Recreating the container does **not** reinstall a source you removed. |
 | `/keys` | `session.key`, the key for `secrets.db` | **Its own volume.** It is deliberately excluded from every backup (§33.3), so store it where you store passwords. Lose it and source logins must be redone; nothing else is affected. |
 | `/content` | a storage location for downloaded and imported files | Add more locations in Settings → Storage; OneShelf never writes outside a registered location. |
 | `/data/backups` | `.osbackup` archives | Prefer a different physical disk: OneShelf warns when backups sit on the same device as the library (§33.9). |
@@ -80,6 +80,25 @@ ONESHELF_DATA_DIR=./var .venv/bin/python -m oneshelf.api.app
 - If every client appears to arrive from one address, OneShelf says so in Settings: that means a router or proxy is
   forwarding, and your trusted networks are wider than you think.
 
+### OneShelf as an app on a phone
+
+OneShelf can be added to a phone's home screen and opens full-screen, with its own icon and no browser bars. It
+serves a web app manifest, icons, and a very small service worker; nothing needs configuring.
+
+- **iPhone and iPad (Safari):** open `http://<this machine>/`, then Share → *Add to Home Screen*. This works over
+  plain http on your home network.
+- **Android (Chrome):** open the same address, then the menu → *Install app* or *Add to Home screen*. Browsers
+  only offer a true install on a secure origin, so over plain http Chrome may add a shortcut that opens in a
+  normal tab instead. To get the full app, reach OneShelf over https: a reverse proxy with a certificate on a
+  hostname you control, or a private network tool that provides https. Which you get is the browser's decision,
+  and it differs between phones and versions.
+- **What the service worker does:** when the installed app is opened and your computer cannot be reached (you
+  are away from home, or it is switched off), it shows a short page saying so instead of the browser's error. It
+  keeps nothing else: no interface files, no covers, no books. Everything comes fresh from your computer, so an
+  update is never hidden behind an old copy. Browsers run service workers only on https or `localhost`, so over
+  plain http the page is simply the browser's own error.
+- **Not included:** reading with no connection to your computer. Your books stay on your computer, not on the phone.
+
 ## 5. Backups
 
 - A **Library Backup** runs every seven days and catches up after downtime. It holds library state — works, shelf,
@@ -136,3 +155,138 @@ somewhere and point `ONESHELF_REGISTRY_URL` at `file:///that/directory`. It is r
 opens (cached 5 minutes, failures 60 seconds) — never polled in the background. Its Official and Verified
 Community entries are trusted as such because it is the configured first-party Registry (`plugins.md` §7);
 a mirror keeps that trust only if `ONESHELF_FIRST_PARTY_REGISTRY_URL` names the mirror too.
+
+## 10. Where downloads go, and choosing your own storage folders
+
+A fresh library starts with its folder already chosen: the container's `/content`, which is
+`deploy/volumes/content` on your disk. Downloads work from the first minute and there is nothing to pick inside
+the container. It is added once, only to a library that has no storage location yet. A library that chose
+somewhere else keeps its choice, and content that belongs to another library is never claimed; restore or remap
+decides that. Choosing a folder yourself, in *Settings → Storage*, is for a bigger disk or a different mount, and
+the folder must be one the container can see: a path that is not a mount lives inside the container and is lost
+when the container is recreated.
+
+Everything persistent lives outside the container in five directories (`deploy/volumes/data`, `content`, `plugins`,
+`keys`, `backups`). To keep your library somewhere else (a bigger disk, a different mount), set the matching
+`ONESHELF_*_PATH` in `.env` to an absolute path **dedicated to OneShelf**.
+
+- The installer may change ownership of those directories and label them for SELinux, so never select shared ones.
+- Paths may not overlap or contain symlinks.
+- A non-empty custom directory must already contain the `.oneshelf-managed` marker from a previous install,
+  otherwise the installer stops before relabelling or changing ownership. When migrating existing OneShelf-only
+  storage by hand, review its contents, back it up, and create that empty marker yourself to designate it for OneShelf.
+- Changing a path does not move existing content: copy it while OneShelf is stopped, change `.env`, then run
+  `./install.sh` again. The old copy is yours to keep.
+
+`.env` is a literal `KEY=value` file at the repository root. Quotes and inline comments are supported; multiline
+values, variable interpolation and escapes are rejected by the scripts. Exported `ONESHELF_*` deployment values
+override `.env` consistently for Compose and the readiness probes.
+
+## 11. Updating with `update.sh`
+
+`./update.sh` pulls the latest version, rebuilds and restarts. Your library, settings and `.env` are left alone, and
+database migrations run the same way as on any normal start.
+
+- Automatic Git updates need `main` and `origin/main`, a clean tracked tree, no unfinished Git operation, and no local
+  commits ahead of or diverged from the remote. A checkout without an upstream, or an archive without Git metadata,
+  rebuilds locally with an explicit notice. Untracked files are preserved; Git refuses an update that would overwrite them.
+- **Disk space.** Every update builds a new image of a few GB. After the new version has started healthy,
+  `./update.sh` removes the image it replaced and OneShelf's own unused build leftovers (every stage of the
+  Dockerfile carries the label `org.oneshelf.project=oneshelf`, which is how it finds them), and on Docker also
+  build cache older than two days. It never removes an image a container still uses, and never a volume, so
+  your library, settings and backups are untouched. `ONESHELF_KEEP_OLD_IMAGES=yes` in `.env` keeps the old
+  images instead. This does not clear images that earlier versions of the script left behind; see
+  [§16](#16-where-the-disk-went-and-starting-again).
+- Back up before updating. Migrations run on startup and are forward-only: a failed health check does not mean the
+  database is unchanged. Do not check out an older commit against a newer database; see [§7](#7-upgrades) and restore
+  a compatible backup or pre-migration snapshot if you must go back.
+
+## 12. Uninstalling
+
+`./uninstall.sh` stops and removes the containers and **keeps every byte of your library**; `./install.sh` brings it
+back. `./uninstall.sh --delete-data` also deletes the data: it lists exactly which directories it will remove and only
+proceeds if you type the confirmation sentence in full. Automatic deletion is limited to the five default
+`deploy/volumes/` directories. Custom, symlinked and overlapping paths are refused; review and remove custom storage
+yourself. A failure to remove a directory is reported as a failure, never as success.
+
+## 13. Running Compose yourself
+
+The scripts are a convenience, not a requirement. The Compose file is `deploy/compose.yaml`. After the first
+`./install.sh` has prepared configuration, directories and ownership, from the repository root:
+
+```sh
+# Podman
+podman compose --env-file .env -f deploy/compose.yaml build
+podman compose --env-file .env -f deploy/compose.yaml up -d
+podman compose --env-file .env -f deploy/compose.yaml logs -f
+podman compose --env-file .env -f deploy/compose.yaml down          # keeps volumes
+
+# Docker
+docker compose --env-file .env -f deploy/compose.yaml build
+docker compose --env-file .env -f deploy/compose.yaml up -d
+docker compose --env-file .env -f deploy/compose.yaml logs -f
+docker compose --env-file .env -f deploy/compose.yaml down
+```
+
+Standalone `podman-compose` and `docker-compose` providers implementing the current Compose specification are detected
+too. Legacy Docker Compose v1 is not a supported target. Configuration lives in `.env` at the repository root, not in
+`deploy/`: always pass `--env-file .env`. Relative bind paths resolve relative to `deploy/`. The container runs as an
+unprivileged user (uid 10001) and exposes a healthcheck on `/api/ready`.
+
+The scripts prefer Podman when both are present; choose Docker with `ONESHELF_RUNTIME=docker ./install.sh` (use the same
+prefix for update and uninstall). The Linux deployment uses host networking so the application sees the real client IP;
+it binds only to loopback by default and shares the host network namespace. Docker Desktop is not a verified path.
+
+## 14. Legacy deployment storage
+
+Pre-release images stored plugins and backups inside the data directory, despite exposing separate mounts. The scripts
+stop before new mounts could hide those files. If that check fails, inspect the runtime error first. For an actual
+legacy install: stop it with `./uninstall.sh`, back up all five host directories, and copy the contents of
+`<data-path>/plugins` and `<data-path>/backups` into the configured plugin and backup host directories **only when
+those destinations are empty**. Use `podman unshare` for rootless-owned files. Never merge or overwrite populated
+destinations. Rename the original subdirectories to `plugins.pre-release` and `backups.pre-release` to keep them, then
+rerun `./install.sh`. These are file-location changes; database migrations still run only on startup. If unsure which
+copies are authoritative, keep both and stop before moving anything.
+
+## 15. Troubleshooting
+
+- **`podman` or `docker` is installed but nothing happens.** Its service may not be running:
+  `systemctl --user start podman.socket`, or `sudo systemctl start docker`.
+- **OneShelf cannot write to its directories.** `install.sh` corrects ownership of its own directories through the
+  runtime. If you moved them somewhere the container user cannot reach, point `ONESHELF_*_PATH` at a directory you own.
+- **Something else is on port 8420.** Change `ONESHELF_PORT` in `.env` and run `./install.sh` again.
+- **Look at the log.** `podman compose --env-file .env -f deploy/compose.yaml logs --tail=50`
+- **It feels slow with one source.** `GET /api/diagnostics/traffic` shows, per source and host, what was sent, what came
+  back, how long requests queued, and whether OneShelf has slowed itself down because a host answered 429 or 503.
+
+## 16. Where the disk went, and starting again
+
+Two different things fill a disk, and they are kept apart on purpose.
+
+**Your library** is in `deploy/volumes/` on the host (or the folders you chose in `.env`): `content` is your
+downloaded books, `data` the database and caches, `backups` the archives. Deleting a container never touches it.
+
+```sh
+du -sh deploy/volumes/*        # what your library takes
+```
+
+**The program** is images and build cache. Updates from before cleanup existed left one image behind each time, and
+a few GB each adds up to tens of GB. See what is there, and remove what nothing uses:
+
+```sh
+podman system df               # or: docker system df
+podman image prune -f --filter label=org.oneshelf.project=oneshelf    # unused OneShelf leftovers only
+docker builder prune -f        # Docker only: all unused build cache
+```
+
+`podman system prune` and `docker system prune` remove every unused image on the machine, not just OneShelf's;
+read what they list first.
+
+**Starting again from nothing.** To throw the container and the library away and begin empty:
+
+```sh
+./uninstall.sh --delete-data   # lists exactly what it will delete, and asks you to type the confirmation
+./install.sh                   # a brand-new, empty OneShelf; its content folder is chosen for you
+```
+
+To start the program again but keep your books, run `./uninstall.sh` (no flag) and then `./install.sh`.

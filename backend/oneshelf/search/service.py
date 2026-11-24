@@ -25,7 +25,12 @@ from oneshelf.search.index import FTS_CANDIDATE_LIMIT, LIKE_CANDIDATE_LIMIT, sea
 from oneshelf.search.normalize import search_keys
 from oneshelf.search.presentation import work_cover
 
-SEARCH_KIND = "search"
+# What a source's search is cached as: its first page (below). Distinct from the old whole-list entries, which
+# were written under "search" and are left to expire.
+SEARCH_KIND = "search-first-page"
+# A search reads one page of each source. The person sees the fifty best across every source, so later pages
+# were never shown, yet each one waited its turn under the source's rate (arXiv: five pages, 13 s).
+SEARCH_PAGES = (0, 1)
 # Local search policy deliberately follows the user's clear mappings. Categories absent here
 # (Manuscripts, Newspapers, Digital library) leave local works unfiltered. Reports maps to
 # paper for local search even though a Reports adapter may default to book content.
@@ -48,7 +53,8 @@ CATEGORY_CONTENT_TYPES = {
 class Sources(Protocol):
     def searchable_sources(self) -> list[tuple[str, str]]: ...
 
-    async def run(self, plugin_id: str, capability: str, inputs: dict, *, priority: Priority) -> Any: ...
+    async def run(self, plugin_id: str, capability: str, inputs: dict, *, priority: Priority,
+                  pages: tuple[int, int] | None = None) -> Any: ...
 
 
 @dataclass
@@ -264,7 +270,7 @@ class SearchService:
                 return
         try:
             result: ListResult = await self.sources.run(source_id, "search", {"query": query},
-                                                        priority=Priority.INTERACTIVE)
+                                                        priority=Priority.INTERACTIVE, pages=SEARCH_PAGES)
         except RateLimited as exc:
             state.status[source_id] = {"state": "failed", "category": "rate_limit", "retry_after": exc.retry_after}
             return
@@ -285,8 +291,9 @@ class SearchService:
         entries = [classify_listing(_to_live(source_id, entry), defaults) for entry in result.entries]
         for entry in entries:
             state.listings[(entry.source_id, entry.listing_key)] = entry
-        if result.complete:
-            # Only a whole answer is reused; a partial one would hide the missing pages for the cache's lifetime.
+        if result.complete or not result.evidence.issues:
+            # A first page read cleanly is the whole answer search asks for. One with problems is not reused:
+            # it would hide what went wrong for the cache's lifetime.
             self.cache.put(source_id, version, SEARCH_KIND, key, {"listings": [asdict(e) for e in entries]})
         state.status[source_id] = {"state": "done", "complete": result.complete}
 

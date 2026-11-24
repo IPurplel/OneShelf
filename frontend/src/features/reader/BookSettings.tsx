@@ -7,7 +7,7 @@ const FONTS: BookFont[] = ["serif", "sans"];
 const SIZES: BookSize[] = ["smaller", "normal", "larger", "largest"];
 const SPACING: BookSpacing[] = ["tight", "normal", "loose"];
 const MARGINS: BookMargins[] = ["narrow", "normal", "wide"];
-const THEMES: BookTheme[] = ["paper", "sepia", "dark"];
+const THEMES: BookTheme[] = ["paper", "sepia", "dark", "night"];
 
 /**
  * Reading comfort for a book (Master §26.22a).

@@ -10,6 +10,7 @@ import { ResultCard } from "@/features/search/ResultCard";
 import { useI18n } from "@/i18n/i18n";
 import { useLive } from "@/app/live";
 import type { StringKey } from "@/i18n/strings";
+import { GoalsCard } from "./GoalsCard";
 
 /**
  * Home (Master §31, §32.3–32.5).
@@ -55,7 +56,13 @@ export function HomeScreen() {
       <SetupNotice />
 
       {slides.length > 0 && <HeroCarousel slides={slides} />}
+      {(data.continue_reading.length > 0 || data.recently_added.length > 0) && (
+        <p className="home__ask">
+          <Link className="button" to="/discover">{t("discover.surprise.library.title")}</Link>
+        </p>
+      )}
 
+      <GoalsCard />
       {data.continue_reading.length > 0 && (
         <Shelf id="continue" title={t("home.continue")} viewAllHref="/shelf">
           {data.continue_reading.map((item) => <WorkCard key={item.work_id} work={item} />)}

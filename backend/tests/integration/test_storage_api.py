@@ -188,3 +188,20 @@ def test_export_accepts_several_selected_works(api):
     report = client.post("/api/export", json=body).json()
     assert report["state"] == "completed" and report["copied"] == 2
     assert sorted(p.name for p in destination.iterdir()) == ["First Work (en)", "Second Work (en)"]
+
+
+def test_a_container_starts_with_its_content_folder_already_chosen(tmp_path):
+    """Asked for 2026-11-24: downloads work from the first minute, into the folder the host mounts."""
+    from starlette.testclient import TestClient
+    from oneshelf.api.app import AppConfig, create_app
+    content = tmp_path / "content"
+    content.mkdir()
+    config = AppConfig.from_env({
+        "ONESHELF_DATA_DIR": str(tmp_path / "data"), "ONESHELF_ALLOWED_HOSTS": "testserver",
+        "ONESHELF_SESSION_KEY_FILE": str(tmp_path / "keys" / "session.key"),
+        "ONESHELF_DEFAULT_STORAGE_PATH": str(content),
+    })
+    for _ in range(2):                                  # a restart must not add it a second time
+        with TestClient(create_app(config), client=("127.0.0.1", 50000)) as client:
+            state = client.get("/api/first-run").json()
+    assert [(r["path"], r["default"]) for r in state["storage"]] == [(str(content), True)]

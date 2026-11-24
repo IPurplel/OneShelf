@@ -410,3 +410,69 @@ def test_batch_delete_files_frees_space_and_keeps_shelf_and_progress(api):
     assert done == {"action": "delete_files", "affected": 2, "deleted_files": 4, "freed_bytes": 400}
     assert client.get("/api/shelf?view=downloaded").json()["entries"] == []
     assert len(client.get("/api/shelf").json()["entries"]) == 2
+
+
+def test_a_follow_can_be_set_to_download_its_new_chapters(api):
+    client, _, _ = api
+    work = bind(client, "irregular", "First")
+    client.post(f"/api/tracks/{work['track_id']}/catalog/refresh")
+    client.post(f"/api/follows/{work['work_id']}", json={"language": "en", "source_id": TS, "track_id": work["track_id"]})
+    turned_on = client.post(f"/api/follows/{work['work_id']}/auto-download", json={"enabled": True, "language": "en"})
+    assert turned_on.status_code == 200 and turned_on.json()["auto_download"] is True
+    listed = client.get("/api/follows").json()["follows"]
+    assert [f["auto_download"] for f in listed if f["work_id"] == work["work_id"]] == [True]
+    missing = client.post("/api/follows/nope/auto-download", json={"enabled": True})
+    assert missing.status_code == 404 and missing.json()["error"]["code"] == "NOT_FOLLOWED"
+
+
+def test_shelves_of_your_own_hold_works_with_their_covers(api):
+    # Custom shelves (asked for 2026-11-10): "Novels", "Manga", "Summer"... built on collections.
+    client, _, _ = api
+    work = bind(client, "irregular", "The Irregular Chronicle")["work_id"]
+    summer = client.post("/api/collections", json={"name": "Summer"}).json()["id"]
+    renamed = client.patch(f"/api/collections/{summer}", json={"name": "Summer reading"})
+    assert renamed.status_code == 200 and renamed.json()["name"] == "Summer reading"
+    assert client.post(f"/api/collections/{summer}/works/{work}").status_code == 200
+    # Putting a work on one of your shelves puts it in your library.
+    assert work in {e["work_id"] for e in client.get("/api/shelf").json()["entries"]}
+    listed = client.get("/api/collections").json()["collections"]
+    assert [(c["name"], c["work_count"], len(c["covers"])) for c in listed] == [("Summer reading", 1, 1)]
+    shelf = client.get(f"/api/collections/{summer}").json()
+    assert shelf["name"] == "Summer reading" and [w["work_id"] for w in shelf["works"]] == [work]
+    assert {"title", "cover_url", "content_type"} <= set(shelf["works"][0])
+    assert client.get(f"/api/works/{work}/collections").json() == {"collection_ids": [summer]}
+    client.delete(f"/api/collections/{summer}/works/{work}")
+    assert client.get(f"/api/works/{work}/collections").json() == {"collection_ids": []}
+    assert client.get("/api/collections/nope").status_code == 404
+    assert client.patch("/api/collections/nope", json={"name": "x"}).status_code == 404
+
+
+def test_reading_counts_toward_the_streak_and_a_yearly_goal_can_be_set(api):
+    # Reading goals (asked for 2026-11-10): a yearly book goal and a daily streak.
+    client, _, _ = api
+    work = bind(client, "irregular", "First")
+    client.post(f"/api/tracks/{work['track_id']}/catalog/refresh")
+    unit = client.get(f"/api/works/{work['work_id']}", params={"track_id": work["track_id"]}).json()["units"][0]["id"]
+    assert client.get("/api/goals", params={"offset": -180}).json()["streak"]["read_today"] is False
+    client.post(f"/api/reader/units/{unit}/progress", json={"fraction": 0.3})
+    goals = client.get("/api/goals", params={"offset": -180}).json()
+    assert goals["streak"]["read_today"] is True and goals["streak"]["current"] == 1
+    assert client.put("/api/goals", json={"books_per_year": 20}).json()["books"]["goal"] == 20
+    assert client.put("/api/goals", json={"books_per_year": 0}).status_code == 422
+    assert client.put("/api/goals", json={"books_per_year": None}).json()["books"]["goal"] is None
+
+
+def test_every_highlight_gathers_on_one_quotes_page(api):
+    # Quotes (asked for 2026-11-10): what you highlighted in any book, newest first, with where it came from.
+    client, _, _ = api
+    work = bind(client, "irregular", "The Irregular Chronicle")
+    client.post(f"/api/tracks/{work['track_id']}/catalog/refresh")
+    units = client.get(f"/api/works/{work['work_id']}", params={"track_id": work["track_id"]}).json()["units"]
+    first = client.post(f"/api/reader/units/{units[0]['id']}/highlights",
+                        json={"locator": {"chapter": 0}, "text": "The quiet begins.", "colour": "green"}).json()
+    client.post(f"/api/reader/units/{units[1]['id']}/highlights", json={"locator": {"chapter": 1}, "text": "Later words."})
+    quotes = client.get("/api/highlights").json()["highlights"]
+    assert [q["text"] for q in quotes] == ["Later words.", "The quiet begins."]
+    assert quotes[1]["id"] == first["id"] and quotes[1]["colour"] == "green"
+    assert quotes[1]["work_id"] == work["work_id"] and quotes[1]["work_title"] == "The Irregular Chronicle"
+    assert quotes[1]["unit_id"] == units[0]["id"] and "cover_url" in quotes[1]

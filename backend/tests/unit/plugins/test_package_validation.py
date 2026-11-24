@@ -270,3 +270,33 @@ def test_node_selecting_xpath_is_accepted(tmp_path, expression):
     recipes = copy.deepcopy(RECIPES)
     recipes["search"]["extract"]["fields"]["title"] = {"xpath": expression, "required": True}
     assert load(tmp_path, recipes=recipes)
+
+
+# -- a separate budget for resources (plugin API 1.4) ------------------------------------------------------
+
+def _with_resources(resources):
+    source = copy.deepcopy(SOURCE)
+    source["rate_limit"] = {"requests_per_minute": 20, "concurrency": 1, "resources": resources}
+    return source
+
+
+def test_a_resource_budget_needs_api_1_4(tmp_path):
+    rejects(tmp_path, match="rate_limit.resources needs api '1.4'",
+            source=_with_resources({"requests_per_minute": 120, "concurrency": 2}))
+
+
+def test_a_resource_budget_loads_with_api_1_4(tmp_path):
+    pkg = load(tmp_path, manifest=variant(MANIFEST, api="1.4"),
+               source=_with_resources({"requests_per_minute": 120, "concurrency": 2}))
+    assert pkg.source.rate_limit.resources.requests_per_minute == 120
+    assert pkg.source.rate_limit.resources.concurrency == 2
+
+
+@pytest.mark.parametrize("resources", [{"requests_per_minute": 601}, {"requests_per_minute": 60, "concurrency": 7},
+                                       {"concurrency": 2}, {"requests_per_minute": 60, "burst": 9}])
+def test_a_resource_budget_stays_within_core_bounds(tmp_path, resources):
+    rejects(tmp_path, manifest=variant(MANIFEST, api="1.4"), source=_with_resources(resources))
+
+
+def test_without_a_resource_budget_nothing_changes(tmp_path):
+    assert load(tmp_path).source.rate_limit.resources is None

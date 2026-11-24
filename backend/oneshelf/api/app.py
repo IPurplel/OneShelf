@@ -27,6 +27,7 @@ from oneshelf.api.shelf import router as shelf_router
 from oneshelf.api.storage import router as storage_router
 from oneshelf.api.covers import router as covers_router
 from oneshelf.api.stats import router as stats_router
+from oneshelf.api.goals import router as goals_router
 from oneshelf.api.tags import router as tags_router
 from oneshelf.api.history import router as history_router
 from oneshelf.api.works import router as works_router
@@ -38,7 +39,7 @@ from oneshelf.backup.service import BackupService
 from oneshelf.export.service import ExportService
 from oneshelf.restore.service import RestoreService
 from oneshelf.storage.migration import StorageMigration
-from oneshelf.storage.roots import check_availability, list_roots
+from oneshelf.storage.roots import check_availability, ensure_default_root, list_roots
 from oneshelf.follow.runner import FollowRunner
 from oneshelf.generator.service import GeneratorService
 from oneshelf.follow.service import FollowService
@@ -58,7 +59,9 @@ from oneshelf.discovery.home import HomeService
 from oneshelf.search.cache import DiscoveryCache
 from oneshelf.search.service import SearchService
 from oneshelf.search.url_resolve import UrlResolver
+from oneshelf.covers.cache import CoverCache
 from oneshelf.net.governor import TrafficGovernor
+from oneshelf.settings.defaults import DEFAULTS
 from oneshelf.net.lazy_browser import LazyBrowser
 from oneshelf.plugins.bundled import sync_bundled
 from oneshelf.plugins.manager import PluginManager
@@ -110,6 +113,7 @@ class Services:
     settings: Settings | None = None
     diagnostics: DiagnosticsStore | None = None
     discover: DiscoverService | None = None
+    cover_cache: CoverCache | None = None
 
 
 @dataclass(frozen=True)
@@ -129,6 +133,8 @@ class AppConfig:
     # The official adapters shipped with this build, installed once on a fresh library. Unset in
     # development and tests, which start with an empty library unless a directory is given.
     bundled_plugins_dir: str | None = None
+    # The folder a fresh library keeps its books in until the owner chooses another: `/content` in the container.
+    default_storage_path: str | None = None
 
     @property
     def db_path(self) -> Path:
@@ -141,6 +147,7 @@ class AppConfig:
         return cls(
             web_root=web_root,
             bundled_plugins_dir=env.get("ONESHELF_BUNDLED_PLUGINS_DIR", "") or None,
+            default_storage_path=env.get("ONESHELF_DEFAULT_STORAGE_PATH", "") or None,
             data_dir=data_dir,
             access=AccessConfig.from_strings(
                 trusted_networks=env.get("ONESHELF_TRUSTED_NETWORKS", ""),
@@ -246,6 +253,7 @@ def create_app(config: AppConfig) -> FastAPI:
         migrate(config.db_path, MIGRATIONS, snapshot_dir=Path(config.data_dir) / "snapshots")
         conn = open_database(config.db_path)
         app.state.startup_report = run_startup_recovery(conn)
+        ensure_default_root(conn, config.default_storage_path)
         plugins = PluginManager(conn, store_dir=Path(config.data_dir) / "plugins",
                                 trusted_keys=parse_trusted_keys(config.registry_trusted_keys),
                                 first_party_registry=config.first_party_registry_url)
@@ -257,7 +265,9 @@ def create_app(config: AppConfig) -> FastAPI:
         plugins.reconcile_store()
         store = SecretsStore(Path(config.data_dir) / "secrets.db", load_or_create_key(config.session_key_file))
         sessions = SessionManager(conn, store, events=app.state.bus)
-        governor = TrafficGovernor()
+        governor = TrafficGovernor(http_capacity=DEFAULTS.traffic.http_capacity,
+                                   reserved_for_foreground=DEFAULTS.traffic.reserved_for_foreground,
+                                   reserved_for_reader=DEFAULTS.traffic.reserved_for_reader)
         browser = LazyBrowser()
         source_service = SourceService(conn, plugins, governor, sessions, events=app.state.bus,
                                        dev_test_source=config.dev_test_source,
@@ -273,6 +283,7 @@ def create_app(config: AppConfig) -> FastAPI:
         logging.getLogger("oneshelf").addHandler(diagnostics_handler)
         engine = DownloadEngine(conn, source_service, plugins, governor, settings=settings, events=app.state.bus)
         reader_cache = ReaderCache(Path(config.data_dir) / "reader-cache", Path(config.data_dir) / "cache.db")
+        cover_cache = CoverCache(Path(config.data_dir) / "cover-cache", Path(config.data_dir) / "cache.db")
         reader = ReaderService(conn, source_service, reader_cache, engine, settings=settings, events=app.state.bus)
         catalog = CatalogTrust(conn)
         backups = BackupService(conn, config.db_path, backup_dir=Path(config.data_dir) / "backups")
@@ -283,7 +294,7 @@ def create_app(config: AppConfig) -> FastAPI:
                                                         notifications=notifications)
         shelf = ShelfService(conn, events=app.state.bus)
         follows = FollowService(conn, catalog, events=app.state.bus)
-        follow_runner = FollowRunner(conn, follows, source_service, plugins, catalog, notifications)
+        follow_runner = FollowRunner(conn, follows, source_service, plugins, catalog, notifications, downloads=engine)
         engine.notifications = notifications
         app.state.services = Services(
             conn, plugins, sessions, governor, source_service, logins, registry, cache,
@@ -297,7 +308,8 @@ def create_app(config: AppConfig) -> FastAPI:
                              dev_test_source=config.dev_test_source),
             settings,
             diagnostics,
-            DiscoverService(conn, source_service, plugins, cache))
+            DiscoverService(conn, source_service, plugins, cache),
+            cover_cache)
         runner = DownloadRunner(engine)
         await runner.start()
         await follow_runner.start()
@@ -316,6 +328,7 @@ def create_app(config: AppConfig) -> FastAPI:
             await browser.aclose()
             cache.close()
             reader_cache.close()
+            cover_cache.close()
             store.close()
             logging.getLogger("oneshelf").removeHandler(diagnostics_handler)
             conn.close()
@@ -383,6 +396,7 @@ def create_app(config: AppConfig) -> FastAPI:
     app.include_router(firstrun_router)
     app.include_router(generator_router)
     app.include_router(stats_router)
+    app.include_router(goals_router)
     app.include_router(tags_router)
     app.include_router(history_router)
     _mount_web_interface(app, config.web_root)

@@ -67,6 +67,27 @@ describe("Source Registry", () => {
     expect(screen.getByText(/no sources match/i)).toBeInTheDocument();
   });
 
+  it("puts what can be added first, and can show only that", async () => {
+    // Adding a source meant scanning every installed one for the few that could be added (asked 2026-11-09).
+    mockApi([get("/api/registry", listing(
+      card({ id: "a", name: "Alpha Comics", category: "Comics" }),
+      card({ id: "b", name: "Beta Comics", category: "Comics", state: "available", installed_version: null,
+             plugin_state: "uninstalled" }),
+      card({ id: "c", name: "Gamma Books", category: "Books", state: "update_available", version: "1.1.0" }),
+    ))]);
+    const user = userEvent.setup();
+    renderWithProviders(<RegistryPanel revision={0} onChanged={() => {}} />);
+    const section = await screen.findByRole("region", { name: /^source registry$/i });
+    await cardFor("Alpha Comics");
+    const comics = within(section).getAllByRole("listitem").map((li) => li.textContent ?? "")
+      .filter((text) => /Comics/.test(text));
+    expect(comics[0]).toMatch(/Beta Comics/);                       // addable before installed
+    await user.click(within(section).getByRole("button", { name: /not installed.*2/i }));
+    expect(within(section).queryByText("Alpha Comics")).not.toBeInTheDocument();
+    expect(within(section).getByText("Beta Comics")).toBeInTheDocument();
+    expect(within(section).getByText("Gamma Books")).toBeInTheDocument();
+  });
+
   it("shows an official source that is already installed as Installed, with nothing to press", async () => {
     mockApi([get("/api/registry", listing(card({})))]);
     renderWithProviders(<RegistryPanel revision={0} onChanged={() => {}} />);

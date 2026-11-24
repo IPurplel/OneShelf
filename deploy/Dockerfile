@@ -4,7 +4,10 @@
 # needs it. Persistent state lives on mounts, never in the image.
 # The interface is built first and copied in, because in a container there is one process and one
 # origin: the API serves the SPA it was built with (§2.1).
+# Every stage carries this label, so that after an update only OneShelf's own leftover build layers are
+# cleaned up (deploy/lib.sh, cleanup_old_images), never another project's images.
 FROM node:22-slim AS web
+LABEL org.oneshelf.project="oneshelf"
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -13,6 +16,7 @@ RUN npm run build
 
 
 FROM python:3.13-slim
+LABEL org.oneshelf.project="oneshelf"
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -44,6 +48,7 @@ ENV ONESHELF_DATA_DIR=/data \
     ONESHELF_SESSION_KEY_FILE=/keys/session.key \
     ONESHELF_WEB_ROOT=/app/web \
     ONESHELF_BUNDLED_PLUGINS_DIR=/app/plugins/official \
+    ONESHELF_DEFAULT_STORAGE_PATH=/content \
     ONESHELF_HOST=127.0.0.1 \
     ONESHELF_PORT=8420
 VOLUME ["/data", "/data/plugins", "/keys", "/content", "/data/backups"]

@@ -15,7 +15,10 @@ type DiscoverSource = { source_id: string; name: string; feeds: Feed[]; category
 type DiscoverItem = ResultWork & { on_shelf: boolean };
 type FeedPage = { source_id: string; kind: Feed; page: number; has_more: boolean; cached: boolean; items: DiscoverItem[] };
 type SourcePick = { item: DiscoverItem | null; reason: { source_id: string; source_name: string; kind: Feed } | null };
-type ShelfPick = { item: ShelfEntry | null; reason: { kind: "not_started" } | null };
+type Mood = "continue" | "short" | "light" | "fresh";
+const MOODS: Mood[] = ["continue", "short", "light", "fresh"];
+type ShelfReason = { kind: Mood; remaining?: number; content_type?: string };
+type ShelfPick = { item: ShelfEntry | null; reason: ShelfReason | null; more?: boolean };
 
 /**
  * Discover (docs/adr/0004-discover.md): find something to read without knowing its name.
@@ -86,32 +89,58 @@ function SourcesSurprise({ disabled }: { disabled: boolean }) {
   );
 }
 
+/**
+ * "What should I read now?": a mood, then one work from the shelf that fits it. The page says what made the
+ * pick (chapters left, a comic, not started) and passes the works already shown, so Another is never a repeat.
+ */
 function ShelfSurprise() {
   const { t, errorText } = useI18n();
+  const [mood, setMood] = useState<Mood>("continue");
   const [pick, setPick] = useState<ShelfPick | null>(null);
+  const [shown, setShown] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const choose = (next: Mood) => { setMood(next); setPick(null); setShown([]); setProblem(null); };
   const draw = async () => {
     setBusy(true);
     setProblem(null);
     try {
-      setPick(await api.get<ShelfPick>("/api/discover/random", { from: "library" }));
+      const found = await api.get<ShelfPick>("/api/discover/random", {
+        from: "library", mood, exclude: shown.length > 0 ? shown.join(",") : undefined });
+      setPick(found);
+      if (found.item) setShown((current) => [...current, found.item!.work_id]);
     } catch (error) {
       setProblem(errorText(error));
     } finally {
       setBusy(false);
     }
   };
+  const reason = pick?.reason;
   return (
     <Surprise icon="shelf" title={t("discover.surprise.library.title")} body={t("discover.surprise.library.body")}
               busy={busy} drawn={pick !== null} onDraw={() => void draw()} problem={problem}
-              empty={pick !== null && pick.item === null ? t("discover.none.library") : null}>
+              exhausted={pick?.item != null && pick.more === false}
+              empty={pick !== null && pick.item === null ? t(mood === "fresh" ? "discover.none.library" : `discover.none.${mood}`) : null}
+              before={
+                <div className="discover__moods" role="group" aria-label={t("discover.mood.label")}>
+                  {MOODS.map((candidate) => (
+                    <button key={candidate} type="button" className="chip" aria-pressed={candidate === mood}
+                            onClick={() => choose(candidate)}>
+                      {t(`discover.mood.${candidate}`)}
+                    </button>
+                  ))}
+                </div>}>
       {pick?.item && (
         <>
           <WorkCard work={{ work_id: pick.item.work_id, title: pick.item.title, cover_url: pick.item.cover_url ?? null,
                             content_type: pick.item.content_type ?? null,
                             downloaded: (pick.item.downloaded_units ?? 0) > 0 }} />
-          <p className="discover__reason">{t("discover.reason.library")}</p>
+          <p className="discover__reason">
+            {reason?.kind === "continue" || reason?.kind === "short"
+              ? reason.remaining === undefined ? t(reason.kind === "continue" ? "discover.reason.started" : "discover.reason.shortOne")
+                : t(`discover.reason.${reason.kind}`, { remaining: reason.remaining })
+              : reason?.kind === "light" ? t("discover.reason.light") : t("discover.reason.library")}
+          </p>
         </>
       )}
     </Surprise>
@@ -119,9 +148,11 @@ function ShelfSurprise() {
 }
 
 /** One surprise: what it offers, a button, and — once drawn — the work, why it was chosen, and "Another". */
-function Surprise({ icon, title, body, busy, disabled = false, drawn, onDraw, problem, empty, children }: {
+function Surprise({ icon, title, body, busy, disabled = false, drawn, onDraw, problem, empty, exhausted = false, before,
+                   children }: {
   icon: string; title: string; body: string; busy: boolean; disabled?: boolean; drawn: boolean;
-  onDraw: () => void; problem: string | null; empty: string | null; children: ReactNode;
+  onDraw: () => void; problem: string | null; empty: string | null; exhausted?: boolean; before?: ReactNode;
+  children: ReactNode;
 }) {
   const { t } = useI18n();
   return (
@@ -133,9 +164,11 @@ function Surprise({ icon, title, body, busy, disabled = false, drawn, onDraw, pr
           <p>{body}</p>
         </div>
       </div>
-      {drawn && <div className="discover__pick" aria-live="polite">{children}{empty && <p className="discover__reason">{empty}</p>}</div>}
+      {before}
+      {drawn && <div className="discover__pick" aria-live="polite">{children}{empty && <p className="discover__reason">{empty}</p>}
+        {exhausted && <p className="discover__reason">{t("discover.noMore")}</p>}</div>}
       {problem !== null && <p className="notice notice--problem" role="alert">{problem}</p>}
-      <button type="button" className={`button${drawn ? "" : " button--primary"}`} disabled={busy || disabled}
+      <button type="button" className={`button${drawn ? "" : " button--primary"}`} disabled={busy || disabled || exhausted}
               onClick={onDraw}>
         {drawn ? t("discover.another") : t("discover.pick")}
       </button>

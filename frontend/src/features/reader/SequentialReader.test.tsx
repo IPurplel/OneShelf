@@ -140,6 +140,40 @@ describe("Sequential Reader", () => {
     expect(screen.getByTestId("reader-stage")).toHaveAttribute("data-mode", "double");
   });
 
+  it("can show a page's colours inverted, for white text on black", async () => {
+    // A book page with no background of its own (Noor Book's SVG pages) showed black text on the black
+    // reader: nothing was readable. Pages now sit on paper, and a reader who wants a dark page can invert it.
+    stub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    expect(screen.getByTestId("reader-stage")).toHaveAttribute("data-page-colors", "original");
+
+    await user.click(screen.getByRole("button", { name: /reader settings/i }));
+    const colours = within(screen.getByRole("dialog", { name: /reader settings/i }))
+      .getByRole("radiogroup", { name: /page colou?rs/i });
+    expect(within(colours).getAllByRole("radio").map((r) => r.getAttribute("value"))).toEqual(["original", "inverted"]);
+    await user.click(within(colours).getByRole("radio", { name: /inverted/i }));
+    expect(screen.getByTestId("reader-stage")).toHaveAttribute("data-page-colors", "inverted");
+  });
+
+  it("turns on a warm night light, and continuing to the next chapter, only when asked", async () => {
+    // Night reading and a smoother way on (asked for 2026-11-10): both are the reader's choice, never automatic.
+    stub();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderWithProviders(<ReaderScreen unitId="u2" workId="w1" />);
+    await screen.findAllByRole("img", { name: /page \d/i });
+    expect(screen.getByTestId("reader-stage")).toHaveAttribute("data-night", "off");
+    await user.click(screen.getByRole("button", { name: /reader settings/i }));
+    const panel = screen.getByRole("dialog", { name: /reader settings/i });
+    const night = within(panel).getByRole("checkbox", { name: /night light/i });
+    const autoNext = within(panel).getByRole("checkbox", { name: /continue to the next chapter/i });
+    expect(night).not.toBeChecked();
+    expect(autoNext).not.toBeChecked();
+    await user.click(night);
+    expect(screen.getByTestId("reader-stage")).toHaveAttribute("data-night", "on");
+  });
+
   it("requests visible single pages eagerly with high browser priority", async () => {
     stub();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });

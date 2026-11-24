@@ -439,3 +439,76 @@ def test_i100_undo_of_a_pending_follow_stays_pending(library, follow, db):
     assert restored.baseline_kind == "pending"
     CatalogTrust(db).refresh(track_id, units("u1", "u2"), plugin_version="1.0.0")
     assert follow.check(work_id).new_units == []
+
+
+# -- Follow that downloads (asked for 2026-11-10; ADR 0005) -------------------------------------------------
+
+class _Catalog:
+    """A source whose catalogue the test grows between checks."""
+
+    def __init__(self, keys):
+        self.keys = list(keys)
+
+    async def run(self, plugin_id, capability, inputs, *, priority=None):
+        return units(*self.keys)
+
+
+class _Plugins:
+    def load_active(self, plugin_id):
+        from types import SimpleNamespace
+        return SimpleNamespace(version="1.0.0")
+
+
+class _Downloads:
+    def __init__(self):
+        self.queued = []
+
+    def enqueue(self, unit_ids, *, label=None, **_):
+        self.queued.append((list(unit_ids), label))
+        return "batch"
+
+
+def _listed(db, work_id, track_id):
+    listing_id = new_id()
+    db.execute("INSERT INTO source_listings (id, source_id, source_listing_key, work_id, created_at)"
+               " VALUES (?, 'mangadex', 'solo', ?, ?)", (listing_id, work_id, NOW))
+    db.execute("UPDATE source_tracks SET listing_id = ? WHERE id = ?", (listing_id, track_id))
+
+
+def _followed_runner(library, follow, db, *, auto: bool):
+    import asyncio
+
+    from oneshelf.follow.runner import FollowRunner
+
+    work_id, track_id = library()
+    _listed(db, work_id, track_id)
+    CatalogTrust(db).refresh(track_id, units("u1", "u2"), plugin_version="1.0.0")
+    follow.follow(work_id, language="en", source_id="mangadex", track_id=track_id)
+    if auto:
+        follow.set_auto_download(work_id, language="en", enabled=True)
+    catalog, downloads = _Catalog(["u1", "u2", "u3", "u4"]), _Downloads()
+    runner = FollowRunner(db, follow, catalog, _Plugins(), CatalogTrust(db), downloads=downloads)
+    outcome = asyncio.run(runner.check_work(work_id))
+    return work_id, outcome, downloads
+
+
+def test_a_follow_set_to_download_queues_only_its_new_chapters(library, follow, db):
+    work_id, outcome, downloads = _followed_runner(library, follow, db, auto=True)
+    assert [u["unit_key"] for u in outcome["new_units"]] == ["u3", "u4"]
+    assert downloads.queued == [([unit_id(db, "u3"), unit_id(db, "u4")], "Solo Leveling")]
+    assert follow.status(work_id).auto_download is True
+
+
+def test_a_follow_downloads_nothing_unless_asked(library, follow, db):
+    work_id, outcome, downloads = _followed_runner(library, follow, db, auto=False)
+    assert len(outcome["new_units"]) == 2 and downloads.queued == []
+    assert follow.status(work_id).auto_download is False
+
+
+def test_automatic_download_survives_an_undone_unfollow(library, follow, db):
+    work_id, track_id = library()
+    follow.follow(work_id, language="en", source_id="mangadex", track_id=track_id)
+    follow.set_auto_download(work_id, language="en", enabled=True)
+    token = follow.unfollow(work_id)
+    follow.undo_unfollow(token)
+    assert follow.status(work_id).auto_download is True

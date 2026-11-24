@@ -30,6 +30,8 @@ class ReaderCache:
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(str(index_path), isolation_level=None, check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode = WAL")
+        # Rebuildable: a crash may lose the last few entries, never the library, so no fsync per write.
+        self._conn.execute("PRAGMA synchronous = NORMAL")
         self._conn.execute(
             "CREATE TABLE IF NOT EXISTS reader_cache (key TEXT PRIMARY KEY, source_id TEXT NOT NULL,"
             " unit_key TEXT NOT NULL, path TEXT NOT NULL, size INTEGER NOT NULL, created_at REAL NOT NULL,"

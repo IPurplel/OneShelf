@@ -192,6 +192,7 @@ async def work_details(request: Request, work_id: str, track_id: str | None = No
             "track_id": follow["track_id"] if follow else None,
             "language": follow["language"] if follow else None,
             "last_successful_at": follow["last_successful_at"] if follow else None,
+            "auto_download": bool(follow["auto_download"]) if follow else False,
         },
         "tracks": tracks,
         "selected_track_id": selected["id"] if selected else None,

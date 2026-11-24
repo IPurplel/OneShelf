@@ -20,11 +20,12 @@ from oneshelf.domain.clock import utcnow_iso
 from oneshelf.domain.ids import new_id
 from oneshelf.downloads.contract import Settings
 from oneshelf.downloads.engine import NoStorageLocation
-from oneshelf.integrity.validators import _is_image_entry, _natural_key, _validate_image
+from oneshelf.integrity.validators import _is_image_entry, _natural_key, validate_image_off_loop
 from oneshelf.library.copies import local_copy
 from oneshelf.net.governor import Priority
 from oneshelf.plugins.results import ResourceDescriptor
 from oneshelf.plugins.runtime import AuthRequired, CapabilityError, PageTemporarilyRefused, PublicReaderExpired, RateLimited
+from oneshelf.goals.service import record_reading
 from oneshelf.reader.cache import ReaderCache
 from oneshelf.reader.page_image import normalize_page_image
 from oneshelf.settings.defaults import DEFAULTS
@@ -137,6 +138,8 @@ class ReaderService:
         self._public_refusals: OrderedDict[str, float] = OrderedDict()
         self._refusal_clock = time.monotonic
         self._page_fetches: dict[tuple[str, str, str], _PageFlight] = {}
+        self._revalidated: dict[str, float] = {}             # unit -> when its page list was last re-asked for
+        self._background: set[asyncio.Task] = set()
 
     # -- unit context ------------------------------------------------------------------------------
 
@@ -213,6 +216,14 @@ class ReaderService:
             entries = [info for info in archive.infolist() if _is_image_entry(info)]
         return sorted(entries, key=lambda info: _natural_key(info.filename))
 
+    @classmethod
+    def _archive_page(cls, path: Path, index: int) -> bytes:
+        names = cls._archive_pages(path)
+        if index > len(names):
+            raise IndexError("page index exceeds page count")
+        with zipfile.ZipFile(path) as archive:
+            return archive.read(names[index - 1])
+
     # -- pages -------------------------------------------------------------------------------------
 
     # -- text units ----------------------------------------------------------------------------------
@@ -243,7 +254,7 @@ class ReaderService:
     async def pages(self, unit_id: str) -> list[PageInfo]:
         asset = self._local_asset(unit_id, "cbz")
         if asset is not None:
-            names = self._archive_pages(self._local_path(asset))
+            names = await asyncio.to_thread(self._archive_pages, self._local_path(asset))
             return [PageInfo(index=i, label=str(i)) for i, _ in enumerate(names, start=1)]
         if self._unit(unit_id)["source_id"] == "local":
             raise FileNotFoundError("this local reading unit has no image pages; open its file instead")
@@ -317,10 +328,59 @@ class ReaderService:
                                  or (stale is not None and held[1] is not stale)):
             self._descriptors.move_to_end(unit_id)
             return held[1]
+        if stale is None and self.cache is not None:
+            # Stale-while-revalidate: a unit read before opens at once from the page list kept with its cached
+            # pages, and the source is asked for a fresh list in the background, at read-ahead priority (so a
+            # host under pressure is not asked at all). A link that has since expired still comes back here
+            # with `stale` set, which goes to the source in the foreground as before (I-107).
+            stored = held[1] if held is not None else None
+            if stored is None:
+                kept = self.cache.get_descriptors(unit["source_id"], unit["source_unit_key"])
+                stored = [ResourceDescriptor(**d) for d in kept] if kept else None
+            if stored:
+                self._descriptors[unit_id] = (time.monotonic(), stored)
+                self._descriptors.move_to_end(unit_id)
+                self._revalidate_later(unit_id, unit)
+                return stored
+        entries = await self._fetch_descriptors(unit, Priority.READER)
+        self._remember_descriptors(unit_id, unit, entries)
+        return entries
+
+    def _revalidate_later(self, unit_id: str, unit: sqlite3.Row) -> None:
+        """Ask the source for a fresh page list once, in the background; at most once per TTL per unit."""
+        now = time.monotonic()
+        last = self._revalidated.get(unit_id)
+        if last is not None and now - last < DESCRIPTOR_TTL_SECONDS:
+            return
+        self._revalidated[unit_id] = now
+        while len(self._revalidated) > DESCRIPTOR_CACHE_UNITS:
+            self._revalidated.pop(next(iter(self._revalidated)))
+
+        async def revalidate() -> None:
+            try:
+                entries = await self._fetch_descriptors(unit, Priority.READ_AHEAD)
+            except Exception:        # deferred, rate limited, offline: the kept list stays, and is tried again later
+                self._revalidated.pop(unit_id, None)
+                return
+            self._remember_descriptors(unit_id, unit, entries)
+
+        task = asyncio.create_task(revalidate())
+        self._background.add(task)
+        task.add_done_callback(self._background.discard)
+
+    def _remember_descriptors(self, unit_id: str, unit: sqlite3.Row, entries: list) -> None:
+        self._descriptors[unit_id] = (time.monotonic(), entries)
+        self._descriptors.move_to_end(unit_id)
+        while len(self._descriptors) > DESCRIPTOR_CACHE_UNITS:
+            self._descriptors.popitem(last=False)
+        if self.cache is not None:
+            self.cache.put_descriptors(unit["source_id"], unit["source_unit_key"], [asdict(e) for e in entries])
+
+    async def _fetch_descriptors(self, unit: sqlite3.Row, priority: Priority) -> list:
         result = await self.sources.run(unit["source_id"], "reader",
                                         {"unit_key": unit["source_unit_key"], "url": unit["url_hint"],
                                          "language": unit["language"]},
-                                        priority=Priority.READER)
+                                        priority=priority)
         entries = list(result.entries)
         if not entries:
             # Never remembered: the next request asks again rather than showing an empty unit until restart.
@@ -331,12 +391,6 @@ class ReaderService:
             raise CapabilityError("incomplete_result",
                                   f"the source returned {len(entries)} entries but could not confirm completeness "
                                   f"({result.evidence.stop_reason})")
-        self._descriptors[unit_id] = (time.monotonic(), entries)
-        self._descriptors.move_to_end(unit_id)
-        while len(self._descriptors) > DESCRIPTOR_CACHE_UNITS:
-            self._descriptors.popitem(last=False)
-        if self.cache is not None:
-            self.cache.put_descriptors(unit["source_id"], unit["source_unit_key"], [asdict(e) for e in entries])
         return entries
 
     async def page(self, unit_id: str, index: int, *, timeout: float | None = None,
@@ -345,12 +399,9 @@ class ReaderService:
             raise IndexError("page index must be at least 1")
         asset = self._local_asset(unit_id, "cbz")
         if asset is not None:
-            path = self._local_path(asset)
-            names = self._archive_pages(path)
-            if index > len(names):
-                raise IndexError("page index exceeds page count")
-            with zipfile.ZipFile(path) as archive:
-                return PageData(index, archive.read(names[index - 1]), "local")
+            # Opening, listing and inflating the archive is disk and CPU work: off the event loop.
+            return PageData(index, await asyncio.to_thread(self._archive_page, self._local_path(asset), index),
+                            "local")
         unit = self._unit(unit_id)
         if unit["source_id"] == "local":
             raise FileNotFoundError("this local reading unit has no image pages; open its file instead")
@@ -448,7 +499,9 @@ class ReaderService:
             self._record(source, "content_missing" if category == "not_found" else "failure", category)
             raise CapabilityError(category, f"page {index}: the source answered HTTP {status}")
         data = await normalize_page_image(response.body)
-        problem = _validate_image(data)
+        # A full decode proves the page is an image, on a worker thread (at most four at once), so a
+        # preloading reader does not stall every other request while it decodes.
+        problem = await validate_image_off_loop(data)
         if problem:
             raise ValueError(f"page {index}: {problem}")
         self.cache.put(source, unit["source_unit_key"], url, data)
@@ -497,6 +550,8 @@ class ReaderService:
                 " updated_at=excluded.updated_at",
                 (unit_id, read_state, json.dumps(locator) if locator is not None else None, fraction, new_revision,
                  utcnow_iso()))
+            if read_state in ("partial", "read"):
+                record_reading(self.conn)          # a reading day for the streak (goals)
         if self.events is not None:
             self.events.publish("reader.progress", {"reading_unit_id": unit_id, "read_state": read_state,
                                                     "fraction": fraction, "revision": new_revision})

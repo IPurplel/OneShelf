@@ -7,7 +7,9 @@ Authority: Master §40; written from the routers in `backend/oneshelf/api/`.
 
 - JSON in, JSON out. Errors are `{"error": {"code": "UPPER_SNAKE", "message": "a sentence for a person"}}`
   with a meaningful status: 401 unauthenticated, 403 refused, 404 unknown, 409 conflicting state,
-  422 rejected input, 429 rate limited by a source, 502 the source failed. `SOURCE_FAILED` adds `"category"`
+  422 rejected input, 429 rate limited by a source, 502 the source failed. A cover or page prefetch that Core held
+  back because the source's host is under pressure answers 503 with `Retry-After` (`SOURCE_BUSY`,
+  `SOURCE_TEMPORARILY_UNAVAILABLE`). `SOURCE_FAILED` adds `"category"`
   (the engine's reason) beside the sentence, never inside it.
 - `GET /api/works/{id}` units carry `download_state` (`queued` | `downloading` | `failed` | null, from the unit's
   latest job) and `size_bytes` (its files on this device, or null). `GET /api/home` Continue Reading items and a
@@ -32,6 +34,7 @@ Authority: Master §40; written from the routers in `backend/oneshelf/api/`.
 |---|---|
 | `GET /api/health` | Liveness: status, schema version, how this client was classified. |
 | `GET /api/ready` | Readiness: migrations applied, startup recovery finished, storage locations seen. Used by the container healthcheck. |
+| `GET /api/diagnostics/traffic` | Requests sent to each source and host since start, what they answered (`ok`, `throttled`, `refused`…), time spent queueing, requests shed, and each host's current backoff penalty and circuit. Counters only: no URL, header or body. |
 | `GET /api/events` | Server-sent events. One stream for progress and domain changes: downloads, catalogue refreshes, shelf, follows, notifications, health. Clients render from these rather than polling. |
 
 ## Sources and sessions (§9–13)
@@ -55,11 +58,13 @@ Authority: Master §40; written from the routers in `backend/oneshelf/api/`.
 | `GET /api/search?q=…[&category=Manga&language=AR]` | Local-first search as SSE: `local` → `partial` → `complete`. Repeat either scope parameter to select several values. Only matching installed searchable sources run; an adapter with no category matches only unscoped category searches, while `Multi` matches any language. Updates include scoped `sources_total` and unscoped `sources_available`. Never blocks on a slow source. |
 | `POST /api/search/retry` `{query, source_id, categories?, languages?}` · `POST /api/resolve-url` · `GET /api/home` | Retry one source within the same scope, open a source URL directly, the Home surface. |
 | `POST /api/listings/bind` | Bind a source listing to a Work (creating one when needed). |
+| `POST /api/listings/open` | Open one search result: bind it and bring its details and catalogue. With `defer: true` it returns at once; details follow in the background with a `work.changed` event and the Work page asks for its catalogue. |
+| `POST /api/listings/download` | Keep a search result in one tap: bind it, bring its catalogue if the library has none, and queue every available unit not already downloaded. Returns `queued` and `batch_ids`; `409 DOWNLOAD_UNSUPPORTED` for a read-only source, `409 NO_STORAGE_LOCATION` before a storage location exists. Search results mark such listings `downloadable`. |
 | `GET /api/tracks/{id}/catalog` · `POST /api/tracks/{id}/catalog/refresh` · `/trust` | Catalogue state, a refresh, and "Trust This Catalog" for a suspicious one. |
 | `POST /api/mappings/{merge,split,unlink,never-match}` | Durable user decisions about identity; they always win over source refreshes. |
 | `GET /api/discover/sources` | Sources that can be browsed, with the lists each offers (`latest`, `trending`). See ADR 0004. |
 | `GET /api/discover/list?source=…&kind=latest\|trending&page=1..50` | One page of a source's own list, grouped into Works like search results, each with `on_shelf`. Returns `has_more` and `cached`. `422 INVALID_FEED`, `404 SOURCE_UNAVAILABLE`, `429 RATE_LIMITED`, `502 SOURCE_FAILED` (with `category`). |
-| `GET /api/discover/random?from=sources[&source=…]` · `?from=library[&content_type=…]` | A surprise: a work from a source's list that is not on the shelf (`reason`: source and list), or a shelf work not started yet (`reason.kind = not_started`). `{"item": null, "reason": null}` when there is none. |
+| `GET /api/discover/random?from=sources[&source=…]` · `?from=library[&mood=…][&content_type=…][&exclude=<work id>,<work id>…]` | A surprise: a work from a source's list that is not on the shelf (`reason`: source and list), or, from the shelf, what to read for a `mood`: `continue` (started, most recently read first; `reason.remaining` chapters left), `short` (few chapters left, a one-shot or a paper; `reason.remaining`), `light` (a comic; `reason.content_type`) or `fresh` (the default: not started yet). `exclude` lists works already shown; `more` says whether another is left. `{"item": null, "reason": null, "more": false}` when there is none. |
 
 ## Downloads and reading (§16–19, §26–27)
 

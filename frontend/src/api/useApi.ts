@@ -6,8 +6,15 @@ import { apiErrorText } from "@/i18n/apiErrors";
 
 export type Resource<T> = { data: T | null; error: string | null; loading: boolean; reload: () => void };
 
-/** One small hook for read-only screens: data, a plain error message, and a way to try again. */
-export function useResource<T>(path: string, query?: Record<string, string | number | boolean | undefined>): Resource<T> {
+/**
+ * One small hook for read-only screens: data, a plain error message, and a way to try again.
+ *
+ * `skip` asks nothing, for a screen whose parent already holds the same resource: it answers empty and
+ * idle instead, so the same request is never sent twice for one screen.
+ */
+export function useResource<T>(path: string, query?: Record<string, string | number | boolean | undefined>,
+                               options?: { skip?: boolean }): Resource<T> {
+  const skip = options?.skip ?? false;
   const { language, t } = useI18n();
   const key = JSON.stringify(query ?? {});
   const [attempt, setAttempt] = useState(0);
@@ -25,6 +32,7 @@ export function useResource<T>(path: string, query?: Record<string, string | num
   });
 
   useEffect(() => {
+    if (skip) return;
     let live = true;
     setState(previous => ({ identity, generation,
       data: preserve && previous.identity === identity ? previous.data : null,
@@ -40,9 +48,10 @@ export function useResource<T>(path: string, query?: Record<string, string | num
         setState({ identity, generation, data: null, error: message, loading: false });
       });
     return () => { live = false; };
-  }, [path, key, attempt, language]);
+  }, [path, key, attempt, language, skip]);
 
   const reload = useCallback(() => setAttempt((n) => n + 1), []);
+  if (skip) return { data: null, error: null, loading: false, reload };
   const visible = state.generation === generation ? state
     : { data: preserve && state.identity === identity ? state.data : null, error: null, loading: true };
   return { ...visible, reload };

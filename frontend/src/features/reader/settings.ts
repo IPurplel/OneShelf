@@ -3,11 +3,13 @@ export type BookFont = "serif" | "sans";
 export type BookSize = "smaller" | "normal" | "larger" | "largest";
 export type BookSpacing = "tight" | "normal" | "loose";
 export type BookMargins = "narrow" | "normal" | "wide";
-export type BookTheme = "paper" | "sepia" | "dark";
+export type BookTheme = "paper" | "sepia" | "dark" | "night";
 export type PdfFit = "width" | "page" | "custom";
 export type ReaderDirection = "ltr" | "rtl" | "vertical";
 export type ReaderFit = "smart" | "width" | "height" | "original";
 export type ReaderBackground = "black" | "dark" | "white";
+/** A page as delivered, or with its colours inverted (light text on black) for reading in the dark. */
+export type PageColors = "original" | "inverted";
 export type ReaderControls = "smart" | "minimal";
 export type ReaderTransition = "instant" | "slide" | "fade";
 
@@ -16,6 +18,11 @@ export type ReaderSettings = {
   direction: ReaderDirection;
   fit: ReaderFit;
   background: ReaderBackground;
+  pageColors: PageColors;
+  /** A warm, dimmer page for reading at night: switched on by the reader, never by the clock. */
+  nightLight: boolean;
+  /** At the end of a chapter, go on to the next after a short countdown the reader can stop. */
+  autoNext: boolean;
   /** §26.3: Smart shows the controls on interaction; Minimal keeps them away until summoned. */
   controls: ReaderControls;
   transition: ReaderTransition;
@@ -36,7 +43,7 @@ export type ReaderSettings = {
 };
 
 export const DEFAULT_SETTINGS: ReaderSettings = {
-  mode: "long_strip", direction: "ltr", fit: "smart", background: "black", controls: "smart", transition: "slide", gap: 8,
+  mode: "long_strip", direction: "ltr", fit: "smart", background: "black", pageColors: "original", nightLight: false, autoNext: false, controls: "smart", transition: "slide", gap: 8,
   coverAlone: true, shiftPairing: false,
   bookFont: "serif", bookSize: "normal", bookSpacing: "normal", bookMargins: "normal", bookTheme: "paper",
   pdfFit: "width", pdfZoom: 1,
@@ -81,5 +88,7 @@ export const BOOK_TYPE = {
     paper: { background: "#fffdf8", ink: "#1c1b18" },
     sepia: { background: "#f4ecd8", ink: "#3a2f21" },
     dark: { background: "#16181a", ink: "#d9d6cf" },
+    // Warm amber on dark brown: little blue light, for reading in the dark (chosen by the reader).
+    night: { background: "#1b1611", ink: "#e6c9a2" },
   },
 } as const;

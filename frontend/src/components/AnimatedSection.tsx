@@ -1,4 +1,4 @@
-import { motion } from "motion/react";
+import * as m from "motion/react-m";
 import type { ReactNode } from "react";
 
 import { TRANSITION_EASE, useReducedMotion } from "@/lib/motion";
@@ -21,7 +21,7 @@ export function AnimatedSection({
   tag?: "section" | "div" | "article";
 } & Record<string, unknown>) {
   const reduced = useReducedMotion();
-  const Component = motion[tag];
+  const Component = m[tag];
   return (
     <Component
       className={className}

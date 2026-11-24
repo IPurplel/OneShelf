@@ -5,8 +5,9 @@ import { unzipSync } from "fflate";
  *
  * Chapter markup is untrusted: it is parsed, stripped of anything executable or off-book, and only then
  * handed to a sandboxed frame with no scripts and an opaque origin. Resources are resolved inside the
- * book itself and served as blob URLs, so a document can never reach the network, the session, or any
- * application action.
+ * book itself, so a document can never reach the network, the session, or any application action. Images go
+ * in as data: URLs: the opaque-origin frame may not load the app's blob: URLs (Chromium refuses them, and
+ * every cover and illustration showed broken), while its CSP has always allowed data: images.
  */
 
 export type SpineItem = { id: string; href: string; title: string; characters: number };
@@ -138,11 +139,21 @@ export async function openEpub(data: ArrayBuffer): Promise<Epub> {
   }
 
   const urls: string[] = [];
+  const images = new Map<string, string>();
   const resourceUrl = (base: string) => (href: string): string | null => {
     const path = resolveHref(base, href.split("#")[0] ?? "");
     const bytes = files[path];
     if (bytes === undefined) return null;
-    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mediaTypeFor(path) }));
+    const type = mediaTypeFor(path);
+    if (type.startsWith("image/")) {
+      let url = images.get(path);
+      if (url === undefined) {
+        url = `data:${type};base64,${base64(bytes)}`;
+        images.set(path, url);
+      }
+      return url;
+    }
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type }));
     urls.push(url);
     return url;
   };
@@ -172,6 +183,7 @@ export async function openEpub(data: ArrayBuffer): Promise<Epub> {
     close: () => {
       for (const url of urls) URL.revokeObjectURL(url);
       urls.length = 0;
+      images.clear();
     },
   };
 }
@@ -222,6 +234,15 @@ export function stripTags(html: string): string {
     for (const element of Array.from(document_.getElementsByTagName(tag))) element.remove();
   }
   return (document_.body?.textContent ?? "").replace(/\s+/g, " ").trim();
+}
+
+/** Base64 of a book's bytes, in slices small enough for String.fromCharCode's argument limit. */
+function base64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let start = 0; start < bytes.length; start += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(start, start + 0x8000));
+  }
+  return btoa(binary);
 }
 
 function mediaTypeFor(path: string): string {

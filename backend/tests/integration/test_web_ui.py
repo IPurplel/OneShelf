@@ -89,3 +89,21 @@ def test_without_a_built_interface_the_api_still_runs(tmp_path):
     with client_for(tmp_path, None) as client:
         assert client.get("/api/health").status_code == 200
         assert client.get("/").status_code == 404
+
+
+def test_the_app_manifest_and_offline_worker_are_served_as_what_they_are(tmp_path, web_root):
+    """Installed on a phone (asked for 2026-11-10): a browser rejects a manifest or worker sent as the wrong type."""
+    (web_root / "manifest.webmanifest").write_text('{"name": "OneShelf"}', encoding="utf-8")
+    (web_root / "sw.js").write_text("self.addEventListener('fetch', () => {})", encoding="utf-8")
+    with client_for(tmp_path, web_root) as client:
+        manifest = client.get("/manifest.webmanifest")
+        worker = client.get("/sw.js")
+    assert manifest.status_code == 200 and manifest.json() == {"name": "OneShelf"}
+    assert manifest.headers["content-type"].split(";")[0] in ("application/manifest+json", "application/json")
+    assert worker.status_code == 200 and "javascript" in worker.headers["content-type"]
+
+
+def test_the_manifest_is_behind_the_boundary_too(tmp_path, web_root):
+    (web_root / "manifest.webmanifest").write_text('{"name": "OneShelf"}', encoding="utf-8")
+    with client_for(tmp_path, web_root, host="203.0.113.50", ONESHELF_TRUSTED_NETWORKS="192.168.1.0/24") as client:
+        assert client.get("/manifest.webmanifest").status_code == 401

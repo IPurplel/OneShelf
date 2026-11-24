@@ -362,3 +362,33 @@ diagnose() {
   say ""
   say "Inspect logs locally before sharing them; they may contain private information."
 }
+
+
+# --- disk space after an update ---------------------------------------------------------------------------
+# Every update builds a new image of a few GB. The one it replaces is left behind, untagged and unused, so a
+# few weeks of updates quietly fill a disk. Once an update has proven itself healthy, the image it replaced and
+# OneShelf's own unused build layers (every Dockerfile stage carries the org.oneshelf.project label) are
+# removed. An image a container still uses is never removed, and no volume is ever touched: your library,
+# settings and backups live in volumes. ONESHELF_KEEP_OLD_IMAGES=yes in .env turns this off.
+image_id() {
+  "$RUNTIME" image inspect --format '{{.Id}}' "$1" 2>/dev/null || true
+}
+
+cleanup_old_images() {
+  local previous="$1" current
+  if [ "$(env_value "$ROOT" ONESHELF_KEEP_OLD_IMAGES no)" = yes ]; then
+    say "  keeping old images (ONESHELF_KEEP_OLD_IMAGES=yes)"
+    return 0
+  fi
+  step "Removing what this update replaced"
+  current="$(image_id "${ONESHELF_IMAGE:-oneshelf:local}")"
+  if [ -n "$previous" ] && [ -n "$current" ] && [ "$previous" != "$current" ]; then
+    "$RUNTIME" image rm "$previous" >/dev/null 2>&1 && ok "removed the previous image" || true
+  fi
+  "$RUNTIME" image prune -f --filter "label=org.oneshelf.project=oneshelf" >/dev/null 2>&1 || true
+  if [ "$RUNTIME" = docker ]; then
+    # Docker keeps a separate build cache. Two days of it keeps the next update quick; older is dropped.
+    docker builder prune -f --filter "until=48h" >/dev/null 2>&1 || true
+  fi
+  ok "old build leftovers cleared (your library was not touched)"
+}

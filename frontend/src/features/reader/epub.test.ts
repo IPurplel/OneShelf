@@ -67,14 +67,20 @@ describe("EPUB", () => {
     expect(safe).toContain("Title");
   });
 
-  it("keeps a chapter's own images by resolving them inside the book", async () => {
+  it("keeps a chapter's own images as data the isolated frame can load", async () => {
+    // The frame has an opaque origin, and Chromium refuses it the app's blob: URLs: every cover and
+    // illustration showed as a broken image (found 2026-11-09). Its CSP has always allowed data: images.
     const withImage = buildEpub(
-      { "one.xhtml": `<html><body><img src="images/p1.png" alt="a page"><p>text</p></body></html>` },
+      { "one.xhtml": `<html><body><img src="images/p1.png" alt="a page"><p>text</p>
+                      <svg><image href="images/p1.png"/></svg></body></html>` },
       { "OEBPS/images/p1.png": "not-really-a-png" },
     );
     const book = await openEpub(withImage);
     const chapter = await book.chapter(0);
-    expect(chapter.html).toContain("blob:");
+    const encoded = `data:image/png;base64,${btoa("not-really-a-png")}`;
+    expect(chapter.html).toContain(`src="${encoded}"`);
+    expect(chapter.html).toContain(`href="${encoded}"`);
+    expect(chapter.html).not.toContain("blob:");
     expect(chapter.html).toContain('alt="a page"');
   });
 
