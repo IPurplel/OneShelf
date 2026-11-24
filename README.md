@@ -84,6 +84,9 @@ Docker Desktop has not been tested.
 * Your phone or tablet can use it on your home network. Open `http://<this computer's address>/` after trusting
   your network in `.env`. The steps are in [docs/operations.md](docs/operations.md#4-access). Visitors from
   outside your network need a passkey you set up in **Settings**.
+* On a phone you can add it to the home screen, and it opens full-screen like an app. iPhones do this over plain
+  http; Android needs https for a full install. Your books stay on your computer, so the phone needs to reach
+  it. [Details](docs/operations.md#oneshelf-as-an-app-on-a-phone)
 
 ### Updating and removing
 

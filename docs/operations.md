@@ -80,6 +80,25 @@ ONESHELF_DATA_DIR=./var .venv/bin/python -m oneshelf.api.app
 - If every client appears to arrive from one address, OneShelf says so in Settings: that means a router or proxy is
   forwarding, and your trusted networks are wider than you think.
 
+### OneShelf as an app on a phone
+
+OneShelf can be added to a phone's home screen and opens full-screen, with its own icon and no browser bars. It
+serves a web app manifest, icons, and a very small service worker; nothing needs configuring.
+
+- **iPhone and iPad (Safari):** open `http://<this machine>/`, then Share → *Add to Home Screen*. This works over
+  plain http on your home network.
+- **Android (Chrome):** open the same address, then the menu → *Install app* or *Add to Home screen*. Browsers
+  only offer a true install on a secure origin, so over plain http Chrome may add a shortcut that opens in a
+  normal tab instead. To get the full app, reach OneShelf over https: a reverse proxy with a certificate on a
+  hostname you control, or a private network tool that provides https. Which you get is the browser's decision,
+  and it differs between phones and versions.
+- **What the service worker does:** when the installed app is opened and your computer cannot be reached (you
+  are away from home, or it is switched off), it shows a short page saying so instead of the browser's error. It
+  keeps nothing else: no interface files, no covers, no books. Everything comes fresh from your computer, so an
+  update is never hidden behind an old copy. Browsers run service workers only on https or `localhost`, so over
+  plain http the page is simply the browser's own error.
+- **Not included:** reading with no connection to your computer. Your books stay on your computer, not on the phone.
+
 ## 5. Backups
 
 - A **Library Backup** runs every seven days and catches up after downtime. It holds library state — works, shelf,
