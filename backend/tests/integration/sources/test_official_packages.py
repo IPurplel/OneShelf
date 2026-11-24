@@ -35,7 +35,8 @@ def test_mangadex_offers_chapter_translations_instead_of_the_original_language(d
     """A Japanese original with English/French chapters must not open a chapterless Japanese track."""
     source = next(p for p in PACKAGES if p.name == "oneshelf.mangadex")
     package = load_package(build_package(source, tmp_path / "mangadex.osp"))
-    assert package.manifest.api == "1.1"
+    # Translations arrived with plugin API 1.1; a later API (1.4 adds the image budget) keeps them.
+    assert tuple(int(part) for part in package.manifest.api.split(".")) >= (1, 1)
     captured = json.loads(package.files["tests/fixtures/search.json"])
     captured["data"][1]["attributes"]["availableTranslatedLanguages"] = ["en", "fr"]
     package = replace(package, files={**package.files,

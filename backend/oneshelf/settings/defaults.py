@@ -45,6 +45,10 @@ class ReaderDefaults:
 @dataclass(frozen=True)
 class DownloadDefaults:
     http_concurrency: int = 4
+    # Pages of one chapter fetched at once. The Traffic Governor still gives a source only what its package
+    # declares, so this never means more requests to a site, only no waiting for one page before asking for
+    # the next when the source allows more than one.
+    page_concurrency: int = 4
     browser_concurrency: int = 1
     max_retries: int = 3
     fallback_mode: Literal["preferred_ask", "strict", "automatic"] = "preferred_ask"

@@ -50,6 +50,7 @@ SEQUENTIAL_FORMAT = "cbz"
 TEXT_FORMAT = "text"
 EXTENSIONS = {TEXT_FORMAT: TEXT_EXTENSION}
 MAX_RESOURCE_BYTES = 256 * 1024 * 1024
+PAGE_CONCURRENCY = DEFAULTS.downloads.page_concurrency
 # Formats OneShelf can validate and keep as originals (§16.5, §34.4), in the order taken when the person did
 # not choose (I-103).
 KEEPABLE_FORMATS = ("epub", "pdf", "cbz")
@@ -635,32 +636,25 @@ class DownloadEngine:
             for index in stale_indices:
                 del pages[index]
             self._save_manifest(job_id, manifest)
-        for index, resource in enumerate(resources, start=1):
-            self._ensure_not_canceled(job_id)
-            name = f"{index:04d}.img"
-            target = area / name
-            entry = pages.get(str(index))
-            if (entry and entry.get("url") == resource.url and target.is_file()
-                    and sha256_file(target)[0] == entry["sha256"]):
-                self.fault("page_skipped")
-                continue
-            part = area / f"{name}.part"
-            response = await self.sources.fetch_resource_to(contract.source_id, resource.url, part,
-                                                            capability="reader", priority=Priority.MANUAL,
-                                                            max_bytes=MAX_RESOURCE_BYTES)
-            self._ensure_not_canceled(job_id)
-            if response.status != 200:
-                part.unlink(missing_ok=True)
-                raise CapabilityError("unexpected_response", f"page {index} returned HTTP {response.status}")
-            problem = await off_loop(lambda: _validate_image(part.read_bytes()))  # checked before it counts
-            if problem:
-                part.unlink(missing_ok=True)
-                raise MediaInvalid(f"page {index}: {problem}")
-            part.replace(target)
-            sha, size = await off_loop(sha256_file, target)
-            pages[str(index)] = {"url": resource.url, "sha256": sha, "size": size}
-            self._save_manifest(job_id, manifest)
-            self.fault("page_downloaded")
+        # Pages are fetched side by side, a few at a time: one after another, a source that allows several
+        # requests at once (and a CDN built for it) still delivered a page per round trip. Workers take the
+        # next page from one shared iterator; the governor decides how many requests the source really gets.
+        queue = iter(enumerate(resources, start=1))
+
+        async def worker() -> None:
+            for index, resource in queue:
+                await self._download_page(job_id, contract, area, pages, manifest, index, resource)
+
+        workers = [asyncio.create_task(worker()) for _ in range(max(1, min(PAGE_CONCURRENCY, len(resources))))]
+        try:
+            await asyncio.gather(*workers)
+        except BaseException:
+            # The first failure (or a cancel of the whole job) ends the others too: nothing keeps fetching
+            # behind a job that has already failed, and the retry starts from the pages that were verified.
+            for task in workers:
+                task.cancel()
+            await asyncio.gather(*workers, return_exceptions=True)
+            raise
         self.fault("after_pages_downloaded")
         self._set_state(job_id, "VERIFYING")
         if len(pages) != len(resources):
@@ -672,6 +666,35 @@ class DownloadEngine:
         if not result.ok:
             raise MediaInvalid(f"packaged archive failed validation: {result.reason}")
         return artifact, result.page_count or len(resources)
+
+    async def _download_page(self, job_id: str, contract: ExtractionContract, area: Path, pages: dict,
+                             manifest: dict, index: int, resource) -> None:
+        """One page: fetched, checked as an image before it counts, hashed, and recorded in the manifest."""
+        self._ensure_not_canceled(job_id)
+        name = f"{index:04d}.img"
+        target = area / name
+        entry = pages.get(str(index))
+        if entry and entry.get("url") == resource.url and target.is_file():
+            if (await off_loop(sha256_file, target))[0] == entry["sha256"]:
+                self.fault("page_skipped")
+                return
+        part = area / f"{name}.part"
+        response = await self.sources.fetch_resource_to(contract.source_id, resource.url, part,
+                                                        capability="reader", priority=Priority.MANUAL,
+                                                        max_bytes=MAX_RESOURCE_BYTES)
+        self._ensure_not_canceled(job_id)
+        if response.status != 200:
+            part.unlink(missing_ok=True)
+            raise CapabilityError("unexpected_response", f"page {index} returned HTTP {response.status}")
+        problem = await off_loop(lambda: _validate_image(part.read_bytes()))  # checked before it counts
+        if problem:
+            part.unlink(missing_ok=True)
+            raise MediaInvalid(f"page {index}: {problem}")
+        part.replace(target)
+        sha, size = await off_loop(sha256_file, target)
+        pages[str(index)] = {"url": resource.url, "sha256": sha, "size": size}
+        self._save_manifest(job_id, manifest)
+        self.fault("page_downloaded")
 
     def _download_text(self, job_id: str, contract: ExtractionContract, resources: list, area: Path,
                        manifest: dict, context: sqlite3.Row) -> tuple[Path, int]:

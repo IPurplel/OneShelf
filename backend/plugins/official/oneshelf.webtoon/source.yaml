@@ -6,3 +6,6 @@ url_patterns:
 rate_limit:
   requests_per_minute: 20
   concurrency: 1
+  resources:
+    requests_per_minute: 120
+    concurrency: 2

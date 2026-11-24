@@ -956,3 +956,95 @@ def test_i108_preflight_uses_the_declared_size_before_fetching(environment, monk
     assert big["state"] == "FAILED" and big["error_category"] == "storage_full"
     assert small["state"] == "COMPLETED"
     assert not any(url.endswith(".epub") for url in fetched)            # refused before a byte was fetched
+
+
+# -- pages of one chapter are fetched side by side (asked for 2026-11-24) -----------------------------------
+# A chapter's pages were fetched one after another, so a source that allows several requests at once (and a
+# CDN built for it) still delivered one page per round trip. The governor still decides how many requests a
+# source actually receives; this only stops the engine from asking for them one at a time.
+
+def _slow_pages(env, monkeypatch, *, delay=0.15, fail_on=None):
+    """Make every page take `delay`s, and record how many were in flight at once."""
+    seen = {"now": 0, "peak": 0, "started": [], "cancelled": 0}
+    real = env.service.fetch_resource_to
+
+    async def tracked(plugin_id, url, path, **kwargs):
+        seen["now"] += 1
+        seen["peak"] = max(seen["peak"], seen["now"])
+        seen["started"].append(url)
+        try:
+            await asyncio.sleep(delay)
+            if fail_on and fail_on in url:
+                raise engine_module.FetchFailed("the CDN reset the connection")
+            return await real(plugin_id, url, path, **kwargs)
+        except asyncio.CancelledError:
+            seen["cancelled"] += 1
+            raise
+        finally:
+            seen["now"] -= 1
+
+    monkeypatch.setattr(env.service, "fetch_resource_to", tracked)
+    return seen
+
+
+def test_a_chapters_pages_are_fetched_at_the_same_time_and_still_packaged_in_order(environment, monkeypatch):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            seen = _slow_pages(env, monkeypatch)
+            env.engine.enqueue([env.unit_id("irr-1")])
+            report = await env.engine.run_until_idle()
+            return report, seen, env.files()
+
+    report, seen, files = run(scenario())
+    assert report.completed == 1 and report.failed == 0
+    assert seen["peak"] == 3                                  # all three pages of the test chapter at once
+    assert len(files) == 1 and cbz_pages(files[0]) == sorted(cbz_pages(files[0]))
+    assert len(cbz_pages(files[0])) == 3
+
+
+def test_the_number_of_pages_in_flight_is_bounded(environment, monkeypatch):
+    from oneshelf.settings.defaults import DEFAULTS
+    monkeypatch.setattr(engine_module, "PAGE_CONCURRENCY", 2)
+
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            seen = _slow_pages(env, monkeypatch)
+            env.engine.enqueue([env.unit_id("irr-1")])
+            await env.engine.run_until_idle()
+            return seen
+
+    assert run(scenario())["peak"] == 2
+
+
+def test_a_page_that_fails_stops_the_others_and_the_job_retries_as_a_whole(environment, monkeypatch):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            seen = _slow_pages(env, monkeypatch, fail_on="/2.png")
+            batch = env.engine.enqueue([env.unit_id("irr-1")])
+            await env.engine.run_once()
+            return seen, env.job_rows(batch)[0], env.files()
+
+    seen, job, files = run(scenario())
+    assert job["state"] != "COMPLETED" and not files            # nothing half-done is kept as a download
+    assert seen["now"] == 0                                    # no fetch is left running behind the failure
+    assert seen["cancelled"] >= 1                              # the page that was still waiting was cancelled
+
+
+def test_cancelling_a_download_cancels_every_page_in_flight(environment, monkeypatch):
+    async def scenario():
+        async with environment() as env:
+            await env.add_work("irregular", "The Irregular Chronicle")
+            seen = _slow_pages(env, monkeypatch, delay=5)
+            batch = env.engine.enqueue([env.unit_id("irr-1")])
+            runner = asyncio.create_task(env.engine.run_once())
+            while seen["now"] < 3:
+                await asyncio.sleep(0.02)
+            env.engine.cancel_batch(batch)
+            await asyncio.wait_for(runner, 10)
+            return seen
+
+    seen = run(scenario())
+    assert seen["now"] == 0 and seen["cancelled"] == 3

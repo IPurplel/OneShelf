@@ -1,8 +1,8 @@
 schema: oneshelf.osp/1
 id: oneshelf.mangadex
 name: "MangaDex · Manga · Multi"
-version: 1.0.3
-api: '1.1'
+version: 1.1.0
+api: '1.4'
 description: >-
   MangaDex through its public JSON API. Search, work metadata, the chapter feed for one language and
   reader pages from the at-home server. No login is required for public content.
