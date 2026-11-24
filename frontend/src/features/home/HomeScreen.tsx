@@ -56,6 +56,11 @@ export function HomeScreen() {
       <SetupNotice />
 
       {slides.length > 0 && <HeroCarousel slides={slides} />}
+      {(data.continue_reading.length > 0 || data.recently_added.length > 0) && (
+        <p className="home__ask">
+          <Link className="button" to="/discover">{t("discover.surprise.library.title")}</Link>
+        </p>
+      )}
 
       <GoalsCard />
       {data.continue_reading.length > 0 && (

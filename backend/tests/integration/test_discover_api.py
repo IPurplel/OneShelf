@@ -133,10 +133,35 @@ def test_a_surprise_from_the_sources_is_never_already_on_the_shelf_and_says_wher
 
 def test_a_surprise_from_the_shelf_is_a_work_not_started_yet(api):
     client, _ = api
-    assert client.get("/api/discover/random", params={"from": "library"}).json() == {"item": None, "reason": None}
+    assert client.get("/api/discover/random", params={"from": "library"}).json() == {
+        "item": None, "reason": None, "more": False}
     bound = client.post("/api/listings/bind", json={"source_id": TS, "listing_key": "novel", "title": "A Quiet Novel",
                                                     "language": "en", "content_type": "novel"}).json()
     client.post(f"/api/shelf/{bound['work_id']}")
     pick = client.get("/api/discover/random", params={"from": "library"}).json()
-    assert pick["item"]["work_id"] == bound["work_id"] and pick["reason"] == {"kind": "not_started"}
+    assert pick["item"]["work_id"] == bound["work_id"] and pick["reason"] == {"kind": "fresh"}
+    assert pick["more"] is False
     assert client.get("/api/discover/random", params={"from": "library", "content_type": "manga"}).json()["item"] is None
+
+
+def test_what_to_read_now_follows_the_mood_and_does_not_repeat_what_was_shown(api):
+    client, _ = api
+    works = {}
+    for key, title, kind in (("irregular", "The Irregular Chronicle", "manga"), ("paged", "Paged Archive", "manhwa")):
+        works[key] = client.post("/api/listings/bind", json={"source_id": TS, "listing_key": key, "title": title,
+                                                             "language": "en", "content_type": kind}).json()["work_id"]
+        client.post(f"/api/shelf/{works[key]}")
+    light = client.get("/api/discover/random", params={"from": "library", "mood": "light"}).json()
+    assert light["item"]["work_id"] in works.values() and light["reason"]["kind"] == "light" and light["more"] is True
+    other = client.get("/api/discover/random", params={"from": "library", "mood": "light",
+                                                       "exclude": light["item"]["work_id"]}).json()
+    assert other["item"]["work_id"] in works.values() and other["item"]["work_id"] != light["item"]["work_id"]
+    assert other["more"] is False
+    # Nothing has been started, so there is nothing to continue.
+    assert client.get("/api/discover/random", params={"from": "library", "mood": "continue"}).json()["item"] is None
+
+
+def test_an_unknown_mood_is_refused(api):
+    client, _ = api
+    refused = client.get("/api/discover/random", params={"from": "library", "mood": "sleepy"})
+    assert refused.status_code == 422 and refused.json()["error"]["code"] == "INVALID_FEED"

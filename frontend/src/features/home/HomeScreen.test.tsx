@@ -52,6 +52,18 @@ describe("Home", () => {
     expect(within(hero).getByText("42%")).toBeInTheDocument();
   });
 
+  it("offers 'What should I read now?' once there is a shelf to pick from, and not before", async () => {
+    renderWithProviders(<HomeScreen />);
+    await screen.findByText(/add your first/i);
+    expect(screen.queryByRole("link", { name: "What should I read now?" })).not.toBeInTheDocument();
+  });
+
+  it("links 'What should I read now?' to Discover when the shelf has books", async () => {
+    respondWith({ ...EMPTY, recently_added: [{ work_id: "w2", title: "The Manual", cover_url: null, fraction: null }] });
+    renderWithProviders(<HomeScreen />);
+    expect(await screen.findByRole("link", { name: "What should I read now?" })).toHaveAttribute("href", "/discover");
+  });
+
   it("hides discovery sections that no source supplied", async () => {
     respondWith({ ...EMPTY, recently_added: [{ work_id: "w2", title: "The Manual", cover_url: null, fraction: null }] });
     renderWithProviders(<HomeScreen />);

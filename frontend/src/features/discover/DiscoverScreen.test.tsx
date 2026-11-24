@@ -124,24 +124,95 @@ describe("Discover", () => {
     expect(within(panel as HTMLElement).getByRole("button", { name: "Another" })).toBeEnabled();
   });
 
-  it("suggests a work from the shelf that is not started, or says there is none", async () => {
-    let next: unknown = { item: { work_id: "w1", title: "Waiting Book", added_at: "", is_favorite: false, is_pinned: false,
-                                  completed_at: null, releases_since_completion: 0, last_read_at: null, read_fraction: 0,
-                                  total_bytes: 0 },
-                          reason: { kind: "not_started" } };
+  const entry = (id: string, title: string) => ({ work_id: id, title, added_at: "", is_favorite: false, is_pinned: false,
+                                                   completed_at: null, releases_since_completion: 0, last_read_at: null,
+                                                   read_fraction: 0, total_bytes: 0 });
+
+  /** The shelf pick, answered from `next`; every request the panel makes is kept in `asked`. */
+  function shelfPicks(next: { current: unknown }) {
+    const asked: URLSearchParams[] = [];
     stubFeeds({ "oneshelf.3asq/latest/1": page(1, [item("a", "Alpha")], false) }, [
-      { match: (url) => url.startsWith("/api/discover/random?from=library"), get payload() { return next; } },
+      { match: (url) => { if (!url.startsWith("/api/discover/random?from=library")) return false;
+                          asked.push(new URLSearchParams(url.split("?")[1])); return true; },
+        get payload() { return next.current; } },
     ]);
+    return asked;
+  }
+  const panelOf = () => screen.getByRole("heading", { name: "What should I read now?" }).closest("section") as HTMLElement;
+
+  it("suggests a work from the shelf that is not started, or says there is none", async () => {
+    const next: { current: unknown } = { current: { item: entry("w1", "Waiting Book"), reason: { kind: "fresh" }, more: true } };
+    const asked = shelfPicks(next);
     const user = userEvent.setup();
     renderWithProviders(<DiscoverScreen />);
     await screen.findByText("Alpha");
-    const panel = screen.getByRole("heading", { name: "What should I read from my shelf?" }).closest("section") as HTMLElement;
+    const panel = panelOf();
+    await user.click(within(panel).getByRole("button", { name: "Not started yet" }));
     await user.click(within(panel).getByRole("button", { name: "Pick one" }));
     expect(await within(panel).findByRole("link", { name: /Waiting Book/ })).toHaveAttribute("href", "/works/w1");
     expect(within(panel).getByText("On your shelf, not started yet.")).toBeInTheDocument();
+    expect(asked[0]!.get("mood")).toBe("fresh");
 
-    next = { item: null, reason: null };
+    next.current = { item: null, reason: null, more: false };
     await user.click(within(panel).getByRole("button", { name: "Another" }));
     await waitFor(() => expect(within(panel).getByText("Everything on your shelf is started or finished.")).toBeInTheDocument());
+  });
+
+  it("asks for the mood chosen, says what made the pick, and never offers the same work twice", async () => {
+    const next: { current: unknown } = { current: { item: entry("w1", "Nearly Done"), reason: { kind: "short", remaining: 2 }, more: true } };
+    const asked = shelfPicks(next);
+    const user = userEvent.setup();
+    renderWithProviders(<DiscoverScreen />);
+    await screen.findByText("Alpha");
+    const panel = panelOf();
+    // The first mood is selected to begin with.
+    expect(within(panel).getByRole("button", { name: "Pick up where I left off" })).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(within(panel).getByRole("button", { name: "Something short" }));
+    expect(within(panel).getByRole("button", { name: "Something short" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(panel).getByRole("button", { name: "Pick one" }));
+    expect(await within(panel).findByText("A short one: 2 left to read.")).toBeInTheDocument();
+    expect(asked[0]!.get("mood")).toBe("short");
+    expect(asked[0]!.get("exclude")).toBeNull();
+
+    next.current = { item: entry("w2", "Also Short"), reason: { kind: "short", remaining: 4 }, more: false };
+    await user.click(within(panel).getByRole("button", { name: "Another" }));
+    expect(await within(panel).findByRole("link", { name: /Also Short/ })).toBeInTheDocument();
+    expect(asked[1]!.get("exclude")).toBe("w1");
+    // Nothing else fits: it says so, and does not offer a button that would only repeat.
+    expect(within(panel).getByText("That's all for this mood.")).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Another" })).toBeDisabled();
+  });
+
+  it.each([
+    ["Pick up where I left off", { kind: "continue", remaining: 5 }, "You started this. 5 left to read."],
+    ["Something light", { kind: "light", content_type: "manhwa" }, "A comic from your shelf."],
+    ["Pick up where I left off", { kind: "continue" }, "You started this."],     // one file: no count of chapters
+    ["Something short", { kind: "short" }, "A short one."],
+  ])("explains a %s pick in plain words", async (mood, reason, text) => {
+    shelfPicks({ current: { item: entry("w1", "Some Book"), reason, more: true } });
+    const user = userEvent.setup();
+    renderWithProviders(<DiscoverScreen />);
+    await screen.findByText("Alpha");
+    const panel = panelOf();
+    await user.click(within(panel).getByRole("button", { name: mood }));
+    await user.click(within(panel).getByRole("button", { name: "Pick one" }));
+    expect(await within(panel).findByText(text)).toBeInTheDocument();
+  });
+
+  it("says why there is nothing, mood by mood, and starts over when the mood changes", async () => {
+    const next: { current: unknown } = { current: { item: entry("w1", "Some Book"), reason: { kind: "short", remaining: 2 }, more: true } };
+    shelfPicks(next);
+    const user = userEvent.setup();
+    renderWithProviders(<DiscoverScreen />);
+    await screen.findByText("Alpha");
+    const panel = panelOf();
+    next.current = { item: null, reason: null, more: false };
+    await user.click(within(panel).getByRole("button", { name: "Pick one" }));
+    expect(await within(panel).findByText("Nothing is in progress yet. Start a book and it will wait here.")).toBeInTheDocument();
+    await user.click(within(panel).getByRole("button", { name: "Something light" }));
+    expect(within(panel).queryByText(/Nothing is in progress/)).toBeNull();      // a new mood, a clean slate
+    await user.click(within(panel).getByRole("button", { name: "Pick one" }));
+    expect(await within(panel).findByText("There is no comic on your shelf to pick from.")).toBeInTheDocument();
   });
 });

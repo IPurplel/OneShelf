@@ -23,6 +23,10 @@ MAX_PAGE = 50
 FRESH_SECONDS = 6 * 3600
 # A surprise looks only near the top of a list: deep pages cost requests and are rarely what a person wants.
 SURPRISE_PAGES = 3
+MOODS = ("continue", "short", "light", "fresh")
+COMICS = frozenset({"manga", "manhwa", "manhua", "comic"})
+SHORT_CHAPTERS = 12        # at most this many chapters left is "short"
+SHORT_POOL = 3             # one of the three shortest, so that Another is not always the same
 
 
 class UnknownSource(LookupError):
@@ -150,15 +154,65 @@ class DiscoverService:
                 return self.rng.choice(fresh), source, kind
         return None
 
-    def surprise_from_shelf(self, content_type: str | None = None) -> dict | None:
-        """A work on the shelf that reading has not started, chosen at random."""
-        rows = self.conn.execute(
-            "SELECT s.work_id FROM shelf_entries s JOIN works w ON w.id = s.work_id"
-            " WHERE s.completed_at IS NULL AND (? IS NULL OR w.content_type = ?) AND NOT EXISTS ("
-            "  SELECT 1 FROM reading_state rs JOIN reading_units u ON u.id = rs.reading_unit_id"
-            "  JOIN source_tracks t ON t.id = u.track_id"
-            "  WHERE t.work_id = s.work_id AND rs.read_state IN ('partial', 'read'))",
-            (content_type, content_type)).fetchall()
-        if not rows:
+    def suggest_from_shelf(self, mood: str = "fresh", content_type: str | None = None,
+                           exclude: frozenset[str] | set[str] = frozenset()) -> dict | None:
+        """What to read from the shelf for a mood, using only what is known: how far reading has got, how many
+        chapters are left, and what kind of work it is. Returns the work, why it fits, and whether `Another`
+        has anything left to offer (`more`); works in `exclude` were already shown."""
+        if mood not in MOODS:
+            raise ValueError(f"Unknown mood: {mood}")
+        candidates = [row for row in self._shelf_progress(content_type) if row["work_id"] not in exclude]
+        if mood == "continue":
+            fitting = sorted((r for r in candidates if r["started"] and r["remaining"] > 0),
+                             key=lambda r: r["last_read"] or "", reverse=True)
+            chosen = fitting[0] if fitting else None
+            reason = _count_reason("continue", chosen) if chosen else None
+        elif mood == "short":
+            fitting = sorted((r for r in candidates if _is_short(r)), key=lambda r: r["remaining"])
+            chosen = self.rng.choice(fitting[:SHORT_POOL]) if fitting else None
+            reason = _count_reason("short", chosen) if chosen else None
+        elif mood == "light":
+            fitting = [r for r in candidates if r["content_type"] in COMICS and not _finished(r)]
+            chosen = self.rng.choice(fitting) if fitting else None
+            reason = {"kind": "light", "content_type": chosen["content_type"]} if chosen else None
+        else:
+            fitting = [r for r in candidates if not r["started"]]
+            chosen = self.rng.choice(fitting) if fitting else None
+            reason = {"kind": "fresh"} if chosen else None
+        if chosen is None:
             return None
-        return {"work_id": self.rng.choice(rows)["work_id"]}
+        return {"work_id": chosen["work_id"], "reason": reason, "more": len(fitting) > 1}
+
+    def _shelf_progress(self, content_type: str | None) -> list[sqlite3.Row]:
+        """Every unfinished shelf work with its chapters, how many are read, whether any was started, and when."""
+        return self.conn.execute(
+            "SELECT s.work_id, w.content_type, count(u.id) AS total,"
+            " count(CASE WHEN rs.read_state = 'read' THEN 1 END) AS done,"
+            " count(CASE WHEN rs.read_state IN ('partial', 'read') THEN 1 END) > 0 AS started,"
+            " count(u.id) - count(CASE WHEN rs.read_state = 'read' THEN 1 END) AS remaining,"
+            " max(CASE WHEN rs.read_state != 'unread' THEN rs.updated_at END) AS last_read"
+            " FROM shelf_entries s JOIN works w ON w.id = s.work_id"
+            " LEFT JOIN source_tracks t ON t.work_id = s.work_id"
+            " LEFT JOIN reading_units u ON u.track_id = t.id"
+            " LEFT JOIN reading_state rs ON rs.reading_unit_id = u.id"
+            " WHERE s.completed_at IS NULL AND (? IS NULL OR w.content_type = ?)"
+            " GROUP BY s.work_id", (content_type, content_type)).fetchall()
+
+
+def _count_reason(kind: str, row: sqlite3.Row) -> dict:
+    """How many chapters are left, said only when the work has chapters: a single file is one thing to read."""
+    return {"kind": kind, "remaining": row["remaining"]} if row["total"] > 1 else {"kind": kind}
+
+
+def _finished(row: sqlite3.Row) -> bool:
+    """Every known chapter is read. A work whose chapters are not listed yet is not finished."""
+    return row["total"] > 0 and row["remaining"] <= 0
+
+
+def _is_short(row: sqlite3.Row) -> bool:
+    """Few chapters left, or a one-shot or paper. A single book is not: one file says nothing of its length."""
+    if row["remaining"] <= 0:
+        return False
+    if row["total"] == 1:
+        return row["content_type"] in COMICS or row["content_type"] == "paper"
+    return row["remaining"] <= SHORT_CHAPTERS

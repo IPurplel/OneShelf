@@ -21,6 +21,9 @@ The reading goal and streak are sample data.</sub>
 * **Download to keep.** Download one chapter or a whole book, then read it with no connection.
 * **Keep shelves.** Put books on *My Shelf*, sort them into shelves of your own, mark favourites, and set a
   yearly reading goal.
+* **Not sure what to read?** Ask *What should I read now?* and pick a mood: pick up where you left off,
+  something short, something light, or something you have not started. It only suggests from your own shelf,
+  and tells you why.
 * **Follow what you like.** *Follow* a series and new chapters show up for you.
 * **Collect quotes.** Every highlight, from every book, on one page. Copy it, or save it as an image to share.
 * **Use it in English or Arabic.** The interface switches language, including right-to-left layout, and has a

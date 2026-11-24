@@ -22,7 +22,12 @@ reported as `SOURCE_FAILED` with its category, never as an empty list.
 **Two surprises, both honest.**
 - *From your sources:* a random work from the first pages of a random browsable list that is not on the
   shelf, with the source and list it came from. It looks at most six pages, first pages first.
-- *From your shelf:* a random shelf work that is neither completed nor started. It costs no network request.
+- *From your shelf* ("What should I read now?"): a pick for a mood, from unfinished shelf works only, with no
+  network request. **Continue** is what was started, most recent first. **Short** is a work with at most 12
+  chapters left, or a one-shot or paper; a single book is never called short, because one file says nothing
+  of its length. **Light** is a comic (manga, manhwa, manhua, comic). **Not started** is the original surprise.
+  OneShelf uses only what it knows (progress, chapters left, kind of work), says which of those made the pick,
+  and invents no taste profile. "Another" passes the works already shown so it never repeats one.
 
 **Navigation.** Discover is a primary destination after Search. On a phone the bottom bar is Home, Search,
 Discover, My Shelf and More; Following moves into More.

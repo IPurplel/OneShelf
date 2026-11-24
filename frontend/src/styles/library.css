@@ -1290,6 +1290,8 @@ button.workcard:disabled { cursor: progress; opacity: 0.7; }
 }
 .discover__pick { display: grid; gap: var(--space-2); justify-items: start; }
 .discover__pick .workcard { inline-size: 150px; }
+.home__ask { margin: var(--space-4) 0 0; }
+.discover__moods { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .discover__reason { margin: 0; color: var(--ink-500); font-size: var(--text-sm, 14px); }
 .discover__heading { margin: 0 0 var(--space-4); font-size: var(--text-xl, 24px); }
 .discover__sources, .discover__feeds { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block-end: var(--space-4); }
