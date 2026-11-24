@@ -122,3 +122,50 @@ def test_remap_refuses_path_that_is_not_this_root(db, tmp_path):
     with pytest.raises(RootError):
         remap_root(db, root.id, tmp_path / "empty")
     assert get_root(db, root.id).path == str(tmp_path / "old")
+
+
+# -- the folder a container always has (asked for 2026-11-24) -------------------------------------------
+
+def test_a_fresh_library_gets_the_built_in_folder_as_its_default_without_asking(db, tmp_path):
+    from oneshelf.storage.roots import ensure_default_root
+    content = tmp_path / "content"
+    content.mkdir()
+    root = ensure_default_root(db, str(content))
+    assert root is not None and root.is_default and root.name == "Library" and root.path == str(content)
+    assert [r.id for r in list_roots(db)] == [root.id]
+    assert check_availability(root).available
+
+
+def test_the_built_in_folder_is_only_ever_added_once(db, tmp_path):
+    from oneshelf.storage.roots import ensure_default_root
+    content = tmp_path / "content"
+    content.mkdir()
+    first = ensure_default_root(db, str(content))
+    assert ensure_default_root(db, str(content)) is None            # restart: nothing new
+    assert [r.id for r in list_roots(db)] == [first.id]
+
+
+def test_a_library_that_already_chose_somewhere_else_is_left_alone(db, tmp_path):
+    from oneshelf.storage.roots import ensure_default_root
+    mine, content = tmp_path / "mine", tmp_path / "content"
+    mine.mkdir()
+    content.mkdir()
+    chosen = register_root(db, "Mine", mine)
+    assert ensure_default_root(db, str(content)) is None
+    assert [r.id for r in list_roots(db)] == [chosen.id]
+
+
+@pytest.mark.parametrize("setting", [None, "", "missing"])
+def test_nothing_is_added_when_there_is_no_such_folder(db, tmp_path, setting):
+    from oneshelf.storage.roots import ensure_default_root
+    path = None if setting is None else str(tmp_path / setting) if setting else ""
+    assert ensure_default_root(db, path) is None and list_roots(db) == []
+
+
+def test_content_that_belongs_to_another_library_is_not_claimed(db, tmp_path):
+    """A new database over an old content folder: the folder says whose it is, and the person decides (restore)."""
+    from oneshelf.storage.roots import ensure_default_root
+    content = tmp_path / "content"
+    (content / ".oneshelf").mkdir(parents=True)
+    (content / ".oneshelf" / "root.json").write_text('{"root_id": "someone-else"}', encoding="utf-8")
+    assert ensure_default_root(db, str(content)) is None and list_roots(db) == []

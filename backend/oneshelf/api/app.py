@@ -39,7 +39,7 @@ from oneshelf.backup.service import BackupService
 from oneshelf.export.service import ExportService
 from oneshelf.restore.service import RestoreService
 from oneshelf.storage.migration import StorageMigration
-from oneshelf.storage.roots import check_availability, list_roots
+from oneshelf.storage.roots import check_availability, ensure_default_root, list_roots
 from oneshelf.follow.runner import FollowRunner
 from oneshelf.generator.service import GeneratorService
 from oneshelf.follow.service import FollowService
@@ -133,6 +133,8 @@ class AppConfig:
     # The official adapters shipped with this build, installed once on a fresh library. Unset in
     # development and tests, which start with an empty library unless a directory is given.
     bundled_plugins_dir: str | None = None
+    # The folder a fresh library keeps its books in until the owner chooses another: `/content` in the container.
+    default_storage_path: str | None = None
 
     @property
     def db_path(self) -> Path:
@@ -145,6 +147,7 @@ class AppConfig:
         return cls(
             web_root=web_root,
             bundled_plugins_dir=env.get("ONESHELF_BUNDLED_PLUGINS_DIR", "") or None,
+            default_storage_path=env.get("ONESHELF_DEFAULT_STORAGE_PATH", "") or None,
             data_dir=data_dir,
             access=AccessConfig.from_strings(
                 trusted_networks=env.get("ONESHELF_TRUSTED_NETWORKS", ""),
@@ -250,6 +253,7 @@ def create_app(config: AppConfig) -> FastAPI:
         migrate(config.db_path, MIGRATIONS, snapshot_dir=Path(config.data_dir) / "snapshots")
         conn = open_database(config.db_path)
         app.state.startup_report = run_startup_recovery(conn)
+        ensure_default_root(conn, config.default_storage_path)
         plugins = PluginManager(conn, store_dir=Path(config.data_dir) / "plugins",
                                 trusted_keys=parse_trusted_keys(config.registry_trusted_keys),
                                 first_party_registry=config.first_party_registry_url)

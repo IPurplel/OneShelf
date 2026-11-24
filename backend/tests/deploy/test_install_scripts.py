@@ -570,3 +570,55 @@ def test_install_refuses_unmarked_nonempty_custom_storage_before_runtime_mounts(
     assert result.returncode != 0
     assert " run " not in log.read_text()
     assert (custom / "keep.epub").read_text() == "personal"
+
+
+# -- disk space after an update (asked for 2026-11-24) ------------------------------------------------------
+
+def cleanup(checkout, bin_dir, runtime, *, previous="sha256:old", env_file=""):
+    """Run the real cleanup function against a stub runtime; returns every command the stub was given."""
+    log = checkout.parent / "runtime.log"
+    log.write_text("", encoding="utf-8")
+    stub(bin_dir, runtime, f'''
+echo "$*" >> "{log}"
+case "$1 $2" in
+  "image inspect") echo "sha256:new"; exit 0 ;;
+esac
+exit 0''')
+    (checkout / ".env").write_text(env_file, encoding="utf-8")
+    script = f'. "{checkout}/deploy/lib.sh"; ROOT="{checkout}"; RUNTIME={runtime}; cleanup_old_images "{previous}"'
+    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, cwd=str(checkout), timeout=60,
+                            env={"PATH": f"{bin_dir}:/usr/bin:/bin", "HOME": str(checkout.parent), "NO_COLOR": "1"})
+    assert result.returncode == 0, result.stdout + result.stderr
+    return log.read_text(encoding="utf-8").splitlines(), result.stdout
+
+
+def test_an_update_removes_the_image_it_replaced_and_only_oneshelfs_own_leftovers(checkout, bin_dir):
+    commands, out = cleanup(checkout, bin_dir, "podman")
+    assert "image rm sha256:old" in commands
+    assert "image prune -f --filter label=org.oneshelf.project=oneshelf" in commands
+    assert not any("volume" in c or "system prune" in c or "builder" in c for c in commands)
+    assert "library was not touched" in out
+
+
+def test_docker_also_drops_build_cache_older_than_two_days(checkout, bin_dir):
+    commands, _ = cleanup(checkout, bin_dir, "docker")
+    assert "builder prune -f --filter until=48h" in commands
+    assert not any("volume" in c for c in commands)
+
+
+def test_an_image_that_did_not_change_is_not_removed(checkout, bin_dir):
+    commands, _ = cleanup(checkout, bin_dir, "podman", previous="sha256:new")
+    assert not any(c.startswith("image rm") for c in commands)
+
+
+def test_the_owner_can_keep_old_images(checkout, bin_dir):
+    commands, out = cleanup(checkout, bin_dir, "docker", env_file="ONESHELF_KEEP_OLD_IMAGES=yes\n")
+    assert not any(c.startswith(("image rm", "image prune", "builder")) for c in commands)
+    assert "keeping old images" in out
+
+
+def test_the_dockerfile_labels_every_stage_so_the_cleanup_can_find_them():
+    text = (REPO / "deploy" / "Dockerfile").read_text(encoding="utf-8")
+    stages = [line for line in text.splitlines() if line.startswith("FROM ")]
+    labels = [line for line in text.splitlines() if line.startswith('LABEL org.oneshelf.project="oneshelf"')]
+    assert len(stages) == 2 and len(labels) == 2

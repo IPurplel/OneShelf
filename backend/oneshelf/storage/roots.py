@@ -121,6 +121,25 @@ def register_root(conn: sqlite3.Connection, name: str, path: str | Path) -> Stor
     return get_root(conn, root_id)
 
 
+def ensure_default_root(conn: sqlite3.Connection, path: str | None, name: str = "Library") -> StorageRoot | None:
+    """A library that has no storage location yet starts with the folder this installation was given.
+
+    In a container that folder is `/content`, mounted from the host, so downloads work from the first minute
+    and nobody has to pick a place inside a container they cannot see. It is added once, only to a library with
+    no location at all (one that already chose somewhere keeps its choice), and never over content that
+    belongs to another library: that is for restore or remap to decide. Returns the new root, or None.
+    """
+    if not path or list_roots(conn):
+        return None
+    directory = Path(path)
+    if not directory.is_dir() or not os.access(directory, os.W_OK):
+        return None
+    try:
+        return register_root(conn, name, directory)
+    except RootError:
+        return None
+
+
 def set_default_root(conn: sqlite3.Connection, root_id: str) -> None:
     get_root(conn, root_id)
     with transaction(conn):

@@ -24,6 +24,9 @@ services:
       ONESHELF_DATA_DIR: /data
       ONESHELF_LEGACY_DATA_DIR: /legacy-data
       ONESHELF_SESSION_KEY_FILE: /keys/session.key
+      # A fresh library keeps its books in /content (the mount below) until its owner chooses otherwise, so
+      # downloads work from the first minute and nobody picks a place inside a container.
+      ONESHELF_DEFAULT_STORAGE_PATH: /content
       ONESHELF_WEB_ROOT: /app/web
       # The OneShelf Source Registry, published from IPurplel/OneShelf-Adapters. Contacted only when the
       # Sources screen asks; `ONESHELF_REGISTRY_URL=`

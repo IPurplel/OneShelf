@@ -64,8 +64,8 @@ Docker Desktop has not been tested.
 
 ### Your first few minutes
 
-1. On first open, Home shows **One step left**. Choose **Finish setup** and pick where your library should
-   live. Downloads need that folder before they can start.
+1. There is nothing to set up first: your library folder already exists, and downloads go straight into it. If
+   you want to reach OneShelf from other devices, that is covered below.
 2. Open **Search** and look for something you want to read.
 3. Click the download arrow on a result, or open the book and choose **Download** (or **Download all**).
 4. Choose **Read**. OneShelf remembers your place, and the book appears under *Continue reading* on Home.
@@ -90,12 +90,14 @@ Docker Desktop has not been tested.
 
 ### Updating and removing
 
+Downloads go to the library folder the container already has (`deploy/volumes/content`); you don't pick one.
+
 ```sh
 ./update.sh       # update to the latest version, keeping your library
 ./uninstall.sh    # stop OneShelf, keeping your library
 ```
 
-Back up before updating. If you do want everything gone, `./uninstall.sh --delete-data` lists exactly what it
+Each update removes the program image it replaced, so updates don't pile up on your disk. Back up before updating. If you do want everything gone, `./uninstall.sh --delete-data` lists exactly what it
 will delete and asks you to confirm. The details, including troubleshooting, are in
 [docs/operations.md](docs/operations.md).
 

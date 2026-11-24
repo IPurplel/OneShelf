@@ -156,7 +156,15 @@ opens (cached 5 minutes, failures 60 seconds) — never polled in the background
 Community entries are trusted as such because it is the configured first-party Registry (`plugins.md` §7);
 a mirror keeps that trust only if `ONESHELF_FIRST_PARTY_REGISTRY_URL` names the mirror too.
 
-## 10. Choosing your own storage folders
+## 10. Where downloads go, and choosing your own storage folders
+
+A fresh library starts with its folder already chosen: the container's `/content`, which is
+`deploy/volumes/content` on your disk. Downloads work from the first minute and there is nothing to pick inside
+the container. It is added once, only to a library that has no storage location yet. A library that chose
+somewhere else keeps its choice, and content that belongs to another library is never claimed; restore or remap
+decides that. Choosing a folder yourself, in *Settings → Storage*, is for a bigger disk or a different mount, and
+the folder must be one the container can see: a path that is not a mount lives inside the container and is lost
+when the container is recreated.
 
 Everything persistent lives outside the container in five directories (`deploy/volumes/data`, `content`, `plugins`,
 `keys`, `backups`). To keep your library somewhere else (a bigger disk, a different mount), set the matching
@@ -182,6 +190,13 @@ database migrations run the same way as on any normal start.
 - Automatic Git updates need `main` and `origin/main`, a clean tracked tree, no unfinished Git operation, and no local
   commits ahead of or diverged from the remote. A checkout without an upstream, or an archive without Git metadata,
   rebuilds locally with an explicit notice. Untracked files are preserved; Git refuses an update that would overwrite them.
+- **Disk space.** Every update builds a new image of a few GB. After the new version has started healthy,
+  `./update.sh` removes the image it replaced and OneShelf's own unused build leftovers (every stage of the
+  Dockerfile carries the label `org.oneshelf.project=oneshelf`, which is how it finds them), and on Docker also
+  build cache older than two days. It never removes an image a container still uses, and never a volume, so
+  your library, settings and backups are untouched. `ONESHELF_KEEP_OLD_IMAGES=yes` in `.env` keeps the old
+  images instead. This does not clear images that earlier versions of the script left behind; see
+  [§16](#16-where-the-disk-went-and-starting-again).
 - Back up before updating. Migrations run on startup and are forward-only: a failed health check does not mean the
   database is unchanged. Do not check out an older commit against a newer database; see [§7](#7-upgrades) and restore
   a compatible backup or pre-migration snapshot if you must go back.
@@ -244,3 +259,34 @@ copies are authoritative, keep both and stop before moving anything.
 - **It feels slow with one source.** `GET /api/diagnostics/traffic` shows, per source and host, what was sent, what came
   back, how long requests queued, and whether OneShelf has slowed itself down because a host answered 429 or 503.
 
+## 16. Where the disk went, and starting again
+
+Two different things fill a disk, and they are kept apart on purpose.
+
+**Your library** is in `deploy/volumes/` on the host (or the folders you chose in `.env`): `content` is your
+downloaded books, `data` the database and caches, `backups` the archives. Deleting a container never touches it.
+
+```sh
+du -sh deploy/volumes/*        # what your library takes
+```
+
+**The program** is images and build cache. Updates from before cleanup existed left one image behind each time, and
+a few GB each adds up to tens of GB. See what is there, and remove what nothing uses:
+
+```sh
+podman system df               # or: docker system df
+podman image prune -f --filter label=org.oneshelf.project=oneshelf    # unused OneShelf leftovers only
+docker builder prune -f        # Docker only: all unused build cache
+```
+
+`podman system prune` and `docker system prune` remove every unused image on the machine, not just OneShelf's;
+read what they list first.
+
+**Starting again from nothing.** To throw the container and the library away and begin empty:
+
+```sh
+./uninstall.sh --delete-data   # lists exactly what it will delete, and asks you to type the confirmation
+./install.sh                   # a brand-new, empty OneShelf; its content folder is chosen for you
+```
+
+To start the program again but keep your books, run `./uninstall.sh` (no flag) and then `./install.sh`.

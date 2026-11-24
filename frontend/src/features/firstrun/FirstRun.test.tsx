@@ -47,6 +47,30 @@ describe("First run", () => {
       .toEqual(["local", "lan", "remote"]);
   });
 
+  it("does not ask where to keep books when the library already has its folder", async () => {
+    // A container starts with /content chosen (asked for 2026-11-24): nothing to pick inside a container.
+    const calls = mockApi([
+      get("/api/first-run", { ...PENDING, storage: [{ id: "r1", name: "Library", path: "/content", default: true }] }),
+      post("/api/first-run/access-mode", { ...PENDING, access_mode: "local" }),
+    ]);
+    const user = userEvent.setup();
+    renderWithProviders(<FirstRunScreen initialStep="storage" />);
+    expect(await screen.findByText(/your books are kept in/i)).toHaveTextContent("/content");
+    expect(screen.queryByRole("textbox", { name: /where should oneshelf keep/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    expect(await screen.findByRole("radiogroup", { name: /who can reach/i })).toBeInTheDocument();
+    expect(calls.some((c) => c.url === "/api/first-run/storage")).toBe(false);   // nothing was added a second time
+  });
+
+  it("still lets someone add another folder from there", async () => {
+    mockApi([get("/api/first-run", { ...PENDING, storage: [{ id: "r1", name: "Library", path: "/content", default: true }] })]);
+    const user = userEvent.setup();
+    renderWithProviders(<FirstRunScreen initialStep="storage" />);
+    await user.click(await screen.findByRole("button", { name: /use a different folder/i }));
+    expect(await screen.findByRole("textbox", { name: /where should oneshelf keep/i })).toBeInTheDocument();
+  });
+
   it("asks for a hostname only when remote is chosen", async () => {
     mockApi([get("/api/first-run", { ...PENDING, access_mode: "lan", storage: [{ id: "r1", name: "Library",
                                                                                  path: "/library", default: true }] })]);
